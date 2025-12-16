@@ -26,32 +26,16 @@ Untagged Message
 
 ## Implementation Steps
 
-### Step 1: Add "Merge Original Data" Node
-
-**Node Type:** Code (JavaScript)
-
-**Position:** Right after "Router Agent Placeholder" node (or where untagged messages route)
-
-**Purpose:** Pass through the original message data so it's available to subsequent nodes
-
-**Code:**
-```javascript
-// Just pass through - this ensures we have access to original message data
-// This node acts as an entry point for the Router Agent flow
-return $input.all();
-```
-
----
-
-### Step 2: Add "Fetch User Context" Node
+### Step 1: Add "Fetch User Context" Node
 
 **Node Type:** Postgres (Execute Query)
 
-**Position:** After the merge node
+**Position:** After "Router Agent Placeholder" node (or where untagged messages route)
 
 **Query:**
 ```sql
 -- Fetch all context in one query using CTEs
+-- Uses expressions to pull author_login from the incoming message
 WITH recent_acts AS (
   SELECT category_name, description, timestamp
   FROM recent_activities
@@ -75,6 +59,15 @@ user_info AS (
   WHERE user_login = '{{ $json.author.login }}'
 )
 SELECT 
+  -- Include original message fields
+  '{{ $json.author.login }}' as author_login,
+  '{{ $json.clean_text }}' as clean_text,
+  '{{ $json.timestamp }}' as timestamp,
+  '{{ $json.message_id }}' as message_id,
+  '{{ $json.channel_id }}' as channel_id,
+  '{{ $json.guild_id }}' as guild_id,
+  '{{ $json.raw_event_id }}' as raw_event_id,
+  -- Context data
   (SELECT json_agg(row_to_json(recent_acts)) FROM recent_acts) as recent_activities,
   (SELECT categories FROM activity_cats) as activity_categories,
   (SELECT categories FROM note_cats) as note_categories,
@@ -83,64 +76,57 @@ SELECT
 ;
 ```
 
-**Output:** Stores context data for use in agent prompt
+**Output:** Single row with both original message data and context data
 
 ---
 
-### Step 3: Add "Merge Context with Message" Node
-
-**Node Type:** Code (JavaScript)
-
-**Purpose:** Merge the Postgres context results with the original message data from the first item
-
-**Code:**
-```javascript
-// Item 0 has the original message data from the workflow
-// Item 1 has the context data from Postgres
-const originalMessage = $input.first().json;
-const contextData = $input.last().json;
-
-// Merge them together
-return {
-  ...originalMessage,
-  ...contextData
-};
-```
-
----
-
-### Step 4: Build Agent Prompt
+### Step 2: Build Agent Prompt
 
 **Node Type:** Code (JavaScript)
 
 **Code:**
 ```javascript
-// Load the router agent system prompt template
-const promptTemplate = `You are a routing agent for a life tracking and coaching system.
+// Build the router agent system prompt with context
+const user = $json.author_login || 'unknown';
+const timestamp = $json.timestamp || new Date().toISOString();
+const sleeping = $json.user_sleeping ? "Sleeping" : "Awake";
+const cleanText = $json.clean_text || '';
+
+// Format recent activities
+let recentActivitiesText = 'None';
+if ($json.recent_activities && $json.recent_activities.length > 0) {
+  recentActivitiesText = $json.recent_activities.map(a => 
+    `- [${a.timestamp}] ${a.category_name}: ${a.description}`
+  ).join('\n');
+}
+
+// Format categories
+const activityCats = $json.activity_categories?.join(', ') || 'work, personal, health, sleep, leisure';
+const noteCats = $json.note_categories?.join(', ') || 'idea, decision, reflection, goal';
+
+const prompt = `You are a routing agent for a life tracking and coaching system.
 
 ## User Context
 
-- **User:** {{ $json.author.login }}
-- **Time:** {{ $json.timestamp }}
-- **Current State:** {{ $json.user_sleeping ? "Sleeping" : "Awake" }}
+- **User:** ${user}
+- **Time:** ${timestamp}
+- **Current State:** ${sleeping}
 
 ## Recent Activities (Last 3)
 
-{{ $json.recent_activities ? $json.recent_activities.map(a => 
-  \`- [\${a.observed_at}] \${a.category_name}: \${a.description}\`
-).join('\\n') : 'None' }}
+${recentActivitiesText}
 
 ## Available Categories
 
 **Activity Categories:**
-{{ $json.activity_categories ? $json.activity_categories.join(', ') : 'work, personal, health, sleep, leisure' }}
+${activityCats}
 
 **Note Categories:**
-{{ $json.note_categories ? $json.note_categories.join(', ') : 'idea, decision, reflection, goal' }}
+${noteCats}
 
 ## Current Message
 
-"{{ $json.clean_text }}"
+"${cleanText}"
 
 ---
 
@@ -223,13 +209,6 @@ Analyze the message and call the appropriate tool with extracted parameters.
 
 Call exactly ONE tool with appropriate parameters. Do not explain your reasoning.`;
 
-// Replace template variables
-const prompt = promptTemplate
-  .replace(/{{ \$json\.(\w+) }}/g, (match, key) => $json[key] || '')
-  .replace(/{{ \$json\.author\.login }}/g, $json.author.login)
-  .replace(/{{ \$json\.user_sleeping \? "Sleeping" : "Awake" }}/g, 
-    $json.user_sleeping ? "Sleeping" : "Awake");
-
 return {
   ...$json,
   agent_prompt: prompt
@@ -238,7 +217,7 @@ return {
 
 ---
 
-### Step 5: Add AI Agent Node
+### Step 3: Add AI Agent Node
 
 **Node Type:** AI Agent (or OpenAI/Anthropic with function calling)
 
@@ -334,7 +313,7 @@ return {
 
 ---
 
-### Step 6: Route Based on Tool Called
+### Step 4: Route Based on Tool Called
 
 **Node Type:** Switch
 
@@ -347,7 +326,7 @@ return {
 
 ---
 
-### Step 7: Implement Tool Handlers
+### Step 5: Implement Tool Handlers
 
 #### Output 0: Handle log_activity
 
