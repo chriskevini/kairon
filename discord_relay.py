@@ -11,6 +11,10 @@ import aiohttp
 import asyncio
 from datetime import datetime
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configuration
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
