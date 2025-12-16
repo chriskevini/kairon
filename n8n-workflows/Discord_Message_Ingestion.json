@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Parse tag from message content\nconst content = $input.item.json.content || '';\nconst firstToken = content.trim().split(/\\s+/)[0];\n\nlet tag = null;\nlet clean_text = content;\n\nif (firstToken === '!!' || firstToken === '++') {\n  tag = firstToken;\n  clean_text = content.slice(2).trim();\n} else if (firstToken.startsWith('::')) {\n  tag = firstToken;\n  clean_text = content.slice(firstToken.length).trim();\n}\n\nconst message_url = `https://discord.com/channels/${$input.item.json.guild_id}/${$input.item.json.channel_id}/${$input.item.json.message_id}`;\n\nreturn {\n  ...item.json,\n  tag,\n  clean_text,\n  message_url\n};"
+        "functionCode": "// Parse tag from message content\nconst content = $input.item.json.content || '';\nconst firstToken = content.trim().split(/\\s+/)[0];\n\nlet tag = null;\nlet clean_text = content;\nlet command = null;\n\n// Check for !! or ++ tags (2 characters)\nif (firstToken === '!!' || firstToken === '++') {\n  tag = firstToken;\n  clean_text = content.slice(2).trim();\n} \n// Check for :: command tags (extract full command name)\nelse if (firstToken.startsWith('::')) {\n  tag = '::';\n  command = firstToken.slice(2); // e.g., \"commit\", \"help\", \"stats\"\n  clean_text = content.slice(firstToken.length).trim();\n}\n\n// Build Discord message URL\nconst message_url = `https://discord.com/channels/${$input.item.json.guild_id}/${$input.item.json.channel_id}/${$input.item.json.message_id}`;\n\n// Return enriched data\nreturn {\n  ...$input.item.json,\n  tag,\n  command,\n  clean_text,\n  message_url\n};"
       },
       "id": "parse-tag",
       "name": "Parse Tag & Clean Text",
@@ -28,7 +28,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO raw_events (\n  source_type,\n  discord_guild_id,\n  discord_channel_id,\n  discord_message_id,\n  message_url,\n  author_login,\n  thread_id,\n  raw_text,\n  clean_text,\n  tag\n) VALUES (\n  'discord',\n  $1, $2, $3, $4, $5, $6, $7, $8, $9\n)\nON CONFLICT (discord_message_id) DO NOTHING\nRETURNING *;",
+        "query": "=INSERT INTO raw_events (\n  source_type,\n  discord_guild_id,\n  discord_channel_id,\n  discord_message_id,\n  message_url,\n  author_login,\n  thread_id,\n  raw_text,\n  clean_text,\n  tag\n) VALUES (\n  'discord',\n  '{{ $json.guild_id }}',\n  '{{ $json.channel_id }}',\n  '{{ $json.message_id }}',\n  '{{ $json.message_url }}',\n  '{{ $json.author.login }}',\n  {{ $json.thread_id ? \"'\" + $json.thread_id + \"'\" : \"NULL\" }},\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.clean_text.replace(/'/g, \"''\") }}',\n  {{ $json.tag ? \"'\" + $json.tag + \"'\" : \"NULL\" }}\n)\nON CONFLICT (discord_message_id) DO NOTHING\nRETURNING *;",
         "options": {}
       },
       "id": "store-raw-event",
@@ -252,6 +252,16 @@
     },
     {
       "parameters": {
+        "content": "## Router Agent Configuration\n\nReplace this section with:\n\n1. **Fetch Context Node (Postgres)**:\n   - Query recent activities (last 3)\n   - Query activity categories\n   - Query note categories\n   - Query user state\n\n2. **AI Agent Node**:\n   - Model: Claude 3.5 Sonnet or GPT-4\n   - System prompt: See prompts/router-agent.md\n   - Tools:\n     * log_activity(category_name, description)\n     * store_note(category_name, title, text)\n     * start_thinking_session(topic)\n     * get_recent_context(type, timeframe)\n\n3. **Switch Node** on agent tool call:\n   - log_activity → Write to activity_log\n   - store_note → Write to notes\n   - start_thinking_session → Create thread\n   - get_recent_context → Fetch & re-run agent\n\n4. **Set appropriate emoji**:\n   - log_activity → 🕒\n   - store_note → 📝\n   - start_thinking_session → 💭"
+      },
+      "id": "note-router-agent",
+      "name": "Router Agent TODO",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1340, 620]
+    },
+    {
+      "parameters": {
         "assignments": {
           "assignments": [
             {
@@ -271,11 +281,11 @@
         "options": {}
       },
       "id": "handle-agentic",
-      "name": "Router Agent (Agentic)",
+      "name": "Router Agent Placeholder",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
-      "position": [1340, 700],
-      "notes": "TODO: Execute Router_Agent sub-workflow\nTODO: Route based on tool called"
+      "position": [1340, 780],
+      "notes": "TEMPORARY: This node should be replaced with actual AI Agent logic.\nSee sticky note above for implementation details."
     },
     {
       "parameters": {
@@ -467,7 +477,7 @@
         ],
         [
           {
-            "node": "Router Agent (Agentic)",
+            "node": "Router Agent Placeholder",
             "type": "main",
             "index": 0
           }
@@ -507,7 +517,7 @@
         ]
       ]
     },
-    "Router Agent (Agentic)": {
+    "Router Agent Placeholder": {
       "main": [
         [
           {
