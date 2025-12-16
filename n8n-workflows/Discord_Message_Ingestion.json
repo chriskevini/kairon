@@ -1,0 +1,35 @@
+{
+  "name": "Discord_Message_Ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Discord Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "content": "Workflow structure placeholder - to be implemented in Phase 1"
+      },
+      "id": "placeholder-note",
+      "name": "Workflow Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [250, 200]
+    }
+  ],
+  "connections": {},
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T00:00:00.000Z",
+  "versionId": "1"
+}
