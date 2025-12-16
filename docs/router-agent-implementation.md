@@ -26,11 +26,28 @@ Untagged Message
 
 ## Implementation Steps
 
-### Step 1: Add "Fetch User Context" Node
+### Step 1: Add "Merge Original Data" Node
+
+**Node Type:** Code (JavaScript)
+
+**Position:** Right after "Router Agent Placeholder" node (or where untagged messages route)
+
+**Purpose:** Pass through the original message data so it's available to subsequent nodes
+
+**Code:**
+```javascript
+// Just pass through - this ensures we have access to original message data
+// This node acts as an entry point for the Router Agent flow
+return $input.all();
+```
+
+---
+
+### Step 2: Add "Fetch User Context" Node
 
 **Node Type:** Postgres (Execute Query)
 
-**Position:** Before Router Agent Placeholder node
+**Position:** After the merge node
 
 **Query:**
 ```sql
@@ -70,7 +87,29 @@ SELECT
 
 ---
 
-### Step 2: Build Agent Prompt
+### Step 3: Add "Merge Context with Message" Node
+
+**Node Type:** Code (JavaScript)
+
+**Purpose:** Merge the Postgres context results with the original message data from the first item
+
+**Code:**
+```javascript
+// Item 0 has the original message data from the workflow
+// Item 1 has the context data from Postgres
+const originalMessage = $input.first().json;
+const contextData = $input.last().json;
+
+// Merge them together
+return {
+  ...originalMessage,
+  ...contextData
+};
+```
+
+---
+
+### Step 4: Build Agent Prompt
 
 **Node Type:** Code (JavaScript)
 
@@ -199,7 +238,7 @@ return {
 
 ---
 
-### Step 3: Add AI Agent Node
+### Step 5: Add AI Agent Node
 
 **Node Type:** AI Agent (or OpenAI/Anthropic with function calling)
 
@@ -295,7 +334,7 @@ return {
 
 ---
 
-### Step 4: Route Based on Tool Called
+### Step 6: Route Based on Tool Called
 
 **Node Type:** Switch
 
@@ -308,7 +347,7 @@ return {
 
 ---
 
-### Step 5: Implement Tool Handlers
+### Step 7: Implement Tool Handlers
 
 #### Output 0: Handle log_activity
 
