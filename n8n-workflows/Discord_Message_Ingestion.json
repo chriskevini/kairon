@@ -102,11 +102,19 @@
             {
               "id": "tag-command",
               "leftValue": "={{ $json.tag }}",
-              "rightValue": "",
+              "rightValue": "::",
               "operator": {
                 "type": "string",
-                "operation": "startsWith",
-                "rightValue": "::"
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "tag-note",
+              "leftValue": "={{ $json.tag }}",
+              "rightValue": "..",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
               }
             }
           ],
@@ -249,6 +257,33 @@
       "typeVersion": 3.3,
       "position": [1340, 580],
       "notes": "TODO: Parse command name\nTODO: Execute command handler"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "emoji",
+              "name": "emoji",
+              "value": "📝",
+              "type": "string"
+            },
+            {
+              "id": "intent",
+              "name": "intent",
+              "value": "Note",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "handle-note",
+      "name": "Handle .. Note",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1340, 700],
+      "notes": "TODO: Extract category + title via LLM\nTODO: Write to notes table"
     },
     {
       "parameters": {
@@ -477,6 +512,13 @@
         ],
         [
           {
+            "node": "Handle .. Note",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Router Agent Placeholder",
             "type": "main",
             "index": 0
@@ -507,6 +549,17 @@
       ]
     },
     "Handle :: Command": {
+      "main": [
+        [
+          {
+            "node": "Send Emoji Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle .. Note": {
       "main": [
         [
           {

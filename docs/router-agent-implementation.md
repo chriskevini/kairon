@@ -2,27 +2,44 @@
 
 ## Overview
 
-The Router Agent is responsible for classifying untagged messages and extracting structured data using an AI agent with tools. This guide explains how to implement it in n8n.
+The Router Agent classifies untagged messages by having an LLM output the appropriate tag (`!!`, `++`, `::`, `..`), then routing back to the existing "Check Tag" node. This is simpler than tool calling and reuses existing routing logic.
 
 ## Current Status
 
-❌ **Not Implemented** - The workflow currently has a placeholder node called "Router Agent Placeholder" that needs to be replaced with actual AI Agent logic.
+❌ **Not Implemented** - The workflow currently has a placeholder node called "Router Agent Placeholder" that needs to be replaced with LLM classification logic.
 
 ## Architecture
 
 ```
 Untagged Message
     ↓
-1. Fetch User Context (Postgres queries)
+1. Fetch User Context (Postgres)
     ↓
-2. Build Agent Prompt (Code node)
+2. Build Classification Prompt (Code)
     ↓
-3. AI Agent with Tools
+3. LLM Classification (returns "!! working" or ".. interesting idea")
     ↓
-4. Route Based on Tool Called (Switch node)
+4. Parse LLM Output + Confidence Check (Code)
     ↓
-5. Execute appropriate handler
+5. Route back to "Check Tag" node (EXISTING)
+    ↓
+6. Handlers (!! Activity, ++ Thread, :: Command, .. Note)
 ```
+
+**Key Insight:** We reuse the existing tag routing infrastructure. The LLM just decides which tag to apply!
+
+---
+
+## Why This Approach?
+
+✅ **Simpler:** No tool schemas, just text output  
+✅ **Debuggable:** See exactly what LLM decided in logs  
+✅ **Reuses existing code:** All handler nodes already exist  
+✅ **Works with any LLM:** OpenAI, Anthropic, local models  
+✅ **Faster & Cheaper:** No function calling overhead  
+✅ **Confidence tracking:** LLM outputs confidence for auditing  
+
+---
 
 ## Implementation Steps
 
@@ -62,11 +79,12 @@ SELECT
   -- Include original message fields
   '{{ $json.author.login }}' as author_login,
   '{{ $json.clean_text }}' as clean_text,
+  '{{ $json.content }}' as content,
   '{{ $json.timestamp }}' as timestamp,
   '{{ $json.message_id }}' as message_id,
   '{{ $json.channel_id }}' as channel_id,
   '{{ $json.guild_id }}' as guild_id,
-  '{{ $json.raw_event_id }}' as raw_event_id,
+  '{{ $json.message_url }}' as message_url,
   -- Context data
   (SELECT json_agg(row_to_json(recent_acts)) FROM recent_acts) as recent_activities,
   (SELECT categories FROM activity_cats) as activity_categories,
@@ -80,13 +98,13 @@ SELECT
 
 ---
 
-### Step 2: Build Agent Prompt
+### Step 2: Build Classification Prompt
 
 **Node Type:** Code (JavaScript)
 
 **Code:**
 ```javascript
-// Build the router agent system prompt with context
+// Build the router agent classification prompt with context
 const user = $json.author_login || 'unknown';
 const timestamp = $json.timestamp || new Date().toISOString();
 const sleeping = $json.user_sleeping ? "Sleeping" : "Awake";
@@ -104,7 +122,7 @@ if ($json.recent_activities && $json.recent_activities.length > 0) {
 const activityCats = $json.activity_categories?.join(', ') || 'work, personal, health, sleep, leisure';
 const noteCats = $json.note_categories?.join(', ') || 'idea, decision, reflection, goal';
 
-const prompt = `You are a routing agent for a life tracking and coaching system.
+const systemPrompt = `You are a classification agent for a life tracking system.
 
 ## User Context
 
@@ -118,336 +136,312 @@ ${recentActivitiesText}
 
 ## Available Categories
 
-**Activity Categories:**
-${activityCats}
-
-**Note Categories:**
-${noteCats}
-
-## Current Message
-
-"${cleanText}"
+**Activity Categories:** ${activityCats}
+**Note Categories:** ${noteCats}
 
 ---
 
 ## Your Task
 
-Analyze the message and call the appropriate tool with extracted parameters.
+Classify the user's message and output the appropriate tag + message in this EXACT format:
 
-## Available Tools
+\`\`\`
+TAG MESSAGE
+CONFIDENCE: high|medium|low
+\`\`\`
 
-### 1. log_activity(category_name, description)
+## Available Tags
 
-**Use when:**
-- User is stating what they're currently doing or have done
+### !! (Activity)
+**Use when:** User is stating what they're currently doing or have done
 - Present or past tense action statements
 - Clear activity observations
+- Examples: "working on the router", "took a break", "going to bed"
 
-**Examples:**
-- "debugging authentication bug" → log_activity("work", "debugging authentication bug")
-- "took a coffee break" → log_activity("leisure", "coffee break")
-- "going to bed" → log_activity("sleep", "going to bed")
+**Output format:** \`!! ACTIVITY_DESCRIPTION\`
+**Example:** \`!! working on router agent implementation\`
 
-### 2. store_note(category_name, title, text)
-
-**Use when:**
-- Declarative thoughts, insights, or observations (NOT questions)
+### .. (Note)
+**Use when:** Declarative thoughts, insights, observations, or decisions (NOT questions)
 - Ideas or reflections to remember
 - Decisions made
+- Meta observations
+- Examples: "interesting pattern", "I should prioritize X", "decided to do Y"
 
-**Examples:**
-- "I should prioritize morning deep work" → store_note("idea", "Morning Deep Work", "I should prioritize morning deep work")
-- "decided to switch to async communication" → store_note("decision", "Async Communication", "decided to switch to async communication")
+**Output format:** \`.  . NOTE_TEXT\`
+**Example:** \`.. async communication reduces context switching\`
 
-**Important:** Do NOT use store_note for questions.
+### ++ (Thread Start / Question)
+**Use when:** User asks a question or requests exploration
+- Questions (who, what, when, where, why, how)
+- Requests for help or brainstorming
+- "Let's think about..." statements
+- Examples: "what did I work on yesterday?", "help me plan my week"
 
-### 3. start_thinking_session(topic)
+**Output format:** \`++ QUESTION_OR_TOPIC\`
+**Example:** \`++ what did I work on yesterday?\`
 
-**Use when:**
-- User asks a question (interrogative)
-- User requests help or exploration
-- User wants to brainstorm
+### :: (Command)
+**Use when:** User is issuing a system command
+- Explicit commands like "stats", "help", "pause", etc.
+- Should be rare - most user input won't be commands
 
-**Examples:**
-- "what did I work on yesterday?" → start_thinking_session("what did I work on yesterday?")
-- "help me figure out my priorities" → start_thinking_session("help me figure out my priorities")
-- "why am I so tired lately?" → start_thinking_session("why am I so tired lately?")
-
-### 4. get_recent_context(type, timeframe)
-
-**Use when:**
-- Message is ambiguous or refers to unstated context
-- Pronouns like "it", "that", "this" without clear referent
-
-**Parameters:**
-- type: "activities" | "messages" | "notes"
-- timeframe: "1h" | "today" | "3d"
+**Output format:** \`::COMMAND_NAME ARGS\`
+**Example:** \`::stats weekly\`
 
 ---
 
-## Decision Guidelines
+## Confidence Levels
 
-1. **Activity statements** are typically:
-   - "I'm [doing X]"
-   - "[doing X]" (implied present tense)
-   - "Finished [X]"
+After your classification, add a confidence line:
 
-2. **Notes** are typically:
-   - "Interesting [observation]"
-   - "I should [idea]"
-   - "Decided to [decision]"
+- **high:** Very clear what the user means (90%+ confident)
+- **medium:** Reasonable interpretation but some ambiguity (60-90% confident)
+- **low:** Unclear or could be multiple things (<60% confident)
 
-3. **Thinking sessions** are typically:
-   - Questions (who, what, when, where, why, how)
-   - "Help me [X]"
-   - "Let's [explore/think about] [X]"
+**If confidence is low:** Bias toward \`++\` (thread start) - it's safer to start a conversation than to misclassify.
 
-4. **If truly ambiguous:**
-   - Bias toward start_thinking_session (safest, non-destructive)
+---
 
-## Output Format
+## Examples
 
-Call exactly ONE tool with appropriate parameters. Do not explain your reasoning.`;
+Input: "working on the router agent"
+Output:
+\`\`\`
+!! working on the router agent
+CONFIDENCE: high
+\`\`\`
+
+Input: "I think async communication is better"
+Output:
+\`\`\`
+.. I think async communication is better
+CONFIDENCE: high
+\`\`\`
+
+Input: "what did I do yesterday?"
+Output:
+\`\`\`
+++ what did I do yesterday?
+CONFIDENCE: high
+\`\`\`
+
+Input: "still working on it"
+Output:
+\`\`\`
+!! still working on it
+CONFIDENCE: low
+\`\`\`
+(Note: Ambiguous reference, but likely continuing previous activity)
+
+Input: "hmm not sure about this approach"
+Output:
+\`\`\`
+++ hmm not sure about this approach
+CONFIDENCE: medium
+\`\`\`
+(Note: Unclear - could be note or question, so safer to start conversation)
+
+---
+
+## Important Rules
+
+1. Output ONLY the tag + message and confidence line - no other text
+2. Don't explain your reasoning
+3. Don't add quotes or extra formatting
+4. Preserve the user's original wording after the tag
+5. When in doubt, use \`++\` (conversation is safer than misclassification)`;
 
 return {
   ...$json,
-  agent_prompt: prompt
+  classification_prompt: systemPrompt
 };
 ```
 
 ---
 
-### Step 3: Add AI Agent Node
+### Step 3: Add LLM Classification Node
 
-**Node Type:** AI Agent (or OpenAI/Anthropic with function calling)
+**Node Type:** OpenAI / Anthropic (Basic Chat Model - NOT AI Agent)
 
 **Configuration:**
 
-- **Model:** `claude-3-5-sonnet-20241022` (recommended) or `gpt-4-turbo`
-- **System Prompt:** `={{ $json.agent_prompt }}`
+- **Model:** `claude-3-5-sonnet-20241022` (recommended) or `gpt-4o`
+- **System Message:** `={{ $json.classification_prompt }}`
 - **User Message:** `={{ $json.clean_text }}`
 - **Temperature:** `0.1` (low for consistent classification)
 
-**Tools/Functions:**
-
-```json
-[
-  {
-    "name": "log_activity",
-    "description": "Log an activity the user is doing or has done",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "category_name": {
-          "type": "string",
-          "description": "The activity category (e.g., work, personal, health, sleep, leisure)"
-        },
-        "description": {
-          "type": "string",
-          "description": "Brief description of the activity"
-        }
-      },
-      "required": ["category_name", "description"]
-    }
-  },
-  {
-    "name": "store_note",
-    "description": "Store a declarative thought, insight, idea, or decision (NOT questions)",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "category_name": {
-          "type": "string",
-          "description": "The note category (e.g., idea, decision, reflection, goal)"
-        },
-        "title": {
-          "type": "string",
-          "description": "Optional title for the note"
-        },
-        "text": {
-          "type": "string",
-          "description": "The note content"
-        }
-      },
-      "required": ["category_name", "text"]
-    }
-  },
-  {
-    "name": "start_thinking_session",
-    "description": "Start a conversational thinking session for questions or exploration",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "topic": {
-          "type": "string",
-          "description": "The question or topic to explore"
-        }
-      },
-      "required": ["topic"]
-    }
-  },
-  {
-    "name": "get_recent_context",
-    "description": "Get recent context when message is ambiguous",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["activities", "messages", "notes"],
-          "description": "Type of context to retrieve"
-        },
-        "timeframe": {
-          "type": "string",
-          "enum": ["1h", "today", "3d"],
-          "description": "Timeframe for context"
-        }
-      },
-      "required": ["type", "timeframe"]
-    }
-  }
-]
-```
-
-**Output:** The agent will call one of these tools. n8n will output the tool name and parameters.
+**Output Field:** Store the LLM response in `llm_classification`
 
 ---
 
-### Step 4: Route Based on Tool Called
+### Step 4: Parse LLM Output & Check Confidence
 
-**Node Type:** Switch
+**Node Type:** Code (JavaScript)
 
-**Conditions:**
-
-1. **Output 0:** `tool_name` equals `log_activity`
-2. **Output 1:** `tool_name` equals `store_note`
-3. **Output 2:** `tool_name` equals `start_thinking_session`
-4. **Output 3:** `tool_name` equals `get_recent_context`
-
----
-
-### Step 5: Implement Tool Handlers
-
-#### Output 0: Handle log_activity
-
-**Node Type:** Code (to look up category_id, then insert)
+**Purpose:** Extract tag, clean text, and confidence from LLM output. Store low-confidence classifications for review.
 
 **Code:**
 ```javascript
-// Look up category_id from category_name
-const categoryName = $input.item.json.tool_arguments.category_name;
-const timestamp = $input.item.json.timestamp;
-const description = $input.item.json.tool_arguments.description;
-const authorLogin = $input.item.json.author.login;
-const rawEventId = $input.item.json.raw_event_id; // From Store Raw Event node
+// Parse LLM output
+const llmOutput = ($json.llm_classification || '').trim();
+
+// Extract confidence line
+const confidenceMatch = llmOutput.match(/CONFIDENCE:\s*(high|medium|low)/i);
+const confidence = confidenceMatch ? confidenceMatch[1].toLowerCase() : 'unknown';
+
+// Extract the tag line (first line)
+const firstLine = llmOutput.split('\n')[0].trim();
+const firstToken = firstLine.split(/\s+/)[0];
+
+// Validate tag
+let tag = null;
+let taggedMessage = llmOutput;
+
+if (['!!', '++', '::', '..'].includes(firstToken)) {
+  tag = firstToken;
+  // Remove tag from beginning of first line
+  taggedMessage = firstLine.slice(firstToken.length).trim();
+} else {
+  // Invalid format - default to ++ (conversation)
+  tag = '++';
+  taggedMessage = $json.clean_text;
+  console.log(`Warning: LLM returned invalid format. Defaulting to ++ thread start. LLM output: ${llmOutput}`);
+}
+
+// For :: commands, extract command name
+let command = null;
+if (tag === '::') {
+  const commandMatch = taggedMessage.match(/^(\w+)/);
+  command = commandMatch ? commandMatch[1] : null;
+}
 
 return {
-  ...$input.item.json,
-  insert_activity: {
-    category_name: categoryName,
-    description: description,
-    timestamp: timestamp,
-    author_login: authorLogin,
-    raw_event_id: rawEventId
-  }
+  ...$json,
+  tag: tag,
+  command: command,
+  content: taggedMessage,  // The message with tag removed
+  clean_text: taggedMessage,
+  confidence: confidence,
+  llm_raw_output: llmOutput,
+  classification_method: 'llm'
 };
 ```
 
-**Then add Postgres node:**
+**Note:** This node prepares the data in the same format as the "Parse Tag & Clean Text" node, so it can route to the existing "Check Tag" node!
 
-**Query:**
+---
+
+### Step 5: Store Low-Confidence Classifications (Optional)
+
+**Node Type:** IF node
+
+**Condition:** `{{ $json.confidence === 'low' }}`
+
+**If TRUE:**
+- Add Postgres INSERT to store in a `classification_audit` table (or log to Discord channel)
+- Continue to routing anyway
+
+**Query (if using audit table):**
 ```sql
-INSERT INTO activity_log (
+INSERT INTO routing_decisions (
   raw_event_id,
-  timestamp,
-  category_id,
-  description
+  intent,
+  forced_by,
+  confidence,
+  payload
 )
-SELECT 
-  '{{ $json.raw_event_id }}',
-  '{{ $json.timestamp }}',
-  ac.id,
-  '{{ $json.tool_arguments.description.replace(/'/g, "''") }}'
-FROM activity_categories ac
-WHERE ac.name = '{{ $json.tool_arguments.category_name }}'
-  AND ac.active = true
+SELECT
+  (SELECT id FROM raw_events WHERE discord_message_id = '{{ $json.message_id }}'),
+  CASE 
+    WHEN '{{ $json.tag }}' = '!!' THEN 'Activity'
+    WHEN '{{ $json.tag }}' = '..' THEN 'Note'
+    WHEN '{{ $json.tag }}' = '++' THEN 'ThreadStart'
+    WHEN '{{ $json.tag }}' = '::' THEN 'Command'
+  END,
+  'agent',
+  0.4,  -- Low confidence ~40%
+  jsonb_build_object(
+    'llm_output', '{{ $json.llm_raw_output }}',
+    'confidence', '{{ $json.confidence }}',
+    'original_message', '{{ $json.content }}'
+  )
 RETURNING *;
 ```
 
-**Then:** Set emoji to 🕒 and continue to "Send Emoji Reaction"
+**If FALSE:**
+- Skip audit, continue to routing
 
 ---
 
-#### Output 1: Handle store_note
+### Step 6: Route to Existing "Check Tag" Node
 
-**Node Type:** Postgres (Insert)
+**Node Type:** Connector (just connect to existing node)
 
-**Query:**
-```sql
-INSERT INTO notes (
-  raw_event_id,
-  timestamp,
-  category_id,
-  title,
-  text
-)
-SELECT 
-  '{{ $json.raw_event_id }}',
-  '{{ $json.timestamp }}',
-  nc.id,
-  {{ $json.tool_arguments.title ? "'" + $json.tool_arguments.title.replace(/'/g, "''") + "'" : "NULL" }},
-  '{{ $json.tool_arguments.text.replace(/'/g, "''") }}'
-FROM note_categories nc
-WHERE nc.name = '{{ $json.tool_arguments.category_name }}'
-  AND nc.active = true
-RETURNING *;
+**Action:** Connect the output of Step 4 (or Step 5) to the **existing "Check Tag" node** in your workflow.
+
+The "Check Tag" node will route based on the `tag` field:
+- `!!` → "Handle !! Activity" 
+- `++` → "Handle ++ Thread Start"
+- `::` → "Handle :: Command"
+- `..` → "Handle .. Note" (**NEW - need to add this**)
+- No tag → "Router Agent Placeholder" (you just came from here, so this won't happen)
+
+---
+
+### Step 7: Add "Handle .. Note" Node
+
+**Node Type:** Set (Edit assignments)
+
+**Position:** Add as a new output from "Check Tag" switch node
+
+**First, update the "Check Tag" switch node:**
+
+Add a new condition:
+- **Condition ID:** `tag-note`
+- **Left Value:** `={{ $json.tag }}`
+- **Operator:** `equals`
+- **Right Value:** `..`
+
+**Then create the handler node:**
+
+**Parameters:**
+```json
+{
+  "assignments": {
+    "assignments": [
+      {
+        "id": "emoji",
+        "name": "emoji",
+        "value": "📝",
+        "type": "string"
+      },
+      {
+        "id": "intent",
+        "name": "intent",
+        "value": "Note",
+        "type": "string"
+      }
+    ]
+  }
+}
 ```
 
-**Then:** Set emoji to 📝 and continue to "Send Emoji Reaction"
+**Notes:** `"TODO: Extract category + title via LLM\nTODO: Write to notes table"`
+
+**Connect to:** "Send Emoji Reaction" node
 
 ---
 
-#### Output 2: Handle start_thinking_session
+## Updated "Check Tag" Switch Node
 
-**Nodes Needed:**
+Your "Check Tag" node should now have **4 outputs**:
 
-1. **Create Discord Thread** (HTTP Request to Discord API)
-   - URL: `https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages/{{ $json.message_id }}/threads`
-   - Method: POST
-   - Body: `{ "name": "{{ $json.tool_arguments.topic | truncate(100) }}" }`
-
-2. **Insert Conversation** (Postgres)
-   ```sql
-   INSERT INTO conversations (
-     thread_id,
-     created_from_raw_event_id,
-     status,
-     topic
-   ) VALUES (
-     '{{ $json.thread_id }}',
-     '{{ $json.raw_event_id }}',
-     'active',
-     '{{ $json.tool_arguments.topic.replace(/'/g, "''") }}'
-   )
-   RETURNING *;
-   ```
-
-3. **Call Thread_Agent sub-workflow** (TODO: implement)
-
-**Then:** Set emoji to 💭 and continue to "Send Emoji Reaction"
-
----
-
-#### Output 3: Handle get_recent_context
-
-**Node Type:** Postgres (Query based on type and timeframe)
-
-**Logic:** 
-- Fetch the requested context
-- Loop back to "Build Agent Prompt" with additional context
-- Re-run the agent
-
-**Then:** Continue based on new tool call
+1. **Output 0:** `tag` equals `!!` → "Handle !! Activity"
+2. **Output 1:** `tag` equals `++` → "Handle ++ Thread Start"
+3. **Output 2:** `tag` equals `::` → "Handle :: Command"
+4. **Output 3:** `tag` equals `..` → "Handle .. Note" ⭐ NEW
+5. **Fallback (no match):** → "Router Agent" flow (won't happen since LLM always returns valid tag)
 
 ---
 
@@ -456,55 +450,111 @@ RETURNING *;
 ### Test Cases
 
 1. **Activity statement:** `"working on the router agent implementation"`
-   - Expected: Calls `log_activity("work", "working on the router agent implementation")`
+   - Expected: LLM outputs `!! working on the router agent implementation\nCONFIDENCE: high`
+   - Routes to: "Handle !! Activity"
    - Expected emoji: 🕒
 
 2. **Note/Insight:** `"I think async communication reduces context switching"`
-   - Expected: Calls `store_note("reflection", null, "I think async communication reduces context switching")`
+   - Expected: LLM outputs `.. I think async communication reduces context switching\nCONFIDENCE: high`
+   - Routes to: "Handle .. Note"
    - Expected emoji: 📝
 
 3. **Question:** `"what did I work on yesterday?"`
-   - Expected: Calls `start_thinking_session("what did I work on yesterday?")`
-   - Expected: Creates Discord thread
+   - Expected: LLM outputs `++ what did I work on yesterday?\nCONFIDENCE: high`
+   - Routes to: "Handle ++ Thread Start"
    - Expected emoji: 💭
 
 4. **Ambiguous:** `"still working on it"`
-   - Expected: Calls `get_recent_context("activities", "today")`
-   - Expected: Fetches context and re-runs agent
+   - Expected: LLM outputs `!! still working on it\nCONFIDENCE: low`
+   - Routes to: "Handle !! Activity" (but confidence is logged)
+   - Expected emoji: 🕒
+
+5. **Very unclear:** `"hmm"`
+   - Expected: LLM outputs `++ hmm\nCONFIDENCE: low`
+   - Routes to: "Handle ++ Thread Start" (safe fallback)
+   - Expected emoji: 💭
+
+---
+
+## Confidence Tracking & Review
+
+### Why Track Confidence?
+
+- **Improve prompts:** Review low-confidence classifications to refine system prompt
+- **Catch errors:** Find misclassifications and add examples
+- **User feedback:** If user reacts with ❌, check if it was low confidence
+- **Analytics:** Track accuracy over time
+
+### How to Review
+
+**Option 1: Database Query**
+```sql
+SELECT 
+  re.message_url,
+  re.clean_text,
+  rd.intent,
+  rd.confidence,
+  rd.payload->>'llm_output' as llm_reasoning,
+  rd.routed_at
+FROM routing_decisions rd
+JOIN raw_events re ON rd.raw_event_id = re.id
+WHERE rd.forced_by = 'agent'
+  AND rd.confidence < 0.6
+ORDER BY rd.routed_at DESC
+LIMIT 50;
+```
+
+**Option 2: Discord Logging Channel**
+Create a `#kairon-log` channel and post low-confidence classifications:
+```javascript
+// In Step 5 IF node, add HTTP Request to Discord:
+{
+  "content": `⚠️ Low confidence classification\n\n**Message:** ${$json.clean_text}\n**Classified as:** ${$json.tag}\n**Confidence:** ${$json.confidence}\n**Link:** ${$json.message_url}`
+}
+```
 
 ---
 
 ## Integration Points
 
 The Router Agent integrates with:
-- **activity_log** table: Writes activities
-- **notes** table: Writes notes
-- **conversations** table: Creates threads
-- **Discord API**: Creates threads
-- **Thread_Agent sub-workflow**: Handles conversational flow
+- **Existing "Check Tag" node:** Reuses routing logic
+- **"Handle !! Activity" node:** For activities
+- **"Handle ++ Thread Start" node:** For questions/threads
+- **"Handle :: Command" node:** For commands
+- **"Handle .. Note" node:** For notes (NEW)
+- **routing_decisions table:** Stores classification audit trail
+- **Discord #kairon-log:** Optional logging for low-confidence
 
 ---
 
-## Performance Considerations
+## Advantages Over Tool Calling
 
-- **Context queries are fast:** Single CTE query fetches all context at once
-- **Agent calls are async:** User sees immediate emoji reaction (🤖) while agent processes
-- **Tool calls are deterministic:** Once agent decides, execution is fast
+| Aspect | Tag Classification (This) | Tool Calling (Old) |
+|--------|---------------------------|-------------------|
+| Complexity | ✅ Simple text output | ❌ Complex tool schemas |
+| Debugging | ✅ See exact LLM output | ❌ Nested JSON, tool errors |
+| Portability | ✅ Any LLM provider | ❌ Requires function calling support |
+| Cost | ✅ Fewer tokens | ❌ Tool definitions sent every request |
+| Latency | ✅ Faster (text completion) | ❌ Slower (function calling) |
+| Maintenance | ✅ Reuses existing handlers | ❌ Duplicate routing logic |
+| Flexibility | ✅ Easy to add new tags | ❌ Update tool schemas |
 
 ---
 
 ## Future Enhancements
 
-1. **Add caching:** Cache recent activities/categories for 5 minutes
-2. **Add retry logic:** If agent fails to call a tool, retry once
-3. **Add fallback:** If ambiguous, default to `start_thinking_session` instead of error
-4. **Add analytics:** Track which tools are called most often
-5. **Fine-tune prompt:** Adjust based on real-world usage patterns
+1. **Add few-shot examples:** Include user-specific examples in prompt based on their history
+2. **Fine-tune LLM:** Train on your classification data for better accuracy
+3. **Add feedback loop:** Let user correct misclassifications (thumbs up/down reactions)
+4. **Confidence thresholds:** Auto-escalate very low confidence to thread (always ask if unsure)
+5. **A/B testing:** Test different prompts and track accuracy
 
 ---
 
 ## References
 
-- System Prompt: `/prompts/router-agent.md`
+- System Prompt: `/prompts/router-agent.md` (now simplified)
 - Design Doc: `/README.md` (Section 5.4)
 - Database Schema: `/db/migrations/001_initial_schema.sql`
+- Main Workflow: `/n8n-workflows/Discord_Message_Ingestion.json`
