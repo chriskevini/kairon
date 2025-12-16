@@ -11,6 +11,7 @@ echo "========================"
 CONTAINER_NAME="postgres-db"
 DB_NAME="kairon"
 DB_USER="${POSTGRES_USER:-postgres}"
+EXISTING_DB="${POSTGRES_DB:-postgres}"  # Connect to existing DB first
 
 echo ""
 echo "Container: $CONTAINER_NAME"
@@ -30,19 +31,19 @@ echo "✅ Container is running"
 # Create database
 echo ""
 echo "📦 Creating database '$DB_NAME'..."
-docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1 && {
+docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -d "$EXISTING_DB" -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1 && {
     echo "⚠️  Database '$DB_NAME' already exists"
     read -p "Drop and recreate? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -c "DROP DATABASE $DB_NAME;"
-        docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -c "CREATE DATABASE $DB_NAME;"
+        docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -d "$EXISTING_DB" -c "DROP DATABASE $DB_NAME;"
+        docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -d "$EXISTING_DB" -c "CREATE DATABASE $DB_NAME;"
         echo "✅ Database recreated"
     else
         echo "⏭️  Skipping database creation"
     fi
 } || {
-    docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -c "CREATE DATABASE $DB_NAME;"
+    docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -d "$EXISTING_DB" -c "CREATE DATABASE $DB_NAME;"
     echo "✅ Database created"
 }
 
