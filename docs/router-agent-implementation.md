@@ -35,22 +35,22 @@ Untagged Message
 **Query:**
 ```sql
 -- Fetch all context in one query using CTEs
-WITH recent_activities AS (
-  SELECT category_name, description, observed_at
-  FROM activity_log
+WITH recent_acts AS (
+  SELECT category_name, description, timestamp
+  FROM recent_activities
   WHERE author_login = '{{ $json.author.login }}'
-  ORDER BY observed_at DESC
+  ORDER BY timestamp DESC
   LIMIT 3
 ),
 activity_cats AS (
-  SELECT array_agg(DISTINCT category_name ORDER BY category_name) as categories
-  FROM activity_log
-  WHERE author_login = '{{ $json.author.login }}'
+  SELECT array_agg(DISTINCT name ORDER BY name) as categories
+  FROM activity_categories
+  WHERE active = true
 ),
 note_cats AS (
-  SELECT array_agg(DISTINCT category_name ORDER BY category_name) as categories
-  FROM notes
-  WHERE author_login = '{{ $json.author.login }}'
+  SELECT array_agg(DISTINCT name ORDER BY name) as categories
+  FROM note_categories
+  WHERE active = true
 ),
 user_info AS (
   SELECT sleeping, last_observation_at
@@ -58,7 +58,7 @@ user_info AS (
   WHERE user_login = '{{ $json.author.login }}'
 )
 SELECT 
-  (SELECT json_agg(row_to_json(recent_activities)) FROM recent_activities) as recent_activities,
+  (SELECT json_agg(row_to_json(recent_acts)) FROM recent_acts) as recent_activities,
   (SELECT categories FROM activity_cats) as activity_categories,
   (SELECT categories FROM note_cats) as note_categories,
   (SELECT sleeping FROM user_info) as user_sleeping,
@@ -312,25 +312,47 @@ return {
 
 #### Output 0: Handle log_activity
 
-**Node Type:** Postgres (Insert)
+**Node Type:** Code (to look up category_id, then insert)
+
+**Code:**
+```javascript
+// Look up category_id from category_name
+const categoryName = $input.item.json.tool_arguments.category_name;
+const timestamp = $input.item.json.timestamp;
+const description = $input.item.json.tool_arguments.description;
+const authorLogin = $input.item.json.author.login;
+const rawEventId = $input.item.json.raw_event_id; // From Store Raw Event node
+
+return {
+  ...$input.item.json,
+  insert_activity: {
+    category_name: categoryName,
+    description: description,
+    timestamp: timestamp,
+    author_login: authorLogin,
+    raw_event_id: rawEventId
+  }
+};
+```
+
+**Then add Postgres node:**
 
 **Query:**
 ```sql
 INSERT INTO activity_log (
-  author_login,
-  category_name,
-  description,
-  observed_at,
-  source_type,
-  discord_message_id
-) VALUES (
-  '{{ $json.author.login }}',
-  '{{ $json.tool_arguments.category_name }}',
-  '{{ $json.tool_arguments.description }}',
-  '{{ $json.timestamp }}',
-  'discord',
-  '{{ $json.message_id }}'
+  raw_event_id,
+  timestamp,
+  category_id,
+  description
 )
+SELECT 
+  '{{ $json.raw_event_id }}',
+  '{{ $json.timestamp }}',
+  ac.id,
+  '{{ $json.tool_arguments.description.replace(/'/g, "''") }}'
+FROM activity_categories ac
+WHERE ac.name = '{{ $json.tool_arguments.category_name }}'
+  AND ac.active = true
 RETURNING *;
 ```
 
@@ -345,22 +367,21 @@ RETURNING *;
 **Query:**
 ```sql
 INSERT INTO notes (
-  author_login,
-  category_name,
+  raw_event_id,
+  timestamp,
+  category_id,
   title,
-  text,
-  created_at,
-  source_type,
-  discord_message_id
-) VALUES (
-  '{{ $json.author.login }}',
-  '{{ $json.tool_arguments.category_name }}',
-  '{{ $json.tool_arguments.title || null }}',
-  '{{ $json.tool_arguments.text }}',
-  '{{ $json.timestamp }}',
-  'discord',
-  '{{ $json.message_id }}'
+  text
 )
+SELECT 
+  '{{ $json.raw_event_id }}',
+  '{{ $json.timestamp }}',
+  nc.id,
+  {{ $json.tool_arguments.title ? "'" + $json.tool_arguments.title.replace(/'/g, "''") + "'" : "NULL" }},
+  '{{ $json.tool_arguments.text.replace(/'/g, "''") }}'
+FROM note_categories nc
+WHERE nc.name = '{{ $json.tool_arguments.category_name }}'
+  AND nc.active = true
 RETURNING *;
 ```
 
@@ -380,19 +401,15 @@ RETURNING *;
 2. **Insert Conversation** (Postgres)
    ```sql
    INSERT INTO conversations (
-     discord_thread_id,
-     initial_message_id,
-     author_login,
+     thread_id,
+     created_from_raw_event_id,
      status,
-     title,
-     created_at
+     topic
    ) VALUES (
      '{{ $json.thread_id }}',
-     '{{ $json.message_id }}',
-     '{{ $json.author.login }}',
+     '{{ $json.raw_event_id }}',
      'active',
-     '{{ $json.tool_arguments.topic }}',
-     NOW()
+     '{{ $json.tool_arguments.topic.replace(/'/g, "''") }}'
    )
    RETURNING *;
    ```
