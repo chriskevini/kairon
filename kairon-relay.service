@@ -1,0 +1,17 @@
+[Unit]
+Description=Kairon Discord Relay Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/kairon
+Environment="PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/env uv run discord_relay.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
