@@ -82,6 +82,7 @@
       ],
       "id": "r3e4a5d6-h7a8-n9d0-l123-456789012345",
       "name": "Get North Star",
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",

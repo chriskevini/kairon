@@ -35,7 +35,7 @@
       ],
       "id": "get-summary-time",
       "name": "Get Summary Time",
-      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -70,7 +70,7 @@
       ],
       "id": "query-north-star",
       "name": "Get North Star",
-      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -92,7 +92,7 @@
       ],
       "id": "query-activities",
       "name": "Get Today's Activities",
-      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -114,7 +114,7 @@
       ],
       "id": "query-notes",
       "name": "Get Today's Notes",
-      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -136,7 +136,7 @@
       ],
       "id": "query-breakdown",
       "name": "Get Category Breakdown",
-      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",

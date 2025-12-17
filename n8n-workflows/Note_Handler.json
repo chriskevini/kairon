@@ -46,6 +46,7 @@
       ],
       "id": "o2t3e4h5-a6n7-d8l9-e0r1-234567890123",
       "name": "Get Active Categories",
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",

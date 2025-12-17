@@ -24,7 +24,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  user_login,\n  sleeping,\n  last_observation_at,\n  EXTRACT(EPOCH FROM (NOW() - last_observation_at))/60 as minutes_since_activity\nFROM user_state\nWHERE sleeping = false\n  AND last_observation_at < NOW() - INTERVAL '30 minutes'\nLIMIT 1",
+        "query": "SELECT \n  user_login,\n  sleeping,\n  last_observation_at,\n  EXTRACT(EPOCH FROM (NOW() - COALESCE(last_observation_at, '1970-01-01')))/60 as minutes_since_activity\nFROM user_state\nWHERE sleeping = false\n  AND (last_observation_at IS NULL OR last_observation_at < NOW() - INTERVAL '30 minutes')\nLIMIT 1",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
