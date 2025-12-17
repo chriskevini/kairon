@@ -1,0 +1,300 @@
+{
+  "name": "Daily_Summary_Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cron-trigger",
+      "name": "Daily at 8pm",
+      "notes": "Runs every day at 8:00 PM\nCron: 0 20 * * *\n\nTo change time, edit cron expression:\n0 19 * * * = 7pm\n0 21 * * * = 9pm"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM config WHERE key = 'north_star'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        -160
+      ],
+      "id": "query-north-star",
+      "name": "Get North Star",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  a.timestamp,\n  ac.name as category,\n  a.description\nFROM activity_log a\nJOIN activity_categories ac ON a.category_id = ac.id\nWHERE DATE(a.timestamp) = CURRENT_DATE\nORDER BY a.timestamp",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        -64
+      ],
+      "id": "query-activities",
+      "name": "Get Today's Activities",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  n.timestamp,\n  nc.name as category,\n  n.title,\n  n.text\nFROM notes n\nJOIN note_categories nc ON n.category_id = nc.id\nWHERE DATE(n.timestamp) = CURRENT_DATE\nORDER BY n.timestamp",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        32
+      ],
+      "id": "query-notes",
+      "name": "Get Today's Notes",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  ac.name as category,\n  COUNT(*) as count,\n  ROUND(EXTRACT(EPOCH FROM SUM(a.timestamp - LAG(a.timestamp) OVER (ORDER BY a.timestamp)))/60) as minutes\nFROM activity_log a\nJOIN activity_categories ac ON a.category_id = ac.id\nWHERE DATE(a.timestamp) = CURRENT_DATE\nGROUP BY ac.name\nORDER BY count DESC",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        128
+      ],
+      "id": "query-breakdown",
+      "name": "Get Category Breakdown",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Merge all data for LLM summarization\nconst northStar = $('Get North Star').first().json.value || 'Not set';\nconst activities = $('Get Today\\'s Activities').all();\nconst notes = $('Get Today\\'s Notes').all();\nconst breakdown = $('Get Category Breakdown').all();\n\n// Format activities list\nlet activitiesList = '';\nif (activities.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activities.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (notes.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  notes.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    const title = item.json.title ? `**${item.json.title}**: ` : '';\n    notesList += `- ${time} [${item.json.category}] ${title}${item.json.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet breakdownText = '';\nif (breakdown.length === 0) {\n  breakdownText = '(No category data)';\n} else {\n  breakdown.forEach(item => {\n    const minutes = item.json.minutes || 0;\n    breakdownText += `- ${item.json.category}: ${item.json.count} activities (~${minutes} minutes)\\n`;\n  });\n}\n\nreturn {\n  north_star: northStar,\n  activities_list: activitiesList,\n  notes_list: notesList,\n  category_breakdown: breakdownText,\n  activity_count: activities.length,\n  note_count: notes.length\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "merge-data",
+      "name": "Merge Data for LLM"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are generating a daily summary for a life tracking system.\n\n**User's North Star:** {{ $json.north_star }}\n\n**Today's Activities ({{ $json.activity_count }} total):**\n{{ $json.activities_list }}\n\n**Today's Notes ({{ $json.note_count }} total):**\n{{ $json.notes_list }}\n\n**Category Breakdown:**\n{{ $json.category_breakdown }}\n\n---\n\nGenerate a concise daily summary (2-3 paragraphs) that:\n\n1. **Highlights key accomplishments** - What did the user get done today?\n2. **Notes patterns or insights** - Any interesting observations about their day?\n3. **Relates to their north star** - How does today connect to their goals? (if relevant)\n4. **Ends with encouragement** - Brief positive reflection or motivation\n\nUse a warm, encouraging tone. Format with markdown for Discord. Start with a heading like \"# Daily Summary - [Today's Date]\"\n\nIf there were no activities or notes today, acknowledge that rest/downtime is valuable and encourage reflection.",
+        "hasOutputParser": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        672,
+        0
+      ],
+      "id": "generate-summary",
+      "name": "Generate Summary with LLM"
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.5-sonnet",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        672,
+        192
+      ],
+      "id": "llm-model",
+      "name": "Claude 3.5 Sonnet",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_GUILD_ID }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_OBSIDIAN_BOARD }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "send-summary",
+      "name": "Post to #obsidian-board",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily at 8pm": {
+      "main": [
+        [
+          {
+            "node": "Get North Star",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Today's Activities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Today's Notes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Category Breakdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get North Star": {
+      "main": [
+        [
+          {
+            "node": "Merge Data for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Today's Activities": {
+      "main": [
+        [
+          {
+            "node": "Merge Data for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Today's Notes": {
+      "main": [
+        [
+          {
+            "node": "Merge Data for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Category Breakdown": {
+      "main": [
+        [
+          {
+            "node": "Merge Data for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Data for LLM": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary with LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary with LLM": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Claude 3.5 Sonnet",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ],
+      "main": [
+        [
+          {
+            "node": "Post to #obsidian-board",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  }
+}

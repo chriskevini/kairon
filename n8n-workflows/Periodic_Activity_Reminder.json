@@ -1,0 +1,143 @@
+{
+  "name": "Periodic_Activity_Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cron-trigger",
+      "name": "Every 30 Minutes"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  user_login,\n  sleeping,\n  last_observation_at,\n  EXTRACT(EPOCH FROM (NOW() - last_observation_at))/60 as minutes_since_activity\nFROM user_state\nWHERE sleeping = false\n  AND last_observation_at < NOW() - INTERVAL '30 minutes'\nLIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "query-user-state",
+      "name": "Check User State",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Checks if:\n1. User is awake (sleeping = false)\n2. No activity in last 30 minutes\n\nReturns row if both true, empty if should not ping"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.user_login }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "if-should-ping",
+      "name": "Should Send Reminder?"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_GUILD_ID }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_ARCANE_SHELL }}",
+          "mode": "id"
+        },
+        "content": "=⏰ **Activity Check**\n\nNo activity detected in the last 30 minutes.\n\nWhat are you currently working on?\nReply with: `!! <what you're doing>`",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "send-reminder",
+      "name": "Send Activity Reminder",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Check User State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check User State": {
+      "main": [
+        [
+          {
+            "node": "Should Send Reminder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Send Reminder?": {
+      "main": [
+        [
+          {
+            "node": "Send Activity Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  }
+}
