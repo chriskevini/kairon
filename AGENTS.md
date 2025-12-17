@@ -165,6 +165,34 @@ RETURNING *;
 
 ## Code Style & Conventions
 
+### Object Key Naming
+
+**IMPORTANT:** Always use `snake_case` for object keys in all workflows.
+
+```javascript
+// ✅ Correct
+{
+  raw_event_id: "uuid",
+  clean_text: "message",
+  guild_id: "123",
+  all_scores: { work: 0.9, leisure: 0.1 }
+}
+
+// ❌ Wrong
+{
+  rawEventId: "uuid",      // camelCase
+  CleanText: "message",    // PascalCase
+  "guild-id": "123",       // kebab-case
+  AllScores: { work: 0.9 } // PascalCase
+}
+```
+
+**Why snake_case?**
+- Consistent with database column names
+- Easier to map between DB and JSON
+- Standard in Python ecosystem (discord_relay.py)
+- More readable in n8n expressions
+
 ### n8n Workflow Naming
 
 - **Workflows:** PascalCase with underscores: `Discord_Message_Router`, `Command_Handler`

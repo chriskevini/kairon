@@ -6,13 +6,13 @@
         "path": "={{ $env.WEBHOOK_PATH }}",
         "options": {}
       },
-      "id": "f912cd28-f283-4ca8-9363-9c738fcd141e",
+      "id": "c2707a9b-e7d8-4de9-bf27-e4cb193c5a8b",
       "name": "Discord Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -1200,
-        528
+        -2304,
+        4144
       ],
       "webhookId": "discord-webhook"
     },
@@ -21,16 +21,16 @@
         "operation": "executeQuery",
         "query": "INSERT INTO raw_events (\n  source_type,\n  discord_guild_id,\n  discord_channel_id,\n  discord_message_id,\n  message_url,\n  author_login,\n  thread_id,\n  raw_text,\n  clean_text,\n  tag\n) VALUES (\n  'discord',\n  $1, $2, $3, $4, $5, $6, $7, $8, $9\n)\nON CONFLICT (discord_message_id) DO NOTHING\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.guild_id }},{{ $json.channel_id }},{{ $json.message_id }},{{ $json.message_url }},{{ $json.author_login }},{{ $json.thread_id }},{{ $json.raw_text }},{{ $json.clean_text }},{{ $json.tag }},"
+          "queryReplacement": "={{ $json.event.guild_id }},{{ $json.event.channel_id }},{{ $json.event.message_id }},{{ $json.event.message_url }},{{ $json.event.author_login }},{{ $json.event.thread_id }},{{ $json.event.raw_text }},{{ $json.event.clean_text }},{{ $json.event.tag }},"
         }
       },
-      "id": "a982de22-3395-461c-b322-45bdb6b49a35",
+      "id": "278ca1fb-05a0-474b-a74b-f1dc11a3ee0a",
       "name": "Store Raw Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        272,
-        432
+        -832,
+        4048
       ],
       "credentials": {
         "postgres": {
@@ -48,25 +48,18 @@
               "name": "event",
               "value": "={{ Object.assign({}, $('Build Event Object').item.json.event, { raw_event_id: $json.id }) }}",
               "type": "object"
-            },
-            {
-              "id": "keep-tag",
-              "name": "tag",
-              "value": "={{ $('Build Event Object').item.json.tag }}",
-              "type": "string"
             }
           ]
         },
-        "includeOtherFields": false,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        496,
-        432
+        -608,
+        4048
       ],
-      "id": "add-raw-id-node-12345",
+      "id": "365b5416-42d9-4040-8cc6-ae0b7d7f580d",
       "name": "Add Raw Event ID"
     },
     {
@@ -83,7 +76,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $('Add Raw Event ID').item.json.tag }}",
+                    "leftValue": "={{ $json.event.tag }}",
                     "rightValue": "!!",
                     "operator": {
                       "type": "string",
@@ -106,7 +99,7 @@
                 "conditions": [
                   {
                     "id": "605cd974-50d7-474b-9b9c-719e1e880f6b",
-                    "leftValue": "={{ $('Add Raw Event ID').item.json.tag }}",
+                    "leftValue": "={{ $json.event.tag }}",
                     "rightValue": "++",
                     "operator": {
                       "type": "string",
@@ -128,7 +121,7 @@
                 "conditions": [
                   {
                     "id": "d353c1c1-cb81-4bfd-ba4b-f93c94d890f1",
-                    "leftValue": "={{ $('Add Raw Event ID').item.json.tag }}",
+                    "leftValue": "={{ $json.event.tag }}",
                     "rightValue": "::",
                     "operator": {
                       "type": "string",
@@ -150,7 +143,7 @@
                 "conditions": [
                   {
                     "id": "3b33f54e-2b45-4471-940c-eabe0299142c",
-                    "leftValue": "={{ $('Add Raw Event ID').item.json.tag }}",
+                    "leftValue": "={{ $json.event.tag }}",
                     "rightValue": "..",
                     "operator": {
                       "type": "string",
@@ -166,13 +159,13 @@
         },
         "options": {}
       },
-      "id": "1788f603-1792-4eb6-a190-3ad01cfd21cf",
+      "id": "fce7b05c-9134-4391-bc2d-fe6c1bf0f553",
       "name": "Check Tag",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        720,
-        688
+        -160,
+        4304
       ]
     },
     {
@@ -181,63 +174,139 @@
         "height": 416,
         "width": 480
       },
-      "id": "65bc19a5-9a4a-4618-b75b-4d78a5dabe19",
+      "id": "52caa9b2-0fae-468c-8dc6-5d442901fe5a",
       "name": "Thread Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        624,
-        -48
+        -240,
+        3600
       ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "name",
+          "value": "ZQCULmYAVMN7I6ww",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ZQCULmYAVMN7I6ww",
           "cachedResultName": "Activity_Handler"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "event": "={{ $json.event }}"
-          }
+            "event": "={{ $json }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        944,
-        432
+        64,
+        4048
       ],
-      "id": "78273d83-77d4-4455-b828-eba8e41f11c9",
+      "id": "1ce49e2a-6d87-47bc-bc93-0ad2afad7e28",
       "name": "Handle !! Activity"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "name",
+          "value": "nsLfmVGA6NeCJJRu",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
           "cachedResultName": "Thread_Handler"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          }
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "raw_event_id",
+              "displayName": "raw_event_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "clean_text",
+              "displayName": "clean_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "guild_id",
+              "displayName": "guild_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "channel_id",
+              "displayName": "channel_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "author_login",
+              "displayName": "author_login",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        944,
-        624
+        64,
+        4240
       ],
-      "id": "9a28232a-eda6-4322-95c7-66c0acd668fa",
+      "id": "09fc2bb5-4f10-4b55-98da-32827b67cd3e",
       "name": "Handle ++ Thread Start"
     },
     {
@@ -260,13 +329,13 @@
         },
         "options": {}
       },
-      "id": "60b327b1-2921-4e0f-8a24-765dee4c52af",
+      "id": "d87f1a8d-9693-45fe-9365-a7181e323fef",
       "name": "Commit Thread",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        944,
-        48
+        64,
+        3664
       ],
       "notes": "TODO: Load conversation_messages\nTODO: Summarize with LLM\nTODO: Create note + activity"
     },
@@ -290,13 +359,13 @@
         },
         "options": {}
       },
-      "id": "a3c3a038-93c6-4997-9fba-f434f3a344c7",
+      "id": "25124e60-81e4-4ec1-9ee6-16f47c4f12d6",
       "name": "Thread Chat",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        944,
-        240
+        64,
+        3856
       ],
       "notes": "TODO: Execute Thread_Agent sub-workflow\nTODO: Store response to conversation_messages"
     },
@@ -306,13 +375,13 @@
         "height": 736,
         "width": 480
       },
-      "id": "2d186324-c22c-4bbb-86fe-792137c4ab63",
+      "id": "bdc50ece-af12-4727-affd-f56343d5514c",
       "name": "Main Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        656,
-        432
+        -240,
+        4048
       ]
     },
     {
@@ -327,7 +396,7 @@
           "conditions": [
             {
               "id": "91cb07bc-c96e-4220-abdb-05844ba93f75",
-              "leftValue": "={{ $('Add Raw Event ID').item.json.event.thread_id }}",
+              "leftValue": "={{ $json.event.thread_id }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -343,10 +412,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        496,
-        432
+        -384,
+        4048
       ],
-      "id": "3829f40d-3911-4c13-8d7c-c96028cc9689",
+      "id": "a87c6d0c-4558-406e-8671-da6325faaf80",
       "name": "If in Thread"
     },
     {
@@ -377,35 +446,84 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        720,
-        48
+        -160,
+        3664
       ],
-      "id": "dc5d53dc-626a-4e24-92d7-5755c0487863",
+      "id": "024789e6-bd62-41db-92e8-aeae6e19d9c4",
       "name": "If Commit"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "name",
+          "value": "7Qq2qMUBmnyAhLxg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
           "cachedResultName": "Note_Handler"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          }
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "raw_event_id",
+              "displayName": "raw_event_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "clean_text",
+              "displayName": "clean_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "guild_id",
+              "displayName": "guild_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "channel_id",
+              "displayName": "channel_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        944,
-        1008
+        64,
+        4624
       ],
-      "id": "3c2126cd-3445-47f3-b561-db90d006a2cd",
+      "id": "a248e41f-1860-49a8-81a3-005f5f1eb58b",
       "name": "Handle .. Note"
     },
     {
@@ -418,11 +536,11 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        -304,
-        656
+        -1408,
+        4268
       ],
-      "id": "292dba2e-723f-4dd7-b07e-dae9b34ba40c",
-      "name": "Message Classifier"
+      "id": "e7ffd14a-7e23-45d2-9841-4f2831cf5c5c",
+      "name": "Intent Classifier"
     },
     {
       "parameters": {
@@ -444,10 +562,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -976,
-        528
+        -2080,
+        4144
       ],
-      "id": "97c0cc27-04c9-47ca-b36a-49b9a6eb3b90",
+      "id": "fa13ad1f-f980-4b7c-8278-58b980df92a5",
       "name": "React with 👀",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "credentials": {
@@ -467,10 +585,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -304,
-        880
+        -1400,
+        4492
       ],
-      "id": "8a15cfc8-7de3-4a16-8468-729642a4cec5",
+      "id": "192aebe7-b4ef-4ee5-862a-62eea12bc5f4",
       "name": "nova-2-lite-v1",
       "credentials": {
         "openRouterApi": {
@@ -498,10 +616,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        48,
-        704
+        -1056,
+        4316
       ],
-      "id": "5a103f26-651f-4d04-acc6-a4c2ecbb8258",
+      "id": "e38c7ab2-29c8-485f-94b6-3233bb00144c",
       "name": "Log classification to #kairon-logs",
       "webhookId": "18ae6288-f1c3-401a-9dcc-f832d8126ddf",
       "credentials": {
@@ -519,10 +637,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -176,
-        880
+        -1272,
+        4492
       ],
-      "id": "7a67e184-3101-46f1-9045-5a109dfd5685",
+      "id": "5cc2f477-97b2-4a6a-a6e3-7e974d813c58",
       "name": "gpt-oss-20b",
       "credentials": {
         "openRouterApi": {
@@ -551,10 +669,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        944,
-        816
+        64,
+        4432
       ],
-      "id": "5c272596-1091-4e93-9a53-2d8d62409a96",
+      "id": "5eb4dffb-1805-40da-a5e6-39a941aef9ca",
       "name": "Handle :: Command"
     },
     {
@@ -574,10 +692,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -752,
-        528
+        -1856,
+        4144
       ],
-      "id": "283bf898-14c7-4755-b70b-a8e4e398e4a2",
+      "id": "cfd550c6-1f3b-4a7e-9f0f-cd9d07cd6847",
       "name": "Parse Tag"
     },
     {
@@ -585,29 +703,22 @@
         "assignments": {
           "assignments": [
             {
-              "id": "tag-field",
-              "name": "tag",
-              "value": "={{ $('Parse Tag').item.json.tag || $json.text.match(/\\+\\+|!!|::|\\.\\./).first() || \"++\" }}",
-              "type": "string"
-            },
-            {
               "id": "event-object",
               "name": "event",
-              "value": "={{ {\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\./, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content\n} }}",
+              "value": "={{ {\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\./, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content,\n  tag: $('Parse Tag').item.json.tag || $json.text.match(/\\+\\+|!!|::|\\.\\./).first() || \"++\"\n} }}",
               "type": "object"
             }
           ]
         },
-        "includeOtherFields": false,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        48,
-        432
+        -1056,
+        4048
       ],
-      "id": "748cbeb4-1a90-45d0-a517-616832deb983",
+      "id": "1d5f7373-0997-41b8-8ba4-90f7d7ddc0a6",
       "name": "Build Event Object"
     },
     {
@@ -648,10 +759,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -528,
-        528
+        -1632,
+        4144
       ],
-      "id": "cf607c0a-3cdd-4f65-9a40-ae9d4cd41344",
+      "id": "6a129c83-b79e-4ac2-a6b2-e91bd2de2f42",
       "name": "If Tag or Thread Detected"
     }
   ],
@@ -721,26 +832,6 @@
         ]
       ]
     },
-    "Handle !! Activity": {
-      "main": [
-        []
-      ]
-    },
-    "Handle ++ Thread Start": {
-      "main": [
-        []
-      ]
-    },
-    "Commit Thread": {
-      "main": [
-        []
-      ]
-    },
-    "Thread Chat": {
-      "main": [
-        []
-      ]
-    },
     "If in Thread": {
       "main": [
         [
@@ -777,12 +868,7 @@
         ]
       ]
     },
-    "Handle .. Note": {
-      "main": [
-        []
-      ]
-    },
-    "Message Classifier": {
+    "Intent Classifier": {
       "main": [
         [
           {
@@ -813,23 +899,18 @@
       "ai_languageModel": [
         [
           {
-            "node": "Message Classifier",
+            "node": "Intent Classifier",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Log classification to #kairon-logs": {
-      "main": [
-        []
-      ]
-    },
     "gpt-oss-20b": {
       "ai_languageModel": [
         [
           {
-            "node": "Message Classifier",
+            "node": "Intent Classifier",
             "type": "ai_languageModel",
             "index": 1
           }
@@ -869,7 +950,7 @@
         ],
         [
           {
-            "node": "Message Classifier",
+            "node": "Intent Classifier",
             "type": "main",
             "index": 0
           }

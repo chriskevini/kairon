@@ -6,7 +6,8 @@
         "workflowInputs": {
           "values": [
             {
-              "name": "event"
+              "name": "event",
+              "type": "object"
             }
           ]
         }
