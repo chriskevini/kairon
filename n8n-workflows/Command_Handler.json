@@ -383,7 +383,7 @@
             {
               "id": "response",
               "name": "response",
-              "value": "=📚 **Available Commands**\n\n**Configuration:**\n`::get <key>` - Get a config value\n`::set <key> <value>` - Set a config value\n\n**Information:**\n`::stats` - Show activity statistics\n`::recent [N]` - Show last N events (default 10)\n`::status` - Show your current state\n\n**System:**\n`::ping` - Test if system is working\n`::help` - Show this message\n\n**Examples:**\n`::set north_star Focus on deep work`\n`::get north_star`\n`::recent 5`",
+              "value": "=📚 **Available Commands**\n\n**Configuration:**\n`::get <key>` - Get a config value\n`::set <key> <value>` - Set a config value\n\n**Information:**\n`::stats` - Show activity statistics\n`::recent [N]` - Show last N events (default 10)\n`::status` - Show your current state\n\n**System:**\n`::ping` - Test if system is working\n`::help` - Show this message\n\n**Config Keys:**\n- `north_star` - Your guiding principle\n- `summary_time` - Daily summary time (format: HH:MM or HH, e.g., \"20:00\" or \"20\")\n\n**Examples:**\n`::set north_star Focus on deep work`\n`::set summary_time 20:00`\n`::get summary_time`\n`::recent 5`",
               "type": "string"
             }
           ]

@@ -15,24 +15,57 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        0,
-        0
+        240,
+        400
       ],
       "id": "cron-trigger",
-      "name": "Daily at 8pm",
-      "notes": "Runs every day at 8:00 PM\nCron: 0 20 * * *\n\nTo change time, edit cron expression:\n0 19 * * * = 7pm\n0 21 * * * = 9pm"
+      "name": "Daily Trigger"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'north_star'",
+        "query": "SELECT value FROM config WHERE key = 'summary_time';",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        224,
-        -160
+        480,
+        400
+      ],
+      "id": "get-summary-time",
+      "name": "Get Summary Time Config",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if it's time to run the summary\nconst now = new Date();\nconst currentHour = now.getHours();\nconst currentMinute = now.getMinutes();\n\n// Get configured time (default to 20:00 if not set)\nconst configResult = $input.all();\nlet targetHour = 20;\n\nif (configResult.length > 0 && configResult[0].json.value) {\n  const configTime = configResult[0].json.value; // Format: \"HH:MM\" or \"HH\"\n  if (configTime.includes(':')) {\n    targetHour = parseInt(configTime.split(':')[0]);\n  } else {\n    targetHour = parseInt(configTime);\n  }\n}\n\n// Check if current time matches target hour (run between :00 and :15 to allow for cron variance)\nconst shouldRun = currentHour === targetHour && currentMinute < 30;\n\nif (!shouldRun) {\n  // Stop execution - not time yet\n  return [];\n}\n\n// Continue execution\nreturn [{ json: { should_run: true, target_hour: targetHour } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        400
+      ],
+      "id": "check-time",
+      "name": "Check If Time to Run"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM config WHERE key = 'north_star';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        960,
+        400
       ],
       "id": "query-north-star",
       "name": "Get North Star",
@@ -46,14 +79,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  a.timestamp,\n  ac.name as category,\n  a.description\nFROM activity_log a\nJOIN activity_categories ac ON a.category_id = ac.id\nWHERE DATE(a.timestamp) = CURRENT_DATE\nORDER BY a.timestamp",
+        "query": "SELECT \n  a.timestamp,\n  ac.name as category,\n  a.description\nFROM activity_log a\nJOIN activity_categories ac ON a.category_id = ac.id\nWHERE DATE(a.timestamp) = CURRENT_DATE\nORDER BY a.timestamp;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        224,
-        -64
+        1200,
+        400
       ],
       "id": "query-activities",
       "name": "Get Today's Activities",
@@ -67,14 +100,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  n.timestamp,\n  nc.name as category,\n  n.title,\n  n.text\nFROM notes n\nJOIN note_categories nc ON n.category_id = nc.id\nWHERE DATE(n.timestamp) = CURRENT_DATE\nORDER BY n.timestamp",
+        "query": "SELECT \n  n.timestamp,\n  nc.name as category,\n  n.title,\n  n.text\nFROM notes n\nJOIN note_categories nc ON n.category_id = nc.id\nWHERE DATE(n.timestamp) = CURRENT_DATE\nORDER BY n.timestamp;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        224,
-        32
+        1440,
+        400
       ],
       "id": "query-notes",
       "name": "Get Today's Notes",
@@ -88,14 +121,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  ac.name as category,\n  COUNT(*) as count,\n  ROUND(EXTRACT(EPOCH FROM SUM(a.timestamp - LAG(a.timestamp) OVER (ORDER BY a.timestamp)))/60) as minutes\nFROM activity_log a\nJOIN activity_categories ac ON a.category_id = ac.id\nWHERE DATE(a.timestamp) = CURRENT_DATE\nGROUP BY ac.name\nORDER BY count DESC",
+        "query": "SELECT \n  ac.name as category,\n  COUNT(*) as count\nFROM activity_log a\nJOIN activity_categories ac ON a.category_id = ac.id\nWHERE DATE(a.timestamp) = CURRENT_DATE\nGROUP BY ac.name\nORDER BY count DESC;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        224,
-        128
+        1680,
+        400
       ],
       "id": "query-breakdown",
       "name": "Get Category Breakdown",
@@ -109,13 +142,13 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Merge all data for LLM summarization\nconst northStar = $('Get North Star').first().json.value || 'Not set';\nconst activities = $('Get Today\\'s Activities').all();\nconst notes = $('Get Today\\'s Notes').all();\nconst breakdown = $('Get Category Breakdown').all();\n\n// Format activities list\nlet activitiesList = '';\nif (activities.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activities.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (notes.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  notes.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    const title = item.json.title ? `**${item.json.title}**: ` : '';\n    notesList += `- ${time} [${item.json.category}] ${title}${item.json.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet breakdownText = '';\nif (breakdown.length === 0) {\n  breakdownText = '(No category data)';\n} else {\n  breakdown.forEach(item => {\n    const minutes = item.json.minutes || 0;\n    breakdownText += `- ${item.json.category}: ${item.json.count} activities (~${minutes} minutes)\\n`;\n  });\n}\n\nreturn {\n  north_star: northStar,\n  activities_list: activitiesList,\n  notes_list: notesList,\n  category_breakdown: breakdownText,\n  activity_count: activities.length,\n  note_count: notes.length\n};"
+        "jsCode": "// Safely merge all data for LLM summarization\n\n// Get north star (handle empty result)\nconst northStarItems = $input.all().filter(item => item.json.value !== undefined);\nconst northStar = northStarItems.length > 0 ? northStarItems[0].json.value : 'Not set';\n\n// Get activities (handle empty result)\nconst activityItems = $input.all().filter(item => item.json.description !== undefined);\n\n// Get notes (handle empty result)\nconst noteItems = $input.all().filter(item => item.json.text !== undefined);\n\n// Get breakdown (handle empty result)\nconst breakdownItems = $input.all().filter(item => item.json.category !== undefined && item.json.count !== undefined && !item.json.description && !item.json.text);\n\n// Format activities list\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activityItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (noteItems.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  noteItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    const title = item.json.title ? `**${item.json.title}**: ` : '';\n    notesList += `- ${time} [${item.json.category}] ${title}${item.json.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet breakdownText = '';\nif (breakdownItems.length === 0) {\n  breakdownText = '(No category data)';\n} else {\n  breakdownItems.forEach(item => {\n    breakdownText += `- ${item.json.category}: ${item.json.count} activities\\n`;\n  });\n}\n\nreturn [{\n  json: {\n    north_star: northStar,\n    activities_list: activitiesList,\n    notes_list: notesList,\n    category_breakdown: breakdownText,\n    activity_count: activityItems.length,\n    note_count: noteItems.length\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        448,
-        0
+        1920,
+        400
       ],
       "id": "merge-data",
       "name": "Merge Data for LLM"
@@ -124,13 +157,13 @@
       "parameters": {
         "promptType": "define",
         "text": "=You are generating a daily summary for a life tracking system.\n\n**User's North Star:** {{ $json.north_star }}\n\n**Today's Activities ({{ $json.activity_count }} total):**\n{{ $json.activities_list }}\n\n**Today's Notes ({{ $json.note_count }} total):**\n{{ $json.notes_list }}\n\n**Category Breakdown:**\n{{ $json.category_breakdown }}\n\n---\n\nGenerate a concise daily summary (2-3 paragraphs) that:\n\n1. **Highlights key accomplishments** - What did the user get done today?\n2. **Notes patterns or insights** - Any interesting observations about their day?\n3. **Relates to their north star** - How does today connect to their goals? (if relevant)\n4. **Ends with encouragement** - Brief positive reflection or motivation\n\nUse a warm, encouraging tone. Format with markdown for Discord. Start with a heading like \"# Daily Summary - [Today's Date]\"\n\nIf there were no activities or notes today, acknowledge that rest/downtime is valuable and encourage reflection.",
-        "hasOutputParser": true
+        "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        672,
-        0
+        2160,
+        400
       ],
       "id": "generate-summary",
       "name": "Generate Summary with LLM"
@@ -146,8 +179,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        672,
-        192
+        2160,
+        620
       ],
       "id": "llm-model",
       "name": "Claude 3.5 Sonnet",
@@ -177,8 +210,8 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        896,
-        0
+        2400,
+        400
       ],
       "id": "send-summary",
       "name": "Post to #obsidian-board",
@@ -191,26 +224,33 @@
     }
   ],
   "connections": {
-    "Daily at 8pm": {
+    "Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Summary Time Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Summary Time Config": {
+      "main": [
+        [
+          {
+            "node": "Check If Time to Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Time to Run": {
       "main": [
         [
           {
             "node": "Get North Star",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Today's Activities",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Today's Notes",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Category Breakdown",
             "type": "main",
             "index": 0
           }
@@ -221,7 +261,7 @@
       "main": [
         [
           {
-            "node": "Merge Data for LLM",
+            "node": "Get Today's Activities",
             "type": "main",
             "index": 0
           }
@@ -232,7 +272,7 @@
       "main": [
         [
           {
-            "node": "Merge Data for LLM",
+            "node": "Get Today's Notes",
             "type": "main",
             "index": 0
           }
@@ -243,7 +283,7 @@
       "main": [
         [
           {
-            "node": "Merge Data for LLM",
+            "node": "Get Category Breakdown",
             "type": "main",
             "index": 0
           }
