@@ -220,6 +220,30 @@
               },
               "renameOutput": true,
               "outputKey": "help"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "d8a3f1e9-2c4b-4d7e-9a1f-3e5c7b9d1a2b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delete"
             }
           ]
         },
@@ -321,9 +345,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  received_at,\n  tag,\n  clean_text,\n  message_url\nFROM raw_events\nWHERE source_type = 'discord'\nORDER BY received_at DESC\nLIMIT $1",
+        "query": "-- Get recent activities or notes based on subcommand\nWITH type_check AS (\n  SELECT $1 as item_type, $2::int as item_limit\n)\nSELECT \n  'activity' as type,\n  a.id,\n  SUBSTRING(a.id::text, 1, 8) as short_id,\n  a.timestamp,\n  ac.name as category_name,\n  a.description as text\nFROM activity_log a\nJOIN activity_categories ac ON a.category_id = ac.id\nCROSS JOIN type_check\nWHERE type_check.item_type IN ('activities', 'events', '')\nORDER BY a.timestamp DESC\nLIMIT type_check.item_limit\n\nUNION ALL\n\nSELECT \n  'note' as type,\n  n.id,\n  SUBSTRING(n.id::text, 1, 8) as short_id,\n  n.timestamp,\n  nc.name as category_name,\n  n.title || ': ' || LEFT(n.text, 50) as text\nFROM notes n\nJOIN note_categories nc ON n.category_id = nc.id\nCROSS JOIN type_check\nWHERE type_check.item_type = 'notes'\nORDER BY n.timestamp DESC\nLIMIT type_check.item_limit;",
         "options": {
-          "queryReplacement": "={{ parseInt($('Parse Command and Args').item.json.args[0]) || 10 }}"
+          "queryReplacement": "={{ $('Parse Command and Args').item.json.args[0] || 'activities' }},={{ parseInt($('Parse Command and Args').item.json.args[1]) || 10 }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -366,7 +390,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle help command\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nconst helpText = `📚 **Available Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent [N]\\` - Show last N events (default 10)\n\\`::status\\` - Show your current state\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (format: HH:MM or HH, e.g., \"20:00\" or \"20\")\n\n**Examples:**\n\\`::set north_star Focus on deep work\\`\n\\`::set summary_time 20:00\\`\n\\`::get summary_time\\`\n\\`::recent 5\\``;\n\nreturn {\n  response: helpText,\n  ...event\n};"
+        "jsCode": "// Handle help command\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nconst helpText = `📚 **Available Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent activities [N]\\` - Show last N activities (default 10)\n\\`::recent notes [N]\\` - Show last N notes (default 10)\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <short-id> [<id2> ...]\\` - Delete activities by short ID\n\\`::delete note <short-id> [<id2> ...]\\` - Delete notes by short ID\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (format: HH:MM or HH, e.g., \"20:00\" or \"20\")\n\n**Examples:**\n\\`::set north_star Focus on deep work\\`\n\\`::recent activities 20\\`\n\\`::delete activity a1b2c3d4\\`\n\\`::delete activity e5f6g7h8 i9j0k1l2\\` (multiple)`;\n\nreturn {\n  response: helpText,\n  ...event\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -421,7 +445,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format recent events response\nconst events = $input.all();\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nif (events.length === 0) {\n  return { \n    response: '📭 No recent events found',\n    ...event\n  };\n}\n\nlet response = `📜 **Recent Events (${events.length})**\\n\\n`;\n\nevents.forEach((item, i) => {\n  const e = item.json;\n  const time = new Date(e.received_at).toLocaleTimeString();\n  const tag = e.tag || '(untagged)';\n  const text = e.clean_text.substring(0, 50) + \n    (e.clean_text.length > 50 ? '...' : '');\n  \n  response += `${i + 1}. ${time} ${tag} ${text}\\n`;\n});\n\nreturn { response, ...event };"
+        "jsCode": "// Format recent items response with short IDs\nconst items = $input.all();\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item.json.args;\nconst itemType = args[0] || 'activities';\n\nif (items.length === 0) {\n  return { \n    response: `📭 No recent ${itemType} found`,\n    ...event\n  };\n}\n\n// Determine icon and title based on type\nconst firstItem = items[0].json;\nconst isActivity = firstItem.type === 'activity';\nconst icon = isActivity ? '📊' : '📝';\nconst title = isActivity ? 'Activities' : 'Notes';\n\nlet response = `${icon} **Recent ${title} (${items.length})**\\n\\n`;\n\nitems.forEach((item, i) => {\n  const data = item.json;\n  const date = new Date(data.timestamp);\n  const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });\n  const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });\n  \n  const text = data.text.length > 60 \n    ? data.text.substring(0, 60) + '...' \n    : data.text;\n  \n  response += `${i + 1}. \\`[${data.short_id}]\\` ${dateStr} ${timeStr} - **${data.category_name}** - ${text}\\n`;\n});\n\nresponse += `\\n💡 Use \\`::delete activity <short-id>\\` or \\`::delete note <short-id>\\` to delete items`;\n\nreturn { response, ...event };"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -459,6 +483,43 @@
       ],
       "id": "9cf856a7-4e8d-404b-bcbc-4d826db2edec",
       "name": "Handle Unknown Command"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Delete activity or note by short ID (first 8 chars of UUID)\n-- Args: item_type (activity|note), short_id1, short_id2, ...\nWITH short_ids_input AS (\n  SELECT unnest(ARRAY[$2, $3, $4, $5, $6, $7, $8, $9, $10]::text[]) as short_id\n  WHERE unnest(ARRAY[$2, $3, $4, $5, $6, $7, $8, $9, $10]::text[]) != ''\n),\ndeleted_activities AS (\n  DELETE FROM activity_log\n  WHERE $1 = 'activity'\n    AND EXISTS (\n      SELECT 1 FROM short_ids_input \n      WHERE activity_log.id::text LIKE short_ids_input.short_id || '%'\n    )\n  RETURNING id, timestamp, description as text, 'activity' as type\n),\ndeleted_notes AS (\n  DELETE FROM notes\n  WHERE $1 = 'note'\n    AND EXISTS (\n      SELECT 1 FROM short_ids_input \n      WHERE notes.id::text LIKE short_ids_input.short_id || '%'\n    )\n  RETURNING id, timestamp, title || ': ' || text as text, 'note' as type\n)\nSELECT * FROM deleted_activities\nUNION ALL\nSELECT * FROM deleted_notes;",
+        "options": {
+          "queryReplacement": "={{ $('Parse Command and Args').item.json.args[0] || 'activity' }},={{ $('Parse Command and Args').item.json.args[1] || '' }},={{ $('Parse Command and Args').item.json.args[2] || '' }},={{ $('Parse Command and Args').item.json.args[3] || '' }},={{ $('Parse Command and Args').item.json.args[4] || '' }},={{ $('Parse Command and Args').item.json.args[5] || '' }},={{ $('Parse Command and Args').item.json.args[6] || '' }},={{ $('Parse Command and Args').item.json.args[7] || '' }},={{ $('Parse Command and Args').item.json.args[8] || '' }},={{ $('Parse Command and Args').item.json.args[9] || '' }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        768,
+        5936
+      ],
+      "id": "c1d2e3f4-a5b6-c7d8-e9f0-a1b2c3d4e5f6",
+      "name": "Query Delete Items",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format delete response\nconst deleted = $input.all();\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item.json.args;\nconst itemType = args[0] || 'activity';\n\nif (deleted.length === 0) {\n  const shortIds = args.slice(1).filter(id => id).join(', ');\n  return {\n    response: `❌ No ${itemType === 'activity' ? 'activities' : 'notes'} found with ID(s): ${shortIds}`,\n    ...event\n  };\n}\n\nif (deleted.length === 1) {\n  const item = deleted[0].json;\n  const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n  return {\n    response: `✅ Deleted ${item.type}: \"${text}\"`,\n    ...event\n  };\n}\n\nconst typeLabel = deleted[0].json.type === 'activity' ? 'activities' : 'notes';\nreturn {\n  response: `✅ Deleted ${deleted.length} ${typeLabel}`,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        5936
+      ],
+      "id": "f7g8h9i0-j1k2-l3m4-n5o6-p7q8r9s0t1u2",
+      "name": "Format Delete Response"
     },
     {
       "parameters": {
@@ -570,6 +631,13 @@
         [
           {
             "node": "Handle Unknown Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Delete Items",
             "type": "main",
             "index": 0
           }
@@ -709,6 +777,28 @@
       ]
     },
     "Handle Unknown Command": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Delete Items": {
+      "main": [
+        [
+          {
+            "node": "Format Delete Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Delete Response": {
       "main": [
         [
           {

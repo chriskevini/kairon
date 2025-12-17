@@ -135,7 +135,7 @@
     {
       "parameters": {
         "mode": "append",
-        "numberInputs": 3
+        "numberInputs": 4
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
@@ -148,7 +148,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get event and conversation from previous nodes\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst conversation = $('Get Conversation').first().json;\n\n// Get conversation history (reversed for chronological order)\nconst historyItems = $('Get Conversation History').all();\nconst history = historyItems.reverse().map(item => ({\n  role: item.json.role,\n  text: item.json.text\n}));\n\n// Get context from merged inputs\nconst allInputs = $input.all();\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItem = allInputs.find(item => item.json.value !== undefined && item.json.key === undefined);\nif (northStarItem) {\n  northStar = northStarItem.json.value;\n}\n\n// Extract activities\nconst activities = allInputs\n  .filter(item => item.json.category_name && item.json.description)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category_name,\n    description: item.json.description\n  }));\n\n// Extract notes\nconst notes = allInputs\n  .filter(item => item.json.category_name && item.json.title)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category_name,\n    title: item.json.title,\n    text: item.json.text\n  }));\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversation.id,\n    north_star: northStar,\n    history: history,\n    activities: activities,\n    notes: notes\n  }\n}];"
+        "jsCode": "// Get event and conversation from previous nodes\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst conversation = $('Get Conversation').first().json;\n\n// Get all merged inputs\nconst allInputs = $input.all();\n\n// Extract conversation history\nconst historyItems = allInputs.filter(item => item.json.role !== undefined && item.json.text !== undefined);\nconst history = historyItems.reverse().map(item => ({\n  role: item.json.role,\n  text: item.json.text\n}));\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItem = allInputs.find(item => item.json.value !== undefined && item.json.key === undefined);\nif (northStarItem) {\n  northStar = northStarItem.json.value;\n}\n\n// Extract activities\nconst activities = allInputs\n  .filter(item => item.json.category_name && item.json.description)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category_name,\n    description: item.json.description\n  }));\n\n// Extract notes\nconst notes = allInputs\n  .filter(item => item.json.category_name && item.json.title)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category_name,\n    title: item.json.title,\n    text: item.json.text\n  }));\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversation.id,\n    north_star: northStar,\n    history: history,\n    activities: activities,\n    notes: notes\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -162,7 +162,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## User's North Star\n{{ $json.north_star }}\n\nThe North Star is their guiding principle. Reference it when naturally relevant.\n\n## Recent Activities (Last 20)\n\n{{ $json.activities.map(act => `${DateTime.fromISO(act.timestamp).format(\"yyyy-MM-dd hh:mm\")} - ${act.description}`).join('\\n') }}\n\n## Recent Notes (Last 10)\n{{ $json.notes.map(n => `**${n.title}** ${n.text}`).join('\\n') }}\n\n## Instructions\n\n1. **Consider the full context**: conversation history, activities, and notes\n2. **Provide grounded insights**: Reference specific activities or notes when relevant\n3. **Be conversational**: This is an ongoing dialogue, not a new conversation\n4. **Ask clarifying questions**: Help them think deeper when appropriate\n5. **Be concise**: 3-5 sentences, respect their time\n\n## Style\n- Warm and supportive\n\n## Conversation History\n{{ $json.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n') }}\n\n## Current Message\nThe user just said: \"{{ $json.clean_text }}\"\n\nRespond to their message now.",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n{{ $json.activities.map(act => `${DateTime.fromISO(act.timestamp).format(\"yyyy-MM-dd hh:mm\")} - ${act.description}`).join('\\n') }}\n\n**Recent Notes (Last 10)**\n{{ $json.notes.map(n => `**${n.title}** ${n.text}`).join('\\n') }}\n\n## Instructions\n\n1. **Consider the full context**: conversation history, activities, and notes\n2. **Provide grounded insights**: Reference specific activities or notes when relevant\n3. **Be conversational**: This is an ongoing dialogue, not a new conversation\n4. **Ask clarifying questions**: Help them think deeper when appropriate\n5. **Be concise**: 3-5 sentences, respect their time\n6. **Don't force connections**: Only mention the guiding principle if it's naturally relevant to what they're asking about\n\n## Style\n- Warm and supportive\n- Natural and conversational\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Conversation History\n{{ $json.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n') }}\n\n## Current Message\nThe user just said: \"{{ $json.clean_text }}\"\n\nRespond to their message now.",
         "needsFallback": true,
         "batching": {}
       },
@@ -294,13 +294,7 @@
             "node": "Get Conversation History",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Conversation History": {
-      "main": [
-        [
+          },
           {
             "node": "Get North Star",
             "type": "main",
@@ -319,7 +313,7 @@
         ]
       ]
     },
-    "Get North Star": {
+    "Get Conversation History": {
       "main": [
         [
           {
@@ -330,7 +324,7 @@
         ]
       ]
     },
-    "Get Recent Activities": {
+    "Get North Star": {
       "main": [
         [
           {
@@ -341,13 +335,24 @@
         ]
       ]
     },
-    "Get Recent Notes": {
+    "Get Recent Activities": {
       "main": [
         [
           {
             "node": "Wait for Context",
             "type": "main",
             "index": 2
+          }
+        ]
+      ]
+    },
+    "Get Recent Notes": {
+      "main": [
+        [
+          {
+            "node": "Wait for Context",
+            "type": "main",
+            "index": 3
           }
         ]
       ]
