@@ -3,18 +3,42 @@
   "nodes": [
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Parse command string into structured command object\n// Input: command_string (e.g., \"set north_star Focus on deep work\")\n\nconst commandString = $input.item.json.command_string || '';\nconst parts = commandString.trim().split(/\\s+/);\n\nconst command = parts[0] || 'help';\nconst arg1 = parts[1] || null;\nconst arg2 = parts.slice(2).join(' ') || null;\n\nreturn {\n  command: command,\n  key: arg1,\n  value: arg2,\n  args: parts.slice(1),\n  limit: parseInt(arg1) || 10,\n  guild_id: $input.item.json.guild_id,\n  channel_id: $input.item.json.channel_id\n};"
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "command_string"
+            },
+            {
+              "name": "guild_id"
+            },
+            {
+              "name": "channel_id"
+            }
+          ]
+        }
       },
-      "id": "parse-command",
-      "name": "Parse Command",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "260e4e98-5573-4210-86c1-b987eaa1afb9",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse command string into structured command object\nconst commandString = $input.item.json.command_string || '';\nconst parts = commandString.trim().split(/\\s+/);\n\nconst command = parts[0] || 'help';\nconst key = parts[1] || null;\nconst value = parts.slice(2).join(' ') || null;\nconst limit = parseInt(parts[1]) || 10;\n\nreturn {\n  command: command,\n  key: key,\n  value: value,\n  args: parts.slice(1),\n  limit: limit,\n  guild_id: $input.item.json.guild_id,\n  channel_id: $input.item.json.channel_id\n};"
+      },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        240,
-        460
+        224,
+        0
       ],
-      "notes": "Parses command string into structured format:\n- command: base command (ping, set, get, stats, etc.)\n- key: first arg (for get/set)\n- value: remaining args (for set)\n- limit: parsed number for recent command"
+      "id": "3881e3ae-89b3-455e-89bc-00bbac559d0f",
+      "name": "Parse Command and Args"
     },
     {
       "parameters": {
@@ -138,14 +162,14 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "route-command",
-      "name": "Route Command",
       "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
+      "typeVersion": 3.4,
       "position": [
-        460,
-        460
-      ]
+        448,
+        0
+      ],
+      "id": "e16c4304-caad-488e-9e3b-4259617872f2",
+      "name": "Switch"
     },
     {
       "parameters": {
@@ -158,33 +182,34 @@
               "type": "string"
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "handle-ping",
-      "name": "Handle ping",
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
+      "typeVersion": 3.4,
       "position": [
-        680,
-        240
-      ]
+        672,
+        -320
+      ],
+      "id": "98194b45-0511-4eac-b275-543a031ea124",
+      "name": "Handle ping"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT value FROM config WHERE key = $1",
         "options": {
-          "queryReplacement": "={{ $json.key }}"
+          "queryReplacement": "={{ $('Parse Command and Args').item.json.key }}"
         }
       },
-      "id": "query-get",
-      "name": "Query Get Config",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        680,
-        340
+        672,
+        -224
       ],
+      "id": "query-get",
+      "name": "Query Get Config",
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -197,17 +222,17 @@
         "operation": "executeQuery",
         "query": "INSERT INTO config (key, value, updated_at)\nVALUES ($1, $2, NOW())\nON CONFLICT (key) DO UPDATE\nSET value = EXCLUDED.value, updated_at = NOW()\nRETURNING key, value",
         "options": {
-          "queryReplacement": "={{ $json.key }},={{ $json.value }}"
+          "queryReplacement": "={{ $('Parse Command and Args').item.json.key }},={{ $('Parse Command and Args').item.json.value }}"
         }
       },
-      "id": "query-set",
-      "name": "Query Set Config",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        680,
-        440
+        672,
+        -128
       ],
+      "id": "query-set",
+      "name": "Query Set Config",
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -221,14 +246,14 @@
         "query": "SELECT \n  (SELECT COUNT(*) FROM activity_log WHERE timestamp >= CURRENT_DATE) as activities_today,\n  (SELECT COUNT(*) FROM notes WHERE timestamp >= DATE_TRUNC('week', CURRENT_DATE)) as notes_this_week,\n  (SELECT COUNT(*) FROM raw_events WHERE source_type = 'discord') as total_events,\n  (SELECT last_observation_at FROM user_state LIMIT 1) as last_activity",
         "options": {}
       },
-      "id": "query-stats",
-      "name": "Query Stats",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        680,
-        540
+        672,
+        -32
       ],
+      "id": "query-stats",
+      "name": "Query Stats",
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -241,17 +266,17 @@
         "operation": "executeQuery",
         "query": "SELECT \n  received_at,\n  tag,\n  clean_text,\n  message_url\nFROM raw_events\nWHERE source_type = 'discord'\nORDER BY received_at DESC\nLIMIT $1",
         "options": {
-          "queryReplacement": "={{ $json.limit }}"
+          "queryReplacement": "={{ $('Parse Command and Args').item.json.limit }}"
         }
       },
-      "id": "query-recent",
-      "name": "Query Recent Events",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        680,
-        640
+        672,
+        64
       ],
+      "id": "query-recent",
+      "name": "Query Recent Events",
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -265,14 +290,14 @@
         "query": "SELECT \n  user_login,\n  sleeping,\n  last_observation_at,\n  EXTRACT(EPOCH FROM (NOW() - last_observation_at))/60 as minutes_since_activity\nFROM user_state\nLIMIT 1",
         "options": {}
       },
-      "id": "query-status",
-      "name": "Query User Status",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        680,
-        740
+        672,
+        160
       ],
+      "id": "query-status",
+      "name": "Query User Status",
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -291,154 +316,171 @@
               "type": "string"
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "handle-help",
-      "name": "Handle help",
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
+      "typeVersion": 3.4,
       "position": [
-        680,
-        840
-      ]
+        672,
+        256
+      ],
+      "id": "handle-help",
+      "name": "Handle help"
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format get command response\nconst key = $('Parse Command').item.json.key;\nconst result = $input.item.json;\n\nif (!result.value) {\n  return {\n    response: `❌ Config key \\`${key}\\` not found`\n  };\n}\n\nreturn {\n  response: `**${key}:** ${result.value}`\n};"
+        "jsCode": "// Format get command response\nconst key = $('Parse Command and Args').item.json.key;\nconst result = $input.item.json;\n\nif (!result.value) {\n  return {\n    response: `❌ Config key \\`${key}\\` not found`\n  };\n}\n\nreturn {\n  response: `**${key}:** ${result.value}`\n};"
       },
-      "id": "format-get",
-      "name": "Format Get Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
-        340
-      ]
+        896,
+        -224
+      ],
+      "id": "format-get",
+      "name": "Format Get Response"
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "// Format set command response\nconst result = $input.item.json;\n\nreturn {\n  response: `✅ Set **${result.key}** = ${result.value}`\n};"
       },
-      "id": "format-set",
-      "name": "Format Set Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
-        440
-      ]
+        896,
+        -128
+      ],
+      "id": "format-set",
+      "name": "Format Set Response"
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "// Format stats response\nconst stats = $input.item.json;\n\nconst lastActivity = stats.last_activity \n  ? new Date(stats.last_activity).toLocaleString()\n  : 'Never';\n\nreturn {\n  response: `📊 **Statistics**\\n\\n` +\n    `Activities today: ${stats.activities_today}\\n` +\n    `Notes this week: ${stats.notes_this_week}\\n` +\n    `Total events: ${stats.total_events}\\n` +\n    `Last activity: ${lastActivity}`\n};"
       },
-      "id": "format-stats",
-      "name": "Format Stats Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
-        540
-      ]
+        896,
+        -32
+      ],
+      "id": "format-stats",
+      "name": "Format Stats Response"
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "// Format recent events response\nconst events = $input.all();\n\nif (events.length === 0) {\n  return { response: '📭 No recent events found' };\n}\n\nlet response = `📜 **Recent Events (${events.length})**\\n\\n`;\n\nevents.forEach((item, i) => {\n  const event = item.json;\n  const time = new Date(event.received_at).toLocaleTimeString();\n  const tag = event.tag || '(untagged)';\n  const text = event.clean_text.substring(0, 50) + \n    (event.clean_text.length > 50 ? '...' : '');\n  \n  response += `${i + 1}. ${time} ${tag} ${text}\\n`;\n});\n\nreturn { response };"
       },
-      "id": "format-recent",
-      "name": "Format Recent Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
-        640
-      ]
+        896,
+        64
+      ],
+      "id": "format-recent",
+      "name": "Format Recent Response"
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "// Format status response\nconst status = $input.item.json;\n\nconst sleepIcon = status.sleeping ? '😴' : '👁️';\nconst sleepStatus = status.sleeping ? 'Sleeping' : 'Awake';\nconst lastActivity = status.last_observation_at\n  ? new Date(status.last_observation_at).toLocaleString()\n  : 'Never';\nconst minutesAgo = Math.round(status.minutes_since_activity || 0);\n\nreturn {\n  response: `${sleepIcon} **Status**\\n\\n` +\n    `State: ${sleepStatus}\\n` +\n    `Last activity: ${lastActivity}\\n` +\n    `Time since: ${minutesAgo} minutes ago`\n};"
       },
-      "id": "format-status",
-      "name": "Format Status Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
-        740
-      ]
+        896,
+        160
+      ],
+      "id": "format-status",
+      "name": "Format Status Response"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Unknown command handler\nconst command = $('Parse Command and Args').item.json.command;\n\nreturn {\n  response: `❌ Unknown command: \\`${command}\\`\\n\\nUse \\`::help\\` to see available commands.`\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        352
+      ],
+      "id": "handle-unknown",
+      "name": "Handle Unknown Command"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine all branches - find the first one with data\nconst activeInput = items.find(input => input && input.json && input.json.response);\n\nif (activeInput) {\n  return [{ json: activeInput.json }];\n} else {\n  return [{ json: { response: '❌ Command processing error' } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "fc2ac950-7f5b-4f06-af71-fadb046d6c82",
+      "name": "Combine Data Streams"
     },
     {
       "parameters": {
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Parse Command').item.json.guild_id }}",
+          "value": "={{ $('When Executed by Another Workflow').item.json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Parse Command').item.json.channel_id }}",
+          "value": "={{ $('When Executed by Another Workflow').item.json.channel_id }}",
           "mode": "id"
         },
         "content": "={{ $json.response }}",
         "options": {}
       },
-      "id": "send-response",
-      "name": "Send Discord Response",
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1120,
-        460
+        1344,
+        0
       ],
+      "id": "eb506035-63ec-4603-bc3d-efed55dab962",
+      "name": "Send Response",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       }
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "response",
-              "name": "response",
-              "value": "=❓ Unknown command: `{{ $('Parse Command').item.json.command }}`\\nType `::help` for available commands",
-              "type": "string"
-            }
-          ]
-        }
-      },
-      "id": "handle-unknown",
-      "name": "Handle Unknown",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
-      "position": [
-        680,
-        940
-      ]
     }
   ],
   "connections": {
-    "Parse Command": {
+    "When Executed by Another Workflow": {
       "main": [
         [
           {
-            "node": "Route Command",
+            "node": "Parse Command and Args",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Route Command": {
+    "Parse Command and Args": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
       "main": [
         [
           {
@@ -491,7 +533,7 @@
         ],
         [
           {
-            "node": "Handle Unknown",
+            "node": "Handle Unknown Command",
             "type": "main",
             "index": 0
           }
@@ -502,7 +544,7 @@
       "main": [
         [
           {
-            "node": "Send Discord Response",
+            "node": "Combine Data Streams",
             "type": "main",
             "index": 0
           }
@@ -568,7 +610,7 @@
       "main": [
         [
           {
-            "node": "Send Discord Response",
+            "node": "Combine Data Streams",
             "type": "main",
             "index": 0
           }
@@ -579,7 +621,7 @@
       "main": [
         [
           {
-            "node": "Send Discord Response",
+            "node": "Combine Data Streams",
             "type": "main",
             "index": 0
           }
@@ -590,7 +632,7 @@
       "main": [
         [
           {
-            "node": "Send Discord Response",
+            "node": "Combine Data Streams",
             "type": "main",
             "index": 0
           }
@@ -601,7 +643,7 @@
       "main": [
         [
           {
-            "node": "Send Discord Response",
+            "node": "Combine Data Streams",
             "type": "main",
             "index": 0
           }
@@ -612,7 +654,7 @@
       "main": [
         [
           {
-            "node": "Send Discord Response",
+            "node": "Combine Data Streams",
             "type": "main",
             "index": 0
           }
@@ -623,18 +665,29 @@
       "main": [
         [
           {
-            "node": "Send Discord Response",
+            "node": "Combine Data Streams",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Handle Unknown": {
+    "Handle Unknown Command": {
       "main": [
         [
           {
-            "node": "Send Discord Response",
+            "node": "Combine Data Streams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Data Streams": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
             "type": "main",
             "index": 0
           }
@@ -643,6 +696,7 @@
     }
   },
   "meta": {
-    "templateCredsSetupCompleted": true
+    "templateCredsSetupCompleted": true,
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
   }
 }
