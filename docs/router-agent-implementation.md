@@ -11,22 +11,32 @@ The Router Agent classifies untagged messages by having an LLM output the approp
 ## Architecture
 
 ```
-Untagged Message
+Untagged Message: "thinking about async communication"
     ↓
-1. Fetch User Context (Postgres)
+1. [SKIP Context - Not Needed]
     ↓
-2. Build Classification Prompt (Code)
+2. Build Minimal Prompt (Code) - just tag definitions
     ↓
-3. LLM Classification (returns "!! working" or ".. interesting idea")
+3. LLM Classification (OpenAI/Anthropic)
+   Returns: "..|high"
     ↓
-4. Parse LLM Output + Confidence Check (Code)
+4. Parse & Reconstruct (Code)
+   - tag = ".."
+   - confidence = "high"
+   - content = ".. thinking about async communication"
     ↓
-5. Route back to "Check Tag" node (EXISTING)
+5. [Optional] Log if confidence=low
     ↓
-6. Handlers (!! Activity, ++ Thread, :: Command, .. Note)
+6. Route to EXISTING "Check Tag" node
+    ↓
+7. "Handle .. Note" → 📝 emoji
 ```
 
-**Key Insight:** We reuse the existing tag routing infrastructure. The LLM just decides which tag to apply!
+**Key Optimizations:**
+- ❌ No Postgres context query (saves ~50ms + tokens)
+- ❌ No user/time/categories in prompt (~70% fewer tokens)
+- ✅ LLM outputs just `TAG|CONFIDENCE` (minimal tokens)
+- ✅ Reconstruct message in n8n (preserve user's exact wording)
 
 ---
 
@@ -43,220 +53,103 @@ Untagged Message
 
 ## Implementation Steps
 
-### Step 1: Add "Fetch User Context" Node
+### Step 1: Skip Context Fetching (Not Needed!)
 
-**Node Type:** Postgres (Execute Query)
+**Decision:** For MVP, we don't need to fetch user context. The classification task is simple enough without it.
 
-**Position:** After "Router Agent Placeholder" node (or where untagged messages route)
+**Why this works:**
+- Most messages are clear: "working on X" vs "I think Y" vs "how do I Z?"
+- Ambiguous messages can default to `++` (conversation)
+- Saves Postgres query on every untagged message
+- Faster response time
 
-**Query:**
-```sql
--- Fetch all context in one query using CTEs
--- Uses expressions to pull author_login from the incoming message
-WITH recent_acts AS (
-  SELECT category_name, description, timestamp
-  FROM recent_activities
-  WHERE author_login = '{{ $json.author.login }}'
-  ORDER BY timestamp DESC
-  LIMIT 3
-),
-activity_cats AS (
-  SELECT array_agg(DISTINCT name ORDER BY name) as categories
-  FROM activity_categories
-  WHERE active = true
-),
-note_cats AS (
-  SELECT array_agg(DISTINCT name ORDER BY name) as categories
-  FROM note_categories
-  WHERE active = true
-),
-user_info AS (
-  SELECT sleeping, last_observation_at
-  FROM user_state
-  WHERE user_login = '{{ $json.author.login }}'
-)
-SELECT 
-  -- Include original message fields
-  '{{ $json.author.login }}' as author_login,
-  '{{ $json.clean_text }}' as clean_text,
-  '{{ $json.content }}' as content,
-  '{{ $json.timestamp }}' as timestamp,
-  '{{ $json.message_id }}' as message_id,
-  '{{ $json.channel_id }}' as channel_id,
-  '{{ $json.guild_id }}' as guild_id,
-  '{{ $json.message_url }}' as message_url,
-  -- Context data
-  (SELECT json_agg(row_to_json(recent_acts)) FROM recent_acts) as recent_activities,
-  (SELECT categories FROM activity_cats) as activity_categories,
-  (SELECT categories FROM note_cats) as note_categories,
-  (SELECT sleeping FROM user_info) as user_sleeping,
-  (SELECT last_observation_at FROM user_info) as last_observation
-;
-```
-
-**Output:** Single row with both original message data and context data
+**If you need context later:** Add Step 1 back with just `recent_activities` (not categories, not user state).
 
 ---
 
-### Step 2: Build Classification Prompt
+### Step 2: Build Minimal Classification Prompt
 
 **Node Type:** Code (JavaScript)
 
+**Position:** After "Router Agent Placeholder" node
+
 **Code:**
 ```javascript
-// Build the router agent classification prompt with context
-const user = $json.author_login || 'unknown';
-const timestamp = $json.timestamp || new Date().toISOString();
-const sleeping = $json.user_sleeping ? "Sleeping" : "Awake";
+// Build minimal classification prompt - just the essentials
 const cleanText = $json.clean_text || '';
 
-// Format recent activities
-let recentActivitiesText = 'None';
-if ($json.recent_activities && $json.recent_activities.length > 0) {
-  recentActivitiesText = $json.recent_activities.map(a => 
-    `- [${a.timestamp}] ${a.category_name}: ${a.description}`
-  ).join('\n');
-}
+const systemPrompt = `You are a message classifier for a life tracking system.
 
-// Format categories
-const activityCats = $json.activity_categories?.join(', ') || 'work, personal, health, sleep, leisure';
-const noteCats = $json.note_categories?.join(', ') || 'idea, decision, reflection, goal';
+Classify the message into ONE of these tags and provide confidence.
 
-const systemPrompt = `You are a classification agent for a life tracking system.
+## Tags
 
-## User Context
+**!!** = Activity (what user is doing/did)
+- Present/past tense actions
+- Examples: "working on router", "took a break", "fixed the bug"
 
-- **User:** ${user}
-- **Time:** ${timestamp}
-- **Current State:** ${sleeping}
+**..** = Note (thoughts, insights, decisions)
+- Declarative observations (NOT questions)
+- Ideas, reflections, decisions
+- Examples: "interesting pattern", "should prioritize X", "decided to do Y"
 
-## Recent Activities (Last 3)
+**++** = Question/Exploration (start conversation)
+- Questions (who/what/when/where/why/how)
+- Requests for help
+- Examples: "what did I do yesterday?", "help me plan", "why is X happening?"
 
-${recentActivitiesText}
+**::** = Command (rare system commands)
+- Examples: "stats", "help", "pause"
 
-## Available Categories
+## Output Format
 
-**Activity Categories:** ${activityCats}
-**Note Categories:** ${noteCats}
-
----
-
-## Your Task
-
-Classify the user's message and output the appropriate tag + message in this EXACT format:
-
+Output ONLY this (nothing else):
 \`\`\`
-TAG MESSAGE
-CONFIDENCE: high|medium|low
+TAG|CONFIDENCE
 \`\`\`
 
-## Available Tags
+Where:
+- TAG is one of: !! or .. or ++ or ::
+- CONFIDENCE is one of: high or medium or low
 
-### !! (Activity)
-**Use when:** User is stating what they're currently doing or have done
-- Present or past tense action statements
-- Clear activity observations
-- Examples: "working on the router", "took a break", "going to bed"
+## Confidence Guide
 
-**Output format:** \`!! ACTIVITY_DESCRIPTION\`
-**Example:** \`!! working on router agent implementation\`
+- **high**: Very clear classification (90%+ confident)
+- **medium**: Reasonable but some ambiguity (60-90% confident)  
+- **low**: Unclear or could be multiple (<60% confident)
 
-### .. (Note)
-**Use when:** Declarative thoughts, insights, observations, or decisions (NOT questions)
-- Ideas or reflections to remember
-- Decisions made
-- Meta observations
-- Examples: "interesting pattern", "I should prioritize X", "decided to do Y"
-
-**Output format:** \`.  . NOTE_TEXT\`
-**Example:** \`.. async communication reduces context switching\`
-
-### ++ (Thread Start / Question)
-**Use when:** User asks a question or requests exploration
-- Questions (who, what, when, where, why, how)
-- Requests for help or brainstorming
-- "Let's think about..." statements
-- Examples: "what did I work on yesterday?", "help me plan my week"
-
-**Output format:** \`++ QUESTION_OR_TOPIC\`
-**Example:** \`++ what did I work on yesterday?\`
-
-### :: (Command)
-**Use when:** User is issuing a system command
-- Explicit commands like "stats", "help", "pause", etc.
-- Should be rare - most user input won't be commands
-
-**Output format:** \`::COMMAND_NAME ARGS\`
-**Example:** \`::stats weekly\`
-
----
-
-## Confidence Levels
-
-After your classification, add a confidence line:
-
-- **high:** Very clear what the user means (90%+ confident)
-- **medium:** Reasonable interpretation but some ambiguity (60-90% confident)
-- **low:** Unclear or could be multiple things (<60% confident)
-
-**If confidence is low:** Bias toward \`++\` (thread start) - it's safer to start a conversation than to misclassify.
-
----
+**If low confidence:** Choose ++ (safer to start conversation than misclassify)
 
 ## Examples
 
 Input: "working on the router agent"
-Output:
-\`\`\`
-!! working on the router agent
-CONFIDENCE: high
-\`\`\`
+Output: \`!!|high\`
 
-Input: "I think async communication is better"
-Output:
-\`\`\`
-.. I think async communication is better
-CONFIDENCE: high
-\`\`\`
+Input: "async communication reduces context switching"
+Output: \`..|high\`
 
 Input: "what did I do yesterday?"
-Output:
-\`\`\`
-++ what did I do yesterday?
-CONFIDENCE: high
-\`\`\`
+Output: \`++|high\`
+
+Input: "hmm not sure"
+Output: \`++|low\`
 
 Input: "still working on it"
-Output:
-\`\`\`
-!! still working on it
-CONFIDENCE: low
-\`\`\`
-(Note: Ambiguous reference, but likely continuing previous activity)
+Output: \`!!|medium\`
 
-Input: "hmm not sure about this approach"
-Output:
-\`\`\`
-++ hmm not sure about this approach
-CONFIDENCE: medium
-\`\`\`
-(Note: Unclear - could be note or question, so safer to start conversation)
-
----
-
-## Important Rules
-
-1. Output ONLY the tag + message and confidence line - no other text
-2. Don't explain your reasoning
-3. Don't add quotes or extra formatting
-4. Preserve the user's original wording after the tag
-5. When in doubt, use \`++\` (conversation is safer than misclassification)`;
+Remember: Output ONLY the tag and confidence. Nothing else.`;
 
 return {
   ...$json,
   classification_prompt: systemPrompt
 };
 ```
+
+**Key Changes:**
+- ❌ Removed: user name, timestamp, sleeping state, recent activities, categories
+- ✅ Kept: Clear tag definitions, examples, confidence guide
+- ✅ New format: `TAG|CONFIDENCE` (not `TAG MESSAGE\nCONFIDENCE: X`)
+- 📉 Token reduction: ~70% fewer tokens in prompt
 
 ---
 
@@ -275,60 +168,57 @@ return {
 
 ---
 
-### Step 4: Parse LLM Output & Check Confidence
+### Step 4: Parse LLM Output & Reconstruct Message
 
 **Node Type:** Code (JavaScript)
 
-**Purpose:** Extract tag, clean text, and confidence from LLM output. Store low-confidence classifications for review.
+**Purpose:** Parse the simple `TAG|CONFIDENCE` format and reconstruct the full message
 
 **Code:**
 ```javascript
-// Parse LLM output
+// Parse LLM output: "!!|high" or "++|low" etc
 const llmOutput = ($json.llm_classification || '').trim();
 
-// Extract confidence line
-const confidenceMatch = llmOutput.match(/CONFIDENCE:\s*(high|medium|low)/i);
-const confidence = confidenceMatch ? confidenceMatch[1].toLowerCase() : 'unknown';
-
-// Extract the tag line (first line)
-const firstLine = llmOutput.split('\n')[0].trim();
-const firstToken = firstLine.split(/\s+/)[0];
+// Split by pipe
+const parts = llmOutput.split('|');
+const tag = parts[0]?.trim() || '';
+const confidence = parts[1]?.trim().toLowerCase() || 'unknown';
 
 // Validate tag
-let tag = null;
-let taggedMessage = llmOutput;
-
-if (['!!', '++', '::', '..'].includes(firstToken)) {
-  tag = firstToken;
-  // Remove tag from beginning of first line
-  taggedMessage = firstLine.slice(firstToken.length).trim();
-} else {
+let validTag = tag;
+if (!['!!', '++', '::', '..'].includes(tag)) {
   // Invalid format - default to ++ (conversation)
-  tag = '++';
-  taggedMessage = $json.clean_text;
-  console.log(`Warning: LLM returned invalid format. Defaulting to ++ thread start. LLM output: ${llmOutput}`);
+  validTag = '++';
+  console.log(`Warning: LLM returned invalid tag "${tag}". Defaulting to ++. Full output: ${llmOutput}`);
 }
 
-// For :: commands, extract command name
+// For :: commands, extract command name from original message
 let command = null;
-if (tag === '::') {
-  const commandMatch = taggedMessage.match(/^(\w+)/);
+if (validTag === '::') {
+  const commandMatch = $json.clean_text.match(/^(\w+)/);
   command = commandMatch ? commandMatch[1] : null;
 }
 
+// Reconstruct full message with tag prefix
+// Use original clean_text (don't let LLM rewrite it)
+const taggedContent = `${validTag} ${$json.clean_text}`.trim();
+
 return {
   ...$json,
-  tag: tag,
+  tag: validTag,
   command: command,
-  content: taggedMessage,  // The message with tag removed
-  clean_text: taggedMessage,
+  content: taggedContent,  // Reconstructed: "!! working on router"
   confidence: confidence,
   llm_raw_output: llmOutput,
   classification_method: 'llm'
 };
 ```
 
-**Note:** This node prepares the data in the same format as the "Parse Tag & Clean Text" node, so it can route to the existing "Check Tag" node!
+**Key Points:**
+- ✅ Parses simple `TAG|CONFIDENCE` format
+- ✅ Uses **original `clean_text`** (doesn't let LLM reword)
+- ✅ Validates tag, defaults to `++` if invalid
+- ✅ Reconstructs `content` field for downstream handlers
 
 ---
 
@@ -450,27 +340,37 @@ Your "Check Tag" node should now have **4 outputs**:
 ### Test Cases
 
 1. **Activity statement:** `"working on the router agent implementation"`
-   - Expected: LLM outputs `!! working on the router agent implementation\nCONFIDENCE: high`
+   - Expected LLM: `!!|high`
+   - Parsed: tag="!!", confidence="high"
+   - Reconstructed: `"!! working on the router agent implementation"`
    - Routes to: "Handle !! Activity"
    - Expected emoji: 🕒
 
 2. **Note/Insight:** `"I think async communication reduces context switching"`
-   - Expected: LLM outputs `.. I think async communication reduces context switching\nCONFIDENCE: high`
+   - Expected LLM: `..|high`
+   - Parsed: tag="..", confidence="high"
+   - Reconstructed: `".. I think async communication reduces context switching"`
    - Routes to: "Handle .. Note"
    - Expected emoji: 📝
 
 3. **Question:** `"what did I work on yesterday?"`
-   - Expected: LLM outputs `++ what did I work on yesterday?\nCONFIDENCE: high`
+   - Expected LLM: `++|high`
+   - Parsed: tag="++", confidence="high"
+   - Reconstructed: `"++ what did I work on yesterday?"`
    - Routes to: "Handle ++ Thread Start"
    - Expected emoji: 💭
 
 4. **Ambiguous:** `"still working on it"`
-   - Expected: LLM outputs `!! still working on it\nCONFIDENCE: low`
-   - Routes to: "Handle !! Activity" (but confidence is logged)
+   - Expected LLM: `!!|low` (best guess, but uncertain)
+   - Parsed: tag="!!", confidence="low"
+   - Reconstructed: `"!! still working on it"`
+   - Routes to: "Handle !! Activity" (confidence logged)
    - Expected emoji: 🕒
 
 5. **Very unclear:** `"hmm"`
-   - Expected: LLM outputs `++ hmm\nCONFIDENCE: low`
+   - Expected LLM: `++|low` (defaults to conversation when unsure)
+   - Parsed: tag="++", confidence="low"
+   - Reconstructed: `"++ hmm"`
    - Routes to: "Handle ++ Thread Start" (safe fallback)
    - Expected emoji: 💭
 
