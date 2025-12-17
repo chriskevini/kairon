@@ -23,7 +23,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'summary_time';",
+        "query": "SELECT key, value FROM config WHERE key IN ('summary_time', 'last_summary_date');",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -33,7 +33,7 @@
         384
       ],
       "id": "9cf68032-3d1b-4b95-a1a9-b5f7752b36ff",
-      "name": "Get Summary Time",
+      "name": "Get Config Values",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse configured time and check if we should run\nconst currentHour = $now.hour\n\n// Get configured time (default to 20 if not set)\nconst inputItems = $input.all();\nlet targetHour = 20;\n\nif (inputItems.length > 0 && inputItems[0].json.value) {\n  const configTime = inputItems[0].json.value; // Format: \"HH:MM\" or \"HH\"\n  if (configTime.includes(':')) {\n    targetHour = parseInt(configTime.split(':')[0]);\n  } else {\n    targetHour = parseInt(configTime);\n  }\n}\n\nreturn [{ json: { current_hour: currentHour, target_hour: targetHour } }];"
+        "jsCode": "// Check if we should run summary (time matches AND not already run today)\nconst currentHour = $now.hour;\nconst todayDate = $now.toFormat('yyyy-MM-dd');\nconst inputItems = $input.all();\n\n// Extract config values\nlet targetHour = 20; // default\nlet lastSummaryDate = null;\n\nfor (const item of inputItems) {\n  if (item.json.key === 'summary_time') {\n    const configTime = item.json.value;\n    if (configTime.includes(':')) {\n      targetHour = parseInt(configTime.split(':')[0]);\n    } else {\n      targetHour = parseInt(configTime);\n    }\n  } else if (item.json.key === 'last_summary_date') {\n    lastSummaryDate = item.json.value;\n  }\n}\n\n// Check 1: Is it the right hour?\nif (currentHour !== targetHour) {\n  return [];\n}\n\n// Check 2: Already ran today?\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - time matches and not run today\nreturn [{ json: { should_run: true, today: todayDate } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -53,75 +53,7 @@
         384
       ],
       "id": "1a015f61-52f8-4019-8c32-0997a51b4a81",
-      "name": "Parse Config Time"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "time-match",
-              "leftValue": "={{ $json.current_hour }}",
-              "rightValue": "={{ $json.target_hour }}",
-              "operator": {
-                "type": "number",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -32,
-        384
-      ],
-      "id": "2802a05c-dd10-4b16-a1ad-5fb5473b71ff",
-      "name": "Check If Time to Run"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'last_summary_date';",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        192,
-        -96
-      ],
-      "id": "check-last-summary",
-      "name": "Check Last Summary Date",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Check if we already ran today\nconst todayDate = $now.format('yyyy-MM-dd');\nconst inputItems = $input.all();\n\nlet lastSummaryDate = null;\nif (inputItems.length > 0 && inputItems[0].json.value) {\n  lastSummaryDate = inputItems[0].json.value;\n}\n\n// If last summary was today, stop execution\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - we need to generate summary\nreturn [{ json: { should_run: true, today: todayDate } }];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        416,
-        -96
-      ],
-      "id": "check-already-ran",
-      "name": "Check If Already Ran Today"
+      "name": "Check Should Run"
     },
     {
       "parameters": {
@@ -354,58 +286,25 @@
       "main": [
         [
           {
-            "node": "Get Summary Time",
+            "node": "Get Config Values",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Summary Time": {
+    "Get Config Values": {
       "main": [
         [
           {
-            "node": "Parse Config Time",
+            "node": "Check Should Run",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Config Time": {
-      "main": [
-        [
-          {
-            "node": "Check If Time to Run",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check If Time to Run": {
-      "main": [
-        [
-          {
-            "node": "Check Last Summary Date",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Last Summary Date": {
-      "main": [
-        [
-          {
-            "node": "Check If Already Ran Today",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check If Already Ran Today": {
+    "Check Should Run": {
       "main": [
         [
           {
