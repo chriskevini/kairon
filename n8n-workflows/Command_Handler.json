@@ -276,7 +276,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = $1",
+        "query": "SELECT value FROM config WHERE key = COALESCE($1, '')",
         "options": {
           "queryReplacement": "={{ $('Parse Command and Args').item.json.args[0] }}"
         }
@@ -313,6 +313,7 @@
       ],
       "id": "3ce14aba-748b-47ce-97ad-25d60bd67376",
       "name": "Query Set Config",
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -404,7 +405,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format get command response\nconst args = $('Parse Command and Args').item.json.args;\nconst key = args[0];\nconst event = $('When Executed by Another Workflow').first().json.event;\n\n// Validate key argument\nif (!key || key.trim() === '') {\n  return {\n    response: `❌ Missing config key. Syntax: \\`::get <key>\\`\\n\\nUse \\`::help\\` to see available config keys.`,\n    ...event\n  };\n}\n\nconst result = $input.item.json;\nif (!result || !result.value) {\n  return {\n    response: `❌ Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.`,\n    ...event\n  };\n}\n\nreturn {\n  response: `**${key}:** ${result.value}`,\n  ...event\n};"
+        "jsCode": "// Format get command response (validation already done)\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item.json.args;\nconst key = args[0];\nconst result = $input.first()?.json;\n\n// Check if query returned data\nif (!result || !result.value) {\n  return {\n    response: `❌ Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.`,\n    ...event\n  };\n}\n\nreturn {\n  response: `**${key}:** ${result.value}`,\n  ...event\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -418,7 +419,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format set command response\nconst args = $('Parse Command and Args').item.json.args;\nconst event = $('When Executed by Another Workflow').first().json.event;\n\n// Validate arguments\nif (!args || args.length < 2) {\n  return {\n    response: `❌ Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Focus on deep work\\``,\n    ...event\n  };\n}\n\nconst result = $input.item.json;\nif (!result || !result.key) {\n  return {\n    response: `❌ Failed to set config value. Please try again.`,\n    ...event\n  };\n}\n\nreturn {\n  response: `✅ Set **${result.key}** = ${result.value}`,\n  ...event\n};"
+        "jsCode": "// Format set command response (validation already done)\nconst result = $input.first()?.json;\nconst event = $('When Executed by Another Workflow').first().json.event;\n\n// Check if database operation succeeded\nif (!result || !result.key) {\n  return {\n    response: `❌ Failed to set config value. Please try again.`,\n    ...event\n  };\n}\n\nreturn {\n  response: `✅ Set **${result.key}** = ${result.value}`,\n  ...event\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -510,7 +511,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format delete response\nconst deleted = $input.all();\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item.json.args;\nconst itemType = args[0] || 'activity';\n\n// Validate arguments\nif (!args || args.length < 2) {\n  return {\n    response: `❌ Missing short ID. Syntax: \\`::delete ${itemType} <short-id>\\`\\n\\nUse \\`::recent ${itemType === 'activity' ? 'activities' : 'notes'}\\` to see valid IDs.`,\n    ...event\n  };\n}\n\nif (deleted.length === 0) {\n  const shortIds = args.slice(1).filter(id => id).join(', ');\n  return {\n    response: `❌ No ${itemType === 'activity' ? 'activities' : 'notes'} found with ID(s): ${shortIds}\\n\\nUse \\`::recent ${itemType === 'activity' ? 'activities' : 'notes'}\\` to see valid IDs.`,\n    ...event\n  };\n}\n\nif (deleted.length === 1) {\n  const item = deleted[0].json;\n  const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n  return {\n    response: `✅ Deleted ${item.type}: \"${text}\"`,\n    ...event\n  };\n}\n\nconst typeLabel = deleted[0].json.type === 'activity' ? 'activities' : 'notes';\nreturn {\n  response: `✅ Deleted ${deleted.length} ${typeLabel}`,\n  ...event\n};"
+        "jsCode": "// Format delete response (validation already done)\nconst deleted = $input.all();\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item.json.args;\nconst itemType = args[0];\n\n// Check if any items were actually deleted\nif (deleted.length === 0) {\n  const shortIds = args.slice(1).filter(id => id).join(', ');\n  return {\n    response: `❌ No ${itemType === 'activity' ? 'activities' : 'notes'} found with ID(s): ${shortIds}\\n\\nUse \\`::recent ${itemType === 'activity' ? 'activities' : 'notes'}\\` to see valid IDs.`,\n    ...event\n  };\n}\n\nif (deleted.length === 1) {\n  const item = deleted[0].json;\n  const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n  return {\n    response: `✅ Deleted ${item.type}: \"${text}\"`,\n    ...event\n  };\n}\n\nconst typeLabel = deleted[0].json.type === 'activity' ? 'activities' : 'notes';\nreturn {\n  response: `✅ Deleted ${deleted.length} ${typeLabel}`,\n  ...event\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -520,6 +521,179 @@
       ],
       "id": "f7g8h9i0-j1k2-l3m4-n5o6-p7q8r9s0t1u2",
       "name": "Format Delete Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate GET command\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\nconst key = args[0];\n\n// Validation: check if key provided\nif (!key || key.trim() === '') {\n  return {\n    valid: false,\n    error_message: `❌ Missing config key. Syntax: \\`::get <key>\\`\\n\\nAvailable keys: north_star, summary_time\\nUse \\`::help\\` for more info.`,\n    ...event\n  };\n}\n\n// Valid\nreturn {\n  valid: true,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        4976
+      ],
+      "id": "val-get-001",
+      "name": "Validate Get"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate SET command\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\n\n// Validation: need at least 2 args (key and value)\nif (!args || args.length < 2) {\n  return {\n    valid: false,\n    error_message: `❌ Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Be present and intentional\\`\\n\\nAvailable keys: north_star, summary_time`,\n    ...event\n  };\n}\n\nconst key = args[0];\nif (!key || key.trim() === '') {\n  return {\n    valid: false,\n    error_message: `❌ Invalid config key (empty string).\\n\\nExample: \\`::set north_star <your principle>\\``,\n    ...event\n  };\n}\n\n// Valid\nreturn {\n  valid: true,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        5168
+      ],
+      "id": "val-set-001",
+      "name": "Validate Set"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate DELETE command\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\nconst itemType = args[0];\n\n// Validation: need item type (activity/note)\nif (!itemType || !['activity', 'note', 'activities', 'notes'].includes(itemType)) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid item type. Syntax: \\`::delete activity <short-id>\\` or \\`::delete note <short-id>\\`\\n\\nUse \\`::recent activities\\` or \\`::recent notes\\` to see valid IDs.`,\n    ...event\n  };\n}\n\n// Validation: need at least one short ID\nif (args.length < 2 || !args[1] || args[1].trim() === '') {\n  return {\n    valid: false,\n    error_message: `❌ Missing short ID. Syntax: \\`::delete ${itemType} <short-id>\\`\\n\\nExample: \\`::delete ${itemType} a1b2c3d4\\`\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see valid IDs.`,\n    ...event\n  };\n}\n\n// Validation: check short ID format (at least 4 chars)\nconst shortIds = args.slice(1).filter(id => id && id.trim() !== '');\nconst invalidIds = shortIds.filter(id => id.length < 4);\nif (invalidIds.length > 0) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid short ID format: ${invalidIds.join(', ')}\\n\\nShort IDs must be at least 4 characters. Use \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see valid IDs.`,\n    ...event\n  };\n}\n\n// Valid\nreturn {\n  valid: true,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        5936
+      ],
+      "id": "val-del-001",
+      "name": "Validate Delete"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        704,
+        4976
+      ],
+      "id": "if-valid-get-001",
+      "name": "If Valid Get"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        704,
+        5168
+      ],
+      "id": "if-valid-set-001",
+      "name": "If Valid Set"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        704,
+        5936
+      ],
+      "id": "if-valid-del-001",
+      "name": "If Valid Delete"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel_id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.error_message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        880,
+        5680
+      ],
+      "id": "send-error-001",
+      "name": "Send Error Message",
+      "webhookId": "error-webhook-001",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
     },
     {
       "parameters": {
@@ -588,14 +762,14 @@
         ],
         [
           {
-            "node": "Query Get Config",
+            "node": "Validate Get",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Query Set Config",
+            "node": "Validate Set",
             "type": "main",
             "index": 0
           }
@@ -637,7 +811,7 @@
         ],
         [
           {
-            "node": "Query Delete Items",
+            "node": "Validate Delete",
             "type": "main",
             "index": 0
           }
@@ -781,6 +955,93 @@
         [
           {
             "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Get": {
+      "main": [
+        [
+          {
+            "node": "If Valid Get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Set": {
+      "main": [
+        [
+          {
+            "node": "If Valid Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Delete": {
+      "main": [
+        [
+          {
+            "node": "If Valid Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid Get": {
+      "main": [
+        [
+          {
+            "node": "Query Get Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid Set": {
+      "main": [
+        [
+          {
+            "node": "Query Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid Delete": {
+      "main": [
+        [
+          {
+            "node": "Query Delete Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Message",
             "type": "main",
             "index": 0
           }
