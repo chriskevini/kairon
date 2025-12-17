@@ -485,19 +485,6 @@
     },
     {
       "parameters": {
-        "jsCode": "// Combine all branches - find the first one with data\nconst activeInput = items.find(input => input && input.json && input.json.response);\n\nif (activeInput) {\n  return [{ json: activeInput.json }];\n} else {\n  return [{ json: { response: '❌ Command processing error' } }];\n}"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        992,
-        2560
-      ],
-      "id": "443b8e88-7582-4794-804d-b5f235e88ef4",
-      "name": "Combine Data Streams"
-    },
-    {
-      "parameters": {
         "resource": "message",
         "guildId": {
           "__rl": true,
@@ -615,7 +602,7 @@
       "main": [
         [
           {
-            "node": "Combine Data Streams",
+            "node": "Send Response",
             "type": "main",
             "index": 0
           }
@@ -681,7 +668,7 @@
       "main": [
         [
           {
-            "node": "Combine Data Streams",
+            "node": "Send Response",
             "type": "main",
             "index": 0
           }
@@ -692,7 +679,7 @@
       "main": [
         [
           {
-            "node": "Combine Data Streams",
+            "node": "Send Response",
             "type": "main",
             "index": 0
           }
@@ -703,7 +690,7 @@
       "main": [
         [
           {
-            "node": "Combine Data Streams",
+            "node": "Send Response",
             "type": "main",
             "index": 0
           }
@@ -714,7 +701,7 @@
       "main": [
         [
           {
-            "node": "Combine Data Streams",
+            "node": "Send Response",
             "type": "main",
             "index": 0
           }
@@ -725,7 +712,7 @@
       "main": [
         [
           {
-            "node": "Combine Data Streams",
+            "node": "Send Response",
             "type": "main",
             "index": 0
           }
@@ -736,7 +723,7 @@
       "main": [
         [
           {
-            "node": "Combine Data Streams",
+            "node": "Send Response",
             "type": "main",
             "index": 0
           }
@@ -744,17 +731,6 @@
       ]
     },
     "Handle Unknown Command": {
-      "main": [
-        [
-          {
-            "node": "Combine Data Streams",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Combine Data Streams": {
       "main": [
         [
           {
