@@ -23,24 +23,17 @@
     },
     {
       "parameters": {
-        "resource": "message",
-        "operation": "createThread",
-        "guildId": {
-          "__rl": true,
-          "value": "={{ $json.event.guild_id }}",
-          "mode": "id"
-        },
-        "channelId": {
-          "__rl": true,
-          "value": "={{ $json.event.channel_id }}",
-          "mode": "id"
-        },
-        "messageId": "={{ $json.event.message_id }}",
-        "name": "={{ $json.event.clean_text.slice(0, 100) }}",
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.event.channel_id }}/messages/{{ $json.event.message_id }}/threads",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"name\": $json.event.clean_text.slice(0, 100) } }}",
         "options": {}
       },
-      "type": "n8n-nodes-base.discord",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         480,
         400
@@ -154,7 +147,7 @@
     },
     {
       "parameters": {
-        "model": "nex-agi/deepseek-v3.1-nex-n1:free",
+        "model": "nvidia/nemotron-nano-9b-v2:free",
         "options": {
           "temperature": 0.7
         }
@@ -166,7 +159,7 @@
         620
       ],
       "id": "a8n9d0l1-2345-6789-0abc-def123456789",
-      "name": "DeepSeek V3.1",
+      "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
           "id": "r79IBN16aZtPIN8T",
@@ -176,7 +169,7 @@
     },
     {
       "parameters": {
-        "model": "tngtech/deepseek-r1t2-chimera:free",
+        "model": "xiaomi/mimo-v2-flash:free",
         "options": {
           "temperature": 0.7
         }
@@ -188,7 +181,7 @@
         780
       ],
       "id": "p1q2r3s4-t5u6-v789-0wxy-z12345678901",
-      "name": "DeepSeek Chimera (Fallback)",
+      "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
           "id": "r79IBN16aZtPIN8T",
@@ -367,7 +360,7 @@
         ]
       ]
     },
-    "DeepSeek V3.1": {
+    "nemotron-nano-9b": {
       "ai_languageModel": [
         [
           {
@@ -378,7 +371,7 @@
         ]
       ]
     },
-    "DeepSeek Chimera (Fallback)": {
+    "mimo-v2-flash": {
       "ai_languageModel": [
         [
           {

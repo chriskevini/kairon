@@ -242,7 +242,7 @@
     },
     {
       "parameters": {
-        "model": "nex-agi/deepseek-v3.1-nex-n1:free",
+        "model": "nvidia/nemotron-nano-9b-v2:free",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
@@ -252,7 +252,7 @@
         608
       ],
       "id": "c9951f91-832f-4dc3-9ea9-4319105f8441",
-      "name": "deepseek-v3.1-nex",
+      "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
           "id": "r79IBN16aZtPIN8T",
@@ -262,7 +262,7 @@
     },
     {
       "parameters": {
-        "model": "tngtech/deepseek-r1t2-chimera:free",
+        "model": "xiaomi/mimo-v2-flash:free",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
@@ -272,7 +272,7 @@
         608
       ],
       "id": "3ac6448a-5c7f-4ac0-8dd4-10b155e2e335",
-      "name": "deepseek-r1t2-chimera",
+      "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
           "id": "r79IBN16aZtPIN8T",
@@ -418,7 +418,7 @@
         ]
       ]
     },
-    "deepseek-v3.1-nex": {
+    "nemotron-nano-9b": {
       "ai_languageModel": [
         [
           {
@@ -429,7 +429,7 @@
         ]
       ]
     },
-    "deepseek-r1t2-chimera": {
+    "mimo-v2-flash": {
       "ai_languageModel": [
         [
           {

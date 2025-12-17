@@ -713,6 +713,38 @@
           "name": "OpenRouter account"
         }
       }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "removeReaction",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $json.message_id }}",
+        "emoji": "=👀"
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        5088
+      ],
+      "id": "remove-eyes-node-id",
+      "name": "Remove 👀 Reaction",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
     }
   ],
   "connections": {
@@ -901,6 +933,50 @@
           {
             "node": "Intent Classifier",
             "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle !! Activity": {
+      "main": [
+        [
+          {
+            "node": "Remove 👀 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle ++ Thread Start": {
+      "main": [
+        [
+          {
+            "node": "Remove 👀 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle .. Note": {
+      "main": [
+        [
+          {
+            "node": "Remove 👀 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle :: Command": {
+      "main": [
+        [
+          {
+            "node": "Remove 👀 Reaction",
+            "type": "main",
             "index": 0
           }
         ]
