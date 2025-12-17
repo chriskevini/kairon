@@ -41,33 +41,7 @@
           "name": "Postgres account"
         }
       },
-      "notes": "Checks if:\n1. User is awake (sleeping = false)\n2. No activity in last 30 minutes\n\nReturns row if both true, empty if should not ping"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "leftValue": "={{ $json.user_login }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "exists",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        448,
-        0
-      ],
-      "id": "if-should-ping",
-      "name": "Should Send Reminder?"
+      "notes": "Checks if:\n1. User is awake (sleeping = false)\n2. No activity in last 30 minutes\n\nIf conditions met, returns row and continues.\nIf not met, returns nothing and workflow stops (desired behavior)."
     },
     {
       "parameters": {
@@ -88,8 +62,8 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        672,
-        -96
+        448,
+        0
       ],
       "id": "send-reminder",
       "name": "Send Activity Reminder",
@@ -114,17 +88,6 @@
       ]
     },
     "Check User State": {
-      "main": [
-        [
-          {
-            "node": "Should Send Reminder?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Should Send Reminder?": {
       "main": [
         [
           {
