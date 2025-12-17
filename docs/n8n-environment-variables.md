@@ -18,6 +18,7 @@ This document explains how to configure environment variables for the Kairon wor
 | `DISCORD_GUILD_ID` | Your Discord server ID | `123456789012345678` |
 | `DISCORD_CHANNEL_ARCANE_SHELL` | #arcane-shell channel ID | `123456789012345678` |
 | `DISCORD_CHANNEL_KAIRON_LOGS` | #kairon-logs channel ID | `123456789012345678` |
+| `DISCORD_CHANNEL_OBSIDIAN_BOARD` | #obsidian-board channel ID | `123456789012345678` |
 
 ---
 
@@ -37,6 +38,7 @@ services:
       - DISCORD_GUILD_ID=your-guild-id
       - DISCORD_CHANNEL_ARCANE_SHELL=your-arcane-shell-id
       - DISCORD_CHANNEL_KAIRON_LOGS=your-kairon-logs-id
+      - DISCORD_CHANNEL_OBSIDIAN_BOARD=your-obsidian-board-id
       # ... other n8n environment variables
     ports:
       - "5678:5678"
@@ -67,6 +69,7 @@ Environment="WEBHOOK_PATH=your-random-webhook-path"
 Environment="DISCORD_GUILD_ID=your-guild-id"
 Environment="DISCORD_CHANNEL_ARCANE_SHELL=your-arcane-shell-id"
 Environment="DISCORD_CHANNEL_KAIRON_LOGS=your-kairon-logs-id"
+Environment="DISCORD_CHANNEL_OBSIDIAN_BOARD=your-obsidian-board-id"
 # ... rest of your service configuration
 ```
 
