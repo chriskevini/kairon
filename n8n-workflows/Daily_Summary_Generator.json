@@ -7,7 +7,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "0 * * * *"
+              "expression": "*/5 * * * *"
             }
           ]
         }
@@ -19,7 +19,7 @@
         400
       ],
       "id": "cron-trigger",
-      "name": "Hourly Trigger"
+      "name": "Every 5 Minutes"
     },
     {
       "parameters": {
@@ -45,12 +45,44 @@
     },
     {
       "parameters": {
-        "jsCode": "// Check if it's time to run the summary\nconst now = new Date();\nconst currentHour = now.getHours();\nconst currentMinute = now.getMinutes();\n\n// Get configured time (default to 20:00 if not set)\nconst inputItems = $input.all();\nlet targetHour = 20;\n\n// Check if we got a config result (not an error)\nif (inputItems.length > 0 && inputItems[0].json.value) {\n  const configTime = inputItems[0].json.value; // Format: \"HH:MM\" or \"HH\"\n  if (configTime.includes(':')) {\n    targetHour = parseInt(configTime.split(':')[0]);\n  } else {\n    targetHour = parseInt(configTime);\n  }\n}\n\n// Check if current time matches target hour (run between :00 and :29)\nconst shouldRun = currentHour === targetHour && currentMinute < 30;\n\nif (!shouldRun) {\n  // Stop execution - not time yet\n  return [];\n}\n\n// Continue execution - return a single item to trigger parallel queries\nreturn [{ json: { should_run: true, target_hour: targetHour } }];"
+        "jsCode": "// Parse configured time and check if we should run\nconst now = new Date();\nconst currentHour = now.getHours();\n\n// Get configured time (default to 20 if not set)\nconst inputItems = $input.all();\nlet targetHour = 20;\n\nif (inputItems.length > 0 && inputItems[0].json.value) {\n  const configTime = inputItems[0].json.value; // Format: \"HH:MM\" or \"HH\"\n  if (configTime.includes(':')) {\n    targetHour = parseInt(configTime.split(':')[0]);\n  } else {\n    targetHour = parseInt(configTime);\n  }\n}\n\nreturn [{ json: { current_hour: currentHour, target_hour: targetHour } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         720,
+        400
+      ],
+      "id": "parse-config",
+      "name": "Parse Config Time"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "time-match",
+              "leftValue": "={{ $json.current_hour }}",
+              "rightValue": "={{ $json.target_hour }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        960,
         400
       ],
       "id": "check-time",
@@ -65,7 +97,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        960,
+        1200,
         240
       ],
       "id": "query-north-star",
@@ -87,7 +119,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        960,
+        1200,
         400
       ],
       "id": "query-activities",
@@ -109,7 +141,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        960,
+        1200,
         560
       ],
       "id": "query-notes",
@@ -131,7 +163,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        960,
+        1200,
         720
       ],
       "id": "query-breakdown",
@@ -152,7 +184,7 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        1200,
+        1440,
         400
       ],
       "id": "merge-all-results",
@@ -166,7 +198,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1440,
+        1680,
         400
       ],
       "id": "merge-data",
@@ -181,7 +213,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        1680,
+        1920,
         400
       ],
       "id": "generate-summary",
@@ -198,7 +230,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1680,
+        1920,
         620
       ],
       "id": "llm-model",
@@ -229,7 +261,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1920,
+        2160,
         400
       ],
       "id": "send-summary",
@@ -243,7 +275,7 @@
     }
   ],
   "connections": {
-    "Hourly Trigger": {
+    "Every 5 Minutes": {
       "main": [
         [
           {
@@ -255,6 +287,17 @@
       ]
     },
     "Get Summary Time": {
+      "main": [
+        [
+          {
+            "node": "Parse Config Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Config Time": {
       "main": [
         [
           {
