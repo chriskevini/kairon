@@ -41,6 +41,36 @@
     },
     {
       "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "add-raw-event-id",
+              "name": "event",
+              "value": "={{ Object.assign({}, $('Build Event Object').item.json.event, { raw_event_id: $json.id }) }}",
+              "type": "object"
+            },
+            {
+              "id": "keep-tag",
+              "name": "tag",
+              "value": "={{ $('Build Event Object').item.json.tag }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        496,
+        432
+      ],
+      "id": "add-raw-id-node-12345",
+      "name": "Add Raw Event ID"
+    },
+    {
+      "parameters": {
         "rules": {
           "values": [
             {
@@ -53,7 +83,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $('Build Event Object').item.json.tag }}",
+                    "leftValue": "={{ $('Add Raw Event ID').item.json.tag }}",
                     "rightValue": "!!",
                     "operator": {
                       "type": "string",
@@ -76,7 +106,7 @@
                 "conditions": [
                   {
                     "id": "605cd974-50d7-474b-9b9c-719e1e880f6b",
-                    "leftValue": "={{ $('Build Event Object').item.json.tag }}",
+                    "leftValue": "={{ $('Add Raw Event ID').item.json.tag }}",
                     "rightValue": "++",
                     "operator": {
                       "type": "string",
@@ -98,7 +128,7 @@
                 "conditions": [
                   {
                     "id": "d353c1c1-cb81-4bfd-ba4b-f93c94d890f1",
-                    "leftValue": "={{ $('Build Event Object').item.json.tag }}",
+                    "leftValue": "={{ $('Add Raw Event ID').item.json.tag }}",
                     "rightValue": "::",
                     "operator": {
                       "type": "string",
@@ -120,7 +150,7 @@
                 "conditions": [
                   {
                     "id": "3b33f54e-2b45-4471-940c-eabe0299142c",
-                    "leftValue": "={{ $('Build Event Object').item.json.tag }}",
+                    "leftValue": "={{ $('Add Raw Event ID').item.json.tag }}",
                     "rightValue": "..",
                     "operator": {
                       "type": "string",
@@ -297,7 +327,7 @@
           "conditions": [
             {
               "id": "91cb07bc-c96e-4220-abdb-05844ba93f75",
-              "leftValue": "={{ $('Build Event Object').item.json.thread_id }}",
+              "leftValue": "={{ $('Add Raw Event ID').item.json.event.thread_id }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -563,7 +593,7 @@
             {
               "id": "event-object",
               "name": "event",
-              "value": "={{ {\n  raw_event_id: $('Store Raw Event').item.json.id,\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\./, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content\n} }}",
+              "value": "={{ {\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\./, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content\n} }}",
               "type": "object"
             }
           ]
@@ -638,6 +668,17 @@
       ]
     },
     "Store Raw Event": {
+      "main": [
+        [
+          {
+            "node": "Add Raw Event ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Raw Event ID": {
       "main": [
         [
           {
