@@ -20,8 +20,8 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        0,
-        0
+        -176,
+        2560
       ],
       "id": "260e4e98-5573-4210-86c1-b987eaa1afb9",
       "name": "When Executed by Another Workflow"
@@ -49,10 +49,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        224,
-        0
+        96,
+        2560
       ],
-      "id": "3881e3ae-89b3-455e-89bc-00bbac559d0f",
+      "id": "c2aaa6f8-d5bd-4a45-a30c-252453a99b9b",
       "name": "Parse Command and Args"
     },
     {
@@ -61,6 +61,12 @@
           "values": [
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.command }}",
@@ -68,15 +74,23 @@
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    }
+                    },
+                    "id": "9e2a0d1b-6254-4b67-a743-3e5b2367a01c"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "ping"
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.command }}",
@@ -84,15 +98,23 @@
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    }
+                    },
+                    "id": "33cb86c7-ccaf-4e61-bc6a-e8ed32676451"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "get"
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.command }}",
@@ -100,15 +122,23 @@
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    }
+                    },
+                    "id": "2150078e-a4bb-4872-bfdb-36245afa5701"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "set"
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.command }}",
@@ -116,15 +146,23 @@
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    }
+                    },
+                    "id": "fe31fc91-b7dc-4554-97bf-8024d8f6af25"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "stats"
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.command }}",
@@ -132,15 +170,23 @@
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    }
+                    },
+                    "id": "a807c42d-404f-419d-8129-d7c71ed6051c"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "recent"
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.command }}",
@@ -148,15 +194,23 @@
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    }
+                    },
+                    "id": "5094be05-8bc0-4702-a6da-ecbd5913c93f"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "status"
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.command }}",
@@ -164,9 +218,11 @@
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    }
+                    },
+                    "id": "c42b06ed-ca87-489d-a4d8-d2e861db2239"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "help"
@@ -180,10 +236,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        448,
-        0
+        320,
+        2464
       ],
-      "id": "e16c4304-caad-488e-9e3b-4259617872f2",
+      "id": "847a2a79-8623-40e6-a4ed-0b259d5fee3f",
       "name": "Switch"
     },
     {
@@ -203,10 +259,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        672,
-        -320
+        768,
+        1888
       ],
-      "id": "98194b45-0511-4eac-b275-543a031ea124",
+      "id": "ea0a40dc-2676-480f-8895-88fc297f9198",
       "name": "Handle ping"
     },
     {
@@ -220,10 +276,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        672,
-        -224
+        544,
+        2080
       ],
-      "id": "query-get",
+      "id": "2fbd0787-6071-4e61-9046-a98a02cb8b49",
       "name": "Query Get Config",
       "credentials": {
         "postgres": {
@@ -243,10 +299,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        672,
-        -128
+        544,
+        2272
       ],
-      "id": "query-set",
+      "id": "ee3aa303-f24f-4457-bab7-b2c7736451b6",
       "name": "Query Set Config",
       "credentials": {
         "postgres": {
@@ -264,10 +320,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        672,
-        -32
+        544,
+        2464
       ],
-      "id": "query-stats",
+      "id": "5ff4d938-6983-45b9-a31b-04cf855b89ad",
       "name": "Query Stats",
       "credentials": {
         "postgres": {
@@ -287,10 +343,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        672,
-        64
+        544,
+        2656
       ],
-      "id": "query-recent",
+      "id": "6c32b409-052b-4b0c-8d6c-182db1e707e6",
       "name": "Query Recent Events",
       "credentials": {
         "postgres": {
@@ -308,10 +364,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        672,
-        160
+        544,
+        2848
       ],
-      "id": "query-status",
+      "id": "4ffe6b6d-13e2-4f55-96cc-d01217ecc273",
       "name": "Query User Status",
       "credentials": {
         "postgres": {
@@ -337,10 +393,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        672,
-        256
+        768,
+        3040
       ],
-      "id": "handle-help",
+      "id": "b0212815-a865-4614-9566-1876a9f6daa0",
       "name": "Handle help"
     },
     {
@@ -351,10 +407,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        -224
+        768,
+        2080
       ],
-      "id": "format-get",
+      "id": "9d2c161f-f4a3-48d7-b51b-de0f9af15b7f",
       "name": "Format Get Response"
     },
     {
@@ -365,10 +421,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        -128
+        768,
+        2272
       ],
-      "id": "format-set",
+      "id": "2cb54b6c-eae1-4f88-88f7-b35057673aba",
       "name": "Format Set Response"
     },
     {
@@ -379,10 +435,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        -32
+        768,
+        2464
       ],
-      "id": "format-stats",
+      "id": "ba46d7d0-f7af-4026-9f8b-4c419dbaf52d",
       "name": "Format Stats Response"
     },
     {
@@ -393,10 +449,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        64
+        768,
+        2656
       ],
-      "id": "format-recent",
+      "id": "65cb8e14-45cd-4951-9a88-dfc63719f34e",
       "name": "Format Recent Response"
     },
     {
@@ -407,10 +463,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        160
+        768,
+        2848
       ],
-      "id": "format-status",
+      "id": "92fedbbd-faa9-4197-91db-f6501e4915c6",
       "name": "Format Status Response"
     },
     {
@@ -421,10 +477,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
-        352
+        768,
+        3232
       ],
-      "id": "handle-unknown",
+      "id": "450738ec-d9f6-4d96-972b-41536a068a51",
       "name": "Handle Unknown Command"
     },
     {
@@ -434,10 +490,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        0
+        992,
+        2560
       ],
-      "id": "fc2ac950-7f5b-4f06-af71-fadb046d6c82",
+      "id": "443b8e88-7582-4794-804d-b5f235e88ef4",
       "name": "Combine Data Streams"
     },
     {
@@ -459,10 +515,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1344,
-        0
+        1216,
+        2560
       ],
-      "id": "eb506035-63ec-4603-bc3d-efed55dab962",
+      "id": "89638a4e-d713-464f-9611-78bf789f141a",
       "name": "Send Response",
       "credentials": {
         "discordBotApi": {
