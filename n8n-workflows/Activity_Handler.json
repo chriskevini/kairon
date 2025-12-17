@@ -59,7 +59,9 @@
       "parameters": {
         "promptType": "define",
         "text": "=You are an activity classifier for a life tracking system.\n\nExtract the category and description from the user's activity message.\n\n## Available Categories\n{{ $json.categories }}\n\n## User Message\n{{ $json.cleanText }}\n\n## Instructions\n\n1. Choose the most appropriate category from the list above\n2. Extract a concise description (keep it short, remove filler words)\n3. If the category is not clear, use your best judgment\n4. If it seems like sleep-related activity, use \"sleep\" category\n\n## Output Format\n\nOutput ONLY valid JSON (nothing else):\n\n{\n  \"category\": \"category_name\",\n  \"description\": \"short description\"\n}\n\n## Examples\n\nInput: \"working on the router agent implementation\"\nOutput: {\"category\": \"work\", \"description\": \"router agent implementation\"}\n\nInput: \"taking a coffee break\"\nOutput: {\"category\": \"leisure\", \"description\": \"coffee break\"}\n\nInput: \"going to bed now\"\nOutput: {\"category\": \"sleep\", \"description\": \"going to bed\"}\n\nInput: \"finished debugging the authentication bug\"\nOutput: {\"category\": \"work\", \"description\": \"debugging authentication bug\"}\n\nRemember: Output ONLY the JSON object. Nothing else.",
-        "options": {}
+        "options": {
+          "needsFallback": true
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
@@ -72,7 +74,7 @@
     },
     {
       "parameters": {
-        "model": "openai/gpt-4o-mini",
+        "model": "nex-agi/deepseek-v3.1-nex-n1:free",
         "options": {
           "temperature": 0.3
         }
@@ -84,7 +86,29 @@
         620
       ],
       "id": "e5f67890-abcd-ef12-3456-7890abcdef12",
-      "name": "gpt-4o-mini",
+      "name": "DeepSeek V3.1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "tngtech/deepseek-r1t2-chimera:free",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        960,
+        780
+      ],
+      "id": "f7890123-bcde-f234-5678-901abcdef234",
+      "name": "DeepSeek Chimera (Fallback)",
       "credentials": {
         "openRouterApi": {
           "id": "r79IBN16aZtPIN8T",
@@ -229,13 +253,24 @@
         ]
       ]
     },
-    "gpt-4o-mini": {
+    "DeepSeek V3.1": {
       "ai_languageModel": [
         [
           {
             "node": "Activity Classifier",
             "type": "ai_languageModel",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chimera (Fallback)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Activity Classifier",
+            "type": "ai_languageModel",
+            "index": 1
           }
         ]
       ]

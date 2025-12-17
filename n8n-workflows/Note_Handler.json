@@ -59,7 +59,9 @@
       "parameters": {
         "promptType": "define",
         "text": "=You are a note classifier for a life tracking system.\n\nExtract the category, optional title, and text from the user's note.\n\n## Available Categories\n{{ $json.categories }}\n\n## User Message\n{{ $json.cleanText }}\n\n## Instructions\n\n1. Choose the most appropriate category from the list above\n2. Extract a short title if the note suggests one (optional, can be null)\n3. Keep the full text of the note (clean up filler words if needed)\n4. Notes are typically: ideas, reflections, decisions, observations\n\n## Output Format\n\nOutput ONLY valid JSON (nothing else):\n\n{\n  \"category\": \"category_name\",\n  \"title\": \"optional short title\" or null,\n  \"text\": \"the note content\"\n}\n\n## Examples\n\nInput: \"interesting pattern in my productivity lately\"\nOutput: {\"category\": \"reflection\", \"title\": null, \"text\": \"interesting pattern in my productivity lately\"}\n\nInput: \"I should prioritize morning deep work sessions\"\nOutput: {\"category\": \"idea\", \"title\": \"Morning Deep Work\", \"text\": \"should prioritize morning deep work sessions\"}\n\nInput: \"decided to switch to async communication for the team\"\nOutput: {\"category\": \"decision\", \"title\": \"Async Communication\", \"text\": \"decided to switch to async communication for the team\"}\n\nInput: \"reducing context switching significantly improves focus\"\nOutput: {\"category\": \"insight\", \"title\": \"Context Switching\", \"text\": \"reducing context switching significantly improves focus\"}\n\nRemember: Output ONLY the JSON object. Nothing else.",
-        "options": {}
+        "options": {
+          "needsFallback": true
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
@@ -72,7 +74,7 @@
     },
     {
       "parameters": {
-        "model": "openai/gpt-4o-mini",
+        "model": "nex-agi/deepseek-v3.1-nex-n1:free",
         "options": {
           "temperature": 0.3
         }
@@ -84,7 +86,29 @@
         620
       ],
       "id": "h5a6n7d8-l9e0-r123-4567-890123456789",
-      "name": "gpt-4o-mini",
+      "name": "DeepSeek V3.1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "tngtech/deepseek-r1t2-chimera:free",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        960,
+        780
+      ],
+      "id": "j7k8l9m0-n1o2-p345-6789-012abcdef345",
+      "name": "DeepSeek Chimera (Fallback)",
       "credentials": {
         "openRouterApi": {
           "id": "r79IBN16aZtPIN8T",
@@ -206,13 +230,24 @@
         ]
       ]
     },
-    "gpt-4o-mini": {
+    "DeepSeek V3.1": {
       "ai_languageModel": [
         [
           {
             "node": "Note Classifier",
             "type": "ai_languageModel",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chimera (Fallback)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Note Classifier",
+            "type": "ai_languageModel",
+            "index": 1
           }
         ]
       ]

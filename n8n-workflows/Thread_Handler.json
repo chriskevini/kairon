@@ -138,7 +138,9 @@
       "parameters": {
         "promptType": "define",
         "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## User Information\n\n- **User:** {{ $('Prepare Context').item.json.author_login }}\n- **North Star:** {{ $('Prepare Context').item.json.north_star }}\n\nThe North Star is the user's guiding principle. Reference it when relevant.\n\n## Current Thinking Session\n\n**Topic:** \"{{ $('Prepare Context').item.json.clean_text }}\"\n\nThis is a focused thinking session. Help the user explore this topic deeply and conversationally.\n\n---\n\n## Instructions\n\n1. **Understand what the user wants to explore**\n2. **Respond conversationally** - Be warm, supportive, and engaging\n3. **Ask clarifying questions** to help them think deeper\n4. **Reference their North Star** when relevant\n5. **Keep it concise** - 2-4 sentences maximum for first response\n\n## Conversation Style\n\n- **Warm and supportive** - You're a coach, not a database\n- **Curious and exploratory** - Ask good questions\n- **Concise** - Respect their time\n- **Action-oriented** - Help them move forward when appropriate\n\n---\n\nProvide your initial response to help them begin exploring this topic.",
-        "options": {}
+        "options": {
+          "needsFallback": true
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
@@ -151,7 +153,7 @@
     },
     {
       "parameters": {
-        "model": "openai/gpt-4o-mini",
+        "model": "nex-agi/deepseek-v3.1-nex-n1:free",
         "options": {
           "temperature": 0.7
         }
@@ -163,7 +165,29 @@
         620
       ],
       "id": "a8n9d0l1-2345-6789-0abc-def123456789",
-      "name": "gpt-4o-mini",
+      "name": "DeepSeek V3.1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "tngtech/deepseek-r1t2-chimera:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        780
+      ],
+      "id": "p1q2r3s4-t5u6-v789-0wxy-z12345678901",
+      "name": "DeepSeek Chimera (Fallback)",
       "credentials": {
         "openRouterApi": {
           "id": "r79IBN16aZtPIN8T",
@@ -342,13 +366,24 @@
         ]
       ]
     },
-    "gpt-4o-mini": {
+    "DeepSeek V3.1": {
       "ai_languageModel": [
         [
           {
             "node": "Generate Initial Response",
             "type": "ai_languageModel",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chimera (Fallback)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Initial Response",
+            "type": "ai_languageModel",
+            "index": 1
           }
         ]
       ]
