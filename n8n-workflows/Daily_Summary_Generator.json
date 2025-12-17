@@ -91,6 +91,41 @@
     {
       "parameters": {
         "operation": "executeQuery",
+        "query": "SELECT value FROM config WHERE key = 'last_summary_date';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        192,
+        -96
+      ],
+      "id": "check-last-summary",
+      "name": "Check Last Summary Date",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if we already ran today\nconst todayDate = $now.format('yyyy-MM-dd');\nconst inputItems = $input.all();\n\nlet lastSummaryDate = null;\nif (inputItems.length > 0 && inputItems[0].json.value) {\n  lastSummaryDate = inputItems[0].json.value;\n}\n\n// If last summary was today, stop execution\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - we need to generate summary\nreturn [{ json: { should_run: true, today: todayDate } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        -96
+      ],
+      "id": "check-already-ran",
+      "name": "Check If Already Ran Today"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
         "query": "SELECT value FROM config WHERE key = 'north_star';",
         "options": {}
       },
@@ -252,6 +287,29 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO config (key, value) VALUES ('last_summary_date', $1) ON CONFLICT (key) DO UPDATE SET value = $1 RETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $now.format('yyyy-MM-dd') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1440,
+        384
+      ],
+      "id": "update-last-summary",
+      "name": "Update Last Summary Date",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "model": "nex-agi/deepseek-v3.1-nex-n1:free",
         "options": {}
       },
@@ -326,6 +384,28 @@
       ]
     },
     "Check If Time to Run": {
+      "main": [
+        [
+          {
+            "node": "Check Last Summary Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Last Summary Date": {
+      "main": [
+        [
+          {
+            "node": "Check If Already Ran Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Already Ran Today": {
       "main": [
         [
           {
@@ -422,6 +502,17 @@
         [
           {
             "node": "Post to #obsidian-board",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to #obsidian-board": {
+      "main": [
+        [
+          {
+            "node": "Update Last Summary Date",
             "type": "main",
             "index": 0
           }
