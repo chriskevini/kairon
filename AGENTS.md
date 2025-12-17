@@ -241,6 +241,195 @@ RETURNING *;
 - 🟧 Orange: External API calls
 - 🟪 Purple: Thread/conversation handling
 
+---
+
+## Error Handling & Resilience
+
+### ⚠️ CRITICAL: Workflows Must Be Antifragile
+
+**Principle:** Workflows should NEVER die silently. Always inform the user when something goes wrong.
+
+### Error Handling Patterns
+
+#### 1. **Database Queries - Always Handle Failures**
+
+```javascript
+// ✅ Good: Set alwaysOutputData and handle empty results
+{
+  "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT * FROM activities WHERE id = $1",
+    "options": { "queryReplacement": "={{ $json.short_id || '' }}" }
+  },
+  "alwaysOutputData": true  // Continue even if query fails
+}
+
+// In downstream Code node:
+const result = $input.item.json;
+if (!result || !result.id) {
+  return {
+    response: "❌ Activity not found with that ID",
+    ...event
+  };
+}
+```
+
+#### 2. **SQL Queries - Handle Missing Parameters**
+
+```sql
+-- ❌ Bad: Breaks when $1 is empty or null
+WHERE item_type = $1
+
+-- ✅ Good: Provide fallback values
+WHERE COALESCE($1, 'activities') IN ('activities', 'activity', '')
+
+-- ✅ Good: Handle optional parameters
+WHERE $1::text = '' OR category_name = $1::text
+```
+
+#### 3. **LLM Calls - Always Have Fallbacks**
+
+```javascript
+// ✅ Good: Use needsFallback in LLM chain
+{
+  "parameters": {
+    "promptType": "define",
+    "text": "...",
+    "needsFallback": true  // Use fallback model if primary fails
+  },
+  "type": "@n8n/n8n-nodes-langchain.chainLlm"
+}
+```
+
+#### 4. **Code Nodes - Validate Inputs**
+
+```javascript
+// ✅ Good: Check for required data before processing
+const args = $('Parse Command and Args').item?.json?.args;
+if (!args || args.length === 0) {
+  return {
+    response: "❌ Missing required argument. Use `::help` for syntax.",
+    ...event
+  };
+}
+
+// ✅ Good: Handle array access safely
+const shortId = args[0] || '';
+if (shortId.length < 8) {
+  return {
+    response: "❌ Invalid short ID format. Use `::recent` to see valid IDs.",
+    ...event
+  };
+}
+
+// ✅ Good: Provide helpful error messages
+try {
+  // risky operation
+} catch (error) {
+  return {
+    response: `❌ Operation failed: ${error.message}\\n\\nUse \`::help\` for correct syntax.`,
+    ...event
+  };
+}
+```
+
+#### 5. **User-Facing Error Messages**
+
+**Always include:**
+- ❌ Error icon to signal failure
+- Clear description of what went wrong
+- Hint about how to fix it or where to get help
+- Reference to `::help` when appropriate
+
+**Examples:**
+
+```javascript
+// ✅ Excellent error messages
+"❌ No activities found with ID: a1b2c3d4. Use `::recent activities` to see valid IDs."
+
+"❌ Missing required argument. Syntax: `::delete activity <short-id>`"
+
+"❌ Database query failed. Please try again or use `::help` for assistance."
+
+"❌ Config key 'north_star' not found. Use `::set north_star <value>` to set it first."
+
+// ❌ Bad error messages (never do this)
+"Error"
+"Failed"
+"undefined"
+"Query error" (no context or fix)
+```
+
+### Testing for Antifragility
+
+**Before committing any workflow, test these edge cases:**
+
+1. **No arguments:** `::recent` (should default to activities, limit 10)
+2. **Invalid arguments:** `::delete activity` (missing short_id)
+3. **Non-existent IDs:** `::delete activity zzzzzzz`
+4. **Empty database:** Test when no activities/notes exist
+5. **SQL injection attempts:** `::delete activity '; DROP TABLE--`
+6. **Very long inputs:** 500+ character messages
+7. **Special characters:** Emojis, unicode, quotes in text
+8. **Concurrent requests:** Multiple users at once
+
+### Workflow Configuration for Error Handling
+
+**Postgres nodes:**
+```json
+{
+  "parameters": { "..." },
+  "alwaysOutputData": true,  // IMPORTANT: Always set this
+  "continueOnFail": false     // Fail loudly, don't hide errors
+}
+```
+
+**Code nodes:**
+```json
+{
+  "parameters": { "jsCode": "..." },
+  "continueOnFail": false,  // Let errors bubble up
+  "onError": "stopWorkflow"  // Don't continue with bad data
+}
+```
+
+### Common Pitfalls
+
+**❌ Don't do this:**
+```javascript
+// No validation
+const result = $input.item.json.data;
+return result.value; // What if data is undefined?
+```
+
+**✅ Do this instead:**
+```javascript
+// Defensive programming
+const data = $input.item?.json?.data;
+if (!data || !data.value) {
+  return {
+    response: "❌ No data returned from query",
+    ...event
+  };
+}
+return { response: data.value, ...event };
+```
+
+### Error Handling Checklist
+
+Before committing, verify:
+
+- [ ] All Postgres nodes have `alwaysOutputData: true`
+- [ ] All SQL queries handle NULL/$1='' cases
+- [ ] All Code nodes validate inputs before processing
+- [ ] All error paths return user-friendly messages
+- [ ] All error messages include hints or next steps
+- [ ] Tested with missing/invalid arguments
+- [ ] Tested with empty database state
+- [ ] No workflow dies silently (user always gets feedback)
+
+---
+
 ### Python (discord_relay.py)
 
 ```python
