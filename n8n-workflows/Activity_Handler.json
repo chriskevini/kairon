@@ -1,0 +1,292 @@
+{
+  "name": "Activity_Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "raw_event_id"
+            },
+            {
+              "name": "clean_text"
+            },
+            {
+              "name": "guild_id"
+            },
+            {
+              "name": "channel_id"
+            },
+            {
+              "name": "message_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        400
+      ],
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name FROM activity_categories WHERE active = true ORDER BY sort_order, name;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        480,
+        400
+      ],
+      "id": "b2c3d4e5-f678-90ab-cdef-123456789012",
+      "name": "Get Active Categories",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const categories = $input.all().map(item => item.json.name).join(', ');\nconst cleanText = $('Execute Workflow Trigger').item.json.clean_text;\n\nreturn [{\n  json: {\n    categories,\n    cleanText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        400
+      ],
+      "id": "c3d4e5f6-7890-abcd-ef12-34567890abcd",
+      "name": "Prepare LLM Context"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an activity classifier for a life tracking system.\n\nExtract the category and description from the user's activity message.\n\n## Available Categories\n{{ $json.categories }}\n\n## User Message\n{{ $json.cleanText }}\n\n## Instructions\n\n1. Choose the most appropriate category from the list above\n2. Extract a concise description (keep it short, remove filler words)\n3. If the category is not clear, use your best judgment\n4. If it seems like sleep-related activity, use \"sleep\" category\n\n## Output Format\n\nOutput ONLY valid JSON (nothing else):\n\n{\n  \"category\": \"category_name\",\n  \"description\": \"short description\"\n}\n\n## Examples\n\nInput: \"working on the router agent implementation\"\nOutput: {\"category\": \"work\", \"description\": \"router agent implementation\"}\n\nInput: \"taking a coffee break\"\nOutput: {\"category\": \"leisure\", \"description\": \"coffee break\"}\n\nInput: \"going to bed now\"\nOutput: {\"category\": \"sleep\", \"description\": \"going to bed\"}\n\nInput: \"finished debugging the authentication bug\"\nOutput: {\"category\": \"work\", \"description\": \"debugging authentication bug\"}\n\nRemember: Output ONLY the JSON object. Nothing else.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        400
+      ],
+      "id": "d4e5f678-90ab-cdef-1234-567890abcdef",
+      "name": "Activity Classifier"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        960,
+        620
+      ],
+      "id": "e5f67890-abcd-ef12-3456-7890abcdef12",
+      "name": "gpt-4o-mini",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse LLM output (strip markdown if present)\nlet text = $input.item.json.text.trim();\n\n// Remove markdown code block markers if present\ntext = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n\ntry {\n  const parsed = JSON.parse(text);\n  return [{\n    json: {\n      category_name: parsed.category,\n      description: parsed.description\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"other\" category\n  return [{\n    json: {\n      category_name: \"other\",\n      description: $('Execute Workflow Trigger').item.json.clean_text,\n      parse_error: error.message\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        400
+      ],
+      "id": "f6789012-3456-7890-abcd-ef1234567890",
+      "name": "Parse LLM Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO activity_log (\n  raw_event_id,\n  timestamp,\n  category_id,\n  description,\n  metadata\n)\nSELECT\n  $1::uuid,\n  NOW(),\n  ac.id,\n  $2,\n  '{\"llm_classified\": true}'::jsonb\nFROM activity_categories ac\nWHERE ac.name = $3\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.raw_event_id }},={{ $json.description }},={{ $json.category_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1440,
+        400
+      ],
+      "id": "g7890123-4567-890a-bcde-f12345678901",
+      "name": "Store Activity",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE user_state\nSET \n  last_observation_at = NOW(),\n  sleeping = EXISTS(\n    SELECT 1 FROM activity_categories ac\n    WHERE ac.id = $1::uuid AND ac.is_sleep_category = true\n  )\nWHERE user_login = $2\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $('Store Activity').item.json.category_id }},={{ $('Execute Workflow Trigger').item.json.guild_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1680,
+        400
+      ],
+      "id": "h8901234-5678-90ab-cdef-123456789012",
+      "name": "Update User State",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "react",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Execute Workflow Trigger').item.json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Execute Workflow Trigger').item.json.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $('Execute Workflow Trigger').item.json.message_id }}",
+        "emoji": "=🕒"
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        400
+      ],
+      "id": "i9012345-6789-0abc-def1-234567890123",
+      "name": "React with 🕒",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Active Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Categories": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Context": {
+      "main": [
+        [
+          {
+            "node": "Activity Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Activity Classifier": {
+      "main": [
+        [
+          {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-4o-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Activity Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Store Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Activity": {
+      "main": [
+        [
+          {
+            "node": "Update User State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User State": {
+      "main": [
+        [
+          {
+            "node": "React with 🕒",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  }
+}

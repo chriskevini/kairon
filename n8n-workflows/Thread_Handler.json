@@ -1,0 +1,397 @@
+{
+  "name": "Thread_Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "raw_event_id"
+            },
+            {
+              "name": "clean_text"
+            },
+            {
+              "name": "guild_id"
+            },
+            {
+              "name": "channel_id"
+            },
+            {
+              "name": "message_id"
+            },
+            {
+              "name": "author_login"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        400
+      ],
+      "id": "t1h2r3e4-a5d6-h7a8-n9d0-l12345678901",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "createThread",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $json.message_id }}",
+        "name": "={{ $json.clean_text.slice(0, 100) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        480,
+        400
+      ],
+      "id": "h2r3e4a5-d6h7-a8n9-d0l1-234567890123",
+      "name": "Create Discord Thread",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM config WHERE key = 'north_star';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        480,
+        600
+      ],
+      "id": "r3e4a5d6-h7a8-n9d0-l123-456789012345",
+      "name": "Get North Star",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const threadId = $('Create Discord Thread').item.json.id;\nconst cleanText = $('Execute Workflow Trigger').item.json.clean_text;\nconst authorLogin = $('Execute Workflow Trigger').item.json.author_login;\nconst northStarResult = $('Get North Star').all();\nconst northStar = northStarResult.length > 0 ? northStarResult[0].json.value : 'Not set';\n\nreturn [{\n  json: {\n    thread_id: threadId,\n    clean_text: cleanText,\n    author_login: authorLogin,\n    north_star: northStar\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        400
+      ],
+      "id": "e4a5d6h7-a8n9-d0l1-2345-67890123456",
+      "name": "Prepare Context"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (\n  thread_id,\n  created_from_raw_event_id,\n  status,\n  topic,\n  metadata\n)\nVALUES (\n  $1,\n  $2::uuid,\n  'active',\n  $3,\n  '{\"initial_message\": true}'::jsonb\n)\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.thread_id }},={{ $('Execute Workflow Trigger').item.json.raw_event_id }},={{ $json.clean_text }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        960,
+        400
+      ],
+      "id": "a5d6h7a8-n9d0-l123-4567-890123456789",
+      "name": "Store Conversation",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'user',\n  $3\n)\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Execute Workflow Trigger').item.json.raw_event_id }},={{ $('Prepare Context').item.json.clean_text }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1200,
+        400
+      ],
+      "id": "d6h7a8n9-d0l1-2345-6789-0123456789ab",
+      "name": "Store User Message",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## User Information\n\n- **User:** {{ $('Prepare Context').item.json.author_login }}\n- **North Star:** {{ $('Prepare Context').item.json.north_star }}\n\nThe North Star is the user's guiding principle. Reference it when relevant.\n\n## Current Thinking Session\n\n**Topic:** \"{{ $('Prepare Context').item.json.clean_text }}\"\n\nThis is a focused thinking session. Help the user explore this topic deeply and conversationally.\n\n---\n\n## Instructions\n\n1. **Understand what the user wants to explore**\n2. **Respond conversationally** - Be warm, supportive, and engaging\n3. **Ask clarifying questions** to help them think deeper\n4. **Reference their North Star** when relevant\n5. **Keep it concise** - 2-4 sentences maximum for first response\n\n## Conversation Style\n\n- **Warm and supportive** - You're a coach, not a database\n- **Curious and exploratory** - Ask good questions\n- **Concise** - Respect their time\n- **Action-oriented** - Help them move forward when appropriate\n\n---\n\nProvide your initial response to help them begin exploring this topic.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1440,
+        400
+      ],
+      "id": "h7a8n9d0-l123-4567-890a-bcdef1234567",
+      "name": "Generate Initial Response"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4o-mini",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        620
+      ],
+      "id": "a8n9d0l1-2345-6789-0abc-def123456789",
+      "name": "gpt-4o-mini",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Execute Workflow Trigger').item.json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Prepare Context').item.json.thread_id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        400
+      ],
+      "id": "n9d0l123-4567-890a-bcde-f12345678901",
+      "name": "Send Response to Thread",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  'assistant',\n  $2\n)\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Generate Initial Response').item.json.text }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1920,
+        400
+      ],
+      "id": "d0l12345-6789-0abc-def1-234567890123",
+      "name": "Store Assistant Response",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "react",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Execute Workflow Trigger').item.json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Execute Workflow Trigger').item.json.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $('Execute Workflow Trigger').item.json.message_id }}",
+        "emoji": "=💭"
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        400
+      ],
+      "id": "l1234567-890a-bcde-f123-4567890abcde",
+      "name": "React with 💭",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Discord Thread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get North Star",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Discord Thread": {
+      "main": [
+        [
+          {
+            "node": "Prepare Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get North Star": {
+      "main": [
+        [
+          {
+            "node": "Prepare Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Context": {
+      "main": [
+        [
+          {
+            "node": "Store Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Conversation": {
+      "main": [
+        [
+          {
+            "node": "Store User Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store User Message": {
+      "main": [
+        [
+          {
+            "node": "Generate Initial Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Initial Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response to Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-4o-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Initial Response",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Response to Thread": {
+      "main": [
+        [
+          {
+            "node": "Store Assistant Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Assistant Response": {
+      "main": [
+        [
+          {
+            "node": "React with 💭",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  }
+}

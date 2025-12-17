@@ -1,0 +1,258 @@
+{
+  "name": "Note_Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "raw_event_id"
+            },
+            {
+              "name": "clean_text"
+            },
+            {
+              "name": "guild_id"
+            },
+            {
+              "name": "channel_id"
+            },
+            {
+              "name": "message_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        400
+      ],
+      "id": "n1o2t3e4-h5a6-n7d8-l9e0-r12345678901",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name FROM note_categories WHERE active = true ORDER BY sort_order, name;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        480,
+        400
+      ],
+      "id": "o2t3e4h5-a6n7-d8l9-e0r1-234567890123",
+      "name": "Get Active Categories",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const categories = $input.all().map(item => item.json.name).join(', ');\nconst cleanText = $('Execute Workflow Trigger').item.json.clean_text;\n\nreturn [{\n  json: {\n    categories,\n    cleanText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        400
+      ],
+      "id": "t3e4h5a6-n7d8-l9e0-r123-456789012345",
+      "name": "Prepare LLM Context"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a note classifier for a life tracking system.\n\nExtract the category, optional title, and text from the user's note.\n\n## Available Categories\n{{ $json.categories }}\n\n## User Message\n{{ $json.cleanText }}\n\n## Instructions\n\n1. Choose the most appropriate category from the list above\n2. Extract a short title if the note suggests one (optional, can be null)\n3. Keep the full text of the note (clean up filler words if needed)\n4. Notes are typically: ideas, reflections, decisions, observations\n\n## Output Format\n\nOutput ONLY valid JSON (nothing else):\n\n{\n  \"category\": \"category_name\",\n  \"title\": \"optional short title\" or null,\n  \"text\": \"the note content\"\n}\n\n## Examples\n\nInput: \"interesting pattern in my productivity lately\"\nOutput: {\"category\": \"reflection\", \"title\": null, \"text\": \"interesting pattern in my productivity lately\"}\n\nInput: \"I should prioritize morning deep work sessions\"\nOutput: {\"category\": \"idea\", \"title\": \"Morning Deep Work\", \"text\": \"should prioritize morning deep work sessions\"}\n\nInput: \"decided to switch to async communication for the team\"\nOutput: {\"category\": \"decision\", \"title\": \"Async Communication\", \"text\": \"decided to switch to async communication for the team\"}\n\nInput: \"reducing context switching significantly improves focus\"\nOutput: {\"category\": \"insight\", \"title\": \"Context Switching\", \"text\": \"reducing context switching significantly improves focus\"}\n\nRemember: Output ONLY the JSON object. Nothing else.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        400
+      ],
+      "id": "e4h5a6n7-d8l9-e0r1-2345-67890123456",
+      "name": "Note Classifier"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        960,
+        620
+      ],
+      "id": "h5a6n7d8-l9e0-r123-4567-890123456789",
+      "name": "gpt-4o-mini",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse LLM output (strip markdown if present)\nlet text = $input.item.json.text.trim();\n\n// Remove markdown code block markers if present\ntext = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n\ntry {\n  const parsed = JSON.parse(text);\n  return [{\n    json: {\n      category_name: parsed.category,\n      title: parsed.title,\n      text: parsed.text\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"other\" category\n  return [{\n    json: {\n      category_name: \"other\",\n      title: null,\n      text: $('Execute Workflow Trigger').item.json.clean_text,\n      parse_error: error.message\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        400
+      ],
+      "id": "a6n7d8l9-e0r1-2345-6789-0123456789ab",
+      "name": "Parse LLM Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO notes (\n  raw_event_id,\n  timestamp,\n  category_id,\n  title,\n  text,\n  metadata\n)\nSELECT\n  $1::uuid,\n  NOW(),\n  nc.id,\n  $2,\n  $3,\n  '{\"llm_classified\": true}'::jsonb\nFROM note_categories nc\nWHERE nc.name = $4\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.raw_event_id }},={{ $json.title }},={{ $json.text }},={{ $json.category_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1440,
+        400
+      ],
+      "id": "n7d8l9e0-r123-4567-890a-bcdef1234567",
+      "name": "Store Note",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "react",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Execute Workflow Trigger').item.json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Execute Workflow Trigger').item.json.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $('Execute Workflow Trigger').item.json.message_id }}",
+        "emoji": "=📝"
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        400
+      ],
+      "id": "d8l9e0r1-2345-6789-0abc-def123456789",
+      "name": "React with 📝",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Active Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Categories": {
+      "main": [
+        [
+          {
+            "node": "Prepare LLM Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Context": {
+      "main": [
+        [
+          {
+            "node": "Note Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Note Classifier": {
+      "main": [
+        [
+          {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-4o-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Note Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Store Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Note": {
+      "main": [
+        [
+          {
+            "node": "React with 📝",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  }
+}

@@ -3,7 +3,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "asoiaf92746087",
+        "path": "={{ $env.WEBHOOK_PATH }}",
         "options": {}
       },
       "id": "f912cd28-f283-4ca8-9363-9c738fcd141e",
@@ -162,63 +162,62 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "🕒",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "Activity",
-              "type": "string"
-            }
-          ]
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "name",
+          "cachedResultName": "Activity_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "raw_event_id": "={{ $('Store Raw Event').item.json.id }}",
+            "clean_text": "={{ $('Set Clean Fields').item.json.clean_text }}",
+            "guild_id": "={{ $('Set Clean Fields').item.json.guild_id }}",
+            "channel_id": "={{ $('Set Clean Fields').item.json.channel_id }}",
+            "message_id": "={{ $('Set Clean Fields').item.json.message_id }}"
+          }
         },
         "options": {}
       },
-      "id": "78273d83-77d4-4455-b828-eba8e41f11c9",
-      "name": "Handle !! Activity",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
         944,
         432
       ],
-      "notes": "TODO: Extract category + description via LLM\nTODO: Write to activity_log"
+      "id": "78273d83-77d4-4455-b828-eba8e41f11c9",
+      "name": "Handle !! Activity"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "💭",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "ThreadStart",
-              "type": "string"
-            }
-          ]
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "name",
+          "cachedResultName": "Thread_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "raw_event_id": "={{ $('Store Raw Event').item.json.id }}",
+            "clean_text": "={{ $('Set Clean Fields').item.json.clean_text }}",
+            "guild_id": "={{ $('Set Clean Fields').item.json.guild_id }}",
+            "channel_id": "={{ $('Set Clean Fields').item.json.channel_id }}",
+            "message_id": "={{ $('Set Clean Fields').item.json.message_id }}",
+            "author_login": "={{ $('Set Clean Fields').item.json.author_login }}"
+          }
         },
         "options": {}
       },
-      "id": "9a28232a-eda6-4322-95c7-66c0acd668fa",
-      "name": "Handle ++ Thread Start",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
         944,
         624
       ],
-      "notes": "TODO: Create Discord thread\nTODO: Execute Thread_Agent sub-workflow"
+      "id": "9a28232a-eda6-4322-95c7-66c0acd668fa",
+      "name": "Handle ++ Thread Start"
     },
     {
       "parameters": {
@@ -365,33 +364,32 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "📝",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "Note",
-              "type": "string"
-            }
-          ]
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "name",
+          "cachedResultName": "Note_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "raw_event_id": "={{ $('Store Raw Event').item.json.id }}",
+            "clean_text": "={{ $('Set Clean Fields').item.json.clean_text }}",
+            "guild_id": "={{ $('Set Clean Fields').item.json.guild_id }}",
+            "channel_id": "={{ $('Set Clean Fields').item.json.channel_id }}",
+            "message_id": "={{ $('Set Clean Fields').item.json.message_id }}"
+          }
         },
         "options": {}
       },
-      "id": "3c2126cd-3445-47f3-b561-db90d006a2cd",
-      "name": "Handle .. Note",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
         944,
         1008
       ],
-      "notes": "TODO: Parse command name\nTODO: Execute command handler"
+      "id": "3c2126cd-3445-47f3-b561-db90d006a2cd",
+      "name": "Handle .. Note"
     },
     {
       "parameters": {
@@ -474,10 +472,8 @@
         },
         "channelId": {
           "__rl": true,
-          "value": "1450655614421303367",
-          "mode": "list",
-          "cachedResultName": "kairon-logs",
-          "cachedResultUrl": "https://discord.com/channels/754207117157859388/1450655614421303367"
+          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
+          "mode": "id"
         },
         "content": "=**[Raw Message]**\n{{ $('Discord Webhook').item.json.body.content }}\n**[Auto-tag|Confidence]**\n{{ $json.text }}",
         "options": {}
