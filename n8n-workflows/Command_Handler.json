@@ -28,11 +28,26 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Parse command string into structured command object\nconst commandString = $input.item.json.command_string || '';\nconst parts = commandString.trim().split(/\\s+/);\n\nconst command = parts[0] || 'help';\nconst key = parts[1] || null;\nconst value = parts.slice(2).join(' ') || null;\nconst limit = parseInt(parts[1]) || 10;\n\nreturn {\n  command: command,\n  key: key,\n  value: value,\n  args: parts.slice(1),\n  limit: limit,\n  guild_id: $input.item.json.guild_id,\n  channel_id: $input.item.json.channel_id\n};"
+        "assignments": {
+          "assignments": [
+            {
+              "id": "command",
+              "name": "command",
+              "value": "={{ $json.command_string.trim().split(/\\s+/)[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "args",
+              "name": "args",
+              "value": "={{ $json.command_string.trim().split(/\\s+/).slice(1) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
         224,
         0
@@ -199,7 +214,7 @@
         "operation": "executeQuery",
         "query": "SELECT value FROM config WHERE key = $1",
         "options": {
-          "queryReplacement": "={{ $('Parse Command and Args').item.json.key }}"
+          "queryReplacement": "={{ $('Parse Command and Args').item.json.args[0] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -222,7 +237,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO config (key, value, updated_at)\nVALUES ($1, $2, NOW())\nON CONFLICT (key) DO UPDATE\nSET value = EXCLUDED.value, updated_at = NOW()\nRETURNING key, value",
         "options": {
-          "queryReplacement": "={{ $('Parse Command and Args').item.json.key }},={{ $('Parse Command and Args').item.json.value }}"
+          "queryReplacement": "={{ $('Parse Command and Args').item.json.args[0] }},={{ $('Parse Command and Args').item.json.args.slice(1).join(' ') }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -266,7 +281,7 @@
         "operation": "executeQuery",
         "query": "SELECT \n  received_at,\n  tag,\n  clean_text,\n  message_url\nFROM raw_events\nWHERE source_type = 'discord'\nORDER BY received_at DESC\nLIMIT $1",
         "options": {
-          "queryReplacement": "={{ $('Parse Command and Args').item.json.limit }}"
+          "queryReplacement": "={{ parseInt($('Parse Command and Args').item.json.args[0]) || 10 }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -331,7 +346,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format get command response\nconst key = $('Parse Command and Args').item.json.key;\nconst result = $input.item.json;\n\nif (!result.value) {\n  return {\n    response: `❌ Config key \\`${key}\\` not found`\n  };\n}\n\nreturn {\n  response: `**${key}:** ${result.value}`\n};"
+        "jsCode": "// Format get command response\nconst key = $('Parse Command and Args').item.json.args[0];\nconst result = $input.item.json;\n\nif (!result.value) {\n  return {\n    response: `❌ Config key \\`${key}\\` not found`\n  };\n}\n\nreturn {\n  response: `**${key}:** ${result.value}`\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
