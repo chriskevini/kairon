@@ -73,7 +73,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output (strip markdown if present)\nlet text = $input.item.json.text.trim();\n\n// Remove markdown code block markers if present\ntext = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n\ntry {\n  const parsed = JSON.parse(text);\n  return [{\n    json: {\n      category_name: parsed.category,\n      title: parsed.title,\n      text: parsed.text,\n      ...$('Prepare LLM Context').first().json,\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"other\" category\n  return [{\n    json: {\n      category_name: \"other\",\n      title: null,\n      text: $('Execute Workflow Trigger').item.json.clean_text,\n      parse_error: error.message,\n      ...$('Prepare LLM Context').first().json,\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output (strip markdown if present)\nlet text = $input.item.json.text.trim();\n\n// Remove markdown code block markers if present\ntext = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n\nconst event = $('Execute Workflow Trigger').first().json.event;\n\ntry {\n  const parsed = JSON.parse(text);\n  return [{\n    json: {\n      category_name: parsed.category,\n      title: parsed.title,\n      text: parsed.text,\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"other\" category\n  return [{\n    json: {\n      category_name: \"other\",\n      title: null,\n      text: event.clean_text,\n      parse_error: error.message,\n      ...event\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

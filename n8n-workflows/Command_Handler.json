@@ -238,20 +238,10 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "response",
-              "name": "response",
-              "value": "🏓 pong",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Handle ping command\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nreturn {\n  response: '🏓 pong',\n  ...event\n};"
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         992,
         4784
@@ -376,20 +366,10 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "response",
-              "name": "response",
-              "value": "=📚 **Available Commands**\n\n**Configuration:**\n`::get <key>` - Get a config value\n`::set <key> <value>` - Set a config value\n\n**Information:**\n`::stats` - Show activity statistics\n`::recent [N]` - Show last N events (default 10)\n`::status` - Show your current state\n\n**System:**\n`::ping` - Test if system is working\n`::help` - Show this message\n\n**Config Keys:**\n- `north_star` - Your guiding principle\n- `summary_time` - Daily summary time (format: HH:MM or HH, e.g., \"20:00\" or \"20\")\n\n**Examples:**\n`::set north_star Focus on deep work`\n`::set summary_time 20:00`\n`::get summary_time`\n`::recent 5`",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Handle help command\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nconst helpText = `📚 **Available Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent [N]\\` - Show last N events (default 10)\n\\`::status\\` - Show your current state\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (format: HH:MM or HH, e.g., \"20:00\" or \"20\")\n\n**Examples:**\n\\`::set north_star Focus on deep work\\`\n\\`::set summary_time 20:00\\`\n\\`::get summary_time\\`\n\\`::recent 5\\``;\n\nreturn {\n  response: helpText,\n  ...event\n};"
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         992,
         5936
@@ -400,7 +380,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format get command response\nconst key = $('Parse Command and Args').item.json.args[0];\nconst result = $input.item.json;\n\nif (!result.value) {\n  return {\n    response: `❌ Config key \\`${key}\\` not found`\n  };\n}\n\nreturn {\n  response: `**${key}:** ${result.value}`\n};"
+        "jsCode": "// Format get command response\nconst key = $('Parse Command and Args').item.json.args[0];\nconst result = $input.item.json;\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nif (!result.value) {\n  return {\n    response: `❌ Config key \\`${key}\\` not found`,\n    ...event\n  };\n}\n\nreturn {\n  response: `**${key}:** ${result.value}`,\n  ...event\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -414,7 +394,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format set command response\nconst result = $input.item.json;\n\nreturn {\n  response: `✅ Set **${result.key}** = ${result.value}`\n};"
+        "jsCode": "// Format set command response\nconst result = $input.item.json;\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nreturn {\n  response: `✅ Set **${result.key}** = ${result.value}`,\n  ...event\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -428,7 +408,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format stats response\nconst stats = $input.item.json;\n\nconst lastActivity = stats.last_activity \n  ? new Date(stats.last_activity).toLocaleString()\n  : 'Never';\n\nreturn {\n  response: `📊 **Statistics**\\n\\n` +\n    `Activities today: ${stats.activities_today}\\n` +\n    `Notes this week: ${stats.notes_this_week}\\n` +\n    `Total events: ${stats.total_events}\\n` +\n    `Last activity: ${lastActivity}`\n};"
+        "jsCode": "// Format stats response\nconst stats = $input.item.json;\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nconst lastActivity = stats.last_activity \n  ? new Date(stats.last_activity).toLocaleString()\n  : 'Never';\n\nreturn {\n  response: `📊 **Statistics**\\n\\n` +\n    `Activities today: ${stats.activities_today}\\n` +\n    `Notes this week: ${stats.notes_this_week}\\n` +\n    `Total events: ${stats.total_events}\\n` +\n    `Last activity: ${lastActivity}`,\n  ...event\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -441,7 +421,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format recent events response\nconst events = $input.all();\n\nif (events.length === 0) {\n  return { response: '📭 No recent events found' };\n}\n\nlet response = `📜 **Recent Events (${events.length})**\\n\\n`;\n\nevents.forEach((item, i) => {\n  const event = item.json;\n  const time = new Date(event.received_at).toLocaleTimeString();\n  const tag = event.tag || '(untagged)';\n  const text = event.clean_text.substring(0, 50) + \n    (event.clean_text.length > 50 ? '...' : '');\n  \n  response += `${i + 1}. ${time} ${tag} ${text}\\n`;\n});\n\nreturn { response, ...$('When Executed by Another Workflow').first().json.event };"
+        "jsCode": "// Format recent events response\nconst events = $input.all();\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nif (events.length === 0) {\n  return { \n    response: '📭 No recent events found',\n    ...event\n  };\n}\n\nlet response = `📜 **Recent Events (${events.length})**\\n\\n`;\n\nevents.forEach((item, i) => {\n  const e = item.json;\n  const time = new Date(e.received_at).toLocaleTimeString();\n  const tag = e.tag || '(untagged)';\n  const text = e.clean_text.substring(0, 50) + \n    (e.clean_text.length > 50 ? '...' : '');\n  \n  response += `${i + 1}. ${time} ${tag} ${text}\\n`;\n});\n\nreturn { response, ...event };"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -455,7 +435,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format status response\nconst status = $input.item.json;\n\nconst sleepIcon = status.sleeping ? '😴' : '👁️';\nconst sleepStatus = status.sleeping ? 'Sleeping' : 'Awake';\nconst lastActivity = status.last_observation_at\n  ? new Date(status.last_observation_at).toLocaleString()\n  : 'Never';\nconst minutesAgo = Math.round(status.minutes_since_activity || 0);\n\nreturn {\n  response: `${sleepIcon} **Status**\\n\\n` +\n    `State: ${sleepStatus}\\n` +\n    `Last activity: ${lastActivity}\\n` +\n    `Time since: ${minutesAgo} minutes ago`\n};"
+        "jsCode": "// Format status response\nconst status = $input.item.json;\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nconst sleepIcon = status.sleeping ? '😴' : '👁️';\nconst sleepStatus = status.sleeping ? 'Sleeping' : 'Awake';\nconst lastActivity = status.last_observation_at\n  ? new Date(status.last_observation_at).toLocaleString()\n  : 'Never';\nconst minutesAgo = Math.round(status.minutes_since_activity || 0);\n\nreturn {\n  response: `${sleepIcon} **Status**\\n\\n` +\n    `State: ${sleepStatus}\\n` +\n    `Last activity: ${lastActivity}\\n` +\n    `Time since: ${minutesAgo} minutes ago`,\n  ...event\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -469,7 +449,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Unknown command handler\nconst command = $('Parse Command and Args').item.json.command;\n\nreturn {\n  response: `❌ Unknown command: \\`${command}\\`\\n\\nUse \\`::help\\` to see available commands.`\n};"
+        "jsCode": "// Unknown command handler\nconst command = $('Parse Command and Args').item.json.command;\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nreturn {\n  response: `❌ Unknown command: \\`${command}\\`\\n\\nUse \\`::help\\` to see available commands.`,\n  ...event\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
