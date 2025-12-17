@@ -1,0 +1,425 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "event",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -752,
+        32
+      ],
+      "id": "83257752-6297-4c85-a05c-7ad9323f6bf1",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, created_from_raw_event_id, topic, metadata\nFROM conversations\nWHERE thread_id = $1\n  AND status = 'active'\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.event.thread_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -528,
+        32
+      ],
+      "id": "e7d77229-3b9e-4f1d-8d94-8e99cc9ab71e",
+      "name": "Get Conversation",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  role,\n  text,\n  timestamp\nFROM conversation_messages\nWHERE conversation_id = $1::uuid\nORDER BY timestamp DESC\nLIMIT 10;",
+        "options": {
+          "queryReplacement": "={{ $('Get Conversation').item.json.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -304,
+        32
+      ],
+      "id": "ec2fc299-0bf1-4356-ac2b-313148ff99bb",
+      "name": "Get Conversation History",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM config WHERE key = 'north_star';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -80,
+        -160
+      ],
+      "id": "5d55070a-789c-4097-b018-91fe018fd5d4",
+      "name": "Get North Star",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  timestamp,\n  category_name,\n  description\nFROM recent_activities\nORDER BY timestamp DESC\nLIMIT 20;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -80,
+        32
+      ],
+      "id": "1bfa63ca-0003-44ac-b360-882bc49216e8",
+      "name": "Get Recent Activities",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  timestamp,\n  category_name,\n  title,\n  text\nFROM recent_notes\nORDER BY timestamp DESC\nLIMIT 10;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -80,
+        224
+      ],
+      "id": "fc910b92-cf04-4149-8239-00df89f8ff1b",
+      "name": "Get Recent Notes",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        144,
+        16
+      ],
+      "id": "0fef8206-61c3-408d-943c-4e09a4869782",
+      "name": "Wait for Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get event and conversation from previous nodes\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst conversation = $('Get Conversation').first().json;\n\n// Get conversation history (reversed for chronological order)\nconst historyItems = $('Get Conversation History').all();\nconst history = historyItems.reverse().map(item => ({\n  role: item.json.role,\n  text: item.json.text\n}));\n\n// Get context from merged inputs\nconst allInputs = $input.all();\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItem = allInputs.find(item => item.json.value !== undefined && item.json.key === undefined);\nif (northStarItem) {\n  northStar = northStarItem.json.value;\n}\n\n// Extract activities\nconst activities = allInputs\n  .filter(item => item.json.category_name && item.json.description)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category_name,\n    description: item.json.description\n  }));\n\n// Extract notes\nconst notes = allInputs\n  .filter(item => item.json.category_name && item.json.title)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category_name,\n    title: item.json.title,\n    text: item.json.text\n  }));\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversation.id,\n    north_star: northStar,\n    history: history,\n    activities: activities,\n    notes: notes\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        32
+      ],
+      "id": "923949ee-2d0c-46c0-b619-d89835e6cb35",
+      "name": "Build Context"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## User's North Star\n{{ $json.north_star }}\n\nThe North Star is their guiding principle. Reference it when naturally relevant.\n\n## Recent Activities (Last 20)\n\n{{ $json.activities.map(act => `${DateTime.fromISO(act.timestamp).format(\"yyyy-MM-dd hh:mm\")} - ${act.description}`).join('\\n') }}\n\n## Recent Notes (Last 10)\n{{ $json.notes.map(n => `**${n.title}** ${n.text}`).join('\\n') }}\n\n## Instructions\n\n1. **Consider the full context**: conversation history, activities, and notes\n2. **Provide grounded insights**: Reference specific activities or notes when relevant\n3. **Be conversational**: This is an ongoing dialogue, not a new conversation\n4. **Ask clarifying questions**: Help them think deeper when appropriate\n5. **Be concise**: 3-5 sentences, respect their time\n\n## Style\n- Warm and supportive\n\n## Conversation History\n{{ $json.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n') }}\n\n## Current Message\nThe user just said: \"{{ $json.clean_text }}\"\n\nRespond to their message now.",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        592,
+        32
+      ],
+      "id": "b7e3f953-3c2b-43b5-86c1-7534e704e76e",
+      "name": "Generate Response"
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        600,
+        256
+      ],
+      "id": "9cde9f0c-b9e1-4bb3-9ad8-95f765944980",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        736,
+        224
+      ],
+      "id": "3dd4a15d-48ce-4246-86fd-c8274c7dad6b",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Build Context').item.json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Build Context').item.json.thread_id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        944,
+        32
+      ],
+      "id": "b05136d6-a55a-4e4e-ab8d-8aed5ac85956",
+      "name": "Post to Thread",
+      "webhookId": "a65d6a4d-1d64-4ef4-b3b6-a4fe185b4957",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'assistant',\n  $3\n)\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $('Build Context').item.json.conversation_id }},={{ $('Build Context').item.json.raw_event_id }},={{ $('Generate Response').item.json.text }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1168,
+        32
+      ],
+      "id": "2ece7507-b5be-470a-9533-8a281fb3b867",
+      "name": "Store Assistant Message",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation": {
+      "main": [
+        [
+          {
+            "node": "Get Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation History": {
+      "main": [
+        [
+          {
+            "node": "Get North Star",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Activities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get North Star": {
+      "main": [
+        [
+          {
+            "node": "Wait for Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Activities": {
+      "main": [
+        [
+          {
+            "node": "Wait for Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Recent Notes": {
+      "main": [
+        [
+          {
+            "node": "Wait for Context",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Wait for Context": {
+      "main": [
+        [
+          {
+            "node": "Build Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Context": {
+      "main": [
+        [
+          {
+            "node": "Generate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Response": {
+      "main": [
+        [
+          {
+            "node": "Post to Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Response",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Response",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Post to Thread": {
+      "main": [
+        [
+          {
+            "node": "Store Assistant Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  }
+}

@@ -1,5 +1,4 @@
 {
-  "name": "Thread_Handler",
   "nodes": [
     {
       "parameters": {
@@ -15,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        240,
-        400
+        5216,
+        -1008
       ],
-      "id": "t1h2r3e4-a5d6-h7a8-n9d0-l12345678901",
+      "id": "ea67b05a-13cb-49e9-98eb-43a7b93efc9b",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -35,10 +34,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        480,
-        400
+        5440,
+        -1104
       ],
-      "id": "h2r3e4a5-d6h7-a8n9-d0l1-234567890123",
+      "id": "01899cad-56b1-48dc-a003-e5f0adf60713",
       "name": "Create Discord Thread",
       "credentials": {
         "discordBotApi": {
@@ -56,10 +55,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        480,
-        600
+        5440,
+        -912
       ],
-      "id": "r3e4a5d6-h7a8-n9d0-l123-456789012345",
+      "id": "59555e64-4af7-4120-9ae3-8b45d1679831",
       "name": "Get North Star",
       "alwaysOutputData": true,
       "credentials": {
@@ -71,15 +70,29 @@
     },
     {
       "parameters": {
-        "jsCode": "const threadId = $('Create Discord Thread').item.json.id;\nconst event = $('Execute Workflow Trigger').item.json.event;\nconst northStarResult = $('Get North Star').all();\nconst northStar = northStarResult.length > 0 ? northStarResult[0].json.value : 'Not set';\n\nreturn [{\n  json: {\n    thread_id: threadId,\n    clean_text: event.clean_text,\n    author_login: event.author_login,\n    north_star: northStar\n  }\n}];"
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        5664,
+        -1008
+      ],
+      "id": "1b4e2de0-a091-485f-9780-425010fca9b4",
+      "name": "Wait for Both"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get event from trigger\nconst event = $('Execute Workflow Trigger').first().json.event;\n\n// Access thread creation result (first input to merge)\nconst threadResult = $input.first().json;\nconst threadId = threadResult.id;\n\n// Access north star result (second input to merge)\nconst northStarItems = $input.all();\nlet northStar = 'Not set';\nconst northStarResult = northStarItems.find(item => item.json.value !== undefined);\nif (northStarResult) {\n  northStar = northStarResult.json.value;\n}\n\nreturn [{\n  json: {\n    ...event,\n    north_star: northStar,\n    thread_id: threadId,\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
-        400
+        5888,
+        -1008
       ],
-      "id": "e4a5d6h7-a8n9-d0l1-2345-67890123456",
+      "id": "40b61d55-d475-4e00-bf05-caf8c63a86a3",
       "name": "Prepare Context"
     },
     {
@@ -87,16 +100,16 @@
         "operation": "executeQuery",
         "query": "INSERT INTO conversations (\n  thread_id,\n  created_from_raw_event_id,\n  status,\n  topic,\n  metadata\n)\nVALUES (\n  $1,\n  $2::uuid,\n  'active',\n  $3,\n  '{\"initial_message\": true}'::jsonb\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.thread_id }},={{ $('Execute Workflow Trigger').item.json.event.raw_event_id }},={{ $json.clean_text }}"
+          "queryReplacement": "={{ $json.thread_id }},={{ $json.raw_event_id }},={{ $json.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        960,
-        400
+        6112,
+        -1008
       ],
-      "id": "a5d6h7a8-n9d0-l123-4567-890123456789",
+      "id": "58f151b8-100c-47c3-a9b7-485d5f3564ee",
       "name": "Store Conversation",
       "credentials": {
         "postgres": {
@@ -110,16 +123,16 @@
         "operation": "executeQuery",
         "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'user',\n  $3\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Execute Workflow Trigger').item.json.event.raw_event_id }},={{ $('Prepare Context').item.json.clean_text }}"
+          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Prepare Context').item.json.raw_event_id }},={{ $('Prepare Context').item.json.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1200,
-        400
+        6336,
+        -1008
       ],
-      "id": "d6h7a8n9-d0l1-2345-6789-0123456789ab",
+      "id": "3db5c532-888f-48cc-aeee-0e32b7d62426",
       "name": "Store User Message",
       "credentials": {
         "postgres": {
@@ -131,18 +144,17 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## User Information\n\n- **User:** {{ $('Prepare Context').item.json.author_login }}\n- **North Star:** {{ $('Prepare Context').item.json.north_star }}\n\nThe North Star is the user's guiding principle. Reference it when relevant.\n\n## Current Thinking Session\n\n**Topic:** \"{{ $('Prepare Context').item.json.clean_text }}\"\n\nThis is a focused thinking session. Help the user explore this topic deeply and conversationally.\n\n---\n\n## Instructions\n\n1. **Understand what the user wants to explore**\n2. **Respond conversationally** - Be warm, supportive, and engaging\n3. **Ask clarifying questions** to help them think deeper\n4. **Reference their North Star** when relevant\n5. **Keep it concise** - 2-4 sentences maximum for first response\n\n## Conversation Style\n\n- **Warm and supportive** - You're a coach, not a database\n- **Curious and exploratory** - Ask good questions\n- **Concise** - Respect their time\n- **Action-oriented** - Help them move forward when appropriate\n\n---\n\nProvide your initial response to help them begin exploring this topic.",
-        "options": {
-          "needsFallback": true
-        }
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## User's North Star\n{{ $('Prepare Context').item.json.north_star }}\n\nThe North Star is their guiding principle. Reference it when relevant.\n\n## Current Situation\nThe user just started a conversation thread with: \"{{ $('Prepare Context').item.json.clean_text }}\"\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n1. **Assess the question type:**\n   - **Simple/direct question** (\"what's X?\", \"how do I Y?\") → Answer directly if you can\n   - **Planning/reflection** (\"what should I focus on?\", \"help me think about X\") → Mention you're gathering context + ask clarifying question\n\n2. **If simple question:**\n   - Answer directly and concisely\n   - 2-3 sentences max\n   \n3. **If needs context (planning/reflection/decision):**\n   - Say: \"Let me pull up your recent activities and notes to give you a grounded answer.\"\n   - Then ask 1 clarifying question about what they're trying to figure out\n   - 2-3 sentences total\n\n4. **Style:**\n   - Warm and specific to their words\n   - Not robotic or generic\n   - Reference North Star only if naturally relevant\n\nRespond now.",
+        "needsFallback": true,
+        "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        1440,
-        400
+        6560,
+        -1008
       ],
-      "id": "h7a8n9d0-l123-4567-890a-bcdef1234567",
+      "id": "cc4cf1a6-5ddb-4653-ab5e-d212f5982ecf",
       "name": "Generate Initial Response"
     },
     {
@@ -155,10 +167,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1440,
-        620
+        6576,
+        -784
       ],
-      "id": "a8n9d0l1-2345-6789-0abc-def123456789",
+      "id": "642fbb2b-d5f7-42fc-8f79-55a2b5754f45",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -177,10 +189,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1440,
-        780
+        6704,
+        -784
       ],
-      "id": "p1q2r3s4-t5u6-v789-0wxy-z12345678901",
+      "id": "ae744853-9d6f-4842-a9d4-e8387530c090",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -192,10 +204,9 @@
     {
       "parameters": {
         "resource": "message",
-        "operation": "send",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.guild_id }}",
+          "value": "={{ $('Prepare Context').item.json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
@@ -209,11 +220,12 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1680,
-        400
+        6912,
+        -1008
       ],
-      "id": "n9d0l123-4567-890a-bcde-f12345678901",
+      "id": "176ca2df-5bcb-414e-9445-979810318abe",
       "name": "Send Response to Thread",
+      "webhookId": "b265fcc0-4670-437b-9913-59b5d32bc95b",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -232,10 +244,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1920,
-        400
+        7136,
+        -1008
       ],
-      "id": "d0l12345-6789-0abc-def1-234567890123",
+      "id": "56fe3237-412a-4ac4-af29-4e146d5bcdf6",
       "name": "Store Assistant Response",
       "credentials": {
         "postgres": {
@@ -250,25 +262,26 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.guild_id }}",
+          "value": "={{ $('Prepare Context').item.json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.event.channel_id }}",
+          "value": "={{ $('Prepare Context').item.json.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $('Execute Workflow Trigger').item.json.event.message_id }}",
-        "emoji": "=💭"
+        "messageId": "={{ $('Prepare Context').item.json.message_id }}",
+        "emoji": "=🗨️"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        2160,
-        400
+        7360,
+        -1008
       ],
-      "id": "l1234567-890a-bcde-f123-4567890abcde",
-      "name": "React with 💭",
+      "id": "1c119a24-8b4b-4ce3-ba74-edbe7142c75d",
+      "name": "React with 🗨️",
+      "webhookId": "d9babcdf-8243-4adb-83c8-bbaf038fbfc7",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -298,7 +311,7 @@
       "main": [
         [
           {
-            "node": "Prepare Context",
+            "node": "Wait for Both",
             "type": "main",
             "index": 0
           }
@@ -306,6 +319,17 @@
       ]
     },
     "Get North Star": {
+      "main": [
+        [
+          {
+            "node": "Wait for Both",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Wait for Both": {
       "main": [
         [
           {
@@ -397,7 +421,7 @@
       "main": [
         [
           {
-            "node": "React with 💭",
+            "node": "React with 🗨️",
             "type": "main",
             "index": 0
           }
@@ -406,7 +430,6 @@
     }
   },
   "meta": {
-    "templateCredsSetupCompleted": true,
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
   }
 }

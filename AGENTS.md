@@ -199,6 +199,34 @@ RETURNING *;
 - **Nodes:** Descriptive names: "Parse Tag", "Store Raw Event", "Handle !! Activity"
 - **Sticky notes:** Use for documentation sections
 
+### n8n Merge Nodes
+
+**CRITICAL:** Always configure Merge nodes properly!
+
+```json
+// ✅ Correct
+{
+  "parameters": {
+    "mode": "append",
+    "numberInputs": 2  // or 3, 4, etc. - must match actual connections!
+  },
+  "type": "n8n-nodes-base.merge"
+}
+
+// ❌ Wrong
+{
+  "parameters": {},  // Missing mode and numberInputs!
+  "type": "n8n-nodes-base.merge"
+}
+```
+
+**Why this matters:**
+- `mode: "append"` - Combines all inputs into one array (what we almost always want)
+- `mode: "combine"` - Tries to merge by position (rarely useful, causes issues)
+- `numberInputs` - Must match the number of incoming connections or nodes won't connect
+
+**Common mistake:** Creating merge node with empty parameters, then wondering why connections fail or data is duplicated.
+
 ### Node Organization
 
 **Visual Layout:**

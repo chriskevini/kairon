@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        880,
-        832
+        -464,
+        176
       ],
-      "id": "76b76172-d574-417b-bb6f-5111c113aaa5",
+      "id": "1b1e96c4-7e47-4f0a-883f-ef93e37fe69b",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -29,10 +29,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1104,
-        832
+        -240,
+        176
       ],
-      "id": "823fdb2c-8171-47b4-aab3-590fce03238f",
+      "id": "7f0d57c2-bd2e-4e77-bbd5-14e399a3934f",
       "name": "Get Active Categories",
       "alwaysOutputData": true,
       "credentials": {
@@ -49,10 +49,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1328,
-        832
+        -16,
+        176
       ],
-      "id": "26be5af2-5401-40c3-9a97-ac86be310236",
+      "id": "51d67b26-4f1b-445a-bfcf-2f9e838536ed",
       "name": "Prepare LLM Context"
     },
     {
@@ -65,10 +65,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        1552,
-        832
+        208,
+        176
       ],
-      "id": "f27f2982-fc04-4d06-83ce-213a47f85587",
+      "id": "2dd1f4dc-78b0-4033-a937-406f26a03508",
       "name": "Activity Classifier"
     },
     {
@@ -78,10 +78,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1904,
-        832
+        560,
+        176
       ],
-      "id": "9ed0128c-2f6b-466f-b0f3-df40c523d7a6",
+      "id": "64bce4a7-4817-4c4a-bdcd-cce8919976f5",
       "name": "Parse LLM Response"
     },
     {
@@ -103,10 +103,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        2128,
-        736
+        784,
+        80
       ],
-      "id": "5df5114d-5eda-4162-b5c5-31777179b43a",
+      "id": "f41db37c-1745-46c4-877a-3bc5740e3fc0",
       "name": "Log to Kairon Logs",
       "webhookId": "bd9abd19-64d4-4da4-8578-07aa4dedadbf",
       "credentials": {
@@ -127,10 +127,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2128,
-        928
+        784,
+        272
       ],
-      "id": "90969e3d-a6b9-4798-9bf1-145f0780a61b",
+      "id": "931a2264-0015-4844-8e7a-6fa0ed5b1df6",
       "name": "Store Activity",
       "credentials": {
         "postgres": {
@@ -150,48 +150,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2352,
-        928
+        1008,
+        272
       ],
-      "id": "f2b43708-73c9-4598-bcc8-74b326d7c574",
+      "id": "212257b3-0ce3-4dc5-86e9-0b16546279dc",
       "name": "Update User State",
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "resource": "message",
-        "operation": "react",
-        "guildId": {
-          "__rl": true,
-          "value": "={{ $('Parse LLM Response').item.json.guild_id }}",
-          "mode": "id"
-        },
-        "channelId": {
-          "__rl": true,
-          "value": "={{ $('Parse LLM Response').item.json.channel_id }}",
-          "mode": "id"
-        },
-        "messageId": "={{ $('Parse LLM Response').item.json.message_id }}",
-        "emoji": "=🕒"
-      },
-      "type": "n8n-nodes-base.discord",
-      "typeVersion": 2,
-      "position": [
-        2576,
-        928
-      ],
-      "id": "e4ebefeb-bb2a-429d-8f23-cb35c397e204",
-      "name": "React with 🕒",
-      "webhookId": "7d6473eb-7f05-4fc7-ba61-8a8ae16deae0",
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
         }
       }
     },
@@ -205,10 +172,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1712,
-        1072
+        368,
+        416
       ],
-      "id": "53e26d16-4370-48d7-b324-b023d9eb5ce5",
+      "id": "44a595ec-342a-41ae-9add-1e2b1d1405af",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -227,15 +194,48 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1536,
-        1072
+        192,
+        416
       ],
-      "id": "8f701803-1f40-4a9d-b99d-4f1d3a5f5763",
+      "id": "f49e6e9f-3377-4b78-8e14-fb347cdfb89e",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
           "id": "r79IBN16aZtPIN8T",
           "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "react",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Parse LLM Response').item.json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Parse LLM Response').item.json.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $('Parse LLM Response').item.json.message_id }}",
+        "emoji": "=🔘"
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        272
+      ],
+      "id": "41949da6-f87c-4fdc-a673-9253a2e5f905",
+      "name": "React with 🔘",
+      "webhookId": "7d6473eb-7f05-4fc7-ba61-8a8ae16deae0",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
         }
       }
     }
@@ -316,7 +316,7 @@
       "main": [
         [
           {
-            "node": "React with 🕒",
+            "node": "React with 🔘",
             "type": "main",
             "index": 0
           }

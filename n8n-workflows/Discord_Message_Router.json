@@ -6,13 +6,13 @@
         "path": "={{ $env.WEBHOOK_PATH }}",
         "options": {}
       },
-      "id": "6e0a4d70-4fa4-4b21-bb13-2ecf7747b9fd",
+      "id": "5831c030-b407-481c-aed5-acdd54516b40",
       "name": "Discord Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -3360,
-        4992
+        -5312,
+        5824
       ],
       "webhookId": "discord-webhook"
     },
@@ -24,13 +24,13 @@
           "queryReplacement": "={{ $json.event.guild_id }},{{ $json.event.channel_id }},{{ $json.event.message_id }},{{ $json.event.message_url }},{{ $json.event.author_login }},{{ $json.event.thread_id }},{{ $json.event.raw_text }},{{ $json.event.clean_text }},{{ $json.event.tag }},"
         }
       },
-      "id": "716235a4-2be2-4ed1-aecd-5fde1a03f276",
+      "id": "ece46d52-b9e7-41fe-9fda-0488260559aa",
       "name": "Store Raw Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -1888,
-        4896
+        -3840,
+        5728
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -57,10 +57,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1664,
-        4896
+        -3616,
+        5728
       ],
-      "id": "4e7d6fbb-02f1-4fd3-8cab-466f2838b44e",
+      "id": "45b4fe90-8a32-43b8-baa5-87586bf1674d",
       "name": "Add Raw Event ID"
     },
     {
@@ -160,13 +160,13 @@
         },
         "options": {}
       },
-      "id": "c888455d-b4b6-4cdc-9fcc-f1b643962944",
+      "id": "7fd40d91-ac87-4a87-bf47-7896b8433432",
       "name": "Check Tag",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -1216,
-        5152
+        -3168,
+        5984
       ]
     },
     {
@@ -175,13 +175,13 @@
         "height": 416,
         "width": 480
       },
-      "id": "f1b57606-754d-40f5-a24b-11f57c19eba3",
+      "id": "2afda0dd-85b7-4024-b4a1-15139cb4c661",
       "name": "Thread Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1296,
-        4448
+        -3248,
+        5280
       ]
     },
     {
@@ -221,10 +221,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -992,
-        4896
+        -2944,
+        5728
       ],
-      "id": "423324b5-7c2b-4585-bda7-26c815499b29",
+      "id": "790643ca-a0e5-4330-91cf-36551dd18eda",
       "name": "Handle !! Activity"
     },
     {
@@ -264,10 +264,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -992,
-        5088
+        -2944,
+        5920
       ],
-      "id": "f3d77377-2e51-4407-9d73-9e97e220fcf3",
+      "id": "cd5ebe5d-a01b-41cc-8e46-e91bbb35a792",
       "name": "Handle ++ Thread Start"
     },
     {
@@ -290,45 +290,57 @@
         },
         "options": {}
       },
-      "id": "dd826657-38d7-4a33-a160-cd01f36787f7",
+      "id": "69db7d6e-1ce7-4023-8be6-d8d6e407ab27",
       "name": "Commit Thread",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        -992,
-        4512
+        -2944,
+        5344
       ],
       "notes": "TODO: Load conversation_messages\nTODO: Summarize with LLM\nTODO: Create note + activity"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
+        "workflowId": {
+          "__rl": true,
+          "value": "e78T3OMl6pDxTb13",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/e78T3OMl6pDxTb13",
+          "cachedResultName": "Thread_Continuation_Agent"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
             {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "💬",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "Chat",
-              "type": "string"
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
             }
-          ]
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {}
       },
-      "id": "a36435e9-d4c0-43ea-8aa8-770d0c88b885",
-      "name": "Thread Chat",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
-        -992,
-        4704
+        -2944,
+        5536
       ],
-      "notes": "TODO: Execute Thread_Agent sub-workflow\nTODO: Store response to conversation_messages"
+      "id": "16ea8da9-7f3d-46a8-bbc7-e9e57503d264",
+      "name": "Handle Thread Continuation"
     },
     {
       "parameters": {
@@ -336,13 +348,13 @@
         "height": 736,
         "width": 480
       },
-      "id": "382727f4-bc30-40c1-987c-082bad288eef",
+      "id": "1639814d-0769-47d1-a64d-cf38eb196566",
       "name": "Main Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1296,
-        4896
+        -3248,
+        5728
       ]
     },
     {
@@ -373,10 +385,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -1440,
-        4896
+        -3392,
+        5728
       ],
-      "id": "06a3419b-7d45-40e5-bd5f-499c5a2f0f08",
+      "id": "fd24ebbf-99eb-4ae8-823b-63d779d4af52",
       "name": "If in Thread"
     },
     {
@@ -391,8 +403,8 @@
           "conditions": [
             {
               "id": "0ceb9e91-e374-4346-8706-97df7d95cfe6",
-              "leftValue": "",
-              "rightValue": "",
+              "leftValue": "={{ $json.event.tag }}",
+              "rightValue": "--",
               "operator": {
                 "type": "string",
                 "operation": "equals",
@@ -407,10 +419,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -1200,
-        4656
+        -3152,
+        5488
       ],
-      "id": "46ee5556-be75-4cf8-92c1-a2985365c2e9",
+      "id": "6c25bceb-1ed3-4959-b901-cb406593af20",
       "name": "If Commit"
     },
     {
@@ -450,10 +462,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -992,
-        5472
+        -2944,
+        6304
       ],
-      "id": "5822dc33-a210-4025-9b73-7a5211608a7a",
+      "id": "9a579e01-de2e-432c-8b30-a65b6b85cb2d",
       "name": "Handle .. Note"
     },
     {
@@ -466,44 +478,11 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        -2464,
-        5120
+        -4416,
+        5952
       ],
-      "id": "787a5ac4-49cc-467a-b008-b11007cbc4f1",
+      "id": "76fbf9c4-d370-48b1-9397-d6d43073988b",
       "name": "Intent Classifier"
-    },
-    {
-      "parameters": {
-        "resource": "message",
-        "operation": "react",
-        "guildId": {
-          "__rl": true,
-          "value": "={{ $json.body.guild_id }}",
-          "mode": "id"
-        },
-        "channelId": {
-          "__rl": true,
-          "value": "={{ $json.body.channel_id }}",
-          "mode": "id"
-        },
-        "messageId": "={{ $json.body.message_id }}",
-        "emoji": "=👀"
-      },
-      "type": "n8n-nodes-base.discord",
-      "typeVersion": 2,
-      "position": [
-        -3136,
-        4992
-      ],
-      "id": "9d6bd455-6bdb-4b2c-8331-075170c43649",
-      "name": "React with 👀",
-      "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
-        }
-      }
     },
     {
       "parameters": {
@@ -524,10 +503,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -2112,
-        5168
+        -4064,
+        6000
       ],
-      "id": "b7289db5-efd9-4a7f-a04f-fa00a3e64596",
+      "id": "df900c14-83f0-4664-b60c-f957a0f5b693",
       "name": "Log classification to #kairon-logs",
       "webhookId": "18ae6288-f1c3-401a-9dcc-f832d8126ddf",
       "credentials": {
@@ -574,10 +553,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -992,
-        5280
+        -2944,
+        6112
       ],
-      "id": "d3475dc3-f616-422a-a218-ae491d353daa",
+      "id": "1241f295-afa4-49c8-ba07-ca193d830c59",
       "name": "Handle :: Command"
     },
     {
@@ -587,7 +566,7 @@
             {
               "id": "0eccc231-bed6-4ca0-a35e-62e7a6da63ed",
               "name": "tag",
-              "value": "={{ $('Discord Webhook').item.json.body.content.match(/\\+\\+|!!|::|\\.\\./)?.first() || null }}",
+              "value": "={{ $('Discord Webhook').item.json.body.content.match(/\\+\\+|!!|::|\\.\\.|--/)?.first() || null }}",
               "type": "string"
             }
           ]
@@ -597,10 +576,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -2912,
-        4992
+        -4864,
+        5824
       ],
-      "id": "55ac6f68-e7ea-4bf3-bd1d-f6540e2f2bff",
+      "id": "4c6551bd-0c27-41ca-ba51-553f59f62c11",
       "name": "Parse Tag"
     },
     {
@@ -610,7 +589,7 @@
             {
               "id": "event-object",
               "name": "event",
-              "value": "={{ {\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\./, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content,\n  tag: $('Parse Tag').item.json.tag || $json.text.match(/\\+\\+|!!|::|\\.\\./).first() || \"++\"\n} }}",
+              "value": "={{ {\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\.|--/, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content,\n  tag: $('Parse Tag').item.json.tag || ($json.text ? $json.text.match(/\\+\\+|!!|::|\\.\\.|--/)?.first() : null) || ($('Discord Webhook').item.json.body.thread_id ? null : '++')\n} }}",
               "type": "object"
             }
           ]
@@ -620,10 +599,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -2112,
-        4896
+        -4064,
+        5728
       ],
-      "id": "d81fc6c6-bc6b-4307-99e6-7163c19b1071",
+      "id": "c9764ef2-7a13-420c-92dc-01129ecd3405",
       "name": "Build Event Object"
     },
     {
@@ -664,10 +643,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -2688,
-        4992
+        -4640,
+        5824
       ],
-      "id": "8155a29d-ee4b-44e1-bf8b-ff7677661742",
+      "id": "7cc8ba83-95c3-40d0-9fd4-807b39ac1000",
       "name": "If Tag or Thread Detected"
     },
     {
@@ -680,10 +659,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -2272,
-        5376
+        -4224,
+        6208
       ],
-      "id": "eb29653b-c357-4030-bc50-7b13ac1c1c93",
+      "id": "48656988-6161-42b7-b056-626469a7f709",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -702,10 +681,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -2448,
-        5376
+        -4400,
+        6208
       ],
-      "id": "32e43865-ad21-4c9f-a8ee-d875ca317a35",
+      "id": "11a177e7-c521-4050-a1a2-7ba0a83d846b",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -716,29 +695,67 @@
     },
     {
       "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -2672,
+        6016
+      ],
+      "id": "19590025-ba07-4b49-b52d-4ce7cda7e2d8",
+      "name": "Wait 1 s (rate-limiting deterence)",
+      "webhookId": "ae300d22-0f1a-4eac-9ead-3b7bb3b13d15"
+    },
+    {
+      "parameters": {
         "resource": "message",
-        "operation": "removeReaction",
+        "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.guild_id }}",
+          "value": "={{ $json.body.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.channel_id }}",
+          "value": "={{ $json.body.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $json.message_id }}",
-        "emoji": "=👀"
+        "messageId": "={{ $json.body.message_id }}",
+        "emoji": "=🔵"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -768,
-        5088
+        -5088,
+        5824
       ],
-      "id": "remove-eyes-node-id",
-      "name": "Remove 👀 Reaction",
+      "id": "4843686e-a828-4611-9040-ae739b25ed5d",
+      "name": "React with 🔵",
+      "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Add Raw Event ID').item.json.event.channel_id }}/messages/{{ $('Add Raw Event ID').item.json.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2496,
+        6016
+      ],
+      "id": "43b1d186-3f2a-47cc-9e50-b32eaaa933c8",
+      "name": "Remove 🔵 Reaction",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -752,7 +769,7 @@
       "main": [
         [
           {
-            "node": "React with 👀",
+            "node": "React with 🔵",
             "type": "main",
             "index": 0
           }
@@ -813,6 +830,39 @@
         ]
       ]
     },
+    "Handle !! Activity": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s (rate-limiting deterence)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle ++ Thread Start": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s (rate-limiting deterence)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Thread Continuation": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s (rate-limiting deterence)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "If in Thread": {
       "main": [
         [
@@ -842,7 +892,18 @@
         ],
         [
           {
-            "node": "Thread Chat",
+            "node": "Handle Thread Continuation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle .. Note": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s (rate-limiting deterence)",
             "type": "main",
             "index": 0
           }
@@ -865,11 +926,11 @@
         ]
       ]
     },
-    "React with 👀": {
+    "Handle :: Command": {
       "main": [
         [
           {
-            "node": "Parse Tag",
+            "node": "Wait 1 s (rate-limiting deterence)",
             "type": "main",
             "index": 0
           }
@@ -938,44 +999,22 @@
         ]
       ]
     },
-    "Handle !! Activity": {
+    "Wait 1 s (rate-limiting deterence)": {
       "main": [
         [
           {
-            "node": "Remove 👀 Reaction",
+            "node": "Remove 🔵 Reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Handle ++ Thread Start": {
+    "React with 🔵": {
       "main": [
         [
           {
-            "node": "Remove 👀 Reaction",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle .. Note": {
-      "main": [
-        [
-          {
-            "node": "Remove 👀 Reaction",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle :: Command": {
-      "main": [
-        [
-          {
-            "node": "Remove 👀 Reaction",
+            "node": "Parse Tag",
             "type": "main",
             "index": 0
           }
