@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        704,
-        0
+        880,
+        832
       ],
-      "id": "188a2de0-660e-4168-b16e-b7e17d0a493c",
+      "id": "76b76172-d574-417b-bb6f-5111c113aaa5",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -29,10 +29,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        928,
-        0
+        1104,
+        832
       ],
-      "id": "8ec612fc-00a6-4f0d-973f-53daa93c94f4",
+      "id": "823fdb2c-8171-47b4-aab3-590fce03238f",
       "name": "Get Active Categories",
       "alwaysOutputData": true,
       "credentials": {
@@ -44,73 +44,44 @@
     },
     {
       "parameters": {
-        "jsCode": "const categories = $input.all().map(item => item.json.name).join(', ');\nconst event = $('Execute Workflow Trigger').first().json.event.event;\n\nreturn [{\n  json: {\n    categories,\n    ...event\n  }\n}];"
+        "jsCode": "const categories = $input.all().map(item => item.json.name).join(', ');\nconst event = $('Execute Workflow Trigger').first().json.event;\n\nreturn [{\n  json: {\n    categories,\n    ...event\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1152,
-        0
+        1328,
+        832
       ],
-      "id": "58e1104c-50da-444a-a4b3-6fffd0195ae1",
+      "id": "26be5af2-5401-40c3-9a97-ac86be310236",
       "name": "Prepare LLM Context"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an activity classifier for a life tracking system.\n\nChoose the best category for the user's activity and provide confidence scores.\n\n## Available Categories\n{{ $json.categories }}\n\n## User Message\n{{ $json.clean_text }}\n\n## Instructions\n\n1. Choose the most appropriate category from the list above\n2. Provide confidence score (0-1) for your chosen category\n3. Provide confidence scores for ALL other categories as well\n4. If it seems like sleep-related activity, strongly favor \"sleep\" category\n\n## Output Format\n\nOutput ONLY valid JSON (nothing else):\n\n{\n  \"category\": \"category_name\",\n  \"confidence\": 0.95,\n  \"all_scores\": {\n    \"work\": 0.95,\n    \"leisure\": 0.02,\n    \"sleep\": 0.01,\n    \"other\": 0.02\n  }\n}\n\n## Examples\n\nInput: \"working on the router agent implementation\"\nOutput: {\"category\": \"work\", \"confidence\": 0.98, \"all_scores\": {\"work\": 0.98, \"leisure\": 0.01, \"sleep\": 0.0, \"other\": 0.01}}\n\nInput: \"taking a coffee break\"\nOutput: {\"category\": \"leisure\", \"confidence\": 0.85, \"all_scores\": {\"work\": 0.05, \"leisure\": 0.85, \"sleep\": 0.0, \"other\": 0.10}}\n\nInput: \"going to bed now\"\nOutput: {\"category\": \"sleep\", \"confidence\": 0.99, \"all_scores\": {\"work\": 0.0, \"leisure\": 0.01, \"sleep\": 0.99, \"other\": 0.0}}\n\nInput: \"debugging the authentication issue\"\nOutput: {\"category\": \"work\", \"confidence\": 0.92, \"all_scores\": {\"work\": 0.92, \"leisure\": 0.02, \"sleep\": 0.0, \"other\": 0.06}}\n\nRemember: \n- Output ONLY the JSON object. Nothing else.\n- All scores in all_scores should sum to approximately 1.0\n- Include ALL categories from the available list in all_scores",
-        "options": {
-          "needsFallback": true
-        }
+        "text": "=You are an activity classifier for a life tracking system.\n\nRate how well the user's message fits each category. Provide a confidence score (0-1) for each category.\n\n## Available Categories\n{{ $json.categories }}\n\n## Instructions\n\n1. Provide a score (0-1) for relevant categories\n2. Higher score = better fit for that category\n3. All scores should sum to approximately 1.0\n4. If it seems like sleep-related activity, give \"sleep\" a very high score\n5. Output ONLY valid JSON\n\n## Examples\n\nInput: \"working on the router agent implementation\"\nOutput: {\"work\": 0.98, \"leisure\": 0.02}\n\nInput: \"taking a coffee break\"\nOutput: {\"leisure\": 0.85, \"health\": 0.15}\n\nInput: \"researching common data structures\"\nOutput: {\"work\": 0.28, \"leisure\": 0.02, \"study\": 0.7}\n\nInput: \"solving leetcode puzzles\"\nOutput: {\"work\": 0.1, \"leisure\": 0.05, \"study\": 0.85}\n\nInput: \"watching videos about Rome\"\nOutput: {\"leisure\": 0.85, \"study\": 0.15}\n\n## User Message\n{{ $json.clean_text }}",
+        "needsFallback": true,
+        "batching": {}
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
       "position": [
-        1384,
-        224
+        1552,
+        832
       ],
-      "id": "2e4ac69d-0cd0-4906-a0ca-48ff6dbfa2ad",
-      "name": "DeepSeek V3.1",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
-        }
-      }
+      "id": "f27f2982-fc04-4d06-83ce-213a47f85587",
+      "name": "Activity Classifier"
     },
     {
       "parameters": {
-        "model": "tngtech/deepseek-r1t2-chimera:free",
-        "options": {
-          "temperature": 0.3
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        1512,
-        224
-      ],
-      "id": "09be8fd5-7da0-4185-8284-9abea2d034ff",
-      "name": "DeepSeek Chimera (Fallback)",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse LLM output (strip markdown if present)\nlet text = $input.item.json.text.trim();\n\n// Remove markdown code block markers if present\ntext = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n\nconst contextData = $('Prepare LLM Context').first().json;\n\ntry {\n  const parsed = JSON.parse(text);\n  return [{\n    json: {\n      category_name: parsed.category,\n      confidence: parsed.confidence,\n      all_scores: parsed.all_scores,\n      description: contextData.clean_text,  // Use original clean_text as description\n      ...contextData\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"other\" category\n  return [{\n    json: {\n      category_name: \"other\",\n      confidence: 0.5,\n      all_scores: {},\n      description: contextData.clean_text,\n      parse_error: error.message,\n      ...contextData\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output (strip markdown if present)\nlet text = $input.first().json.text.trim();\n\n// Remove markdown code block markers if present\ntext = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n\nconst contextData = $('Prepare LLM Context').first().json;\n\ntry {\n  const parsed = JSON.parse(text);\n  const scores = parsed;\n  \n  // Determine category by finding highest score\n  const entries = Object.entries(scores);\n  const [category_name, confidence] = entries.reduce((max, curr) => \n    curr[1] > max[1] ? curr : max\n  );\n  \n  return [{\n    json: {\n      category_name,\n      confidence,\n      all_scores: scores,\n      description: contextData.clean_text,  // Use original clean_text as description\n      ...contextData\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"other\" category\n  return [{\n    json: {\n      category_name: \"other\",\n      confidence: 0.5,\n      all_scores: {},\n      description: contextData.clean_text,\n      parse_error: error.message,\n      ...contextData\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1728,
-        0
+        1904,
+        832
       ],
-      "id": "46f03b19-c205-4b72-a7e9-c2bcebf2ac9e",
+      "id": "9ed0128c-2f6b-466f-b0f3-df40c523d7a6",
       "name": "Parse LLM Response"
     },
     {
@@ -126,17 +97,18 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Activity Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }} ({{ ($ json.confidence * 100).toFixed(0) }}% confident)\n**All Scores:**\n{{ Object.entries($json.all_scores || {}).map(([cat, score]) => `- ${cat}: ${(score * 100).toFixed(0)}%`).join('\\n') }}",
+        "content": "=**[Activity Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }}\n**Confidence:** [ {{ Object.entries($json.all_scores || {}).map(([cat, score]) => `${cat}:${(score * 100).toFixed(0)}%`).join(' | ') }} ]",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1840,
-        -176
+        2128,
+        736
       ],
-      "id": "log-activity-class-node",
+      "id": "5df5114d-5eda-4162-b5c5-31777179b43a",
       "name": "Log to Kairon Logs",
+      "webhookId": "bd9abd19-64d4-4da4-8578-07aa4dedadbf",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -147,18 +119,18 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activity_log (\n  raw_event_id,\n  timestamp,\n  category_id,\n  description,\n  metadata\n)\nSELECT\n  $1::uuid,\n  NOW(),\n  ac.id,\n  $2,\n  '{\"llm_classified\": true}'::jsonb\nFROM activity_categories ac\nWHERE ac.name = $3\nRETURNING *;",
+        "query": "INSERT INTO activity_log (\n  raw_event_id,\n  timestamp,\n  category_id,\n  description,\n  metadata\n)\nSELECT\n  $1::uuid,\n  NOW(),\n  ac.id,\n  $2,\n  jsonb_build_object(\n    'llm_classified', true,\n    'confidence', $4::numeric,\n    'all_scores', $5::jsonb\n  )\nFROM activity_categories ac\nWHERE ac.name = $3\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.raw_event_id }},={{ $json.description }},={{ $json.category_name }}"
+          "queryReplacement": "={{ $json.raw_event_id }},={{ $json.description }},={{ $json.category_name }},={{ $json.confidence }},={{ JSON.stringify($json.all_scores) }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1952,
-        0
+        2128,
+        928
       ],
-      "id": "f0d67bbf-d8c1-43e3-b93b-e6da99b93d51",
+      "id": "90969e3d-a6b9-4798-9bf1-145f0780a61b",
       "name": "Store Activity",
       "credentials": {
         "postgres": {
@@ -178,10 +150,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2176,
-        0
+        2352,
+        928
       ],
-      "id": "30174ca7-7c17-4642-b8d3-4144bc38c5e3",
+      "id": "f2b43708-73c9-4598-bcc8-74b326d7c574",
       "name": "Update User State",
       "credentials": {
         "postgres": {
@@ -210,16 +182,60 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        2400,
-        0
+        2576,
+        928
       ],
-      "id": "68d56ec7-c906-440a-8e07-79ba9078a24d",
+      "id": "e4ebefeb-bb2a-429d-8f23-cb35c397e204",
       "name": "React with 🕒",
       "webhookId": "7d6473eb-7f05-4fc7-ba61-8a8ae16deae0",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        1072
+      ],
+      "id": "53e26d16-4370-48d7-b324-b023d9eb5ce5",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        1072
+      ],
+      "id": "8f701803-1f40-4a9d-b99d-4f1d3a5f5763",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
         }
       }
     }
@@ -269,28 +285,6 @@
         ]
       ]
     },
-    "DeepSeek V3.1": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Activity Classifier",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "DeepSeek Chimera (Fallback)": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Activity Classifier",
-            "type": "ai_languageModel",
-            "index": 1
-          }
-        ]
-      ]
-    },
     "Parse LLM Response": {
       "main": [
         [
@@ -324,6 +318,28 @@
           {
             "node": "React with 🕒",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Activity Classifier",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Activity Classifier",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]

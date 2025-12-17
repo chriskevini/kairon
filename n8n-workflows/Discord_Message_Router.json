@@ -6,32 +6,33 @@
         "path": "={{ $env.WEBHOOK_PATH }}",
         "options": {}
       },
-      "id": "c2707a9b-e7d8-4de9-bf27-e4cb193c5a8b",
+      "id": "6e0a4d70-4fa4-4b21-bb13-2ecf7747b9fd",
       "name": "Discord Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -2304,
-        4144
+        -3360,
+        4992
       ],
       "webhookId": "discord-webhook"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO raw_events (\n  source_type,\n  discord_guild_id,\n  discord_channel_id,\n  discord_message_id,\n  message_url,\n  author_login,\n  thread_id,\n  raw_text,\n  clean_text,\n  tag\n) VALUES (\n  'discord',\n  $1, $2, $3, $4, $5, $6, $7, $8, $9\n)\nON CONFLICT (discord_message_id) DO NOTHING\nRETURNING *;",
+        "query": "INSERT INTO raw_events (\n  source_type,\n  discord_guild_id,\n  discord_channel_id,\n  discord_message_id,\n  message_url,\n  author_login,\n  thread_id,\n  raw_text,\n  clean_text,\n  tag\n) VALUES (\n  'discord',\n  $1, $2, $3, $4, $5, $6, $7, $8, $9\n)\nON CONFLICT (discord_message_id) \nDO UPDATE SET discord_message_id = EXCLUDED.discord_message_id\nRETURNING *;",
         "options": {
           "queryReplacement": "={{ $json.event.guild_id }},{{ $json.event.channel_id }},{{ $json.event.message_id }},{{ $json.event.message_url }},{{ $json.event.author_login }},{{ $json.event.thread_id }},{{ $json.event.raw_text }},{{ $json.event.clean_text }},{{ $json.event.tag }},"
         }
       },
-      "id": "278ca1fb-05a0-474b-a74b-f1dc11a3ee0a",
+      "id": "716235a4-2be2-4ed1-aecd-5fde1a03f276",
       "name": "Store Raw Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -832,
-        4048
+        -1888,
+        4896
       ],
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -56,10 +57,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -608,
-        4048
+        -1664,
+        4896
       ],
-      "id": "365b5416-42d9-4040-8cc6-ae0b7d7f580d",
+      "id": "4e7d6fbb-02f1-4fd3-8cab-466f2838b44e",
       "name": "Add Raw Event ID"
     },
     {
@@ -159,13 +160,13 @@
         },
         "options": {}
       },
-      "id": "fce7b05c-9134-4391-bc2d-fe6c1bf0f553",
+      "id": "c888455d-b4b6-4cdc-9fcc-f1b643962944",
       "name": "Check Tag",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -160,
-        4304
+        -1216,
+        5152
       ]
     },
     {
@@ -174,13 +175,13 @@
         "height": 416,
         "width": 480
       },
-      "id": "52caa9b2-0fae-468c-8dc6-5d442901fe5a",
+      "id": "f1b57606-754d-40f5-a24b-11f57c19eba3",
       "name": "Thread Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -240,
-        3600
+        -1296,
+        4448
       ]
     },
     {
@@ -195,7 +196,7 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "event": "={{ $json }}"
+            "event": "={{ $json.event }}"
           },
           "matchingColumns": [
             "event"
@@ -220,10 +221,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        64,
-        4048
+        -992,
+        4896
       ],
-      "id": "1ce49e2a-6d87-47bc-bc93-0ad2afad7e28",
+      "id": "423324b5-7c2b-4585-bda7-26c815499b29",
       "name": "Handle !! Activity"
     },
     {
@@ -237,62 +238,22 @@
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": {},
-          "matchingColumns": [],
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
           "schema": [
             {
-              "id": "raw_event_id",
-              "displayName": "raw_event_id",
+              "id": "event",
+              "displayName": "event",
               "required": false,
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "clean_text",
-              "displayName": "clean_text",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "guild_id",
-              "displayName": "guild_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "channel_id",
-              "displayName": "channel_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "message_id",
-              "displayName": "message_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "author_login",
-              "displayName": "author_login",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
+              "type": "object",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -303,10 +264,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        64,
-        4240
+        -992,
+        5088
       ],
-      "id": "09fc2bb5-4f10-4b55-98da-32827b67cd3e",
+      "id": "f3d77377-2e51-4407-9d73-9e97e220fcf3",
       "name": "Handle ++ Thread Start"
     },
     {
@@ -329,13 +290,13 @@
         },
         "options": {}
       },
-      "id": "d87f1a8d-9693-45fe-9365-a7181e323fef",
+      "id": "dd826657-38d7-4a33-a160-cd01f36787f7",
       "name": "Commit Thread",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        64,
-        3664
+        -992,
+        4512
       ],
       "notes": "TODO: Load conversation_messages\nTODO: Summarize with LLM\nTODO: Create note + activity"
     },
@@ -359,13 +320,13 @@
         },
         "options": {}
       },
-      "id": "25124e60-81e4-4ec1-9ee6-16f47c4f12d6",
+      "id": "a36435e9-d4c0-43ea-8aa8-770d0c88b885",
       "name": "Thread Chat",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        64,
-        3856
+        -992,
+        4704
       ],
       "notes": "TODO: Execute Thread_Agent sub-workflow\nTODO: Store response to conversation_messages"
     },
@@ -375,13 +336,13 @@
         "height": 736,
         "width": 480
       },
-      "id": "bdc50ece-af12-4727-affd-f56343d5514c",
+      "id": "382727f4-bc30-40c1-987c-082bad288eef",
       "name": "Main Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -240,
-        4048
+        -1296,
+        4896
       ]
     },
     {
@@ -412,10 +373,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -384,
-        4048
+        -1440,
+        4896
       ],
-      "id": "a87c6d0c-4558-406e-8671-da6325faaf80",
+      "id": "06a3419b-7d45-40e5-bd5f-499c5a2f0f08",
       "name": "If in Thread"
     },
     {
@@ -446,10 +407,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -160,
-        3664
+        -1200,
+        4656
       ],
-      "id": "024789e6-bd62-41db-92e8-aeae6e19d9c4",
+      "id": "46ee5556-be75-4cf8-92c1-a2985365c2e9",
       "name": "If Commit"
     },
     {
@@ -463,53 +424,22 @@
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": {},
-          "matchingColumns": [],
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
           "schema": [
             {
-              "id": "raw_event_id",
-              "displayName": "raw_event_id",
+              "id": "event",
+              "displayName": "event",
               "required": false,
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "clean_text",
-              "displayName": "clean_text",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "guild_id",
-              "displayName": "guild_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "channel_id",
-              "displayName": "channel_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
-            },
-            {
-              "id": "message_id",
-              "displayName": "message_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string"
+              "type": "object",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -520,10 +450,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        64,
-        4624
+        -992,
+        5472
       ],
-      "id": "a248e41f-1860-49a8-81a3-005f5f1eb58b",
+      "id": "5822dc33-a210-4025-9b73-7a5211608a7a",
       "name": "Handle .. Note"
     },
     {
@@ -536,10 +466,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        -1408,
-        4268
+        -2464,
+        5120
       ],
-      "id": "e7ffd14a-7e23-45d2-9841-4f2831cf5c5c",
+      "id": "787a5ac4-49cc-467a-b008-b11007cbc4f1",
       "name": "Intent Classifier"
     },
     {
@@ -562,38 +492,16 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -2080,
-        4144
+        -3136,
+        4992
       ],
-      "id": "fa13ad1f-f980-4b7c-8278-58b980df92a5",
+      "id": "9d6bd455-6bdb-4b2c-8331-075170c43649",
       "name": "React with 👀",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "amazon/nova-2-lite-v1:free",
-        "options": {
-          "timeout": 10000
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        -1400,
-        4492
-      ],
-      "id": "192aebe7-b4ef-4ee5-862a-62eea12bc5f4",
-      "name": "nova-2-lite-v1",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
         }
       }
     },
@@ -616,36 +524,16 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -1056,
-        4316
+        -2112,
+        5168
       ],
-      "id": "e38c7ab2-29c8-485f-94b6-3233bb00144c",
+      "id": "b7289db5-efd9-4a7f-a04f-fa00a3e64596",
       "name": "Log classification to #kairon-logs",
       "webhookId": "18ae6288-f1c3-401a-9dcc-f832d8126ddf",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "openai/gpt-oss-20b:free",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        -1272,
-        4492
-      ],
-      "id": "5cc2f477-97b2-4a6a-a6e3-7e974d813c58",
-      "name": "gpt-oss-20b",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
         }
       }
     },
@@ -662,17 +550,34 @@
           "mappingMode": "defineBelow",
           "value": {
             "event": "={{ $json.event }}"
-          }
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        64,
-        4432
+        -992,
+        5280
       ],
-      "id": "5eb4dffb-1805-40da-a5e6-39a941aef9ca",
+      "id": "d3475dc3-f616-422a-a218-ae491d353daa",
       "name": "Handle :: Command"
     },
     {
@@ -682,7 +587,7 @@
             {
               "id": "0eccc231-bed6-4ca0-a35e-62e7a6da63ed",
               "name": "tag",
-              "value": "={{ $('Discord Webhook').item.json.body.content.match(/\\+\\+|!!|::|\\.\\./).first() }}",
+              "value": "={{ $('Discord Webhook').item.json.body.content.match(/\\+\\+|!!|::|\\.\\./)?.first() || null }}",
               "type": "string"
             }
           ]
@@ -692,10 +597,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1856,
-        4144
+        -2912,
+        4992
       ],
-      "id": "cfd550c6-1f3b-4a7e-9f0f-cd9d07cd6847",
+      "id": "55ac6f68-e7ea-4bf3-bd1d-f6540e2f2bff",
       "name": "Parse Tag"
     },
     {
@@ -715,10 +620,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1056,
-        4048
+        -2112,
+        4896
       ],
-      "id": "1d5f7373-0997-41b8-8ba4-90f7d7ddc0a6",
+      "id": "d81fc6c6-bc6b-4307-99e6-7163c19b1071",
       "name": "Build Event Object"
     },
     {
@@ -759,11 +664,55 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -1632,
-        4144
+        -2688,
+        4992
       ],
-      "id": "6a129c83-b79e-4ac2-a6b2-e91bd2de2f42",
+      "id": "8155a29d-ee4b-44e1-bf8b-ff7677661742",
       "name": "If Tag or Thread Detected"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -2272,
+        5376
+      ],
+      "id": "eb29653b-c357-4030-bc50-7b13ac1c1c93",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        5376
+      ],
+      "id": "32e43865-ad21-4c9f-a8ee-d875ca317a35",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
     }
   ],
   "connections": {
@@ -895,28 +844,6 @@
         ]
       ]
     },
-    "nova-2-lite-v1": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Intent Classifier",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "gpt-oss-20b": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Intent Classifier",
-            "type": "ai_languageModel",
-            "index": 1
-          }
-        ]
-      ]
-    },
     "Parse Tag": {
       "main": [
         [
@@ -952,6 +879,28 @@
           {
             "node": "Intent Classifier",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Intent Classifier",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Intent Classifier",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]

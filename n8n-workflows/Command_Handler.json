@@ -1,5 +1,4 @@
 {
-  "name": "Command_Handler",
   "nodes": [
     {
       "parameters": {
@@ -15,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -176,
-        2560
+        48,
+        5456
       ],
-      "id": "260e4e98-5573-4210-86c1-b987eaa1afb9",
+      "id": "575ae9d1-396d-44a8-9e0e-3053f9e14103",
       "name": "When Executed by Another Workflow"
     },
     {
@@ -44,10 +43,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        96,
-        2560
+        320,
+        5456
       ],
-      "id": "c2aaa6f8-d5bd-4a45-a30c-252453a99b9b",
+      "id": "ec8369ae-986f-469e-99e5-7c4aaf499433",
       "name": "Parse Command and Args"
     },
     {
@@ -231,10 +230,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        320,
-        2464
+        544,
+        5360
       ],
-      "id": "847a2a79-8623-40e6-a4ed-0b259d5fee3f",
+      "id": "25bc3cf2-5a64-4ada-a254-d67877f7a86d",
       "name": "Switch"
     },
     {
@@ -254,10 +253,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        768,
-        1888
+        992,
+        4784
       ],
-      "id": "ea0a40dc-2676-480f-8895-88fc297f9198",
+      "id": "f753ed58-994b-48f4-8c96-6ca16048c211",
       "name": "Handle ping"
     },
     {
@@ -271,10 +270,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        544,
-        2080
+        768,
+        4976
       ],
-      "id": "2fbd0787-6071-4e61-9046-a98a02cb8b49",
+      "id": "60e422c2-0802-4904-b7cc-75291283dfb2",
       "name": "Query Get Config",
       "alwaysOutputData": true,
       "credentials": {
@@ -295,10 +294,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        544,
-        2272
+        768,
+        5168
       ],
-      "id": "ee3aa303-f24f-4457-bab7-b2c7736451b6",
+      "id": "3ce14aba-748b-47ce-97ad-25d60bd67376",
       "name": "Query Set Config",
       "credentials": {
         "postgres": {
@@ -316,10 +315,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        544,
-        2464
+        768,
+        5360
       ],
-      "id": "5ff4d938-6983-45b9-a31b-04cf855b89ad",
+      "id": "f4ad5eaf-c858-453a-a2cb-b50fcdf0eaae",
       "name": "Query Stats",
       "alwaysOutputData": true,
       "credentials": {
@@ -340,10 +339,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        544,
-        2656
+        768,
+        5552
       ],
-      "id": "6c32b409-052b-4b0c-8d6c-182db1e707e6",
+      "id": "b0bb15fd-0d11-49d4-8267-47308763030e",
       "name": "Query Recent Events",
       "alwaysOutputData": true,
       "credentials": {
@@ -362,10 +361,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        544,
-        2848
+        768,
+        5744
       ],
-      "id": "4ffe6b6d-13e2-4f55-96cc-d01217ecc273",
+      "id": "8ab5765f-3b10-4167-8470-9aa93b70baae",
       "name": "Query User Status",
       "alwaysOutputData": true,
       "credentials": {
@@ -392,10 +391,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        768,
-        3040
+        992,
+        5936
       ],
-      "id": "b0212815-a865-4614-9566-1876a9f6daa0",
+      "id": "7f1e85e9-87de-4851-8a45-1c82e77d463f",
       "name": "Handle help"
     },
     {
@@ -406,10 +405,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        768,
-        2080
+        992,
+        4976
       ],
-      "id": "9d2c161f-f4a3-48d7-b51b-de0f9af15b7f",
+      "id": "f2c67bd1-1a3c-4fd8-b94b-aa82c9cbd7b4",
       "name": "Format Get Response"
     },
     {
@@ -420,10 +419,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        768,
-        2272
+        992,
+        5168
       ],
-      "id": "2cb54b6c-eae1-4f88-88f7-b35057673aba",
+      "id": "f710eb2b-c1b9-4c1d-af54-147f6985fd1c",
       "name": "Format Set Response"
     },
     {
@@ -434,24 +433,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        768,
-        2464
+        992,
+        5360
       ],
-      "id": "ba46d7d0-f7af-4026-9f8b-4c419dbaf52d",
+      "id": "863abae4-3a74-4d4a-a1f4-2085290c9350",
       "name": "Format Stats Response"
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Format recent events response\nconst events = $input.all();\n\nif (events.length === 0) {\n  return { response: '📭 No recent events found' };\n}\n\nlet response = `📜 **Recent Events (${events.length})**\\n\\n`;\n\nevents.forEach((item, i) => {\n  const event = item.json;\n  const time = new Date(event.received_at).toLocaleTimeString();\n  const tag = event.tag || '(untagged)';\n  const text = event.clean_text.substring(0, 50) + \n    (event.clean_text.length > 50 ? '...' : '');\n  \n  response += `${i + 1}. ${time} ${tag} ${text}\\n`;\n});\n\nreturn { response };"
+        "jsCode": "// Format recent events response\nconst events = $input.all();\n\nif (events.length === 0) {\n  return { response: '📭 No recent events found' };\n}\n\nlet response = `📜 **Recent Events (${events.length})**\\n\\n`;\n\nevents.forEach((item, i) => {\n  const event = item.json;\n  const time = new Date(event.received_at).toLocaleTimeString();\n  const tag = event.tag || '(untagged)';\n  const text = event.clean_text.substring(0, 50) + \n    (event.clean_text.length > 50 ? '...' : '');\n  \n  response += `${i + 1}. ${time} ${tag} ${text}\\n`;\n});\n\nreturn { response, ...$('When Executed by Another Workflow').first().json.event };"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        768,
-        2656
+        992,
+        5552
       ],
-      "id": "65cb8e14-45cd-4951-9a88-dfc63719f34e",
+      "id": "33c619dd-864b-4ce4-b11d-f81dbb9d2d11",
       "name": "Format Recent Response"
     },
     {
@@ -462,10 +460,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        768,
-        2848
+        992,
+        5744
       ],
-      "id": "92fedbbd-faa9-4197-91db-f6501e4915c6",
+      "id": "b2d3673a-05de-4626-b6b8-be0ea615aeb4",
       "name": "Format Status Response"
     },
     {
@@ -476,10 +474,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        768,
-        3232
+        992,
+        6128
       ],
-      "id": "450738ec-d9f6-4d96-972b-41536a068a51",
+      "id": "9cf856a7-4e8d-404b-bcbc-4d826db2edec",
       "name": "Handle Unknown Command"
     },
     {
@@ -487,12 +485,12 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('When Executed by Another Workflow').item.json.event.guild_id }}",
+          "value": "={{ $json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('When Executed by Another Workflow').item.json.event.channel_id }}",
+          "value": "={{ $json.channel_id }}",
           "mode": "id"
         },
         "content": "={{ $json.response }}",
@@ -501,11 +499,12 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1216,
-        2560
+        1440,
+        5456
       ],
-      "id": "89638a4e-d713-464f-9611-78bf789f141a",
+      "id": "a4af79eb-4f2c-4154-b987-da7bf409a7f8",
       "name": "Send Response",
+      "webhookId": "26f551ce-e3bd-40ae-953b-33588a9edcd8",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",

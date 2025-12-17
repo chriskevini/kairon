@@ -1,5 +1,4 @@
 {
-  "name": "Note_Handler",
   "nodes": [
     {
       "parameters": {
@@ -15,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        240,
-        400
+        1040,
+        -192
       ],
-      "id": "n1o2t3e4-h5a6-n7d8-l9e0-r12345678901",
+      "id": "1c4b78a9-f7b7-476c-b06f-92d30139c8c3",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -30,10 +29,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        480,
-        400
+        1264,
+        -192
       ],
-      "id": "o2t3e4h5-a6n7-d8l9-e0r1-234567890123",
+      "id": "1255b7b8-c548-42d2-8ca2-3c47d4b7c47f",
       "name": "Get Active Categories",
       "alwaysOutputData": true,
       "credentials": {
@@ -45,89 +44,44 @@
     },
     {
       "parameters": {
-        "jsCode": "const categories = $input.all().map(item => item.json.name).join(', ');\nconst event = $('Execute Workflow Trigger').item.json.event;\n\nreturn [{\n  json: {\n    categories,\n    cleanText: event.clean_text\n  }\n}];"
+        "jsCode": "const categories = $input.all().map(item => item.json.name).join(', ');\nconst event = $('Execute Workflow Trigger').item.json.event;\n\nreturn [{\n  json: {\n    categories,\n    cleanText: event.clean_text,\n    ...event\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
-        400
+        1488,
+        -192
       ],
-      "id": "t3e4h5a6-n7d8-l9e0-r123-456789012345",
+      "id": "337b648c-4300-495f-b054-ee864e679b84",
       "name": "Prepare LLM Context"
     },
     {
       "parameters": {
         "promptType": "define",
         "text": "=You are a note classifier for a life tracking system.\n\nExtract the category, optional title, and text from the user's note.\n\n## Available Categories\n{{ $json.categories }}\n\n## User Message\n{{ $json.cleanText }}\n\n## Instructions\n\n1. Choose the most appropriate category from the list above\n2. Extract a short title if the note suggests one (optional, can be null)\n3. Keep the full text of the note (clean up filler words if needed)\n4. Notes are typically: ideas, reflections, decisions, observations\n\n## Output Format\n\nOutput ONLY valid JSON (nothing else):\n\n{\n  \"category\": \"category_name\",\n  \"title\": \"optional short title\" or null,\n  \"text\": \"the note content\"\n}\n\n## Examples\n\nInput: \"interesting pattern in my productivity lately\"\nOutput: {\"category\": \"reflection\", \"title\": null, \"text\": \"interesting pattern in my productivity lately\"}\n\nInput: \"I should prioritize morning deep work sessions\"\nOutput: {\"category\": \"idea\", \"title\": \"Morning Deep Work\", \"text\": \"should prioritize morning deep work sessions\"}\n\nInput: \"decided to switch to async communication for the team\"\nOutput: {\"category\": \"decision\", \"title\": \"Async Communication\", \"text\": \"decided to switch to async communication for the team\"}\n\nInput: \"reducing context switching significantly improves focus\"\nOutput: {\"category\": \"insight\", \"title\": \"Context Switching\", \"text\": \"reducing context switching significantly improves focus\"}\n\nRemember: Output ONLY the JSON object. Nothing else.",
-        "options": {
-          "needsFallback": true
-        }
+        "needsFallback": true,
+        "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        960,
-        400
+        1712,
+        -192
       ],
-      "id": "e4h5a6n7-d8l9-e0r1-2345-67890123456",
+      "id": "500330d1-eb0d-4978-b34f-90a4fd05209b",
       "name": "Note Classifier"
     },
     {
       "parameters": {
-        "model": "nex-agi/deepseek-v3.1-nex-n1:free",
-        "options": {
-          "temperature": 0.3
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        960,
-        620
-      ],
-      "id": "h5a6n7d8-l9e0-r123-4567-890123456789",
-      "name": "DeepSeek V3.1",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "tngtech/deepseek-r1t2-chimera:free",
-        "options": {
-          "temperature": 0.3
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        960,
-        780
-      ],
-      "id": "j7k8l9m0-n1o2-p345-6789-012abcdef345",
-      "name": "DeepSeek Chimera (Fallback)",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse LLM output (strip markdown if present)\nlet text = $input.item.json.text.trim();\n\n// Remove markdown code block markers if present\ntext = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n\ntry {\n  const parsed = JSON.parse(text);\n  return [{\n    json: {\n      category_name: parsed.category,\n      title: parsed.title,\n      text: parsed.text\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"other\" category\n  return [{\n    json: {\n      category_name: \"other\",\n      title: null,\n      text: $('Execute Workflow Trigger').item.json.clean_text,\n      parse_error: error.message\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output (strip markdown if present)\nlet text = $input.item.json.text.trim();\n\n// Remove markdown code block markers if present\ntext = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n\ntry {\n  const parsed = JSON.parse(text);\n  return [{\n    json: {\n      category_name: parsed.category,\n      title: parsed.title,\n      text: parsed.text,\n      ...$('Prepare LLM Context').first().json,\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"other\" category\n  return [{\n    json: {\n      category_name: \"other\",\n      title: null,\n      text: $('Execute Workflow Trigger').item.json.clean_text,\n      parse_error: error.message,\n      ...$('Prepare LLM Context').first().json,\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1200,
-        400
+        2064,
+        -192
       ],
-      "id": "a6n7d8l9-e0r1-2345-6789-0123456789ab",
+      "id": "f5144a4a-2b37-4956-9de4-1a3887da7503",
       "name": "Parse LLM Response"
     },
     {
@@ -135,16 +89,16 @@
         "operation": "executeQuery",
         "query": "INSERT INTO notes (\n  raw_event_id,\n  timestamp,\n  category_id,\n  title,\n  text,\n  metadata\n)\nSELECT\n  $1::uuid,\n  NOW(),\n  nc.id,\n  $2,\n  $3,\n  '{\"llm_classified\": true}'::jsonb\nFROM note_categories nc\nWHERE nc.name = $4\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.event.raw_event_id }},={{ $json.title }},={{ $json.text }},={{ $json.category_name }}"
+          "queryReplacement": "={{ $json.raw_event_id }},={{ $json.title }},={{ $json.text }},={{ $json.category_name }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1440,
-        400
+        2288,
+        -192
       ],
-      "id": "n7d8l9e0-r123-4567-890a-bcdef1234567",
+      "id": "d5f84950-c854-4684-837e-9adeb11d98cd",
       "name": "Store Note",
       "credentials": {
         "postgres": {
@@ -159,29 +113,72 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.event.guild_id }}",
+          "value": "={{ $('Parse LLM Response').item.json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.event.channel_id }}",
+          "value": "={{ $('Parse LLM Response').item.json.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $('Execute Workflow Trigger').item.json.event.message_id }}",
+        "messageId": "={{ $('Parse LLM Response').item.json.message_id }}",
         "emoji": "=📝"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1680,
-        400
+        2512,
+        -192
       ],
-      "id": "d8l9e0r1-2345-6789-0abc-def123456789",
+      "id": "7433e67e-e8d8-48ee-a5af-d01e2cd670f3",
       "name": "React with 📝",
+      "webhookId": "60c18aeb-3403-429d-8436-05ab229456b7",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        -16
+      ],
+      "id": "98a8f010-737f-44d7-892a-deffd3ea72d0",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        32
+      ],
+      "id": "0e2249c0-7bb4-4da0-a445-e619f8de1f8e",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
         }
       }
     }
@@ -231,28 +228,6 @@
         ]
       ]
     },
-    "DeepSeek V3.1": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Note Classifier",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "DeepSeek Chimera (Fallback)": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Note Classifier",
-            "type": "ai_languageModel",
-            "index": 1
-          }
-        ]
-      ]
-    },
     "Parse LLM Response": {
       "main": [
         [
@@ -274,10 +249,31 @@
           }
         ]
       ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Note Classifier",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Note Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "meta": {
-    "templateCredsSetupCompleted": true,
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
   }
 }
