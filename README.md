@@ -48,20 +48,21 @@ Kairon runs a scheduled **Proactivity** workflow every 30 minutes:
 **Tags:**
 ```
 !!           Force activity observation (optional speedup)
+..           Force note (new - for thoughts/insights)
 ++           Force thread start (in channel) / commit (in thread)
 ::command    System commands
-(no tag)     AI Agent decides (Activity, Note, or Thread)
+(no tag)     LLM classifies (Activity, Note, or Thread)
 ```
 
 **Tag behavior:**
-- Tags are **optional** - system works without them (agentic routing)
-- Tags provide **fast path** - skip LLM classification (~2s faster)
-- Tags are **escape hatch** - override when AI misclassifies
+- Tags are **optional** - system works without them (LLM routing)
+- Tags provide **fast path** - skip LLM classification (~500ms faster)
+- Tags are **escape hatch** - override when LLM misclassifies
 
-**Command asymmetry:**
-- `!!` and `++` are single-token markers
-- `::` is a command prefix (allows `::command args`)
-- This asymmetry is semantically correct (markers vs actions)
+**Routing approach:**
+- **Deterministic fast path:** `!!`, `..`, `++`, `::` → immediate routing
+- **LLM classification:** No tag → LLM outputs `TAG|CONFIDENCE` → routes to tag handlers
+- **Key insight:** LLM just decides which tag to apply, then reuses tag routing logic
 
 ### Emoji Reaction Feedback
 
@@ -70,8 +71,9 @@ After routing, Kairon reacts to your message:
 - Note stored: `📝`
 - Thread started: `💭`
 - Thread committed: `✅`
-- Ambiguous: `⚠️`
-- Error: `🛑`
+- Command executed: `⚙️`
+- LLM classified: `🤖` (temporary during processing)
+- Error: `⚠️`
 
 ---
 
@@ -303,9 +305,9 @@ INSERT INTO config (key, value) VALUES ('north_star', NULL);
 
 ### 4.1 Top-level Workflows
 
-1. **`Discord_Message_Ingestion`**
+1. **`Discord_Message_Router`** (formerly `Discord_Message_Ingestion`)
    - Trigger: webhook from Discord relay
-   - Main routing logic + internal sub-workflows
+   - Main routing logic (classification + dispatch to external handlers)
    
 2. **`Periodic_Activity_Reminder`**
    - Trigger: cron every 30 minutes
@@ -314,28 +316,47 @@ INSERT INTO config (key, value) VALUES ('north_star', NULL);
 3. (Future) **`Daily_Plan_Generator`**
 4. (Future) **`Daily_Summary_Generator`**
 
-### 4.2 Internal Sub-workflows
+### 4.2 Internal Sub-workflows Status
 
-**In `Discord_Message_Ingestion.json` (disconnected nodes with "When called by another workflow"):**
+**Current implementation in `Discord_Message_Router.json`:**
 
-1. **`Router_Agent`**
-   - AI Agent with classification/extraction tools
-   - Decides: Activity, Note, or ThreadStart
+**Internal (in router workflow):**
+1. **`Message Classifier`** ✅ **IMPLEMENTED**
+   - Simple LLM chain (not AI Agent)
+   - Outputs: `TAG|CONFIDENCE` format
+   - Uses minimal prompt (~250 tokens)
+   - Fast, cheap classification (<500ms, <$0.001 per call)
+   - **Fallback:** If LLM fails to output valid tag, defaults to `++` (safe conversation mode)
+
+**External workflows (called via Execute Workflow node):**
+2. **`Command_Handler`** ✅ **CREATED** (workflow exists, handlers pending)
+   - Separate workflow file: `Command_Handler.json`
+   - Receives: command_string, guild_id, channel_id
+   - Returns: Discord message response
    
-2. **`Thread_Agent`**
+3. **`Activity_Handler`** ⏳ **TODO** (placeholder in router)
+   - Extract category + description via LLM
+   - Write to activity_log table
+   
+4. **`Note_Handler`** ⏳ **TODO** (placeholder in router)
+   - Extract category + title/text via LLM
+   - Write to notes table
+   
+5. **`Thread_Handler`** ⏳ **TODO** (placeholder in router)
+   - Create Discord thread
+   - Initialize conversation in database
+   - Execute Thread_Agent for first response
+   
+6. **`Thread_Agent`** ⏳ **TODO**
    - AI Agent for multi-turn conversation
    - Tools: retrieve context, refine thread title
    - Memory: Window Buffer (10 messages)
    
-3. **`Commit_Thread`**
+7. **`Commit_Thread`** ⏳ **TODO** (placeholder in router)
    - LLM summarization (not agent)
    - Returns: note + activity JSON
-   
-4. **`Command_Handler`**
-   - Deterministic switch on command name
-   - Executes: north_star, categories, pause, resume, etc.
 
-**Keep sub-workflows internal** for MVP. Split into separate files later if needed.
+**Architecture change:** All handlers are now external workflows to keep the router clean and maintainable. The router only does classification and dispatch.
 
 ---
 
@@ -348,20 +369,23 @@ INSERT INTO config (key, value) VALUES ('north_star', NULL);
 - Decide intent using:
   1. **Tag-based (deterministic fast path):**
      - `!!` → Activity
+     - `..` → Note
      - `++` → ThreadStart (or Commit if in thread)
      - `::` → Command
-  2. **Agent-based (agentic fallback):**
-     - No tag → AI Agent with tools decides
-- Dispatch to sub-workflow
+  2. **LLM classification (when no tag):**
+     - No tag → LLM outputs `TAG|CONFIDENCE`
+     - Parse and route to appropriate tag handler
+     - **Key insight:** Reuses existing tag routing logic!
+- Dispatch to handler
 - React with emoji
-- Update user_state
+- Update user_state (optional)
 
 ### 5.2 Intent Set
 
 ```
-Activity      !!  or  Agent infers
-Note          Agent infers (no explicit tag)
-ThreadStart   ++  or  Agent infers (questions, requests)
+Activity      !!  or  LLM infers (→ !! tag)
+Note          ..  or  LLM infers (→ .. tag)
+ThreadStart   ++  or  LLM infers (→ ++ tag) for questions
 Commit        ++  (only in threads)  or  ::commit
 Command       ::command args
 ```
@@ -381,101 +405,49 @@ Command       ::command args
 4. Else (message in #arcane-shell):
    a. If tag == '!!':
       → LLM extract category + description
-      → Write to activity_log (deterministic)
-   b. If tag == '++':
+      → Write to activity_log
+   b. If tag == '..':
+      → LLM extract category + title
+      → Write to notes
+   c. If tag == '++':
       → Create Discord thread
-      → Execute: Thread_Agent (deterministic)
-   c. If tag starts with '::':
+      → Execute: Thread_Agent
+   d. If tag starts with '::':
       → Parse command name + args
-      → Execute: Command_Handler (deterministic)
-   d. Else (no tag):
-      → Execute: Router_Agent (agentic)
-      → Agent calls tool (log_activity, store_note, or start_thinking_session)
-      → Dispatch based on tool call
+      → Execute: Command_Handler
+   e. Else (no tag):
+      → LLM Classification:
+         • Build minimal prompt (just tag definitions)
+         • LLM outputs: TAG|CONFIDENCE
+         • Parse & reconstruct: tag="..", content=".. original text"
+         • Route back to step 4 (Check Tag)
+      → Routes to appropriate handler (4a, 4b, 4c, or 4d)
 
-5. Update user_state (last_observation_at, sleeping)
-6. React with emoji
+5. React with emoji
+6. [Optional] Store routing decision if LLM classified
 ```
 
-### 5.4 Router Agent Configuration
+### 5.4 LLM Classification (Simplified Approach)
 
-**System Prompt:**
-```
-You are a routing agent for a life tracking and coaching system.
+**Why this is better than tool calling:**
+- ✅ Simpler: Just text output, no tool schemas
+- ✅ Faster: ~500ms vs ~2s (no function calling overhead)
+- ✅ Cheaper: ~70% fewer tokens (minimal prompt, short output)
+- ✅ Reuses code: Routes to existing tag handlers
+- ✅ Debuggable: See exact LLM decision in logs
 
-User: {{ user_login }}
-Time: {{ timestamp }}
-Sleeping: {{ user_state.sleeping }}
+**Prompt strategy:**
+- **Minimalist:** No context, no categories, no user info
+- **Just essentials:** Tag definitions + examples + confidence guide
+- **Output format:** `TAG|CONFIDENCE` (e.g., `!!|high` or `..|medium`)
+- **Total tokens:** ~250 input + ~5 output = 255 tokens per classification
 
-Recent activities (last 3):
-{{ last_3_activities }}
+**Confidence tracking:**
+- LLM outputs confidence level: `high`, `medium`, `low`
+- Low confidence classifications logged to `routing_decisions` table
+- Review low-confidence cases to improve prompt
 
-Active categories:
-- Activities: {{ activity_categories }}
-- Notes: {{ note_categories }}
-
-Current message: "{{ clean_text }}"
-
-Available tools:
-
-1. log_activity(category_name, description):
-   - User stating current/past actions
-   - Present/past tense statements
-   - Examples: "debugging bug", "took a break", "finished report"
-
-2. store_note(category_name, title, text):
-   - Declarative thoughts, insights, observations (NOT questions)
-   - Examples: "insight about productivity", "need to remember X"
-
-3. start_thinking_session(topic):
-   - Questions (interrogative)
-   - Requests for help/exploration
-   - "Let's think..." statements
-   - Examples: "what did I work on yesterday?", "help me plan"
-
-4. get_recent_context(type, timeframe):
-   - Use if message is ambiguous or refers to unstated context
-   - Types: "activities", "messages", "notes"
-   - Timeframes: "1h", "today", "3d"
-
-If truly ambiguous, bias toward start_thinking_session (conversational, safe, non-destructive).
-```
-
-**Tools:**
-```javascript
-[
-  {
-    name: "log_activity",
-    parameters: {
-      category_name: { enum: activity_categories },
-      description: { type: "string" }
-    }
-  },
-  {
-    name: "store_note",
-    parameters: {
-      category_name: { enum: note_categories },
-      title: { type: "string", optional: true },
-      text: { type: "string" }
-    }
-  },
-  {
-    name: "start_thinking_session",
-    parameters: {
-      topic: { type: "string" }
-    }
-  },
-  {
-    name: "get_recent_context",
-    parameters: {
-      type: { enum: ["activities", "messages", "notes"] },
-      timeframe: { enum: ["1h", "today", "3d"] }
-    }
-  }
-]
-```
-
-**Key insight:** Tool call parameters ARE the extraction. No separate extraction LLM needed.
+**See:** `docs/router-agent-implementation.md` for full implementation guide and actual prompt used in n8n workflow
 
 ---
 
@@ -483,16 +455,20 @@ If truly ambiguous, bias toward start_thinking_session (conversational, safe, no
 
 ### 6.1 Thread Creation
 
+**Status:** ⏳ **TODO** - Placeholder node exists in workflow
+
 **Trigger:**
 - `++` tag in `#arcane-shell` (deterministic)
-- Agent calls `start_thinking_session()` (agentic)
+- LLM classifies as `++` (for questions/exploration)
 
-**Actions:**
+**Actions (when implemented):**
 1. Create Discord thread (initial title = first 50 chars)
 2. Insert to `conversations` table (status='active')
 3. Execute `Thread_Agent` sub-workflow
 
-### 6.2 Thread Agent Configuration
+### 6.2 Thread Agent Configuration (TODO)
+
+**Status:** ⏳ **TODO** - Will be implemented when Thread_Agent sub-workflow is built
 
 **System Prompt:**
 ```
@@ -548,6 +524,8 @@ User: what are the key factors affecting my productivity?
 **Optional:** On `::commit`, update thread title to match note title.
 
 ### 6.4 `::commit` Behavior (always creates note + activity)
+
+**Status:** ⏳ **TODO** - Placeholder node exists in workflow
 
 **Trigger:**
 - `++` tag in thread
@@ -609,16 +587,21 @@ Requesting current activity status... Reply with: `!! <what you're doing>`
 
 ## 8) Commands (`::`)
 
-### 8.1 Core Commands (Phase 1)
+**Status:** ⏳ **TODO** - Command_Handler placeholder exists but not implemented
+
+### 8.1 Core Commands (Phase 1 - Priority for Implementation)
 
 ```
+::ping                     Test if system is working (replies "pong")
+::status                   Show system status (db connected, workflows active, etc.)
+::recent [limit]           Show recent activities/notes (last N items)
+::stats                    Show counts (activities today, notes this week, etc.)
+
 ::north_star set <text>    Store your guiding principle
 ::north_star get           Display your north star
 ::north_star clear         Clear north star
 
 ::categories               List activity + note categories
-
-::status                   Show current state (sleeping, last observation)
 
 ::help                     Show available commands
 ```
@@ -645,15 +628,18 @@ Requesting current activity status... Reply with: `!! <what you're doing>`
 
 ### Phase 1 — MVP Ledger + Threads (Current)
 **Deliverables:**
-- n8n workflow: `Discord_Message_Ingestion`
-  - Store raw events (idempotent)
-  - Hybrid router (tags + agent)
-  - Internal sub-workflows: Router_Agent, Thread_Agent, Commit_Thread, Command_Handler
-- Emoji reactions
-- Activity/Note handling
-- Thread conversations with memory
-- `::commit` → note + activity
-- Basic commands: `::north_star`, `::categories`, `::status`, `::help`
+- n8n workflows:
+  - `Discord_Message_Router` - Main routing workflow ✅
+  - `Command_Handler` - Command execution workflow (created, handlers pending)
+  - External handler workflows (Activity_Handler, Note_Handler, Thread_Handler - all TODO)
+- Store raw events (idempotent) ✅
+- Hybrid router (tags + LLM classification) ✅
+- LLM classification with `++` fallback ✅
+- Emoji reactions ✅
+- Activity/Note handling (placeholders - needs implementation)
+- Thread conversations with memory (todo)
+- `::commit` → note + activity (todo)
+- Basic commands: `::ping`, `::status`, `::recent`, `::stats`, `::north_star`, `::categories`, `::help` (todo)
 
 **Success criteria:**
 - Can log activities with `!!` or naturally
@@ -826,16 +812,17 @@ Router:
   6. React with 🕒
 ```
 
-### Flow 2: Note Storage (Agentic)
+### Flow 2: Note Storage (LLM Classification)
 ```
 User: interesting pattern in my productivity lately
 
 Router:
   1. Store raw_event (tag=null, clean_text='interesting pattern...')
-  2. No tag → Execute Router_Agent
-  3. Agent calls: store_note(category_name='reflection', text='interesting pattern...')
-  4. Write to notes
-  5. React with 📝
+  2. No tag → Execute Message Classifier
+  3. LLM outputs: ..|high
+  4. Route to "Handle .. Note" handler
+  5. [TODO: Extract category + write to notes]
+  6. React with 📝
 ```
 
 ### Flow 3: Question → Thread
@@ -844,15 +831,16 @@ User: what was I working on yesterday?
 
 Router:
   1. Store raw_event (tag=null, clean_text='what was I working on yesterday?')
-  2. No tag → Execute Router_Agent
-  3. Agent calls: start_thinking_session(topic='what was I working on yesterday?')
-  4. Create Discord thread (title='what was I working on yeste...')
-  5. Execute Thread_Agent
+  2. No tag → Execute Message Classifier
+  3. LLM outputs: ++|high
+  4. Route to "Handle ++ Thread Start" handler
+  5. [TODO: Create Discord thread]
+  6. [TODO: Execute Thread_Agent]
 
-Thread_Agent:
-  6. Calls refine_thread_title('Yesterday Work Review')
-  7. n8n: PATCH thread title
-  8. Calls retrieve_recent_activities(timeframe='yesterday')
+Thread_Agent (when implemented):
+  7. Calls refine_thread_title('Yesterday Work Review')
+  8. n8n: PATCH thread title
+  9. Calls retrieve_recent_activities(timeframe='yesterday')
   9. Responds: "Yesterday you worked on: authentication refactor (3h), code review (1h)..."
   10. Store to conversation_messages
   11. Post to Discord thread
@@ -884,12 +872,15 @@ User: still working on it
 
 Router:
   1. Store raw_event (clean_text='still working on it')
-  2. No tag → Execute Router_Agent
-  3. Agent sees recent activities: "authentication refactor" (2h ago)
-  4. OR Agent calls: get_recent_context(type='activities', timeframe='today')
-  5. Agent calls: log_activity(category_name='work', description='continuing authentication refactor')
-  6. Write to activity_log
+  2. No tag → Execute Message Classifier
+  3. LLM outputs: !!|medium (infers it's an activity based on phrase structure)
+  4. Route to "Handle !! Activity" handler
+  5. [TODO: Extract category + description, using context if needed]
+  6. [TODO: Write to activity_log]
   7. React with 🕒
+  
+Note: For MVP, ambiguous messages may not resolve perfectly without context.
+Future enhancement: Add context retrieval to activity/note handlers.
 ```
 
 ---
@@ -903,7 +894,7 @@ Router:
    ```
 
 2. **Set up n8n:**
-   - Import `Discord_Message_Ingestion.json`
+   - Import `Discord_Message_Router.json` and `Command_Handler.json`
    - Configure credentials (OpenAI API, Discord bot token, Postgres)
    - Set environment variables (webhook URL, etc.)
 

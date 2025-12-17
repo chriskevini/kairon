@@ -457,4 +457,4 @@ The Router Agent integrates with:
 - System Prompt: `/prompts/router-agent.md` (now simplified)
 - Design Doc: `/README.md` (Section 5.4)
 - Database Schema: `/db/migrations/001_initial_schema.sql`
-- Main Workflow: `/n8n-workflows/Discord_Message_Ingestion.json`
+- Main Workflow: `/n8n-workflows/Discord_Message_Router.json`

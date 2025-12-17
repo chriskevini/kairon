@@ -1,10 +1,16 @@
 # n8n Workflow Implementation Guide
 
+**NOTE:** This document describes the original architecture plan. The implementation has evolved:
+- Workflow renamed: `Discord_Message_Ingestion` → `Discord_Message_Router`
+- Architecture changed: Internal sub-workflows → External handler workflows
+- Router Agent changed: AI Agent with tools → Simple LLM classifier outputting TAG|CONFIDENCE
+- See README.md Section 4.2 for current implementation status
+
 ## Overview
 
-This document describes the implementation of `Discord_Message_Ingestion` workflow with internal sub-workflows.
+This document describes the original planned implementation of `Discord_Message_Router` workflow.
 
-## Main Workflow: Discord_Message_Ingestion
+## Main Workflow: Discord_Message_Router (formerly Discord_Message_Ingestion)
 
 ### Architecture Pattern
 
@@ -515,7 +521,7 @@ Expected:
 ## Next Steps
 
 1. Export workflow JSON from n8n
-2. Store in `n8n-workflows/Discord_Message_Ingestion.json`
+2. Store in `n8n-workflows/Discord_Message_Router.json` ✅
 3. Version control all prompts separately
 4. Document Discord bot setup
 5. Create integration tests
