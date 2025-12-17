@@ -1,5 +1,4 @@
 {
-  "name": "Daily_Summary_Generator",
   "nodes": [
     {
       "parameters": {
@@ -15,10 +14,10 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        240,
-        400
+        -704,
+        384
       ],
-      "id": "cron-trigger",
+      "id": "8c8b7eb7-1e56-46d9-8382-314d5c1c7f7c",
       "name": "Every 5 Minutes"
     },
     {
@@ -30,10 +29,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        480,
-        400
+        -480,
+        384
       ],
-      "id": "get-summary-time",
+      "id": "9cf68032-3d1b-4b95-a1a9-b5f7752b36ff",
       "name": "Get Summary Time",
       "alwaysOutputData": true,
       "credentials": {
@@ -45,15 +44,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse configured time and check if we should run\nconst now = new Date();\nconst currentHour = now.getHours();\n\n// Get configured time (default to 20 if not set)\nconst inputItems = $input.all();\nlet targetHour = 20;\n\nif (inputItems.length > 0 && inputItems[0].json.value) {\n  const configTime = inputItems[0].json.value; // Format: \"HH:MM\" or \"HH\"\n  if (configTime.includes(':')) {\n    targetHour = parseInt(configTime.split(':')[0]);\n  } else {\n    targetHour = parseInt(configTime);\n  }\n}\n\nreturn [{ json: { current_hour: currentHour, target_hour: targetHour } }];"
+        "jsCode": "// Parse configured time and check if we should run\nconst currentHour = $now.hour\n\n// Get configured time (default to 20 if not set)\nconst inputItems = $input.all();\nlet targetHour = 20;\n\nif (inputItems.length > 0 && inputItems[0].json.value) {\n  const configTime = inputItems[0].json.value; // Format: \"HH:MM\" or \"HH\"\n  if (configTime.includes(':')) {\n    targetHour = parseInt(configTime.split(':')[0]);\n  } else {\n    targetHour = parseInt(configTime);\n  }\n}\n\nreturn [{ json: { current_hour: currentHour, target_hour: targetHour } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
-        400
+        -256,
+        384
       ],
-      "id": "parse-config",
+      "id": "1a015f61-52f8-4019-8c32-0997a51b4a81",
       "name": "Parse Config Time"
     },
     {
@@ -62,7 +61,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -82,10 +82,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        960,
-        400
+        -32,
+        384
       ],
-      "id": "check-time",
+      "id": "2802a05c-dd10-4b16-a1ad-5fb5473b71ff",
       "name": "Check If Time to Run"
     },
     {
@@ -97,10 +97,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1200,
-        240
+        192,
+        96
       ],
-      "id": "query-north-star",
+      "id": "2ad004d2-e858-4bd3-87dd-605292c7ac59",
       "name": "Get North Star",
       "alwaysOutputData": true,
       "credentials": {
@@ -119,10 +119,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1200,
-        400
+        192,
+        288
       ],
-      "id": "query-activities",
+      "id": "4e98188d-6c19-4c67-a662-b9998b928cc6",
       "name": "Get Today's Activities",
       "alwaysOutputData": true,
       "credentials": {
@@ -141,10 +141,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1200,
-        560
+        192,
+        480
       ],
-      "id": "query-notes",
+      "id": "a708072e-4528-4640-91a5-2cf6fc852f24",
       "name": "Get Today's Notes",
       "alwaysOutputData": true,
       "credentials": {
@@ -163,10 +163,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1200,
-        720
+        192,
+        672
       ],
-      "id": "query-breakdown",
+      "id": "55176bae-372e-46dd-afb0-12ddacf07b24",
       "name": "Get Category Breakdown",
       "alwaysOutputData": true,
       "credentials": {
@@ -178,69 +178,45 @@
     },
     {
       "parameters": {
-        "mode": "mergeByPosition",
-        "options": {}
+        "numberInputs": 4
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        1440,
-        400
+        416,
+        352
       ],
-      "id": "merge-all-results",
+      "id": "ba6a4d31-7ba5-4104-8f8a-b8d84a0249ba",
       "name": "Merge All Query Results"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "// Safely merge all data for LLM summarization\n// Handles empty results and errors gracefully\n\nconst allItems = $input.all();\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItems = allItems.filter(item => item.json.value !== undefined && !item.json.error);\nif (northStarItems.length > 0) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities (has 'description' field)\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract notes (has 'text' field but not 'description')\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  !item.json.error\n);\n\n// Extract breakdown (has 'count' field and 'category' but not description/text)\nconst breakdownItems = allItems.filter(item => \n  item.json.count !== undefined && \n  item.json.category !== undefined &&\n  item.json.description === undefined &&\n  item.json.text === undefined &&\n  !item.json.error\n);\n\n// Format activities list\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activityItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (noteItems.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  noteItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    const title = item.json.title ? `**${item.json.title}**: ` : '';\n    notesList += `- ${time} [${item.json.category}] ${title}${item.json.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet breakdownText = '';\nif (breakdownItems.length === 0) {\n  breakdownText = '(No category data)';\n} else {\n  breakdownItems.forEach(item => {\n    breakdownText += `- ${item.json.category}: ${item.json.count} activities\\n`;\n  });\n}\n\nreturn [{\n  json: {\n    north_star: northStar,\n    activities_list: activitiesList,\n    notes_list: notesList,\n    category_breakdown: breakdownText,\n    activity_count: activityItems.length,\n    note_count: noteItems.length\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1680,
-        400
+        640,
+        384
       ],
-      "id": "merge-data",
+      "id": "0f143297-af82-4375-87b0-9b91d6bbe254",
       "name": "Prepare Summary Data"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are generating a daily summary for a life tracking system.\n\n**User's North Star:** {{ $json.north_star }}\n\n**Today's Activities ({{ $json.activity_count }} total):**\n{{ $json.activities_list }}\n\n**Today's Notes ({{ $json.note_count }} total):**\n{{ $json.notes_list }}\n\n**Category Breakdown:**\n{{ $json.category_breakdown }}\n\n---\n\nGenerate a concise daily summary (2-3 paragraphs) that:\n\n1. **Highlights key accomplishments** - What did the user get done today?\n2. **Notes patterns or insights** - Any interesting observations about their day?\n3. **Relates to their north star** - How does today connect to their goals? (if relevant)\n4. **Ends with encouragement** - Brief positive reflection or motivation\n\nUse a warm, encouraging tone. Format with markdown for Discord. Start with a heading like \"# Daily Summary - [Today's Date]\"\n\nIf there were no activities or notes today, acknowledge that rest/downtime is valuable and encourage reflection.",
-        "options": {}
+        "text": "=You are generating a daily summary for a life tracking system.\n\n**Today's Date:** {{ $now.format('yyyy-MM-dd') }}\n\n**User's North Star:** {{ $json.north_star }}\n\n**Today's Activities ({{ $json.activity_count }} total):**\n{{ $json.activities_list }}\n\n**Today's Notes ({{ $json.note_count }} total):**\n{{ $json.notes_list }}\n\n**Category Breakdown:**\n{{ $json.category_breakdown }}\n\n---\n\nGenerate a concise daily summary (2-3 paragraphs) that:\n\n1. **Highlights key accomplishments** - What did the user get done today?\n2. **Notes patterns or insights** - Any interesting observations about their day?\n3. **Relates to their north star** - How does today connect to their goals? (if relevant)\n4. **Ends with encouragement** - Brief positive reflection or motivation\n\nUse a warm, encouraging tone. Format with markdown for Discord. Start with a heading like \"# Daily Summary - <Today's Date>\"\n\nIf there were no activities or notes today, acknowledge that rest/downtime is valuable and encourage reflection.",
+        "needsFallback": true,
+        "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        1920,
-        400
+        864,
+        384
       ],
-      "id": "generate-summary",
+      "id": "925c0acc-6506-4e61-957f-b4d05d35b515",
       "name": "Generate Summary with LLM"
-    },
-    {
-      "parameters": {
-        "model": "anthropic/claude-3.5-sonnet",
-        "options": {
-          "temperature": 0.7,
-          "maxTokens": 1000
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        1920,
-        620
-      ],
-      "id": "llm-model",
-      "name": "Claude 3.5 Sonnet",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
-        }
-      }
     },
     {
       "parameters": {
@@ -261,15 +237,56 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        2160,
-        400
+        1216,
+        384
       ],
-      "id": "send-summary",
+      "id": "cf9481d6-2cae-45c1-b1eb-d4dc72ba6c6e",
       "name": "Post to #obsidian-board",
+      "webhookId": "58ab7668-0a2a-4b1e-8245-a70e0ae0054d",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nex-agi/deepseek-v3.1-nex-n1:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        872,
+        608
+      ],
+      "id": "c9951f91-832f-4dc3-9ea9-4319105f8441",
+      "name": "deepseek-v3.1-nex",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "tngtech/deepseek-r1t2-chimera:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        608
+      ],
+      "id": "3ac6448a-5c7f-4ac0-8dd4-10b155e2e335",
+      "name": "deepseek-r1t2-chimera",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
         }
       }
     }
@@ -401,21 +418,34 @@
       ]
     },
     "Generate Summary with LLM": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Claude 3.5 Sonnet",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ],
       "main": [
         [
           {
             "node": "Post to #obsidian-board",
             "type": "main",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "deepseek-v3.1-nex": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Summary with LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deepseek-r1t2-chimera": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Summary with LLM",
+            "type": "ai_languageModel",
+            "index": 1
           }
         ]
       ]
