@@ -6,13 +6,7 @@
         "workflowInputs": {
           "values": [
             {
-              "name": "command_string"
-            },
-            {
-              "name": "guild_id"
-            },
-            {
-              "name": "channel_id"
+              "name": "event"
             }
           ]
         }
@@ -33,13 +27,13 @@
             {
               "id": "command",
               "name": "command",
-              "value": "={{ $json.command_string.trim().split(/\\s+/)[0] }}",
+              "value": "={{ $json.event.clean_text.trim().split(/\\s+/)[0] }}",
               "type": "string"
             },
             {
               "id": "args",
               "name": "args",
-              "value": "={{ $json.command_string.trim().split(/\\s+/).slice(1) }}",
+              "value": "={{ $json.event.clean_text.trim().split(/\\s+/).slice(1) }}",
               "type": "array"
             }
           ]
@@ -492,12 +486,12 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('When Executed by Another Workflow').item.json.guild_id }}",
+          "value": "={{ $('When Executed by Another Workflow').item.json.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('When Executed by Another Workflow').item.json.channel_id }}",
+          "value": "={{ $('When Executed by Another Workflow').item.json.event.channel_id }}",
           "mode": "id"
         },
         "content": "={{ $json.response }}",

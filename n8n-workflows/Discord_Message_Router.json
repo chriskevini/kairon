@@ -53,7 +53,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $('Set Clean Fields').item.json.tag }}",
+                    "leftValue": "={{ $('Build Event Object').item.json.tag }}",
                     "rightValue": "!!",
                     "operator": {
                       "type": "string",
@@ -76,7 +76,7 @@
                 "conditions": [
                   {
                     "id": "605cd974-50d7-474b-9b9c-719e1e880f6b",
-                    "leftValue": "={{ $('Set Clean Fields').item.json.tag }}",
+                    "leftValue": "={{ $('Build Event Object').item.json.tag }}",
                     "rightValue": "++",
                     "operator": {
                       "type": "string",
@@ -98,7 +98,7 @@
                 "conditions": [
                   {
                     "id": "d353c1c1-cb81-4bfd-ba4b-f93c94d890f1",
-                    "leftValue": "={{ $('Set Clean Fields').item.json.tag }}",
+                    "leftValue": "={{ $('Build Event Object').item.json.tag }}",
                     "rightValue": "::",
                     "operator": {
                       "type": "string",
@@ -120,7 +120,7 @@
                 "conditions": [
                   {
                     "id": "3b33f54e-2b45-4471-940c-eabe0299142c",
-                    "leftValue": "={{ $('Set Clean Fields').item.json.tag }}",
+                    "leftValue": "={{ $('Build Event Object').item.json.tag }}",
                     "rightValue": "..",
                     "operator": {
                       "type": "string",
@@ -171,7 +171,7 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "event": "={{ { raw_event_id: $('Store Raw Event').item.json.id, clean_text: $('Set Clean Fields').item.json.clean_text, guild_id: $('Set Clean Fields').item.json.guild_id, channel_id: $('Set Clean Fields').item.json.channel_id, message_id: $('Set Clean Fields').item.json.message_id, author_login: $('Set Clean Fields').item.json.author_login } }}"
+            "event": "={{ $json.event }}"
           }
         },
         "options": {}
@@ -196,7 +196,7 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "event": "={{ { raw_event_id: $('Store Raw Event').item.json.id, clean_text: $('Set Clean Fields').item.json.clean_text, guild_id: $('Set Clean Fields').item.json.guild_id, channel_id: $('Set Clean Fields').item.json.channel_id, message_id: $('Set Clean Fields').item.json.message_id, author_login: $('Set Clean Fields').item.json.author_login } }}"
+            "event": "={{ $json.event }}"
           }
         },
         "options": {}
@@ -297,7 +297,7 @@
           "conditions": [
             {
               "id": "91cb07bc-c96e-4220-abdb-05844ba93f75",
-              "leftValue": "={{ $('Set Clean Fields').item.json.thread_id }}",
+              "leftValue": "={{ $('Build Event Object').item.json.thread_id }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -364,7 +364,7 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "event": "={{ { raw_event_id: $('Store Raw Event').item.json.id, clean_text: $('Set Clean Fields').item.json.clean_text, guild_id: $('Set Clean Fields').item.json.guild_id, channel_id: $('Set Clean Fields').item.json.channel_id, message_id: $('Set Clean Fields').item.json.message_id, author_login: $('Set Clean Fields').item.json.author_login } }}"
+            "event": "={{ $json.event }}"
           }
         },
         "options": {}
@@ -513,47 +513,8 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "command_string": "={{ $('Set Clean Fields').item.json.clean_text }}",
-            "guild_id": "={{ $('Set Clean Fields').item.json.guild_id }}",
-            "channel_id": "={{ $('Set Clean Fields').item.json.channel_id }}"
-          },
-          "matchingColumns": [
-            "command_string"
-          ],
-          "schema": [
-            {
-              "id": "command_string",
-              "displayName": "command_string",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "guild_id",
-              "displayName": "guild_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "channel_id",
-              "displayName": "channel_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
+            "event": "={{ $json.event }}"
+          }
         },
         "options": {}
       },
@@ -594,62 +555,20 @@
         "assignments": {
           "assignments": [
             {
-              "id": "8e564da3-7526-4680-812d-1b4eade9f766",
-              "name": "guild_id",
-              "value": "={{ $('Discord Webhook').item.json.body.guild_id }}",
-              "type": "string"
-            },
-            {
-              "id": "6a34e73c-02a0-4fb0-9c0c-44c5bce24d8d",
-              "name": "channel_id",
-              "value": "={{ $('Discord Webhook').item.json.body.channel_id }}",
-              "type": "string"
-            },
-            {
-              "id": "09025bce-3084-48bf-8176-593ea3ff2055",
-              "name": "message_id",
-              "value": "={{ $('Discord Webhook').item.json.body.message_id }}",
-              "type": "string"
-            },
-            {
-              "id": "ddea50d8-9751-4061-b143-89679fd43446",
-              "name": "message_url",
-              "value": "=https://discord.com/channels/{{ $('Discord Webhook').item.json.body.guild_id }}/{{ $('Discord Webhook').item.json.body.channel_id }}/{{ $('Discord Webhook').item.json.body.message_id }}",
-              "type": "string"
-            },
-            {
-              "id": "2613520a-2e72-4ecc-a566-b4d62463bb0e",
-              "name": "author_login",
-              "value": "={{ $('Discord Webhook').item.json.body.author.login }}",
-              "type": "string"
-            },
-            {
-              "id": "fcbfeb6d-44c1-4e1d-b6df-632855408f0a",
-              "name": "thread_id",
-              "value": "={{ $('Discord Webhook').item.json.body.thread_id }}",
-              "type": "string"
-            },
-            {
-              "id": "98409ba2-7105-4b03-b611-eb20e07d5f63",
-              "name": "raw_text",
-              "value": "={{ $('Discord Webhook').item.json.body.content }}",
-              "type": "string"
-            },
-            {
-              "id": "d21a51a7-9d3a-47a4-8257-d04843ca6cc6",
-              "name": "clean_text",
-              "value": "={{ $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\./, '').trim()}}",
-              "type": "string"
-            },
-            {
-              "id": "33d173bf-6856-488e-b8b5-7511fe25ae8f",
+              "id": "tag-field",
               "name": "tag",
-              "value": "={{ $('Parse Tag').item.json.tag || $json.text .match(/\\+\\+|!!|::|\\.\\./).first() || \"++\" }}",
+              "value": "={{ $('Parse Tag').item.json.tag || $json.text.match(/\\+\\+|!!|::|\\.\\./).first() || \"++\" }}",
               "type": "string"
+            },
+            {
+              "id": "event-object",
+              "name": "event",
+              "value": "={{ {\n  raw_event_id: $('Store Raw Event').item.json.id,\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\./, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content\n} }}",
+              "type": "object"
             }
           ]
         },
-        "includeOtherFields": true,
+        "includeOtherFields": false,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -659,7 +578,7 @@
         432
       ],
       "id": "748cbeb4-1a90-45d0-a517-616832deb983",
-      "name": "Set Clean Fields"
+      "name": "Build Event Object"
     },
     {
       "parameters": {
@@ -831,7 +750,7 @@
             "index": 0
           },
           {
-            "node": "Set Clean Fields",
+            "node": "Build Event Object",
             "type": "main",
             "index": 0
           }
@@ -887,7 +806,7 @@
         ]
       ]
     },
-    "Set Clean Fields": {
+    "Build Event Object": {
       "main": [
         [
           {
@@ -902,7 +821,7 @@
       "main": [
         [
           {
-            "node": "Set Clean Fields",
+            "node": "Build Event Object",
             "type": "main",
             "index": 0
           }
