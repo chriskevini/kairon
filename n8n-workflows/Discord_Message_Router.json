@@ -934,41 +934,6 @@
       ]
     }
   },
-  "pinData": {
-    "Discord Webhook": [
-      {
-        "headers": {
-          "host": "n8n.chrisirineo.com",
-          "user-agent": "Python/3.12 aiohttp/3.13.2",
-          "content-length": "304",
-          "accept": "*/*",
-          "accept-encoding": "gzip, deflate",
-          "content-type": "application/json",
-          "via": "1.1 Caddy",
-          "x-forwarded-for": "164.92.84.170",
-          "x-forwarded-host": "n8n.chrisirineo.com",
-          "x-forwarded-proto": "https"
-        },
-        "params": {},
-        "query": {},
-        "body": {
-          "guild_id": "754207117157859388",
-          "channel_id": "1450406231146496132",
-          "message_id": "1450649430897328178",
-          "thread_id": null,
-          "author": {
-            "login": "chr15",
-            "id": "183458868817297409",
-            "display_name": "chr15"
-          },
-          "content": ":: ping",
-          "timestamp": "2025-12-17T00:42:56.089000+00:00"
-        },
-        "webhookUrl": "n8n.chrisirineo.com/webhook/asoiaf92746087",
-        "executionMode": "production"
-      }
-    ]
-  },
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
