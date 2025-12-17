@@ -1,36 +1,189 @@
 {
+  "name": "Command_Handler",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "asoiaf92746087",
-        "options": {}
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse command string into structured command object\n// Input: command_string (e.g., \"set north_star Focus on deep work\")\n\nconst commandString = $input.item.json.command_string || '';\nconst parts = commandString.trim().split(/\\s+/);\n\nconst command = parts[0] || 'help';\nconst arg1 = parts[1] || null;\nconst arg2 = parts.slice(2).join(' ') || null;\n\nreturn {\n  command: command,\n  key: arg1,\n  value: arg2,\n  args: parts.slice(1),\n  limit: parseInt(arg1) || 10,\n  guild_id: $input.item.json.guild_id,\n  channel_id: $input.item.json.channel_id\n};"
       },
-      "id": "f912cd28-f283-4ca8-9363-9c738fcd141e",
-      "name": "Discord Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
+      "id": "parse-command",
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        -1200,
-        528
+        240,
+        460
       ],
-      "webhookId": "discord-webhook"
+      "notes": "Parses command string into structured format:\n- command: base command (ping, set, get, stats, etc.)\n- key: first arg (for get/set)\n- value: remaining args (for set)\n- limit: parsed number for recent command"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "ping",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "ping"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "get",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "get"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "set",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "set"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "stats",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "stats"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "recent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "recent"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "status"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "route-command",
+      "name": "Route Command",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        460,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response",
+              "name": "response",
+              "value": "🏓 pong",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "handle-ping",
+      "name": "Handle ping",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        680,
+        240
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO raw_events (\n  source_type,\n  discord_guild_id,\n  discord_channel_id,\n  discord_message_id,\n  message_url,\n  author_login,\n  thread_id,\n  raw_text,\n  clean_text,\n  tag\n) VALUES (\n  'discord',\n  $1, $2, $3, $4, $5, $6, $7, $8, $9\n)\nON CONFLICT (discord_message_id) DO NOTHING\nRETURNING *;",
+        "query": "SELECT value FROM config WHERE key = $1",
         "options": {
-          "queryReplacement": "={{ $json.guild_id }},{{ $json.channel_id }},{{ $json.message_id }},{{ $json.message_url }},{{ $json.author_login }},{{ $json.thread_id }},{{ $json.raw_text }},{{ $json.clean_text }},{{ $json.tag }},"
+          "queryReplacement": "={{ $json.key }}"
         }
       },
-      "id": "a982de22-3395-461c-b322-45bdb6b49a35",
-      "name": "Store Raw Event",
+      "id": "query-get",
+      "name": "Query Get Config",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        272,
-        432
+        680,
+        340
       ],
       "credentials": {
         "postgres": {
@@ -41,456 +194,208 @@
     },
     {
       "parameters": {
-        "rules": {
-          "values": [
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $('Set Clean Fields').item.json.tag }}",
-                    "rightValue": "!!",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    },
-                    "id": "c10146f0-bf28-4ff8-9478-df57f6a70ad0"
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "id": "605cd974-50d7-474b-9b9c-719e1e880f6b",
-                    "leftValue": "={{ $('Set Clean Fields').item.json.tag }}",
-                    "rightValue": "++",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "id": "d353c1c1-cb81-4bfd-ba4b-f93c94d890f1",
-                    "leftValue": "={{ $('Set Clean Fields').item.json.tag }}",
-                    "rightValue": "::",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "id": "3b33f54e-2b45-4471-940c-eabe0299142c",
-                    "leftValue": "={{ $('Set Clean Fields').item.json.tag }}",
-                    "rightValue": "..",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals",
-                      "name": "filter.operator.equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "1788f603-1792-4eb6-a190-3ad01cfd21cf",
-      "name": "Check Tag",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
-      "position": [
-        720,
-        688
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## Thread Message Path\n\nMessages in threads go here.\n\nChecks if it's a commit command (++)\nOtherwise continues conversation.",
-        "height": 416,
-        "width": 480
-      },
-      "id": "65bc19a5-9a4a-4618-b75b-4d78a5dabe19",
-      "name": "Thread Path Note",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        624,
-        -48
-      ]
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "🕒",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "Activity",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "78273d83-77d4-4455-b828-eba8e41f11c9",
-      "name": "Handle !! Activity",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
-      "position": [
-        944,
-        432
-      ],
-      "notes": "TODO: Extract category + description via LLM\nTODO: Write to activity_log"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "💭",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "ThreadStart",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "9a28232a-eda6-4322-95c7-66c0acd668fa",
-      "name": "Handle ++ Thread Start",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
-      "position": [
-        944,
-        624
-      ],
-      "notes": "TODO: Create Discord thread\nTODO: Execute Thread_Agent sub-workflow"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "✅",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "Commit",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "60b327b1-2921-4e0f-8a24-765dee4c52af",
-      "name": "Commit Thread",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
-      "position": [
-        944,
-        48
-      ],
-      "notes": "TODO: Load conversation_messages\nTODO: Summarize with LLM\nTODO: Create note + activity"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "💬",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "Chat",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "a3c3a038-93c6-4997-9fba-f434f3a344c7",
-      "name": "Thread Chat",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
-      "position": [
-        944,
-        240
-      ],
-      "notes": "TODO: Execute Thread_Agent sub-workflow\nTODO: Store response to conversation_messages"
-    },
-    {
-      "parameters": {
-        "content": "## Main Channel Path\n\nMessages in #arcane-shell.\n\nChecks for tags:\n- !! → Activity\n- ++ → Thread Start  \n- :: → Command\n- None → Router Agent",
-        "height": 736,
-        "width": 480
-      },
-      "id": "2d186324-c22c-4bbb-86fe-792137c4ab63",
-      "name": "Main Path Note",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        656,
-        432
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "91cb07bc-c96e-4220-abdb-05844ba93f75",
-              "leftValue": "={{ $('Set Clean Fields').item.json.thread_id }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "exists",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        496,
-        432
-      ],
-      "id": "3829f40d-3911-4c13-8d7c-c96028cc9689",
-      "name": "If in Thread"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "0ceb9e91-e374-4346-8706-97df7d95cfe6",
-              "leftValue": "",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter.operator.equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        720,
-        48
-      ],
-      "id": "dc5d53dc-626a-4e24-92d7-5755c0487863",
-      "name": "If Commit"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "📝",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "Note",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "3c2126cd-3445-47f3-b561-db90d006a2cd",
-      "name": "Handle .. Note",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
-      "position": [
-        944,
-        1008
-      ],
-      "notes": "TODO: Parse command name\nTODO: Execute command handler"
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "=You are a message classifier for a life tracking system.\n\nClassify the message into ONE of these tags and provide confidence.\n\n## Tags\n\n**!!** = Activity (what user is doing/did)\n- Present/past tense actions\n- Examples: \"working on router\", \"took a break\", \"fixed the bug\"\n\n**..** = Note (thoughts, insights, decisions)\n- Declarative observations (NOT questions)\n- Ideas, reflections, decisions\n- Examples: \"interesting pattern\", \"should prioritize X\", \"decided to do Y\"\n\n**++** = Question/Exploration (start conversation)\n- Questions (who/what/when/where/why/how)\n- Requests for help\n- Examples: \"what did I do yesterday?\", \"help me plan\", \"why is X happening?\"\n\n**::** = Command (rare system commands)\n- Examples: \"stats\", \"help\", \"pause\"\n\n## Output Format\n\nOutput ONLY this (nothing else): TAG|CONFIDENCE\n\nWhere:\n- TAG is one of: !! or .. or ++ or ::\n- CONFIDENCE is one of: high or medium or low\n\n## Confidence Guide\n\n- **high**: Very clear classification (90%+ confident)\n- **medium**: Reasonable but some ambiguity (60-90% confident)  \n- **low**: Unclear or could be multiple (<60% confident)\n\n**If low confidence:** Choose ++ (safer to start conversation than misclassify)\n\n## Examples\n\nInput: \"working on the router agent\"\nOutput: !!|high\n\nInput: \"async communication reduces context switching\"\nOutput: ..|high\n\nInput: \"what did I do yesterday?\"\nOutput: ++|high\n\nInput: \"hmm not sure\"\nOutput: ++|low\n\nInput: \"still working on it\"\nOutput: !!|medium\n\nRemember: Output ONLY the tag and confidence. Nothing else.\n\n## User Message\n{{ $('Discord Webhook').item.json.body.content }}",
-        "needsFallback": true,
-        "batching": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.7,
-      "position": [
-        -304,
-        656
-      ],
-      "id": "292dba2e-723f-4dd7-b07e-dae9b34ba40c",
-      "name": "Message Classifier"
-    },
-    {
-      "parameters": {
-        "resource": "message",
-        "operation": "react",
-        "guildId": {
-          "__rl": true,
-          "value": "={{ $json.body.guild_id }}",
-          "mode": "id"
-        },
-        "channelId": {
-          "__rl": true,
-          "value": "={{ $json.body.channel_id }}",
-          "mode": "id"
-        },
-        "messageId": "={{ $json.body.message_id }}",
-        "emoji": "=👀"
-      },
-      "type": "n8n-nodes-base.discord",
-      "typeVersion": 2,
-      "position": [
-        -976,
-        528
-      ],
-      "id": "97c0cc27-04c9-47ca-b36a-49b9a6eb3b90",
-      "name": "React with 👀",
-      "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "amazon/nova-2-lite-v1:free",
+        "operation": "executeQuery",
+        "query": "INSERT INTO config (key, value, updated_at)\nVALUES ($1, $2, NOW())\nON CONFLICT (key) DO UPDATE\nSET value = EXCLUDED.value, updated_at = NOW()\nRETURNING key, value",
         "options": {
-          "timeout": 10000
+          "queryReplacement": "={{ $json.key }},={{ $json.value }}"
         }
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
+      "id": "query-set",
+      "name": "Query Set Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
       "position": [
-        -304,
-        880
+        680,
+        440
       ],
-      "id": "8a15cfc8-7de3-4a16-8468-729642a4cec5",
-      "name": "nova-2-lite-v1",
       "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  (SELECT COUNT(*) FROM activity_log WHERE timestamp >= CURRENT_DATE) as activities_today,\n  (SELECT COUNT(*) FROM notes WHERE timestamp >= DATE_TRUNC('week', CURRENT_DATE)) as notes_this_week,\n  (SELECT COUNT(*) FROM raw_events WHERE source_type = 'discord') as total_events,\n  (SELECT last_observation_at FROM user_state LIMIT 1) as last_activity",
+        "options": {}
+      },
+      "id": "query-stats",
+      "name": "Query Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        540
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  received_at,\n  tag,\n  clean_text,\n  message_url\nFROM raw_events\nWHERE source_type = 'discord'\nORDER BY received_at DESC\nLIMIT $1",
+        "options": {
+          "queryReplacement": "={{ $json.limit }}"
+        }
+      },
+      "id": "query-recent",
+      "name": "Query Recent Events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  user_login,\n  sleeping,\n  last_observation_at,\n  EXTRACT(EPOCH FROM (NOW() - last_observation_at))/60 as minutes_since_activity\nFROM user_state\nLIMIT 1",
+        "options": {}
+      },
+      "id": "query-status",
+      "name": "Query User Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        740
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response",
+              "name": "response",
+              "value": "=📚 **Available Commands**\n\n**Configuration:**\n`::get <key>` - Get a config value\n`::set <key> <value>` - Set a config value\n\n**Information:**\n`::stats` - Show activity statistics\n`::recent [N]` - Show last N events (default 10)\n`::status` - Show your current state\n\n**System:**\n`::ping` - Test if system is working\n`::help` - Show this message\n\n**Examples:**\n`::set north_star Focus on deep work`\n`::get north_star`\n`::recent 5`",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "handle-help",
+      "name": "Handle help",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        680,
+        840
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format get command response\nconst key = $('Parse Command').item.json.key;\nconst result = $input.item.json;\n\nif (!result.value) {\n  return {\n    response: `❌ Config key \\`${key}\\` not found`\n  };\n}\n\nreturn {\n  response: `**${key}:** ${result.value}`\n};"
+      },
+      "id": "format-get",
+      "name": "Format Get Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format set command response\nconst result = $input.item.json;\n\nreturn {\n  response: `✅ Set **${result.key}** = ${result.value}`\n};"
+      },
+      "id": "format-set",
+      "name": "Format Set Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format stats response\nconst stats = $input.item.json;\n\nconst lastActivity = stats.last_activity \n  ? new Date(stats.last_activity).toLocaleString()\n  : 'Never';\n\nreturn {\n  response: `📊 **Statistics**\\n\\n` +\n    `Activities today: ${stats.activities_today}\\n` +\n    `Notes this week: ${stats.notes_this_week}\\n` +\n    `Total events: ${stats.total_events}\\n` +\n    `Last activity: ${lastActivity}`\n};"
+      },
+      "id": "format-stats",
+      "name": "Format Stats Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format recent events response\nconst events = $input.all();\n\nif (events.length === 0) {\n  return { response: '📭 No recent events found' };\n}\n\nlet response = `📜 **Recent Events (${events.length})**\\n\\n`;\n\nevents.forEach((item, i) => {\n  const event = item.json;\n  const time = new Date(event.received_at).toLocaleTimeString();\n  const tag = event.tag || '(untagged)';\n  const text = event.clean_text.substring(0, 50) + \n    (event.clean_text.length > 50 ? '...' : '');\n  \n  response += `${i + 1}. ${time} ${tag} ${text}\\n`;\n});\n\nreturn { response };"
+      },
+      "id": "format-recent",
+      "name": "Format Recent Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format status response\nconst status = $input.item.json;\n\nconst sleepIcon = status.sleeping ? '😴' : '👁️';\nconst sleepStatus = status.sleeping ? 'Sleeping' : 'Awake';\nconst lastActivity = status.last_observation_at\n  ? new Date(status.last_observation_at).toLocaleString()\n  : 'Never';\nconst minutesAgo = Math.round(status.minutes_since_activity || 0);\n\nreturn {\n  response: `${sleepIcon} **Status**\\n\\n` +\n    `State: ${sleepStatus}\\n` +\n    `Last activity: ${lastActivity}\\n` +\n    `Time since: ${minutesAgo} minutes ago`\n};"
+      },
+      "id": "format-status",
+      "name": "Format Status Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        740
+      ]
     },
     {
       "parameters": {
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Discord Webhook').item.json.body.guild_id }}",
+          "value": "={{ $('Parse Command').item.json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "1450655614421303367",
-          "mode": "list",
-          "cachedResultName": "kairon-logs",
-          "cachedResultUrl": "https://discord.com/channels/754207117157859388/1450655614421303367"
+          "value": "={{ $('Parse Command').item.json.channel_id }}",
+          "mode": "id"
         },
-        "content": "=**[Raw Message]**\n{{ $('Discord Webhook').item.json.body.content }}\n**[Auto-tag|Confidence]**\n{{ $json.text }}",
+        "content": "={{ $json.response }}",
         "options": {}
       },
+      "id": "send-response",
+      "name": "Send Discord Response",
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        48,
-        704
+        1120,
+        460
       ],
-      "id": "5a103f26-651f-4d04-acc6-a4c2ecbb8258",
-      "name": "Log classification to #kairon-logs",
-      "webhookId": "18ae6288-f1c3-401a-9dcc-f832d8126ddf",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -500,433 +405,236 @@
     },
     {
       "parameters": {
-        "model": "openai/gpt-oss-20b:free",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        -176,
-        880
-      ],
-      "id": "7a67e184-3101-46f1-9045-5a109dfd5685",
-      "name": "gpt-oss-20b",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response",
+              "name": "response",
+              "value": "=❓ Unknown command: `{{ $('Parse Command').item.json.command }}`\\nType `::help` for available commands",
+              "type": "string"
+            }
+          ]
         }
-      }
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "v6t7HCxr2OOXvb2z",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
-          "cachedResultName": "Command_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "command_string": "={{ $('Set Clean Fields').item.json.clean_text }}",
-            "guild_id": "={{ $('Set Clean Fields').item.json.guild_id }}",
-            "channel_id": "={{ $('Set Clean Fields').item.json.channel_id }}"
-          },
-          "matchingColumns": [
-            "command_string"
-          ],
-          "schema": [
-            {
-              "id": "command_string",
-              "displayName": "command_string",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "guild_id",
-              "displayName": "guild_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            },
-            {
-              "id": "channel_id",
-              "displayName": "channel_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "string",
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
       },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        944,
-        816
-      ],
-      "id": "5c272596-1091-4e93-9a53-2d8d62409a96",
-      "name": "Handle :: Command"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "0eccc231-bed6-4ca0-a35e-62e7a6da63ed",
-              "name": "tag",
-              "value": "={{ $('Discord Webhook').item.json.body.content.match(/\\+\\+|!!|::|\\.\\./).first() }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
+      "id": "handle-unknown",
+      "name": "Handle Unknown",
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "typeVersion": 3.3,
       "position": [
-        -752,
-        528
-      ],
-      "id": "283bf898-14c7-4755-b70b-a8e4e398e4a2",
-      "name": "Parse Tag"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "8e564da3-7526-4680-812d-1b4eade9f766",
-              "name": "guild_id",
-              "value": "={{ $('Discord Webhook').item.json.body.guild_id }}",
-              "type": "string"
-            },
-            {
-              "id": "6a34e73c-02a0-4fb0-9c0c-44c5bce24d8d",
-              "name": "channel_id",
-              "value": "={{ $('Discord Webhook').item.json.body.channel_id }}",
-              "type": "string"
-            },
-            {
-              "id": "09025bce-3084-48bf-8176-593ea3ff2055",
-              "name": "message_id",
-              "value": "={{ $('Discord Webhook').item.json.body.message_id }}",
-              "type": "string"
-            },
-            {
-              "id": "ddea50d8-9751-4061-b143-89679fd43446",
-              "name": "message_url",
-              "value": "=https://discord.com/channels/{{ $('Discord Webhook').item.json.body.guild_id }}/{{ $('Discord Webhook').item.json.body.channel_id }}/{{ $('Discord Webhook').item.json.body.message_id }}",
-              "type": "string"
-            },
-            {
-              "id": "2613520a-2e72-4ecc-a566-b4d62463bb0e",
-              "name": "author_login",
-              "value": "={{ $('Discord Webhook').item.json.body.author.login }}",
-              "type": "string"
-            },
-            {
-              "id": "fcbfeb6d-44c1-4e1d-b6df-632855408f0a",
-              "name": "thread_id",
-              "value": "={{ $('Discord Webhook').item.json.body.thread_id }}",
-              "type": "string"
-            },
-            {
-              "id": "98409ba2-7105-4b03-b611-eb20e07d5f63",
-              "name": "raw_text",
-              "value": "={{ $('Discord Webhook').item.json.body.content }}",
-              "type": "string"
-            },
-            {
-              "id": "d21a51a7-9d3a-47a4-8257-d04843ca6cc6",
-              "name": "clean_text",
-              "value": "={{ $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\./, '').trim()}}",
-              "type": "string"
-            },
-            {
-              "id": "33d173bf-6856-488e-b8b5-7511fe25ae8f",
-              "name": "tag",
-              "value": "={{ $('Parse Tag').item.json.tag || $json.text .match(/\\+\\+|!!|::|\\.\\./).first() || \"++\" }}",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": true,
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        48,
-        432
-      ],
-      "id": "748cbeb4-1a90-45d0-a517-616832deb983",
-      "name": "Set Clean Fields"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "49f84632-af0b-4306-9cdb-b5d5ea07706b",
-              "leftValue": "={{ $json.tag }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "exists",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "4a814004-d6e5-4edc-bd01-add0860c5ab6",
-              "leftValue": "={{ $('Discord Webhook').item.json.body.thread_id }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "exists",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "or"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        -528,
-        528
-      ],
-      "id": "cf607c0a-3cdd-4f65-9a40-ae9d4cd41344",
-      "name": "If Tag or Thread Detected"
+        680,
+        940
+      ]
     }
   ],
   "connections": {
-    "Discord Webhook": {
+    "Parse Command": {
       "main": [
         [
           {
-            "node": "React with 👀",
+            "node": "Route Command",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Raw Event": {
+    "Route Command": {
       "main": [
         [
           {
-            "node": "If in Thread",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Tag": {
-      "main": [
-        [
-          {
-            "node": "Handle !! Activity",
+            "node": "Handle ping",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle ++ Thread Start",
+            "node": "Query Get Config",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle :: Command",
+            "node": "Query Set Config",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle .. Note",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle !! Activity": {
-      "main": [
-        []
-      ]
-    },
-    "Handle ++ Thread Start": {
-      "main": [
-        []
-      ]
-    },
-    "Commit Thread": {
-      "main": [
-        []
-      ]
-    },
-    "Thread Chat": {
-      "main": [
-        []
-      ]
-    },
-    "If in Thread": {
-      "main": [
-        [
-          {
-            "node": "If Commit",
+            "node": "Query Stats",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Check Tag",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Commit": {
-      "main": [
-        [
-          {
-            "node": "Commit Thread",
+            "node": "Query Recent Events",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Thread Chat",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle .. Note": {
-      "main": [
-        []
-      ]
-    },
-    "Message Classifier": {
-      "main": [
-        [
-          {
-            "node": "Log classification to #kairon-logs",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Set Clean Fields",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "React with 👀": {
-      "main": [
-        [
-          {
-            "node": "Parse Tag",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "nova-2-lite-v1": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Message Classifier",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log classification to #kairon-logs": {
-      "main": [
-        []
-      ]
-    },
-    "gpt-oss-20b": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Message Classifier",
-            "type": "ai_languageModel",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Parse Tag": {
-      "main": [
-        [
-          {
-            "node": "If Tag or Thread Detected",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Set Clean Fields": {
-      "main": [
-        [
-          {
-            "node": "Store Raw Event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Tag or Thread Detected": {
-      "main": [
-        [
-          {
-            "node": "Set Clean Fields",
+            "node": "Query User Status",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Message Classifier",
+            "node": "Handle help",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Unknown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle ping": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Get Config": {
+      "main": [
+        [
+          {
+            "node": "Format Get Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Set Config": {
+      "main": [
+        [
+          {
+            "node": "Format Set Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Stats": {
+      "main": [
+        [
+          {
+            "node": "Format Stats Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Recent Events": {
+      "main": [
+        [
+          {
+            "node": "Format Recent Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query User Status": {
+      "main": [
+        [
+          {
+            "node": "Format Status Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle help": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Get Response": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Set Response": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Stats Response": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Recent Response": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Status Response": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Unknown": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Response",
             "type": "main",
             "index": 0
           }
@@ -935,7 +643,6 @@
     }
   },
   "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+    "templateCredsSetupCompleted": true
   }
 }
