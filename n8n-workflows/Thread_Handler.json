@@ -6,22 +6,7 @@
         "workflowInputs": {
           "values": [
             {
-              "name": "raw_event_id"
-            },
-            {
-              "name": "clean_text"
-            },
-            {
-              "name": "guild_id"
-            },
-            {
-              "name": "channel_id"
-            },
-            {
-              "name": "message_id"
-            },
-            {
-              "name": "author_login"
+              "name": "event"
             }
           ]
         }
@@ -41,16 +26,16 @@
         "operation": "createThread",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.guild_id }}",
+          "value": "={{ $json.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.channel_id }}",
+          "value": "={{ $json.event.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $json.message_id }}",
-        "name": "={{ $json.clean_text.slice(0, 100) }}",
+        "messageId": "={{ $json.event.message_id }}",
+        "name": "={{ $json.event.clean_text.slice(0, 100) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -92,7 +77,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const threadId = $('Create Discord Thread').item.json.id;\nconst cleanText = $('Execute Workflow Trigger').item.json.clean_text;\nconst authorLogin = $('Execute Workflow Trigger').item.json.author_login;\nconst northStarResult = $('Get North Star').all();\nconst northStar = northStarResult.length > 0 ? northStarResult[0].json.value : 'Not set';\n\nreturn [{\n  json: {\n    thread_id: threadId,\n    clean_text: cleanText,\n    author_login: authorLogin,\n    north_star: northStar\n  }\n}];"
+        "jsCode": "const threadId = $('Create Discord Thread').item.json.id;\nconst event = $('Execute Workflow Trigger').item.json.event;\nconst northStarResult = $('Get North Star').all();\nconst northStar = northStarResult.length > 0 ? northStarResult[0].json.value : 'Not set';\n\nreturn [{\n  json: {\n    thread_id: threadId,\n    clean_text: event.clean_text,\n    author_login: event.author_login,\n    north_star: northStar\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -108,7 +93,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO conversations (\n  thread_id,\n  created_from_raw_event_id,\n  status,\n  topic,\n  metadata\n)\nVALUES (\n  $1,\n  $2::uuid,\n  'active',\n  $3,\n  '{\"initial_message\": true}'::jsonb\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.thread_id }},={{ $('Execute Workflow Trigger').item.json.raw_event_id }},={{ $json.clean_text }}"
+          "queryReplacement": "={{ $json.thread_id }},={{ $('Execute Workflow Trigger').item.json.event.raw_event_id }},={{ $json.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -131,7 +116,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'user',\n  $3\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Execute Workflow Trigger').item.json.raw_event_id }},={{ $('Prepare Context').item.json.clean_text }}"
+          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Execute Workflow Trigger').item.json.event.raw_event_id }},={{ $('Prepare Context').item.json.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -252,10 +237,10 @@
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.channel_id }}",
+          "value": "={{ $('Execute Workflow Trigger').item.json.event.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $('Execute Workflow Trigger').item.json.message_id }}",
+        "messageId": "={{ $('Execute Workflow Trigger').item.json.event.message_id }}",
         "emoji": "=💭"
       },
       "type": "n8n-nodes-base.discord",

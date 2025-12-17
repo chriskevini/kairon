@@ -171,11 +171,7 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "raw_event_id": "={{ $('Store Raw Event').item.json.id }}",
-            "clean_text": "={{ $('Set Clean Fields').item.json.clean_text }}",
-            "guild_id": "={{ $('Set Clean Fields').item.json.guild_id }}",
-            "channel_id": "={{ $('Set Clean Fields').item.json.channel_id }}",
-            "message_id": "={{ $('Set Clean Fields').item.json.message_id }}"
+            "event": "={{ { raw_event_id: $('Store Raw Event').item.json.id, clean_text: $('Set Clean Fields').item.json.clean_text, guild_id: $('Set Clean Fields').item.json.guild_id, channel_id: $('Set Clean Fields').item.json.channel_id, message_id: $('Set Clean Fields').item.json.message_id, author_login: $('Set Clean Fields').item.json.author_login } }}"
           }
         },
         "options": {}
@@ -200,12 +196,7 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "raw_event_id": "={{ $('Store Raw Event').item.json.id }}",
-            "clean_text": "={{ $('Set Clean Fields').item.json.clean_text }}",
-            "guild_id": "={{ $('Set Clean Fields').item.json.guild_id }}",
-            "channel_id": "={{ $('Set Clean Fields').item.json.channel_id }}",
-            "message_id": "={{ $('Set Clean Fields').item.json.message_id }}",
-            "author_login": "={{ $('Set Clean Fields').item.json.author_login }}"
+            "event": "={{ { raw_event_id: $('Store Raw Event').item.json.id, clean_text: $('Set Clean Fields').item.json.clean_text, guild_id: $('Set Clean Fields').item.json.guild_id, channel_id: $('Set Clean Fields').item.json.channel_id, message_id: $('Set Clean Fields').item.json.message_id, author_login: $('Set Clean Fields').item.json.author_login } }}"
           }
         },
         "options": {}
@@ -373,11 +364,7 @@
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
-            "raw_event_id": "={{ $('Store Raw Event').item.json.id }}",
-            "clean_text": "={{ $('Set Clean Fields').item.json.clean_text }}",
-            "guild_id": "={{ $('Set Clean Fields').item.json.guild_id }}",
-            "channel_id": "={{ $('Set Clean Fields').item.json.channel_id }}",
-            "message_id": "={{ $('Set Clean Fields').item.json.message_id }}"
+            "event": "={{ { raw_event_id: $('Store Raw Event').item.json.id, clean_text: $('Set Clean Fields').item.json.clean_text, guild_id: $('Set Clean Fields').item.json.guild_id, channel_id: $('Set Clean Fields').item.json.channel_id, message_id: $('Set Clean Fields').item.json.message_id, author_login: $('Set Clean Fields').item.json.author_login } }}"
           }
         },
         "options": {}
