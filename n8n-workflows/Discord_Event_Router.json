@@ -1,31 +1,20 @@
 {
-  "name": "Discord_Event_Router",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "={{ $env.WEBHOOK_PATH }}",
-        "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-entry",
+      "id": "1003e606-4a37-4ce9-ac86-53e21b6594d7",
       "name": "Discord Webhook Entry",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [240, 300],
-      "webhookId": "discord-events"
-    },
-    {
-      "parameters": {
-        "respondWith": "text",
-        "responseBody": "OK",
-        "options": {}
-      },
-      "id": "respond-immediately",
-      "name": "Respond Immediately",
-      "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [460, 300]
+      "position": [
+        -256,
+        64
+      ],
+      "webhookId": "discord-events"
     },
     {
       "parameters": {
@@ -81,54 +70,74 @@
         },
         "options": {}
       },
-      "id": "switch-event-type",
+      "id": "375b6932-4817-4f8b-9928-10fdd40968cd",
       "name": "Route by Event Type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [680, 300]
+      "position": [
+        -32,
+        64
+      ]
     },
     {
       "parameters": {
-        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/{{ $env.WEBHOOK_PATH }}/message",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "workflowId": {
+          "__rl": true,
+          "value": "k8ALz60eG7kYqxK9",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/k8ALz60eG7kYqxK9",
+          "cachedResultName": "Emoji_Reaction_Router"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
         "options": {}
       },
-      "id": "call-message-router",
-      "name": "Call Message Router",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [900, 200]
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        192,
+        160
+      ],
+      "id": "a4681d61-ef90-4763-a860-6fd74ddf512b",
+      "name": "Emoji Reaction Router"
     },
     {
       "parameters": {
-        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/{{ $env.WEBHOOK_PATH }}/reaction",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "workflowId": {
+          "__rl": true,
+          "value": "NMMQUQveF3aitpti",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/NMMQUQveF3aitpti",
+          "cachedResultName": "Discord_Message_Router"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
         "options": {}
       },
-      "id": "call-reaction-router",
-      "name": "Call Reaction Router",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [900, 400]
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        192,
+        -32
+      ],
+      "id": "d0214f51-a01c-49a0-940e-8edc211fec18",
+      "name": "Discord Message Router"
     }
   ],
   "connections": {
     "Discord Webhook Entry": {
-      "main": [
-        [
-          {
-            "node": "Respond Immediately",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Respond Immediately": {
       "main": [
         [
           {
@@ -143,14 +152,14 @@
       "main": [
         [
           {
-            "node": "Call Message Router",
+            "node": "Discord Message Router",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Call Reaction Router",
+            "node": "Emoji Reaction Router",
             "type": "main",
             "index": 0
           }
@@ -158,13 +167,7 @@
       ]
     }
   },
-  "pinData": {},
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 1,
-  "updatedAt": "2025-12-18T11:45:00.000Z",
-  "versionId": "3"
+  "meta": {
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  }
 }

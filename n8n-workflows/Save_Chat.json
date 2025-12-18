@@ -343,7 +343,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -1064,
+        -1072,
         768
       ],
       "id": "1021e602-7ef3-4c22-bc16-74a99d6e8c30",
@@ -365,7 +365,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -1192,
+        -1200,
         768
       ],
       "id": "aff3ef03-d804-40a6-98d9-b498298f4b69",
@@ -463,7 +463,7 @@
       "typeVersion": 1.1,
       "position": [
         1392,
-        520
+        528
       ],
       "id": "9a504ad1-2ee7-435b-9c81-ff106ef75821",
       "name": "Wait 1 s",

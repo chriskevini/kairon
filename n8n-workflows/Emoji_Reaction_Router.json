@@ -2,51 +2,48 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "={{ $env.WEBHOOK_PATH }}/reaction",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1.1,
-      "position": [
-        240,
-        300
-      ],
-      "id": "reaction-webhook",
-      "name": "Reaction Webhook",
-      "webhookId": "reaction-webhook-id"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse reaction payload from discord_relay.py\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    action: payload.action,  // 'add' or 'remove'\n    emoji: payload.emoji,\n    emoji_name: payload.emoji_name,\n    guild_id: payload.guild_id,\n    channel_id: payload.channel_id,\n    message_id: payload.message_id,\n    thread_id: payload.thread_id,\n    user_id: payload.user.id,\n    user_login: payload.user.login,\n    message_author_id: payload.message_author.id,\n    message_content: payload.message_content,\n    timestamp: payload.timestamp\n  }\n}];"
+        "jsCode": "return {\n  ...$input.first().json.body\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        460,
-        300
+        -144,
+        512
       ],
-      "id": "parse-reaction",
+      "id": "48e34db2-679b-4824-824f-28f3e88ad421",
       "name": "Parse Reaction Payload"
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.action }}",
-              "value2": "add"
+              "id": "60b25b9e-4a74-4500-85ba-facfd310ec5d",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "add",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        680,
-        300
+        80,
+        512
       ],
-      "id": "check-action-add",
+      "id": "4dfeed47-15be-49b7-b869-b651e1cdbd07",
       "name": "Is Add Reaction?"
     },
     {
@@ -60,10 +57,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        900,
-        200
+        304,
+        512
       ],
-      "id": "check-summary-message",
+      "id": "ed6288ec-cfca-4427-97e5-838b30a22260",
       "name": "Check if Summary Message",
       "alwaysOutputData": true,
       "credentials": {
@@ -76,36 +73,36 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
             {
-              "value1": "={{ $('Check if Summary Message').item.json.conversation_id !== undefined && $('Check if Summary Message').item.json.conversation_id !== null }}",
-              "value2": true
+              "id": "1b12bd86-dd74-426c-99e6-62d0a936eef4",
+              "leftValue": "={{$json}}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1120,
-        200
+        528,
+        512
       ],
-      "id": "is-summary-message",
+      "id": "88c7fca9-d7ba-4f9e-84d9-e064f7c91e0f",
       "name": "Is Summary Message?"
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        1340,
-        100
-      ],
-      "id": "merge-with-conversation",
-      "name": "Merge with Conversation ID"
     },
     {
       "parameters": {
@@ -114,82 +111,48 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1560,
-        100
+        752,
+        512
       ],
-      "id": "prepare-handler-input",
+      "id": "05763a80-1726-466f-b290-b0e8cde38fdc",
       "name": "Prepare Handler Input"
     },
     {
       "parameters": {
-        "workflowId": "={{ $workflow.id }}",
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -368,
+        512
+      ],
+      "id": "69985f4f-f8a9-4fc1-a66e-3a6b0c482f48",
+      "name": "Discord Webhook"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "po34MNNwDBJKdf4N",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/po34MNNwDBJKdf4N",
+          "cachedResultName": "Save_Extraction"
+        },
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
       "position": [
-        1780,
-        100
+        976,
+        512
       ],
-      "id": "call-extraction-save",
-      "name": "Call Handle_Extraction_Save",
+      "id": "bab6860a-5d6f-4090-b757-234487c32435",
+      "name": "Save Extraction",
       "notes": "Replace workflowId with actual ID after creating Handle_Extraction_Save workflow"
-    },
-    {
-      "parameters": {
-        "respondWith": "noData",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        2000,
-        100
-      ],
-      "id": "respond-success",
-      "name": "Respond 200 OK"
-    },
-    {
-      "parameters": {
-        "respondWith": "noData",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        1340,
-        300
-      ],
-      "id": "respond-not-summary",
-      "name": "Respond 200 (Not Summary)"
-    },
-    {
-      "parameters": {
-        "respondWith": "noData",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        900,
-        400
-      ],
-      "id": "respond-remove-ignored",
-      "name": "Respond 200 (Remove Ignored)"
     }
   ],
   "connections": {
-    "Reaction Webhook": {
-      "main": [
-        [
-          {
-            "node": "Parse Reaction Payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Parse Reaction Payload": {
       "main": [
         [
@@ -210,13 +173,7 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Respond 200 (Remove Ignored)",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Check if Summary Message": {
@@ -234,60 +191,43 @@
       "main": [
         [
           {
-            "node": "Merge with Conversation ID",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond 200 (Not Summary)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge with Conversation ID": {
-      "main": [
-        [
-          {
             "node": "Prepare Handler Input",
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     },
     "Prepare Handler Input": {
       "main": [
         [
           {
-            "node": "Call Handle_Extraction_Save",
+            "node": "Save Extraction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Call Handle_Extraction_Save": {
+    "Discord Webhook": {
       "main": [
         [
           {
-            "node": "Respond 200 OK",
+            "node": "Parse Reaction Payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
+    },
+    "Save Extraction": {
+      "main": [
+        []
+      ]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 0,
-  "updatedAt": "2024-12-18T01:00:00.000Z",
-  "versionId": "1"
+  "meta": {
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  }
 }
