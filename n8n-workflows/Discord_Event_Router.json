@@ -5,14 +5,27 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "={{ $env.WEBHOOK_PATH }}",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "webhook-entry",
       "name": "Discord Webhook Entry",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [240, 300],
       "webhookId": "discord-events"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {}
+      },
+      "id": "respond-immediately",
+      "name": "Respond Immediately",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 300]
     },
     {
       "parameters": {
@@ -72,11 +85,11 @@
       "name": "Route by Event Type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [460, 300]
+      "position": [680, 300]
     },
     {
       "parameters": {
-        "url": "={{ $env.N8N_BASE_URL }}/webhook/{{ $env.WEBHOOK_PATH }}/message",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/{{ $env.WEBHOOK_PATH }}/message",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.body) }}",
@@ -86,11 +99,11 @@
       "name": "Call Message Router",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, 200]
+      "position": [900, 200]
     },
     {
       "parameters": {
-        "url": "={{ $env.N8N_BASE_URL }}/webhook/{{ $env.WEBHOOK_PATH }}/reaction",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/{{ $env.WEBHOOK_PATH }}/reaction",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.body) }}",
@@ -100,23 +113,22 @@
       "name": "Call Reaction Router",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, 400]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"status\": \"ok\", \"event_type\": $json.body.event_type } }}",
-        "options": {}
-      },
-      "id": "respond-to-discord",
-      "name": "Respond to Discord",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [900, 300]
+      "position": [900, 400]
     }
   ],
   "connections": {
     "Discord Webhook Entry": {
+      "main": [
+        [
+          {
+            "node": "Respond Immediately",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Immediately": {
       "main": [
         [
           {
@@ -144,28 +156,6 @@
           }
         ]
       ]
-    },
-    "Call Message Router": {
-      "main": [
-        [
-          {
-            "node": "Respond to Discord",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Call Reaction Router": {
-      "main": [
-        [
-          {
-            "node": "Respond to Discord",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "pinData": {},
@@ -175,6 +165,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 1,
-  "updatedAt": "2025-12-18T11:00:00.000Z",
-  "versionId": "1"
+  "updatedAt": "2025-12-18T11:45:00.000Z",
+  "versionId": "3"
 }
