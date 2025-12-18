@@ -2,6 +2,7 @@
 Discord Webhook Relay for Kairon Life OS
 
 Listens to messages in #arcane-shell and forwards them to n8n webhook.
+Listens to reaction events and forwards them to separate n8n webhook.
 """
 
 import os
@@ -19,12 +20,14 @@ load_dotenv()
 # Configuration
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")
+N8N_REACTION_WEBHOOK_URL = os.getenv("N8N_REACTION_WEBHOOK_URL")  # New webhook for reactions
 ARCANE_SHELL_CHANNEL_NAME = "arcane-shell"
 
 # Bot setup
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
+intents.guild_reactions = True  # Enable reaction events
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -48,20 +51,53 @@ def format_message_payload(message: discord.Message) -> dict:
     }
 
 
-async def send_to_n8n(payload: dict) -> bool:
+def format_reaction_payload(
+    reaction: discord.Reaction, 
+    user: discord.User | discord.Member,
+    action: str  # "add" or "remove"
+) -> dict:
+    """
+    Format Discord reaction into n8n webhook payload.
+    """
+    message = reaction.message
+    return {
+        "action": action,  # "add" or "remove"
+        "emoji": str(reaction.emoji),
+        "emoji_name": reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name,
+        "guild_id": str(message.guild.id) if message.guild else None,
+        "channel_id": str(message.channel.id),
+        "message_id": str(message.id),
+        "thread_id": str(message.channel.id) if isinstance(message.channel, discord.Thread) else None,
+        "user": {
+            "id": str(user.id),
+            "login": user.name,
+            "display_name": user.display_name if hasattr(user, 'display_name') else user.name,
+        },
+        "message_author": {
+            "id": str(message.author.id),
+            "login": message.author.name,
+        },
+        "message_content": message.content,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+async def send_to_n8n(payload: dict, webhook_url: Optional[str] = None) -> bool:
     """
     Send payload to n8n webhook.
     Returns True if successful, False otherwise.
     """
+    url = webhook_url if webhook_url else N8N_WEBHOOK_URL
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                N8N_WEBHOOK_URL,
+                url,
                 json=payload,
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 if response.status == 200:
-                    print(f"✓ Sent message {payload['message_id']} to n8n")
+                    url_preview = url[-20:] if url else "unknown"
+                    print(f"✓ Sent payload to n8n (...{url_preview})")
                     return True
                 else:
                     print(f"✗ n8n webhook returned {response.status}")
@@ -82,7 +118,8 @@ async def on_ready():
     print(f"✓ Bot logged in as {bot.user}")
     print(f"✓ Connected to {len(bot.guilds)} guild(s)")
     print(f"✓ Listening for messages in #{ARCANE_SHELL_CHANNEL_NAME}")
-    print(f"✓ Webhook URL: {N8N_WEBHOOK_URL}")
+    print(f"✓ Message Webhook URL: {N8N_WEBHOOK_URL}")
+    print(f"✓ Reaction Webhook URL: {N8N_REACTION_WEBHOOK_URL or 'Not configured'}")
 
 
 @bot.event
@@ -118,6 +155,80 @@ async def on_message(message: discord.Message):
     if not success:
         # Optionally: add warning reaction if webhook fails
         await message.add_reaction("⚠️")
+
+
+@bot.event
+async def on_reaction_add(reaction: discord.Reaction, user: discord.User | discord.Member):
+    """
+    Reaction add event handler.
+    Forwards reactions from #arcane-shell or threads started from #arcane-shell.
+    """
+    # Ignore bot reactions
+    if user.bot:
+        return
+    
+    # Only process if reaction webhook URL is configured
+    if not N8N_REACTION_WEBHOOK_URL:
+        return
+
+    message = reaction.message
+    
+    # Check if reaction is in #arcane-shell or a thread from it
+    should_process = False
+
+    if isinstance(message.channel, discord.Thread):
+        # Reaction in thread - check if thread parent is #arcane-shell
+        parent_channel = message.channel.parent
+        if parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME:
+            should_process = True
+    elif isinstance(message.channel, discord.TextChannel):
+        # Reaction in channel - check if it's #arcane-shell
+        if message.channel.name == ARCANE_SHELL_CHANNEL_NAME:
+            should_process = True
+
+    if not should_process:
+        return
+
+    # Format and send to n8n
+    payload = format_reaction_payload(reaction, user, "add")
+    await send_to_n8n(payload, N8N_REACTION_WEBHOOK_URL)
+
+
+@bot.event
+async def on_reaction_remove(reaction: discord.Reaction, user: discord.User | discord.Member):
+    """
+    Reaction remove event handler.
+    Forwards reaction removals from #arcane-shell or threads started from #arcane-shell.
+    """
+    # Ignore bot reactions
+    if user.bot:
+        return
+    
+    # Only process if reaction webhook URL is configured
+    if not N8N_REACTION_WEBHOOK_URL:
+        return
+
+    message = reaction.message
+    
+    # Check if reaction is in #arcane-shell or a thread from it
+    should_process = False
+
+    if isinstance(message.channel, discord.Thread):
+        # Reaction in thread - check if thread parent is #arcane-shell
+        parent_channel = message.channel.parent
+        if parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME:
+            should_process = True
+    elif isinstance(message.channel, discord.TextChannel):
+        # Reaction in channel - check if it's #arcane-shell
+        if message.channel.name == ARCANE_SHELL_CHANNEL_NAME:
+            should_process = True
+
+    if not should_process:
+        return
+
+    # Format and send to n8n
+    payload = format_reaction_payload(reaction, user, "remove")
+    await send_to_n8n(payload, N8N_REACTION_WEBHOOK_URL)
 
 
 @bot.event
