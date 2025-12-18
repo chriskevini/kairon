@@ -173,7 +173,7 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Note Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }}\n**Confidence:** [ {{ Object.entries($json.all_scores || {}).map(([cat, score]) => `${cat}:${score}%`).join(' | ') }} ]",
+        "content": "=**[Note Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }}\n**Confidence:** [ {{ Object.entries($json.all_scores || {}).sort((a, b) => b[1] - a[1]).map(([cat, score]) => `${cat}:${score}%`).join(' | ') }} ]",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
