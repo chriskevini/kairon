@@ -86,7 +86,7 @@
           "value": "k8ALz60eG7kYqxK9",
           "mode": "list",
           "cachedResultUrl": "/workflow/k8ALz60eG7kYqxK9",
-          "cachedResultName": "Emoji_Reaction_Router"
+          "cachedResultName": "Route_Reaction"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -105,7 +105,7 @@
         160
       ],
       "id": "a4681d61-ef90-4763-a860-6fd74ddf512b",
-      "name": "Emoji Reaction Router"
+      "name": "Route Reaction"
     },
     {
       "parameters": {
@@ -114,7 +114,7 @@
           "value": "NMMQUQveF3aitpti",
           "mode": "list",
           "cachedResultUrl": "/workflow/NMMQUQveF3aitpti",
-          "cachedResultName": "Discord_Message_Router"
+          "cachedResultName": "Route_Message"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -133,7 +133,7 @@
         -32
       ],
       "id": "d0214f51-a01c-49a0-940e-8edc211fec18",
-      "name": "Discord Message Router"
+      "name": "Route Message"
     }
   ],
   "connections": {
@@ -152,14 +152,14 @@
       "main": [
         [
           {
-            "node": "Discord Message Router",
+            "node": "Route Message",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Emoji Reaction Router",
+            "node": "Route Reaction",
             "type": "main",
             "index": 0
           }
@@ -169,5 +169,6 @@
   },
   "meta": {
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
-  }
+  },
+  "name": "Route_Discord_Event"
 }

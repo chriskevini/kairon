@@ -708,5 +708,6 @@
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
-  }
+  },
+  "name": "Save_Chat"
 }
