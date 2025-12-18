@@ -3,7 +3,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "={{ $env.REACTION_WEBHOOK_PATH }}",
+        "path": "={{ $env.WEBHOOK_PATH }}/reaction",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",

@@ -3,7 +3,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "={{ $env.WEBHOOK_PATH }}",
+        "path": "={{ $env.WEBHOOK_PATH }}/message",
         "options": {}
       },
       "id": "dd605198-d92e-44c6-9683-c75da70e3ca5",
@@ -14,7 +14,7 @@
         -5600,
         5648
       ],
-      "webhookId": "discord-webhook"
+      "webhookId": "discord-message-webhook"
     },
     {
       "parameters": {
