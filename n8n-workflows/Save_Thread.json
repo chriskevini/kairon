@@ -1,0 +1,560 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "event",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "trigger-save-thread",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.event.message_id }}/reactions/%F0%9F%92%AD",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        180
+      ],
+      "id": "add-thinking-emoji",
+      "name": "Add 💭 Reaction",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM conversations WHERE thread_id = $1;",
+        "options": {
+          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.event.thread_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        460,
+        300
+      ],
+      "id": "get-conversation-id",
+      "name": "Get Conversation ID",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT content, author_login, timestamp FROM conversation_messages WHERE conversation_id = $1 ORDER BY timestamp ASC;",
+        "options": {
+          "queryReplacement": "={{ $('Get Conversation ID').item.json.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        300
+      ],
+      "id": "get-thread-history",
+      "name": "Get Thread History",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        900,
+        300
+      ],
+      "id": "merge-data",
+      "name": "Merge Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get conversation ID\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $('Get Thread History').all();\n\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `[${msg.json.author_login}]: ${msg.json.content}`;\n}).join('\\n');\n\n// Get original event\nconst event = $('Execute Workflow Trigger').first().json.event;\n\nreturn [{\n  json: {\n    conversation_id: conversationId,\n    thread_history: threadHistory,\n    thread_id: event.thread_id,\n    channel_id: event.channel_id,\n    message_id: event.message_id,\n    guild_id: event.guild_id,\n    ...event\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ],
+      "id": "prepare-context",
+      "name": "Prepare Context"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are analyzing a conversation thread to extract actionable items.\n\n## Thread History\n{{ $json.thread_history }}\n\n## Task\nClassify each item into ONE of these types:\n\n**reflection** - Internal knowledge about the user\n- Personal insights, patterns, self-observations\n- Decisions, commitments, resolutions made\n- Examples:\n  • I work better in mornings after coffee\n  • I've decided to switch to async communication\n  • I feel more focused after 20-minute walks\n  • Deep work requires 2+ hour blocks\n\n**fact** - External knowledge about the world or others\n- Information about other people (preferences, birthdays, allergies)\n- Factual statements about things/places\n- Examples:\n  • Mom's birthday is June 12th\n  • John prefers dark roast coffee\n  • Sarah is allergic to nuts\n  • Dad prefers evening phone calls\n\n**todo** - Concrete action items\n- Next steps, tasks to complete\n- Must be actionable and specific\n- Examples:\n  • Block calendar for morning deep work\n  • Draft async communication guidelines\n  • Buy birthday gift for Mom\n  • Schedule coffee with John\n\n## Output Format\nOne item per line, format: type|text\n\nreflection|I work better in mornings after coffee\nfact|Mom's birthday is June 12th\nreflection|Will switch to async communication\ntodo|Block calendar for morning deep work\ntodo|Draft async guidelines\n\n## Rules\n- Be specific and concrete\n- Use user's own words when possible\n- Only extract items explicitly discussed\n- Max 10 items total\n- Order by importance (most important first)\n- If unsure between reflection and fact, choose reflection",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1340,
+        300
+      ],
+      "id": "extract-items",
+      "name": "Extract Items LLM"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse LLM output in pipe format: \"type|text\"\nlet llmOutput = $input.first().json.text.trim();\nconst context = $('Prepare Context').first().json;\n\ntry {\n  const lines = llmOutput.split('\\n').filter(line => line.includes('|'));\n  const extractions = [];\n  let displayOrder = 1;\n  \n  lines.forEach(line => {\n    const parts = line.split('|');\n    if (parts.length < 2) return;\n    \n    const itemType = parts[0].trim();\n    const text = parts.slice(1).join('|').trim(); // Handle pipes in text\n    \n    // Validate item_type\n    if (!['reflection', 'fact', 'todo'].includes(itemType)) {\n      console.error(`Invalid item_type: ${itemType}`);\n      return;\n    }\n    \n    extractions.push({\n      conversation_id: context.conversation_id,\n      item_type: itemType,\n      text: text,\n      display_order: displayOrder++\n    });\n  });\n  \n  // If no extractions, return empty array with context\n  if (extractions.length === 0) {\n    return [{\n      json: {\n        ...context,\n        extractions: [],\n        has_extractions: false\n      }\n    }];\n  }\n  \n  return [{\n    json: {\n      ...context,\n      extractions: extractions,\n      has_extractions: true\n    }\n  }];\n} catch (error) {\n  // On error, return empty extractions\n  return [{\n    json: {\n      ...context,\n      extractions: [],\n      has_extractions: false,\n      parse_error: error.message\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ],
+      "id": "parse-extractions",
+      "name": "Parse Extractions"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_extractions }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        300
+      ],
+      "id": "check-has-extractions",
+      "name": "Has Extractions?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build SQL query to insert all extractions\nconst data = $input.first().json;\nconst extractions = data.extractions;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// Build VALUES clause\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 5; // 5 params per row\n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, NULL)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  conversation_id,\n  item_type,\n  text,\n  display_order,\n  summary_message_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// Build params array\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.conversation_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n});\n\nreturn [{\n  json: {\n    ...data,\n    sql_query: query,\n    sql_params: params\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        200
+      ],
+      "id": "build-insert-query",
+      "name": "Build Insert Query"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql_query }}",
+        "options": {
+          "queryReplacement": "={{ $json.sql_params.join(',') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2220,
+        200
+      ],
+      "id": "save-extractions",
+      "name": "Save Extractions to DB",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Discord summary message\nconst data = $('Parse Extractions').first().json;\nconst extractions = data.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '📊 **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '💡 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '📋 **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '❌ Dismiss • 🗑️ Delete thread';\n\nreturn [{\n  json: {\n    ...data,\n    summary_content: content,\n    emoji_count: extractions.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        200
+      ],
+      "id": "build-summary",
+      "name": "Build Summary Message"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"content\": $json.summary_content } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2660,
+        200
+      ],
+      "id": "post-summary",
+      "name": "Post Summary to Channel Root",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst data = $('Build Summary Message').first().json;\nconst extractions = data.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${data.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${data.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '❌'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${data.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '🗑️'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ...data,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        200
+      ],
+      "id": "prepare-reactions",
+      "name": "Prepare Emoji Reactions"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.reaction_url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3100,
+        200
+      ],
+      "id": "add-reactions",
+      "name": "Add Emoji Reactions",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE thread_extractions SET summary_message_id = $1 WHERE conversation_id = $2;",
+        "options": {
+          "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.conversation_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        3320,
+        200
+      ],
+      "id": "update-message-id",
+      "name": "Update Summary Message ID",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Prepare Context').item.json.message_id }}/reactions/%F0%9F%92%AD/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3540,
+        200
+      ],
+      "id": "remove-thinking-emoji",
+      "name": "Remove 💭 Reaction",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Execute Workflow Trigger').item.json.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $('Execute Workflow Trigger').item.json.event.thread_id }}",
+          "mode": "id"
+        },
+        "content": "❌ No items extracted from this thread. Try discussing specific insights, facts, or action items.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        400
+      ],
+      "id": "no-extractions-message",
+      "name": "Post No Extractions Message",
+      "webhookId": "no-extractions-webhook",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Add 💭 Reaction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Conversation ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation ID": {
+      "main": [
+        [
+          {
+            "node": "Get Thread History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add 💭 Reaction": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Thread History": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Context": {
+      "main": [
+        [
+          {
+            "node": "Prepare Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Context": {
+      "main": [
+        [
+          {
+            "node": "Extract Items LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Items LLM": {
+      "main": [
+        [
+          {
+            "node": "Parse Extractions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Extractions": {
+      "main": [
+        [
+          {
+            "node": "Has Extractions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Extractions?": {
+      "main": [
+        [
+          {
+            "node": "Build Insert Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Post No Extractions Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Insert Query": {
+      "main": [
+        [
+          {
+            "node": "Save Extractions to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Extractions to DB": {
+      "main": [
+        [
+          {
+            "node": "Build Summary Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Summary Message": {
+      "main": [
+        [
+          {
+            "node": "Post Summary to Channel Root",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Summary to Channel Root": {
+      "main": [
+        [
+          {
+            "node": "Prepare Emoji Reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Emoji Reactions": {
+      "main": [
+        [
+          {
+            "node": "Add Emoji Reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Emoji Reactions": {
+      "main": [
+        [
+          {
+            "node": "Update Summary Message ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Summary Message ID": {
+      "main": [
+        [
+          {
+            "node": "Remove 💭 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-18T01:00:00.000Z",
+  "versionId": "1"
+}

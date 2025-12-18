@@ -1,0 +1,293 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "={{ $env.REACTION_WEBHOOK_PATH }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "reaction-webhook",
+      "name": "Reaction Webhook",
+      "webhookId": "reaction-webhook-id"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse reaction payload from discord_relay.py\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    action: payload.action,  // 'add' or 'remove'\n    emoji: payload.emoji,\n    emoji_name: payload.emoji_name,\n    guild_id: payload.guild_id,\n    channel_id: payload.channel_id,\n    message_id: payload.message_id,\n    thread_id: payload.thread_id,\n    user_id: payload.user.id,\n    user_login: payload.user.login,\n    message_author_id: payload.message_author.id,\n    message_content: payload.message_content,\n    timestamp: payload.timestamp\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "id": "parse-reaction",
+      "name": "Parse Reaction Payload"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "value2": "add"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ],
+      "id": "check-action-add",
+      "name": "Is Add Reaction?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT conversation_id FROM thread_extractions WHERE summary_message_id = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        900,
+        200
+      ],
+      "id": "check-summary-message",
+      "name": "Check if Summary Message",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $('Check if Summary Message').item.json.conversation_id !== undefined && $('Check if Summary Message').item.json.conversation_id !== null }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ],
+      "id": "is-summary-message",
+      "name": "Is Summary Message?"
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1340,
+        100
+      ],
+      "id": "merge-with-conversation",
+      "name": "Merge with Conversation ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine reaction data with conversation_id\nconst reaction = $('Parse Reaction Payload').first().json;\nconst dbResult = $('Check if Summary Message').first().json;\n\nreturn [{\n  json: {\n    ...reaction,\n    conversation_id: dbResult.conversation_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        100
+      ],
+      "id": "prepare-handler-input",
+      "name": "Prepare Handler Input"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $workflow.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1780,
+        100
+      ],
+      "id": "call-extraction-save",
+      "name": "Call Handle_Extraction_Save",
+      "notes": "Replace workflowId with actual ID after creating Handle_Extraction_Save workflow"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        100
+      ],
+      "id": "respond-success",
+      "name": "Respond 200 OK"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        300
+      ],
+      "id": "respond-not-summary",
+      "name": "Respond 200 (Not Summary)"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "id": "respond-remove-ignored",
+      "name": "Respond 200 (Remove Ignored)"
+    }
+  ],
+  "connections": {
+    "Reaction Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Reaction Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Reaction Payload": {
+      "main": [
+        [
+          {
+            "node": "Is Add Reaction?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Add Reaction?": {
+      "main": [
+        [
+          {
+            "node": "Check if Summary Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 200 (Remove Ignored)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Summary Message": {
+      "main": [
+        [
+          {
+            "node": "Is Summary Message?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Summary Message?": {
+      "main": [
+        [
+          {
+            "node": "Merge with Conversation ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 200 (Not Summary)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge with Conversation ID": {
+      "main": [
+        [
+          {
+            "node": "Prepare Handler Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Handler Input": {
+      "main": [
+        [
+          {
+            "node": "Call Handle_Extraction_Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Handle_Extraction_Save": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-18T01:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,647 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "event",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        400
+      ],
+      "id": "trigger-extraction-save",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse emoji to determine action type\nconst event = $input.first().json.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3, '4️⃣': 4, '5️⃣': 5,\n  '6️⃣': 6, '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '❌') {\n  actionType = 'dismiss';\n} else if (emoji === '🗑️') {\n  actionType = 'delete_thread';\n}\n\nreturn [{\n  json: {\n    ...event,\n    action_type: actionType,\n    display_order: displayOrder\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        400
+      ],
+      "id": "parse-emoji-type",
+      "name": "Parse Emoji Type"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action_type }}",
+                    "value2": "save_item"
+                  }
+                ]
+              },
+              "output": 0
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action_type }}",
+                    "value2": "dismiss"
+                  }
+                ]
+              },
+              "output": 1
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.action_type }}",
+                    "value2": "delete_thread"
+                  }
+                ]
+              },
+              "output": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        680,
+        400
+      ],
+      "id": "route-action",
+      "name": "Route by Action Type"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM thread_extractions WHERE summary_message_id = $1 AND display_order = $2 AND saved_as IS NULL LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.message_id }},={{ $json.display_order }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        900,
+        200
+      ],
+      "id": "get-extraction-item",
+      "name": "Get Extraction Item",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.id !== undefined && $json.id !== null }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ],
+      "id": "check-item-exists",
+      "name": "Item Exists?"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.item_type }}",
+                    "value2": "reflection"
+                  }
+                ]
+              },
+              "output": 0
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.item_type }}",
+                    "value2": "fact"
+                  }
+                ]
+              },
+              "output": 0
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.item_type }}",
+                    "value2": "todo"
+                  }
+                ]
+              },
+              "output": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1340,
+        100
+      ],
+      "id": "route-by-type",
+      "name": "Route by Item Type"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserted AS (\n  INSERT INTO notes (timestamp, category, text, metadata)\n  VALUES (NOW(), $1::note_category, $2, jsonb_build_object('from_thread', true, 'conversation_id', $3::uuid))\n  RETURNING id\n)\nUPDATE thread_extractions \nSET saved_as = 'note', saved_id = (SELECT id FROM inserted)\nWHERE id = $4::uuid\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.item_type }},={{ $json.text }},={{ $json.conversation_id }},={{ $json.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1560,
+        20
+      ],
+      "id": "save-as-note",
+      "name": "Save as Note",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserted AS (\n  INSERT INTO todos (description, status, metadata)\n  VALUES ($1, 'pending', jsonb_build_object('from_thread', true, 'conversation_id', $2::uuid))\n  RETURNING id\n)\nUPDATE thread_extractions \nSET saved_as = 'todo', saved_id = (SELECT id FROM inserted)\nWHERE id = $3::uuid\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.text }},={{ $json.conversation_id }},={{ $json.id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1560,
+        180
+      ],
+      "id": "save-as-todo",
+      "name": "Save as Todo",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1780,
+        100
+      ],
+      "id": "merge-saved",
+      "name": "Merge Saved Results"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Parse Emoji Type').item.json.channel_id }}/messages/{{ $('Parse Emoji Type').item.json.message_id }}/reactions/{{ encodeURIComponent($('Parse Emoji Type').item.json.emoji) }}/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        100
+      ],
+      "id": "remove-number-emoji",
+      "name": "Remove Number Emoji",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as unsaved FROM thread_extractions WHERE summary_message_id = $1 AND saved_as IS NULL;",
+        "options": {
+          "queryReplacement": "={{ $('Parse Emoji Type').item.json.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2220,
+        100
+      ],
+      "id": "check-unsaved-count",
+      "name": "Check Unsaved Count",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.unsaved }}",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        100
+      ],
+      "id": "all-saved",
+      "name": "All Saved?"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Parse Emoji Type').item.json.channel_id }}/messages/{{ $('Parse Emoji Type').item.json.message_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"content\": \"✅ All items saved!\\n\\n🗑️ Delete thread • ❌ Dismiss\" } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2660,
+        20
+      ],
+      "id": "update-summary-all-saved",
+      "name": "Update Summary (All Saved)",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages/{{ $json.message_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        400
+      ],
+      "id": "delete-summary-dismiss",
+      "name": "Delete Summary (Dismiss)",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT conversation_id, thread_id FROM thread_extractions te JOIN conversations c ON te.conversation_id = c.id WHERE te.summary_message_id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        900,
+        600
+      ],
+      "id": "get-thread-info",
+      "name": "Get Thread Info",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.thread_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        600
+      ],
+      "id": "delete-discord-thread",
+      "name": "Delete Discord Thread",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE conversations SET status = 'deleted' WHERE id = $1::uuid;",
+        "options": {
+          "queryReplacement": "={{ $('Get Thread Info').item.json.conversation_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1340,
+        600
+      ],
+      "id": "update-conversation-deleted",
+      "name": "Update Conversation Status",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Parse Emoji Type').item.json.channel_id }}/messages/{{ $('Parse Emoji Type').item.json.message_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        600
+      ],
+      "id": "delete-summary-after-thread",
+      "name": "Delete Summary Message",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Emoji Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Emoji Type": {
+      "main": [
+        [
+          {
+            "node": "Route by Action Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Action Type": {
+      "main": [
+        [
+          {
+            "node": "Get Extraction Item",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Summary (Dismiss)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Thread Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Extraction Item": {
+      "main": [
+        [
+          {
+            "node": "Item Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Item Exists?": {
+      "main": [
+        [
+          {
+            "node": "Route by Item Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Item Type": {
+      "main": [
+        [
+          {
+            "node": "Save as Note",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save as Todo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save as Note": {
+      "main": [
+        [
+          {
+            "node": "Merge Saved Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save as Todo": {
+      "main": [
+        [
+          {
+            "node": "Merge Saved Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Saved Results": {
+      "main": [
+        [
+          {
+            "node": "Remove Number Emoji",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Number Emoji": {
+      "main": [
+        [
+          {
+            "node": "Check Unsaved Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Unsaved Count": {
+      "main": [
+        [
+          {
+            "node": "All Saved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Saved?": {
+      "main": [
+        [
+          {
+            "node": "Update Summary (All Saved)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Thread Info": {
+      "main": [
+        [
+          {
+            "node": "Delete Discord Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Discord Thread": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation Status": {
+      "main": [
+        [
+          {
+            "node": "Delete Summary Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-18T01:00:00.000Z",
+  "versionId": "1"
+}
