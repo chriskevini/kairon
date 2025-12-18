@@ -541,7 +541,7 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Intent Classification]**\n**Message:** {{ $('Discord Webhook').item.json.body.content }}\n**Scores:** {{ $json.text.replace('\\n', ' | ') }}",
+        "content": "=**[Intent Classification]**\n**Message:** {{ $('Discord Webhook').item.json.body.content }}\n**Scores:** [ {{ $json.text.split('\\n').filter(line => line.includes('|')).map(line => { const [tag, score] = line.split('|'); return `${tag}:${score}%`; }).join(' | ') }} ]",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",

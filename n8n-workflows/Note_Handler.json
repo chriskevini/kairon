@@ -51,7 +51,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output in pipe format: \"category|score\"\nlet text = $input.item.json.text.trim();\n\nconst event = $('Execute Workflow Trigger').first().json.event;\n\ntry {\n  // Parse pipe format: \"idea|95\\ndecision|5\"\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  // Ensure we have at least one category\n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  return [{\n    json: {\n      category_name: topCategory,\n      text: event.clean_text,  // Use original message as note text (pure user thought)\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"reflection\" category\n  return [{\n    json: {\n      category_name: \"reflection\",\n      text: event.clean_text,\n      parse_error: error.message,\n      ...event\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output in pipe format: \"category|score\"\nlet text = $input.item.json.text.trim();\n\nconst event = $('Execute Workflow Trigger').first().json.event;\n\ntry {\n  // Parse pipe format: \"idea|95\\ndecision|5\"\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  const all_scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      all_scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  // Ensure we have at least one category\n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  return [{\n    json: {\n      category_name: topCategory,\n      all_scores: all_scores,\n      text: event.clean_text,  // Use original message as note text (pure user thought)\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"reflection\" category\n  return [{\n    json: {\n      category_name: \"reflection\",\n      all_scores: {},\n      text: event.clean_text,\n      parse_error: error.message,\n      ...event\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -173,7 +173,7 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Note Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }}",
+        "content": "=**[Note Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }}\n**Confidence:** [ {{ Object.entries($json.all_scores || {}).map(([cat, score]) => `${cat}:${score}%`).join(' | ') }} ]",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
