@@ -2,16 +2,23 @@
 
 ## Architecture Overview
 
-The Discord bot sends events to n8n through a unified webhook entry point that routes based on event type:
+The Discord bot sends events to n8n through a unified webhook entry point that immediately responds to Discord, then routes internally based on event type:
 
 ```
 discord_relay.py
    ↓ (sends event_type: "message" or "reaction")
-Discord_Event_Router (thin router)
-   ↓
-   ├─→ Discord_Message_Router (handles messages)
-   └─→ Emoji_Reaction_Router (handles reactions)
+Discord_Event_Router
+   ├─ Responds "OK" immediately (relay's job is done)
+   └─ Routes via HTTP to sub-workflows
+      ├─→ Discord_Message_Router (handles messages)
+      └─→ Emoji_Reaction_Router (handles reactions)
 ```
+
+**Why HTTP requests instead of Execute Workflow?**
+- Sub-workflows already have webhook triggers on different paths
+- HTTP requests work reliably and are easy to debug
+- No need to refactor existing workflows
+- Each workflow can still be tested independently via its webhook
 
 ## Webhook Paths
 
@@ -23,7 +30,7 @@ Discord_Event_Router (thin router)
 
 ### Required in n8n:
 - `WEBHOOK_PATH` - Base webhook path (no trailing slash)
-- `N8N_BASE_URL` - n8n instance URL (e.g., `https://n8n.yourdomain.com`)
+- `N8N_WEBHOOK_BASE_URL` - n8n webhook base URL (e.g., `https://n8n.yourdomain.com`)
 
 ### Required in discord_relay.py:
 - `DISCORD_BOT_TOKEN` - Discord bot token
