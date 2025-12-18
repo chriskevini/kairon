@@ -14,34 +14,11 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        240,
-        300
+        -304,
+        224
       ],
-      "id": "trigger-save-thread",
+      "id": "85811e35-e949-4665-8e95-979b7ef0e0d9",
       "name": "Execute Workflow Trigger"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.event.message_id }}/reactions/%F0%9F%92%AD",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "discordBotApi",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        460,
-        180
-      ],
-      "id": "add-thinking-emoji",
-      "name": "Add 💭 Reaction",
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
-        }
-      }
     },
     {
       "parameters": {
@@ -54,10 +31,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        460,
-        300
+        -80,
+        320
       ],
-      "id": "get-conversation-id",
+      "id": "5870a1e5-628a-44a2-861d-ba750b2abb25",
       "name": "Get Conversation ID",
       "alwaysOutputData": true,
       "credentials": {
@@ -70,7 +47,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT content, author_login, timestamp FROM conversation_messages WHERE conversation_id = $1 ORDER BY timestamp ASC;",
+        "query": "SELECT \n  role,\n  text,\n  timestamp\nFROM conversation_messages\nWHERE conversation_id = $1::uuid\nORDER BY timestamp DESC;",
         "options": {
           "queryReplacement": "={{ $('Get Conversation ID').item.json.id }}"
         }
@@ -78,10 +55,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        680,
-        300
+        144,
+        320
       ],
-      "id": "get-thread-history",
+      "id": "50e5dd68-2742-4984-937e-fc3401ce99e8",
       "name": "Get Thread History",
       "alwaysOutputData": true,
       "credentials": {
@@ -92,46 +69,43 @@
       }
     },
     {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      },
+      "parameters": {},
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        900,
-        300
+        368,
+        224
       ],
-      "id": "merge-data",
+      "id": "8983d8a9-8c3d-457b-8c31-356a1d99e4a7",
       "name": "Merge Context"
     },
     {
       "parameters": {
-        "jsCode": "// Get conversation ID\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $('Get Thread History').all();\n\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `[${msg.json.author_login}]: ${msg.json.content}`;\n}).join('\\n');\n\n// Get original event\nconst event = $('Execute Workflow Trigger').first().json.event;\n\nreturn [{\n  json: {\n    conversation_id: conversationId,\n    thread_history: threadHistory,\n    thread_id: event.thread_id,\n    channel_id: event.channel_id,\n    message_id: event.message_id,\n    guild_id: event.guild_id,\n    ...event\n  }\n}];"
+        "jsCode": "// Get conversation ID\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $('Get Thread History').all().toReversed();\n\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get original event\nconst event = $('Execute Workflow Trigger').first().json.event;\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversationId,\n    thread_history: threadHistory,\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        300
+        592,
+        224
       ],
-      "id": "prepare-context",
+      "id": "492ae83c-df86-473d-b9e1-ee739bf6e177",
       "name": "Prepare Context"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are analyzing a conversation thread to extract actionable items.\n\n## Thread History\n{{ $json.thread_history }}\n\n## Task\nClassify each item into ONE of these types:\n\n**reflection** - Internal knowledge about the user\n- Personal insights, patterns, self-observations\n- Decisions, commitments, resolutions made\n- Examples:\n  • I work better in mornings after coffee\n  • I've decided to switch to async communication\n  • I feel more focused after 20-minute walks\n  • Deep work requires 2+ hour blocks\n\n**fact** - External knowledge about the world or others\n- Information about other people (preferences, birthdays, allergies)\n- Factual statements about things/places\n- Examples:\n  • Mom's birthday is June 12th\n  • John prefers dark roast coffee\n  • Sarah is allergic to nuts\n  • Dad prefers evening phone calls\n\n**todo** - Concrete action items\n- Next steps, tasks to complete\n- Must be actionable and specific\n- Examples:\n  • Block calendar for morning deep work\n  • Draft async communication guidelines\n  • Buy birthday gift for Mom\n  • Schedule coffee with John\n\n## Output Format\nOne item per line, format: type|text\n\nreflection|I work better in mornings after coffee\nfact|Mom's birthday is June 12th\nreflection|Will switch to async communication\ntodo|Block calendar for morning deep work\ntodo|Draft async guidelines\n\n## Rules\n- Be specific and concrete\n- Use user's own words when possible\n- Only extract items explicitly discussed\n- Max 10 items total\n- Order by importance (most important first)\n- If unsure between reflection and fact, choose reflection",
+        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom’s birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom’s birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus\n\n**Example Thread 3:**\n\"I feel drained after back-to-back calls. I should probably book a vacation soon. The team lunch is next Thursday at the Italian place downtown. I've committed to no email checks after 8 PM.\"\n\n**Good Extraction:**\nreflection|I feel drained after back-to-back calls\nreflection|I've committed to no email checks after 8 PM\ntodo|Book a vacation\nfact|The team lunch is next Thursday at the Italian place downtown\n\n## Rules\n- Extract only items **explicitly stated or strongly implied** — never invent or infer new information.\n- Use the user's own words/phrasing when possible; minor edits only for clarity/conciseness.\n- Be specific and concrete — skip vague statements.\n- Limit to **maximum 10 items**.\n- Order by **importance/relevance** (most impactful, urgent, or personal first).\n- Prioritize categories: todo > reflection > fact (if something could fit multiple).\n- If unsure between reflection and fact, choose reflection.\n- Edge cases:\n  - \"I should probably...\" or \"Maybe I need to...\" → reflection unless clear commitment (\"I'm going to...\").\n  - Wishes/hypotheticals → reflection only if they reveal a pattern; otherwise omit.\n  - Advice from others → ignore unless user explicitly adopts it.\n  - Repeated ideas → extract only once (best phrasing).\n  - Negations (e.g., \"I hate early meetings\") → reflection.\n\n## Output Format\nOutput **only** the extracted lines, one per item, exactly like this (no preamble, no explanations, no extra text):\n\ntype|text\ntype|text\n...\n\nExtract thoughtfully for maximum signal and relevance.",
         "needsFallback": true,
         "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        1340,
-        300
+        816,
+        224
       ],
-      "id": "extract-items",
+      "id": "8586bf0a-0731-4269-9ebf-02d570243b89",
       "name": "Extract Items LLM"
     },
     {
@@ -141,60 +115,98 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1560,
-        300
+        1168,
+        224
       ],
-      "id": "parse-extractions",
+      "id": "15da50f9-3fcd-4fe5-b53b-92980f921456",
       "name": "Parse Extractions"
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.has_extractions }}",
-              "value2": true
+              "id": "e3ae6cd9-7b12-406f-b233-afdc77ea403e",
+              "leftValue": "={{ $json.extractions }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1780,
-        300
+        1392,
+        224
       ],
-      "id": "check-has-extractions",
+      "id": "1bc84236-a82a-4d70-81f1-e9e8541bf08b",
       "name": "Has Extractions?"
     },
     {
       "parameters": {
-        "jsCode": "// Build SQL query to insert all extractions\nconst data = $input.first().json;\nconst extractions = data.extractions;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// Build VALUES clause\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 5; // 5 params per row\n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, NULL)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  conversation_id,\n  item_type,\n  text,\n  display_order,\n  summary_message_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// Build params array\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.conversation_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n});\n\nreturn [{\n  json: {\n    ...data,\n    sql_query: query,\n    sql_params: params\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2000,
-        200
-      ],
-      "id": "build-insert-query",
-      "name": "Build Insert Query"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.sql_query }}",
+        "query": "DELETE FROM thread_extractions WHERE conversation_id = $1::uuid;",
         "options": {
-          "queryReplacement": "={{ $json.sql_params.join(',') }}"
+          "queryReplacement": "={{ $json.conversation_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2220,
-        200
+        1616,
+        24
       ],
-      "id": "save-extractions",
+      "id": "clear-old-extractions",
+      "name": "Clear Old Extractions",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build SQL query to insert all extractions\nconst data = $input.first().json;\nconst extractions = data.extractions;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// 1. Adjusted offset to 4 since we only pass 4 variables per row\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 4; \n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, NULL)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  conversation_id,\n  item_type,\n  text,\n  display_order,\n  summary_message_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// 2. The params array now correctly matches the $1, $2, $3, $4, $5... sequence\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.conversation_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n});\n\nreturn [{\n  json: {\n    ...data,\n    sql_query: query,\n    sql_params: params\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        24
+      ],
+      "id": "0d9d1411-172f-479f-ba5d-66dee5ed9bac",
+      "name": "Build Insert Query"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql_query }}",
+        "options": {
+          "queryReplacement": "={{ $json.sql_params }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2064,
+        24
+      ],
+      "id": "f5f87a88-23a6-4115-b941-a47147e32653",
       "name": "Save Extractions to DB",
       "alwaysOutputData": true,
       "credentials": {
@@ -211,37 +223,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2440,
-        200
+        2288,
+        24
       ],
-      "id": "build-summary",
+      "id": "a195256e-a7bf-4188-ae6e-fdffc36bac48",
       "name": "Build Summary Message"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "discordBotApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { \"content\": $json.summary_content } }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2660,
-        200
-      ],
-      "id": "post-summary",
-      "name": "Post Summary to Channel Root",
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
-        }
-      }
     },
     {
       "parameters": {
@@ -250,10 +236,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2880,
-        200
+        2512,
+        128
       ],
-      "id": "prepare-reactions",
+      "id": "4b3f720a-b988-4f59-a96c-2272976040e0",
       "name": "Prepare Emoji Reactions"
     },
     {
@@ -267,10 +253,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3100,
-        200
+        2960,
+        128
       ],
-      "id": "add-reactions",
+      "id": "b1af4307-394f-4900-93d6-a09d6b8a202e",
       "name": "Add Emoji Reactions",
       "credentials": {
         "discordBotApi": {
@@ -290,10 +276,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        3320,
-        200
+        2960,
+        -64
       ],
-      "id": "update-message-id",
+      "id": "5b6cfe76-52cc-459f-b65e-1e099f7367e8",
       "name": "Update Summary Message ID",
       "alwaysOutputData": true,
       "credentials": {
@@ -306,7 +292,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Prepare Context').item.json.message_id }}/reactions/%F0%9F%92%AD/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Prepare Context').item.json.guild_id }}/messages/{{ $('Prepare Context').item.json.message_id }}/reactions/💭/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -314,10 +300,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3540,
-        200
+        3184,
+        -64
       ],
-      "id": "remove-thinking-emoji",
+      "id": "8fcd9334-3704-4341-8164-2a3679ca5aac",
       "name": "Remove 💭 Reaction",
       "credentials": {
         "discordBotApi": {
@@ -339,16 +325,16 @@
           "value": "={{ $('Execute Workflow Trigger').item.json.event.thread_id }}",
           "mode": "id"
         },
-        "content": "❌ No items extracted from this thread. Try discussing specific insights, facts, or action items.",
+        "content": "❌ No items extracted from this thread. You must have had quite an interesting conversation.",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        2000,
-        400
+        1616,
+        320
       ],
-      "id": "no-extractions-message",
+      "id": "7c10c000-b836-4a23-a29f-5c8e2a93dd51",
       "name": "Post No Extractions Message",
       "webhookId": "no-extractions-webhook",
       "credentials": {
@@ -357,6 +343,142 @@
           "name": "Discord Bot account"
         }
       }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        952,
+        448
+      ],
+      "id": "0e68a423-7026-4ee1-8552-7cda2a1c7aab",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        824,
+        448
+      ],
+      "id": "a036b63b-e10c-435c-bfc2-d538b1b77d2d",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "react",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.event.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $json.event.message_id }}",
+        "emoji": "💭"
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        144,
+        128
+      ],
+      "id": "2b8fed49-d2bd-418b-ac6c-bf922d1e5801",
+      "name": "React with 💭",
+      "webhookId": "2af02bbb-3f0b-490a-b0c9-234c0e9013ae",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel_id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.summary_content }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        128
+      ],
+      "id": "0c2ac568-d090-405b-bcf0-4ffe51532349",
+      "name": "Send a message",
+      "webhookId": "b9ec412c-e54b-4542-a3ad-41a388512da2",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2736,
+        128
+      ],
+      "id": "da4570b2-d9cd-4fd6-ae29-bf41f6c5c72e",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3184,
+        128
+      ],
+      "id": "3873e893-c2cb-4d0c-87b8-9abc8cc95379",
+      "name": "Wait 1 s",
+      "webhookId": "1803ab0e-bd94-42cf-8843-a2178b590fa6"
     }
   ],
   "connections": {
@@ -364,12 +486,12 @@
       "main": [
         [
           {
-            "node": "Add 💭 Reaction",
+            "node": "Get Conversation ID",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Get Conversation ID",
+            "node": "React with 💭",
             "type": "main",
             "index": 0
           }
@@ -381,17 +503,6 @@
         [
           {
             "node": "Get Thread History",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Add 💭 Reaction": {
-      "main": [
-        [
-          {
-            "node": "Merge Context",
             "type": "main",
             "index": 0
           }
@@ -457,7 +568,7 @@
       "main": [
         [
           {
-            "node": "Build Insert Query",
+            "node": "Clear Old Extractions",
             "type": "main",
             "index": 0
           }
@@ -465,6 +576,17 @@
         [
           {
             "node": "Post No Extractions Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Old Extractions": {
+      "main": [
+        [
+          {
+            "node": "Build Insert Query",
             "type": "main",
             "index": 0
           }
@@ -497,18 +619,7 @@
       "main": [
         [
           {
-            "node": "Post Summary to Channel Root",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Post Summary to Channel Root": {
-      "main": [
-        [
-          {
-            "node": "Prepare Emoji Reactions",
+            "node": "Send a message",
             "type": "main",
             "index": 0
           }
@@ -519,7 +630,7 @@
       "main": [
         [
           {
-            "node": "Add Emoji Reactions",
+            "node": "Loop Over Items",
             "type": "main",
             "index": 0
           }
@@ -530,7 +641,7 @@
       "main": [
         [
           {
-            "node": "Update Summary Message ID",
+            "node": "Wait 1 s",
             "type": "main",
             "index": 0
           }
@@ -547,14 +658,83 @@
           }
         ]
       ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract Items LLM",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract Items LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "React with 💭": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Prepare Emoji Reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Update Summary Message ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add Emoji Reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1 s": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 0,
-  "updatedAt": "2024-12-18T01:00:00.000Z",
-  "versionId": "1"
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  }
 }
