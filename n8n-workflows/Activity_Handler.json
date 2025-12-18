@@ -51,7 +51,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output in pipe format: \"category|score\"\nlet text = $input.first().json.text.trim();\n\nconst event = $('Execute Workflow Trigger').first().json.event;\n\ntry {\n  // Parse pipe format: \"work|98\\nadmin|2\"\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  // Ensure we have at least one category\n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  return [{\n    json: {\n      category_name: topCategory,\n      confidence: topScore / 100,  // Convert to 0-1 range\n      all_scores: scores,\n      description: event.clean_text,  // Use original clean_text as description\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"admin\" category\n  return [{\n    json: {\n      category_name: \"admin\",\n      confidence: 0.5,\n      all_scores: {},\n      description: event.clean_text,\n      parse_error: error.message,\n      ...event\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output in pipe format: \"category|score\"\nlet text = $input.first().json.text.trim();\n\nconst event = $('Execute Workflow Trigger').first().json.event;\n\ntry {\n  // Parse pipe format: \"work|98\\nadmin|2\"\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  // Ensure we have at least one category\n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  return [{\n    json: {\n      category: topCategory,\n      confidence: topScore / 100,  // Convert to 0-1 range\n      all_scores: scores,\n      description: event.clean_text,  // Use original clean_text as description\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"admin\" category\n  return [{\n    json: {\n      category: \"admin\",\n      confidence: 0.5,\n      all_scores: {},\n      description: event.clean_text,\n      parse_error: error.message,\n      ...event\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -75,7 +75,7 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Activity Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }}\n**Confidence:** [ {{ Object.entries($json.all_scores || {}).sort((a, b) => b[1] - a[1]).map(([cat, score]) => `${cat}:${score}%`).join(' | ') }} ]",
+        "content": "=**[Activity Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category }}\n**Confidence:** [ {{ Object.entries($json.all_scores || {}).sort((a, b) => b[1] - a[1]).map(([cat, score]) => `${cat}:${score}%`).join(' | ') }} ]",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -99,7 +99,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO activity_log (\n  raw_event_id,\n  timestamp,\n  category,\n  description,\n  metadata\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  $3::activity_category,\n  $2,\n  jsonb_build_object(\n    'llm_classified', true,\n    'confidence', $4::numeric,\n    'all_scores', $5::jsonb\n  )\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.raw_event_id }},={{ $json.description }},={{ $json.category_name }},={{ $json.confidence }},={{ JSON.stringify($json.all_scores) }}"
+          "queryReplacement": "={{ $json.raw_event_id }},={{ $json.description }},={{ $json.category }},={{ $json.confidence }},={{ JSON.stringify($json.all_scores) }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
