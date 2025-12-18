@@ -22,34 +22,12 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT name FROM activity_categories WHERE active = true ORDER BY sort_order, name;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        -240,
-        176
-      ],
-      "id": "7f0d57c2-bd2e-4e77-bbd5-14e399a3934f",
-      "name": "Get Active Categories",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const categories = $input.all().map(item => item.json.name).join(', ');\nconst event = $('Execute Workflow Trigger').first().json.event;\n\nreturn [{\n  json: {\n    categories,\n    ...event\n  }\n}];"
+        "jsCode": "const event = $('Execute Workflow Trigger').first().json.event;\n\nreturn [{\n  json: {\n    ...event\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16,
+        -240,
         176
       ],
       "id": "51d67b26-4f1b-445a-bfcf-2f9e838536ed",
@@ -58,14 +36,14 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an activity classifier for a life tracking system.\n\nRate how well the user's message fits each category. Provide a confidence score (0-1) for each category.\n\n## Available Categories\n{{ $json.categories }}\n\n## Instructions\n\n1. Provide a score (0-1) for relevant categories\n2. Higher score = better fit for that category\n3. All scores should sum to approximately 1.0\n4. If it seems like sleep-related activity, give \"sleep\" a very high score\n5. Output ONLY valid JSON\n\n## Examples\n\nInput: \"working on the router agent implementation\"\nOutput: {\"work\": 0.98, \"leisure\": 0.02}\n\nInput: \"taking a coffee break\"\nOutput: {\"leisure\": 0.85, \"health\": 0.15}\n\nInput: \"researching common data structures\"\nOutput: {\"work\": 0.28, \"leisure\": 0.02, \"study\": 0.7}\n\nInput: \"solving leetcode puzzles\"\nOutput: {\"work\": 0.1, \"leisure\": 0.05, \"study\": 0.85}\n\nInput: \"watching videos about Rome\"\nOutput: {\"leisure\": 0.85, \"study\": 0.15}\n\n## User Message\n{{ $json.clean_text }}",
+        "text": "=You are an activity classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each category. Scores must add up to exactly 100.\n\n## Categories\n\nwork → Productive, focused effort on projects, coding, building, debugging, refining systems, testing, or task-oriented development.\nleisure → Relaxed, non-productive enjoyment: scrolling, watching videos, browsing, casual reading, coffee breaks.\nstudy → Intentional learning or skill-building not directly tied to immediate project work.\nhealth → Physical or mental self-care: exercise, eating meals, hygiene, mindfulness.\nsleep → Going to bed, waking up, napping, or sleep transitions.\nrelationships → Social interaction: chatting with friends/family/partners, or personal/social AI conversations.\nadmin → Organizational/maintenance tasks: planning schedules, managing todos, fixing tools/setup, meta work on tracking system.\n\n## Key Guidelines\n- Heavily favor the most dominant theme.\n- Sleep-related messages → give sleep the highest score.\n- Project-related AI chats → work.\n- Eating/drinking → health (split with leisure if combined).\n- Meta work on tracking system → admin (or work if core building).\n- Omit any category with score ≤5 (treat as 0).\n\nOutput ONLY lines for categories with score >5, in any order:\ncategory_name|X\n\n(Printed scores must sum to exactly 100, integers only)\n\n## Examples\nworking on the router agent implementation\nwork|98\nadmin|2\n\nsipping coffee while scrolling social media\nleisure|88\nhealth|12\n\nresearching common data structures for fun\nstudy|82\nwork|18\n\nsolving leetcode puzzles to improve skills\nstudy|90\nleisure|10\n\nwatching history videos about ancient Rome\nleisure|83\nstudy|17\n\ngoing to bed after a long day\nsleep|93\nhealth|7\n\njust woke up and getting coffee\nsleep|70\nhealth|22\nleisure|8\n\nchatting with a friend about weekend plans\nrelationships|87\nleisure|13\n\nhaving lunch\nhealth|92\nleisure|8\n\nrefining the intent classifier prompt\nwork|88\nadmin|12\n\norganizing my todo list and reviewing logs\nadmin|88\nwork|12\n\n## User Message\n{{ $json.clean_text }}",
         "needsFallback": true,
         "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        208,
+        -16,
         176
       ],
       "id": "2dd1f4dc-78b0-4033-a937-406f26a03508",
@@ -73,12 +51,12 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output (strip markdown if present)\nlet text = $input.first().json.text.trim();\n\n// Remove markdown code block markers if present\ntext = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst categories = $('Prepare LLM Context').first().json.categories;\n\ntry {\n  const parsed = JSON.parse(text);\n  const scores = parsed;\n  \n  // Determine category by finding highest score\n  const entries = Object.entries(scores);\n  const [category_name, confidence] = entries.reduce((max, curr) => \n    curr[1] > max[1] ? curr : max\n  );\n  \n  return [{\n    json: {\n      category_name,\n      confidence,\n      all_scores: scores,\n      description: event.clean_text,  // Use original clean_text as description\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"other\" category\n  return [{\n    json: {\n      category_name: \"other\",\n      confidence: 0.5,\n      all_scores: {},\n      description: event.clean_text,\n      parse_error: error.message,\n      ...event\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output in pipe format: \"category|score\"\nlet text = $input.first().json.text.trim();\n\nconst event = $('Execute Workflow Trigger').first().json.event;\n\ntry {\n  // Parse pipe format: \"work|98\\nadmin|2\"\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  // Ensure we have at least one category\n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  return [{\n    json: {\n      category_name: topCategory,\n      confidence: topScore / 100,  // Convert to 0-1 range\n      all_scores: scores,\n      description: event.clean_text,  // Use original clean_text as description\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"admin\" category\n  return [{\n    json: {\n      category_name: \"admin\",\n      confidence: 0.5,\n      all_scores: {},\n      description: event.clean_text,\n      parse_error: error.message,\n      ...event\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        560,
+        336,
         176
       ],
       "id": "64bce4a7-4817-4c4a-bdcd-cce8919976f5",
@@ -97,13 +75,13 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Activity Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }}\n**Confidence:** [ {{ Object.entries($json.all_scores || {}).map(([cat, score]) => `${cat}:${(score * 100).toFixed(0)}%`).join(' | ') }} ]",
+        "content": "=**[Activity Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }}\n**Confidence:** [ {{ Object.entries($json.all_scores || {}).map(([cat, score]) => `${cat}:${score}%`).join(' | ') }} ]",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        784,
+        560,
         80
       ],
       "id": "f41db37c-1745-46c4-877a-3bc5740e3fc0",
@@ -119,7 +97,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activity_log (\n  raw_event_id,\n  timestamp,\n  category_id,\n  description,\n  metadata\n)\nSELECT\n  $1::uuid,\n  NOW(),\n  ac.id,\n  $2,\n  jsonb_build_object(\n    'llm_classified', true,\n    'confidence', $4::numeric,\n    'all_scores', $5::jsonb\n  )\nFROM activity_categories ac\nWHERE ac.name = $3\nRETURNING *;",
+        "query": "INSERT INTO activity_log (\n  raw_event_id,\n  timestamp,\n  category,\n  description,\n  metadata\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  $3::activity_category,\n  $2,\n  jsonb_build_object(\n    'llm_classified', true,\n    'confidence', $4::numeric,\n    'all_scores', $5::jsonb\n  )\n)\nRETURNING *;",
         "options": {
           "queryReplacement": "={{ $json.raw_event_id }},={{ $json.description }},={{ $json.category_name }},={{ $json.confidence }},={{ JSON.stringify($json.all_scores) }}"
         }
@@ -127,7 +105,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        784,
+        560,
         272
       ],
       "id": "931a2264-0015-4844-8e7a-6fa0ed5b1df6",
@@ -142,15 +120,15 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE user_state\nSET \n  last_observation_at = NOW(),\n  sleeping = EXISTS(\n    SELECT 1 FROM activity_categories ac\n    WHERE ac.id = $1::uuid AND ac.is_sleep_category = true\n  )\nWHERE user_login = $2\nRETURNING *;",
+        "query": "INSERT INTO user_state (user_login, sleeping, last_observation_at)\nVALUES (\n  $2,\n  ($1::activity_category = 'sleep'),\n  NOW()\n)\nON CONFLICT (user_login) \nDO UPDATE SET\n  sleeping = EXCLUDED.sleeping,\n  last_observation_at = EXCLUDED.last_observation_at,\n  updated_at = NOW()\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.category_id }},={{ $('Parse LLM Response').item.json.author_login}}"
+          "queryReplacement": "=={{ $json.category }},={{ $('Parse LLM Response').item.json.author_login}}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1008,
+        784,
         272
       ],
       "id": "212257b3-0ce3-4dc5-86e9-0b16546279dc",
@@ -172,8 +150,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        368,
-        416
+        120,
+        400
       ],
       "id": "44a595ec-342a-41ae-9add-1e2b1d1405af",
       "name": "nemotron-nano-9b",
@@ -194,8 +172,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        192,
-        416
+        -8,
+        400
       ],
       "id": "f49e6e9f-3377-4b78-8e14-fb347cdfb89e",
       "name": "mimo-v2-flash",
@@ -226,7 +204,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1232,
+        1008,
         272
       ],
       "id": "41949da6-f87c-4fdc-a673-9253a2e5f905",
@@ -242,17 +220,6 @@
   ],
   "connections": {
     "Execute Workflow Trigger": {
-      "main": [
-        [
-          {
-            "node": "Get Active Categories",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Active Categories": {
       "main": [
         [
           {

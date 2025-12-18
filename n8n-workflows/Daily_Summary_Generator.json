@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -704,
-        384
+        144,
+        1856
       ],
-      "id": "8c8b7eb7-1e56-46d9-8382-314d5c1c7f7c",
+      "id": "46720e0c-46c5-4790-82db-ab38da409f7e",
       "name": "Every 5 Minutes"
     },
     {
@@ -29,10 +29,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -480,
-        384
+        368,
+        1856
       ],
-      "id": "9cf68032-3d1b-4b95-a1a9-b5f7752b36ff",
+      "id": "9aff1b10-5b7f-4a1c-9092-18479a031080",
       "name": "Get Config Values",
       "alwaysOutputData": true,
       "credentials": {
@@ -49,10 +49,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -256,
-        384
+        592,
+        1856
       ],
-      "id": "1a015f61-52f8-4019-8c32-0997a51b4a81",
+      "id": "d5a6d4b7-f551-4ef0-b68e-692157075ea6",
       "name": "Check Should Run"
     },
     {
@@ -64,10 +64,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        192,
-        96
+        816,
+        1568
       ],
-      "id": "2ad004d2-e858-4bd3-87dd-605292c7ac59",
+      "id": "03b962d9-8335-4f8e-927a-b88324ffb5de",
       "name": "Get North Star",
       "alwaysOutputData": true,
       "credentials": {
@@ -80,16 +80,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  a.timestamp,\n  ac.name as category,\n  a.description\nFROM activity_log a\nJOIN activity_categories ac ON a.category_id = ac.id\nWHERE DATE(a.timestamp) = CURRENT_DATE\nORDER BY a.timestamp;",
+        "query": "SELECT \n  a.timestamp,\n  a.category::text,\n  a.description\nFROM activity_log a\nWHERE DATE(a.timestamp) = CURRENT_DATE\nORDER BY a.timestamp;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        192,
-        288
+        816,
+        1760
       ],
-      "id": "4e98188d-6c19-4c67-a662-b9998b928cc6",
+      "id": "61db4575-cc50-4b14-b340-559a9d98bb4c",
       "name": "Get Today's Activities",
       "alwaysOutputData": true,
       "credentials": {
@@ -102,16 +102,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  n.timestamp,\n  nc.name as category,\n  n.title,\n  n.text\nFROM notes n\nJOIN note_categories nc ON n.category_id = nc.id\nWHERE DATE(n.timestamp) = CURRENT_DATE\nORDER BY n.timestamp;",
+        "query": "SELECT \n  n.timestamp,\n  n.category::text,\n  n.title,\n  n.text\nFROM notes n\nWHERE DATE(n.timestamp) = CURRENT_DATE\nORDER BY n.timestamp;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        192,
-        480
+        816,
+        1952
       ],
-      "id": "a708072e-4528-4640-91a5-2cf6fc852f24",
+      "id": "1336a366-b325-47a5-8926-663031f808d8",
       "name": "Get Today's Notes",
       "alwaysOutputData": true,
       "credentials": {
@@ -124,16 +124,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  ac.name as category,\n  COUNT(*) as count\nFROM activity_log a\nJOIN activity_categories ac ON a.category_id = ac.id\nWHERE DATE(a.timestamp) = CURRENT_DATE\nGROUP BY ac.name\nORDER BY count DESC;",
+        "query": "SELECT \n  a.category::text as category,\n  COUNT(*) as count\nFROM activity_log a\nWHERE DATE(a.timestamp) = CURRENT_DATE\nGROUP BY a.category\nORDER BY count DESC;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        192,
-        672
+        816,
+        2144
       ],
-      "id": "55176bae-372e-46dd-afb0-12ddacf07b24",
+      "id": "1878c56b-6b40-4588-a17b-2a041bcff537",
       "name": "Get Category Breakdown",
       "alwaysOutputData": true,
       "credentials": {
@@ -150,10 +150,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        416,
-        352
+        1040,
+        1824
       ],
-      "id": "ba6a4d31-7ba5-4104-8f8a-b8d84a0249ba",
+      "id": "f2d0c053-bb7d-48c1-bc8b-ab1a7f62dfee",
       "name": "Merge All Query Results"
     },
     {
@@ -163,10 +163,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        640,
-        384
+        1264,
+        1856
       ],
-      "id": "0f143297-af82-4375-87b0-9b91d6bbe254",
+      "id": "e29ca6f7-efbc-418c-b9cd-e61fa111e178",
       "name": "Prepare Summary Data"
     },
     {
@@ -179,10 +179,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        864,
-        384
+        1488,
+        1856
       ],
-      "id": "925c0acc-6506-4e61-957f-b4d05d35b515",
+      "id": "4c73ad0b-072b-41c5-a6a7-5e3069f63663",
       "name": "Generate Summary with LLM"
     },
     {
@@ -204,10 +204,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1216,
-        384
+        1840,
+        1856
       ],
-      "id": "cf9481d6-2cae-45c1-b1eb-d4dc72ba6c6e",
+      "id": "2d3ec420-6f75-49e0-8851-af9ba845977d",
       "name": "Post to #obsidian-board",
       "webhookId": "58ab7668-0a2a-4b1e-8245-a70e0ae0054d",
       "credentials": {
@@ -228,10 +228,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1440,
-        384
+        2064,
+        1856
       ],
-      "id": "update-last-summary",
+      "id": "3a056015-e868-4fbc-b433-cadee441431d",
       "name": "Update Last Summary Date",
       "credentials": {
         "postgres": {
@@ -248,10 +248,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        872,
-        608
+        1496,
+        2080
       ],
-      "id": "c9951f91-832f-4dc3-9ea9-4319105f8441",
+      "id": "c8b0b429-e702-4351-8fdd-72d096e1898b",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -268,10 +268,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1000,
-        608
+        1632,
+        2032
       ],
-      "id": "3ac6448a-5c7f-4ac0-8dd4-10b155e2e335",
+      "id": "e496385a-60a2-4122-a8b3-ede7452fc36d",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {

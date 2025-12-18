@@ -4,6 +4,13 @@ This document contains instructions for AI coding agents working on the Kairon p
 
 ---
 
+## ⚠️ Local Configuration
+
+**Check `.env.local` for local development setup** (SSH access, docker containers, etc.)  
+This file is `.gitignored` and contains environment-specific info not suitable for public repos.
+
+---
+
 ## Table of Contents
 
 1. [Workflow Export & Sanitization](#workflow-export--sanitization)
@@ -122,28 +129,66 @@ const webhookPath = $env.WEBHOOK_PATH;
 ### Schema Location
 
 - **Primary schema:** `db/migrations/001_initial_schema.sql`
+- **Static categories:** `db/migrations/002_static_categories.sql`
+- **2-category notes:** `db/migrations/002c_fix_note_categories.sql`
 - **Seed data:** `db/seeds/001_initial_data.sql`
 
 ### Key Tables
 
 1. **`raw_events`** - Append-only event log (never delete)
 2. **`routing_decisions`** - Tracks LLM classification decisions
-3. **`activity_log`** - Point-in-time activity observations
-4. **`notes`** - Captured insights/thoughts
+3. **`activity_log`** - Point-in-time activity observations (uses `activity_category` enum)
+4. **`notes`** - Captured insights/thoughts (uses `note_category` enum)
 5. **`conversations`** - Thread metadata
 6. **`conversation_messages`** - Thread message history
 7. **`user_state`** - Current user state (sleeping, last_observation_at)
 8. **`config`** - Key-value configuration (north_star, etc.)
 
+### Category System
+
+**After migration 002/002c:**
+
+Categories are now **static enums** (no more dynamic tables):
+
+```sql
+-- Activity categories (7 types)
+CREATE TYPE activity_category AS ENUM (
+  'work', 'leisure', 'study', 'health', 'sleep', 'relationships', 'admin'
+);
+
+-- Note categories (2 types)
+CREATE TYPE note_category AS ENUM (
+  'fact',        -- External knowledge (birthdays, preferences, facts about people)
+  'reflection'   -- Internal knowledge (insights, decisions, observations)
+);
+```
+
+**Why 2 note categories?**
+- Clear semantic boundary: external vs internal knowledge
+- Optimal for RAG (pre-filter by category, then semantic search)
+- Enables cross-type queries (facts × todos, reflections × activities)
+- No collision with threads (questions) or todos (ideas)
+
 ### Important Patterns
 
-**Always use category IDs, not names:**
+**Use enums directly, not IDs:**
 ```sql
--- ❌ Wrong
-WHERE category_name = 'work'
-
--- ✅ Correct
+-- ❌ Old way (before migration 002)
 WHERE category_id = (SELECT id FROM activity_categories WHERE name = 'work')
+
+-- ✅ New way (after migration 002)
+WHERE category = 'work'::activity_category
+```
+
+**Note category examples:**
+```sql
+-- Get all facts about people
+SELECT * FROM notes WHERE category = 'fact';
+
+-- Get reflections about productivity
+SELECT * FROM notes 
+WHERE category = 'reflection' 
+  AND text ILIKE '%productivity%';
 ```
 
 **Use views for common queries:**

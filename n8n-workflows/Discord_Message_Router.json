@@ -6,13 +6,13 @@
         "path": "={{ $env.WEBHOOK_PATH }}",
         "options": {}
       },
-      "id": "5831c030-b407-481c-aed5-acdd54516b40",
+      "id": "dd605198-d92e-44c6-9683-c75da70e3ca5",
       "name": "Discord Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -5312,
-        5824
+        -5600,
+        5648
       ],
       "webhookId": "discord-webhook"
     },
@@ -24,13 +24,13 @@
           "queryReplacement": "={{ $json.event.guild_id }},{{ $json.event.channel_id }},{{ $json.event.message_id }},{{ $json.event.message_url }},{{ $json.event.author_login }},{{ $json.event.thread_id }},{{ $json.event.raw_text }},{{ $json.event.clean_text }},{{ $json.event.tag }},"
         }
       },
-      "id": "ece46d52-b9e7-41fe-9fda-0488260559aa",
+      "id": "2cf5af24-fe15-4ea7-b189-e712a8b7f887",
       "name": "Store Raw Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -3840,
-        5728
+        -4128,
+        5552
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -57,10 +57,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -3616,
-        5728
+        -3904,
+        5552
       ],
-      "id": "45b4fe90-8a32-43b8-baa5-87586bf1674d",
+      "id": "18a100d7-9892-47eb-95ba-e613ba2ab13a",
       "name": "Add Raw Event ID"
     },
     {
@@ -155,18 +155,62 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "save-thread-condition",
+                    "leftValue": "={{ $json.event.tag }}",
+                    "rightValue": "--",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "todo-condition",
+                    "leftValue": "={{ $json.event.tag }}",
+                    "rightValue": "$$",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
         "options": {}
       },
-      "id": "7fd40d91-ac87-4a87-bf47-7896b8433432",
+      "id": "8130cd93-4791-4610-b1fb-b30d6bb8ccd1",
       "name": "Check Tag",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -3168,
-        5984
+        -3456,
+        5808
       ]
     },
     {
@@ -175,13 +219,13 @@
         "height": 416,
         "width": 480
       },
-      "id": "2afda0dd-85b7-4024-b4a1-15139cb4c661",
+      "id": "3c99012f-654c-442d-98c5-8ae798f37ea7",
       "name": "Thread Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -3248,
-        5280
+        -3536,
+        5104
       ]
     },
     {
@@ -221,10 +265,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -2944,
-        5728
+        -3232,
+        5552
       ],
-      "id": "790643ca-a0e5-4330-91cf-36551dd18eda",
+      "id": "ea3c5e75-ba28-46be-ab74-6740a3e6d1ce",
       "name": "Handle !! Activity"
     },
     {
@@ -264,10 +308,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -2944,
-        5920
+        -3232,
+        5744
       ],
-      "id": "cd5ebe5d-a01b-41cc-8e46-e91bbb35a792",
+      "id": "ff55a4c8-583b-4abe-a417-d2bdf091e867",
       "name": "Handle ++ Thread Start"
     },
     {
@@ -290,13 +334,13 @@
         },
         "options": {}
       },
-      "id": "69db7d6e-1ce7-4023-8be6-d8d6e407ab27",
+      "id": "229f86c1-1b7e-4848-9249-b4972619f749",
       "name": "Commit Thread",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        -2944,
-        5344
+        -3232,
+        5168
       ],
       "notes": "TODO: Load conversation_messages\nTODO: Summarize with LLM\nTODO: Create note + activity"
     },
@@ -336,10 +380,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -2944,
-        5536
+        -3232,
+        5360
       ],
-      "id": "16ea8da9-7f3d-46a8-bbc7-e9e57503d264",
+      "id": "2493e2bc-322a-435e-8af9-e99a2b3404bd",
       "name": "Handle Thread Continuation"
     },
     {
@@ -348,13 +392,13 @@
         "height": 736,
         "width": 480
       },
-      "id": "1639814d-0769-47d1-a64d-cf38eb196566",
+      "id": "fa4d7d32-ff5e-4160-8e50-8537eb2e6891",
       "name": "Main Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -3248,
-        5728
+        -3536,
+        5552
       ]
     },
     {
@@ -385,10 +429,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -3392,
-        5728
+        -3680,
+        5552
       ],
-      "id": "fd24ebbf-99eb-4ae8-823b-63d779d4af52",
+      "id": "371ddf8c-d1e6-4498-a5e4-74469e363029",
       "name": "If in Thread"
     },
     {
@@ -419,10 +463,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -3152,
-        5488
+        -3440,
+        5312
       ],
-      "id": "6c25bceb-1ed3-4959-b901-cb406593af20",
+      "id": "496f7aa0-7353-4cf9-8e05-ee64801d2f1e",
       "name": "If Commit"
     },
     {
@@ -462,26 +506,26 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -2944,
-        6304
+        -3232,
+        6128
       ],
-      "id": "9a579e01-de2e-432c-8b30-a65b6b85cb2d",
+      "id": "7dd7298e-a06a-4c13-a2ce-05e99d12d302",
       "name": "Handle .. Note"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are a message classifier for a life tracking system.\n\nClassify the message into ONE of these tags and provide confidence.\n\n## Tags\n\n**!!** = Activity (what user is doing/did)\n- Present/past tense actions\n- Examples: \"working on router\", \"took a break\", \"fixed the bug\"\n\n**..** = Note (thoughts, insights, decisions)\n- Declarative observations (NOT questions)\n- Ideas, reflections, decisions\n- Examples: \"interesting pattern\", \"should prioritize X\", \"decided to do Y\"\n\n**++** = Question/Exploration (start conversation)\n- Questions (who/what/when/where/why/how)\n- Requests for help\n- Examples: \"what did I do yesterday?\", \"help me plan\", \"why is X happening?\"\n\n**::** = Command (rare system commands)\n- Examples: \"stats\", \"help\", \"pause\"\n\n## Output Format\n\nOutput ONLY this (nothing else): TAG|CONFIDENCE\n\nWhere:\n- TAG is one of: !! or .. or ++ or ::\n- CONFIDENCE is one of: high or medium or low\n\n## Confidence Guide\n\n- **high**: Very clear classification (90%+ confident)\n- **medium**: Reasonable but some ambiguity (60-90% confident)  \n- **low**: Unclear or could be multiple (<60% confident)\n\n**If low confidence:** Choose ++ (safer to start conversation than misclassify)\n\n## Examples\n\nInput: \"working on the router agent\"\nOutput: !!|high\n\nInput: \"async communication reduces context switching\"\nOutput: ..|high\n\nInput: \"what did I do yesterday?\"\nOutput: ++|high\n\nInput: \"hmm not sure\"\nOutput: ++|low\n\nInput: \"still working on it\"\nOutput: !!|medium\n\nRemember: Output ONLY the tag and confidence. Nothing else.\n\n## User Message\n{{ $('Discord Webhook').item.json.body.content }}",
+        "text": "=You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n**Examples:**\n- \"working with the API\" → !! (I am doing this)\n- \"the API is fast\" → .. (observation about the API)\n- \"meeting with Sarah\" → !! (I am doing this)\n- \"Sarah prefers morning meetings\" → .. (fact about Sarah)\n- \"debugging the parser\" → !! (I am doing this)\n- \"the parser needs refactoring\" → .. (observation about code)\n\n# Guidelines\n- First-person + action verb → almost always !!\n- Third-person or \"X is/can/should\" → almost always ..\n- Questions → almost always ++\n- When in doubt: Who/what is the subject? If it's ME and an action, it's !!\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Examples\n\nrefining the authentication flow\n!!|97\n..|2\n++|1\n\njust woke up feeling groggy\n!!|94\n..|5\n++|1\n\ntesting the new endpoint\n!!|96\n..|3\n++|1\n\nscrolling Twitter during lunch\n!!|98\n..|1\n++|1\n\nheading to bed now\n!!|97\n..|2\n++|1\n\nthe new framework is really fast\n!!|3\n..|95\n++|2\n\nthis tool has great error handling\n!!|2\n..|96\n++|2\n\nTom prefers async communication\n!!|1\n..|97\n++|2\n\nneed to improve my sleep schedule\n!!|8\n..|90\n++|2\n\nadd validation to the form\n!!|5\n..|93\n++|2\n\nswitch to using environment variables\n!!|10\n..|88\n++|2\n\nwhy does the query fail sometimes\n!!|2\n..|10\n++|88\n\nshould I refactor this module\n!!|3\n..|8\n++|89\n\nhow can I optimize this query\n!!|4\n..|11\n++|85\n\n# User Message\n{{ $('Discord Webhook').first().json.body.content }}\n",
         "needsFallback": true,
         "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        -4416,
-        5952
+        -4704,
+        5776
       ],
-      "id": "76fbf9c4-d370-48b1-9397-d6d43073988b",
+      "id": "a43e3f77-47f1-4df0-bc1a-818a0f36a2cf",
       "name": "Intent Classifier"
     },
     {
@@ -503,10 +547,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -4064,
-        6000
+        -4352,
+        5824
       ],
-      "id": "df900c14-83f0-4664-b60c-f957a0f5b693",
+      "id": "d1efec41-1c7a-40ba-8b7f-3a766b893dc8",
       "name": "Log classification to #kairon-logs",
       "webhookId": "18ae6288-f1c3-401a-9dcc-f832d8126ddf",
       "credentials": {
@@ -553,10 +597,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -2944,
-        6112
+        -3232,
+        5936
       ],
-      "id": "1241f295-afa4-49c8-ba07-ca193d830c59",
+      "id": "47a505c1-5dac-41ab-a081-89e17aab43d3",
       "name": "Handle :: Command"
     },
     {
@@ -566,7 +610,7 @@
             {
               "id": "0eccc231-bed6-4ca0-a35e-62e7a6da63ed",
               "name": "tag",
-              "value": "={{ $('Discord Webhook').item.json.body.content.match(/\\+\\+|!!|::|\\.\\.|--/)?.first() || null }}",
+              "value": "={{ (() => {\n  const content = $('Discord Webhook').item.json.body.content;\n  // Check for tags at position 0 with whitespace or EOL after\n  const tagMatch = content.match(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|::|cmd|\\$\\$|todo)(\\s+|$)/i);\n  if (tagMatch) {\n    // Normalize word alternatives to symbols\n    const tag = tagMatch[1].toLowerCase();\n    if (tag === 'act') return '!!';\n    if (tag === 'note') return '..';\n    if (tag === 'chat') return '++';\n    if (tag === 'save') return '--';\n    if (tag === 'cmd') return '::';\n    if (tag === 'todo') return '$$';\n    return tagMatch[1];  // Return symbol as-is\n  }\n  return null;\n})() }}",
               "type": "string"
             }
           ]
@@ -576,10 +620,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -4864,
-        5824
+        -5152,
+        5648
       ],
-      "id": "4c6551bd-0c27-41ca-ba51-553f59f62c11",
+      "id": "0726cc67-ec03-4e1c-b2bd-8abeb9a8ed5f",
       "name": "Parse Tag"
     },
     {
@@ -589,7 +633,7 @@
             {
               "id": "event-object",
               "name": "event",
-              "value": "={{ {\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/\\+\\+|!!|::|\\.\\.|--/, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content,\n  tag: $('Parse Tag').item.json.tag || ($json.text ? $json.text.match(/\\+\\+|!!|::|\\.\\.|--/)?.first() : null) || ($('Discord Webhook').item.json.body.thread_id ? null : '++')\n} }}",
+              "value": "={{ {\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|::|cmd|\\$\\$|todo)(\\s+|$)/i, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content,\n  tag: $('Parse Tag').item.json.tag || (() => {\n    // Parse LLM classifier output if present\n    const llmText = $json.text;\n    if (llmText && llmText.includes('|')) {\n      const lines = llmText.split('\\n').filter(line => line.includes('|'));\n      let maxScore = 0;\n      let maxTag = null;\n      lines.forEach(line => {\n        const [tag, scoreStr] = line.split('|').map(s => s.trim());\n        const score = parseInt(scoreStr);\n        if (!isNaN(score) && score > maxScore) {\n          maxScore = score;\n          maxTag = tag;\n        }\n      });\n      return maxTag;\n    }\n    // Fallback: if in thread without tag, default to ++\n    return $('Discord Webhook').item.json.body.thread_id ? '++' : '..';\n  })()\n} }}",
               "type": "object"
             }
           ]
@@ -599,10 +643,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -4064,
-        5728
+        -4352,
+        5552
       ],
-      "id": "c9764ef2-7a13-420c-92dc-01129ecd3405",
+      "id": "cff719f5-e88c-42e5-8607-ba2199691ca6",
       "name": "Build Event Object"
     },
     {
@@ -643,10 +687,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -4640,
-        5824
+        -4928,
+        5648
       ],
-      "id": "7cc8ba83-95c3-40d0-9fd4-807b39ac1000",
+      "id": "370cc567-a981-43e9-b2e5-56edf9775e20",
       "name": "If Tag or Thread Detected"
     },
     {
@@ -659,10 +703,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -4224,
-        6208
+        -4512,
+        6032
       ],
-      "id": "48656988-6161-42b7-b056-626469a7f709",
+      "id": "3d8d048f-6ce9-4fcb-9632-ae56211999a8",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -681,10 +725,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -4400,
-        6208
+        -4688,
+        6032
       ],
-      "id": "11a177e7-c521-4050-a1a2-7ba0a83d846b",
+      "id": "3673f0e8-0bf2-47a6-a621-22f3a6e953c7",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -700,10 +744,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -2672,
-        6016
+        -2960,
+        5840
       ],
-      "id": "19590025-ba07-4b49-b52d-4ce7cda7e2d8",
+      "id": "c58f98b4-c400-4411-b042-abe7736cc0a4",
       "name": "Wait 1 s (rate-limiting deterence)",
       "webhookId": "ae300d22-0f1a-4eac-9ead-3b7bb3b13d15"
     },
@@ -727,10 +771,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -5088,
-        5824
+        -5376,
+        5648
       ],
-      "id": "4843686e-a828-4611-9040-ae739b25ed5d",
+      "id": "46c284d1-a685-4621-8ffa-c529b6412df1",
       "name": "React with 🔵",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "credentials": {
@@ -751,10 +795,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        -2496,
-        6016
+        -2784,
+        5840
       ],
-      "id": "43b1d186-3f2a-47cc-9e50-b32eaaa933c8",
+      "id": "de7b4c83-35a0-48bf-8edb-015208a6cde7",
       "name": "Remove 🔵 Reaction",
       "credentials": {
         "discordBotApi": {
