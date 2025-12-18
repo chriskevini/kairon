@@ -1,8 +1,8 @@
 """
 Discord Webhook Relay for Kairon Life OS
 
-Listens to messages in #arcane-shell and forwards them to n8n webhook.
-Listens to reaction events and forwards them to separate n8n webhook.
+Listens to messages and reactions in #arcane-shell and forwards to n8n webhook.
+Responds immediately to keep relay lean and provide fast feedback.
 """
 
 import os
@@ -20,7 +20,6 @@ load_dotenv()
 # Configuration
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")
-N8N_REACTION_WEBHOOK_URL = os.getenv("N8N_REACTION_WEBHOOK_URL")  # New webhook for reactions
 ARCANE_SHELL_CHANNEL_NAME = "arcane-shell"
 
 # Bot setup
@@ -36,9 +35,16 @@ def format_message_payload(message: discord.Message) -> dict:
     """
     Format Discord message into n8n webhook payload.
     """
+    # Get parent channel ID if this is a thread
+    parent_id = None
+    if isinstance(message.channel, discord.Thread):
+        parent_id = str(message.channel.parent_id) if message.channel.parent_id else None
+    
     return {
+        "event_type": "message",
         "guild_id": str(message.guild.id) if message.guild else None,
         "channel_id": str(message.channel.id),
+        "parent_id": parent_id,  # Parent channel ID (for threads)
         "message_id": str(message.id),
         "thread_id": str(message.channel.id) if isinstance(message.channel, discord.Thread) else None,
         "author": {
@@ -60,12 +66,20 @@ def format_reaction_payload(
     Format Discord reaction into n8n webhook payload.
     """
     message = reaction.message
+    
+    # Get parent channel ID if this is a thread
+    parent_id = None
+    if isinstance(message.channel, discord.Thread):
+        parent_id = str(message.channel.parent_id) if message.channel.parent_id else None
+    
     return {
+        "event_type": "reaction",
         "action": action,  # "add" or "remove"
         "emoji": str(reaction.emoji),
         "emoji_name": reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.name,
         "guild_id": str(message.guild.id) if message.guild else None,
         "channel_id": str(message.channel.id),
+        "parent_id": parent_id,  # Parent channel ID (for threads)
         "message_id": str(message.id),
         "thread_id": str(message.channel.id) if isinstance(message.channel, discord.Thread) else None,
         "user": {
@@ -82,28 +96,29 @@ def format_reaction_payload(
     }
 
 
-async def send_to_n8n(payload: dict, webhook_url: Optional[str] = None) -> bool:
+async def send_to_n8n(payload: dict) -> bool:
     """
     Send payload to n8n webhook.
-    Returns True if successful, False otherwise.
+    Fires and forgets - responds immediately for fast relay.
+    Returns True if webhook accepted, False if connection failed.
     """
-    url = webhook_url if webhook_url else N8N_WEBHOOK_URL
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                url,
+                N8N_WEBHOOK_URL,
                 json=payload,
-                timeout=aiohttp.ClientTimeout(total=10),
+                timeout=aiohttp.ClientTimeout(total=2),  # Quick timeout
             ) as response:
-                if response.status == 200:
-                    url_preview = url[-20:] if url else "unknown"
-                    print(f"✓ Sent payload to n8n (...{url_preview})")
-                    return True
+                # Just check if webhook accepted (200-299)
+                success = 200 <= response.status < 300
+                if success:
+                    event_type = payload.get('event_type', 'unknown')
+                    print(f"✓ Sent {event_type} to n8n (status {response.status})")
                 else:
                     print(f"✗ n8n webhook returned {response.status}")
-                    return False
+                return success
     except asyncio.TimeoutError:
-        print(f"✗ Timeout sending to n8n")
+        print(f"✗ Timeout sending to n8n (>2s)")
         return False
     except Exception as e:
         print(f"✗ Error sending to n8n: {e}")
@@ -117,9 +132,8 @@ async def on_ready():
     """
     print(f"✓ Bot logged in as {bot.user}")
     print(f"✓ Connected to {len(bot.guilds)} guild(s)")
-    print(f"✓ Listening for messages in #{ARCANE_SHELL_CHANNEL_NAME}")
-    print(f"✓ Message Webhook URL: {N8N_WEBHOOK_URL}")
-    print(f"✓ Reaction Webhook URL: {N8N_REACTION_WEBHOOK_URL or 'Not configured'}")
+    print(f"✓ Listening for messages and reactions in #{ARCANE_SHELL_CHANNEL_NAME}")
+    print(f"✓ Webhook URL: {N8N_WEBHOOK_URL}")
 
 
 @bot.event
@@ -148,7 +162,7 @@ async def on_message(message: discord.Message):
     if not should_process:
         return
 
-    # Format and send to n8n
+    # Format and send to n8n (fire and forget)
     payload = format_message_payload(message)
     success = await send_to_n8n(payload)
 
@@ -166,10 +180,6 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User | disco
     # Ignore bot reactions
     if user.bot:
         return
-    
-    # Only process if reaction webhook URL is configured
-    if not N8N_REACTION_WEBHOOK_URL:
-        return
 
     message = reaction.message
     
@@ -189,9 +199,9 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User | disco
     if not should_process:
         return
 
-    # Format and send to n8n
+    # Format and send to n8n (fire and forget)
     payload = format_reaction_payload(reaction, user, "add")
-    await send_to_n8n(payload, N8N_REACTION_WEBHOOK_URL)
+    await send_to_n8n(payload)
 
 
 @bot.event
@@ -203,10 +213,6 @@ async def on_reaction_remove(reaction: discord.Reaction, user: discord.User | di
     # Ignore bot reactions
     if user.bot:
         return
-    
-    # Only process if reaction webhook URL is configured
-    if not N8N_REACTION_WEBHOOK_URL:
-        return
 
     message = reaction.message
     
@@ -226,9 +232,9 @@ async def on_reaction_remove(reaction: discord.Reaction, user: discord.User | di
     if not should_process:
         return
 
-    # Format and send to n8n
+    # Format and send to n8n (fire and forget)
     payload = format_reaction_payload(reaction, user, "remove")
-    await send_to_n8n(payload, N8N_REACTION_WEBHOOK_URL)
+    await send_to_n8n(payload)
 
 
 @bot.event

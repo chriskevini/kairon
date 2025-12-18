@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -304,
-        224
+        -2096,
+        448
       ],
-      "id": "85811e35-e949-4665-8e95-979b7ef0e0d9",
+      "id": "eab3a9d4-6d3a-4560-8e60-612e6f5c9df3",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -31,10 +31,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -80,
-        320
+        -1872,
+        544
       ],
-      "id": "5870a1e5-628a-44a2-861d-ba750b2abb25",
+      "id": "84595fd7-74f7-468c-992a-388d9bcb1cb0",
       "name": "Get Conversation ID",
       "alwaysOutputData": true,
       "credentials": {
@@ -55,10 +55,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        144,
-        320
+        -1648,
+        544
       ],
-      "id": "50e5dd68-2742-4984-937e-fc3401ce99e8",
+      "id": "837680d8-e710-4699-ae2d-9e1c5fc045c0",
       "name": "Get Thread History",
       "alwaysOutputData": true,
       "credentials": {
@@ -69,27 +69,16 @@
       }
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        368,
-        224
-      ],
-      "id": "8983d8a9-8c3d-457b-8c31-356a1d99e4a7",
-      "name": "Merge Context"
-    },
-    {
       "parameters": {
-        "jsCode": "// Get conversation ID\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $('Get Thread History').all().toReversed();\n\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get original event\nconst event = $('Execute Workflow Trigger').first().json.event;\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversationId,\n    thread_history: threadHistory,\n  }\n}];"
+        "jsCode": "// Get conversation ID\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $input.all().toReversed();\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get original event\nconst event = $('Execute Workflow Trigger').first().json.event;\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversationId,\n    thread_history: threadHistory,\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        592,
-        224
+        -1424,
+        544
       ],
-      "id": "492ae83c-df86-473d-b9e1-ee739bf6e177",
+      "id": "eb096fdc-babc-49e4-9213-36f22ae98b6e",
       "name": "Prepare Context"
     },
     {
@@ -102,10 +91,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        816,
-        224
+        -1200,
+        544
       ],
-      "id": "8586bf0a-0731-4269-9ebf-02d570243b89",
+      "id": "f10c50b2-ae2f-463b-8378-6b36c12d2b21",
       "name": "Extract Items LLM"
     },
     {
@@ -115,10 +104,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1168,
-        224
+        -848,
+        544
       ],
-      "id": "15da50f9-3fcd-4fe5-b53b-92980f921456",
+      "id": "93bcf029-9040-466f-957c-2a9c8d87a451",
       "name": "Parse Extractions"
     },
     {
@@ -149,10 +138,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1392,
-        224
+        -624,
+        544
       ],
-      "id": "1bc84236-a82a-4d70-81f1-e9e8541bf08b",
+      "id": "3a3d0695-4532-4b46-bbd1-6fc531e8ad12",
       "name": "Has Extractions?"
     },
     {
@@ -166,10 +155,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1616,
-        24
+        -400,
+        448
       ],
-      "id": "clear-old-extractions",
+      "id": "a3a014f0-33c5-4103-80aa-6b645163d8b2",
       "name": "Clear Old Extractions",
       "alwaysOutputData": true,
       "credentials": {
@@ -181,15 +170,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build SQL query to insert all extractions\nconst data = $input.first().json;\nconst extractions = data.extractions;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// 1. Adjusted offset to 4 since we only pass 4 variables per row\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 4; \n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, NULL)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  conversation_id,\n  item_type,\n  text,\n  display_order,\n  summary_message_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// 2. The params array now correctly matches the $1, $2, $3, $4, $5... sequence\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.conversation_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n});\n\nreturn [{\n  json: {\n    ...data,\n    sql_query: query,\n    sql_params: params\n  }\n}];"
+        "jsCode": "// Build SQL query to insert all extractions\nconst data = $('Has Extractions?').first().json\nconst extractions = data.extractions;\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// 1. Adjusted offset to 4 since we only pass 4 variables per row\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 4; \n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, NULL)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  conversation_id,\n  item_type,\n  text,\n  display_order,\n  summary_message_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// 2. The params array now correctly matches the $1, $2, $3, $4, $5... sequence\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.conversation_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n});\n\nreturn [{\n  json: {\n    ...data,\n    sql_query: query,\n    sql_params: params\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1840,
-        24
+        -176,
+        448
       ],
-      "id": "0d9d1411-172f-479f-ba5d-66dee5ed9bac",
+      "id": "6f856663-e8d6-4f8c-9c9c-41a6eab0d27b",
       "name": "Build Insert Query"
     },
     {
@@ -203,10 +192,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2064,
-        24
+        48,
+        448
       ],
-      "id": "f5f87a88-23a6-4115-b941-a47147e32653",
+      "id": "48cebe42-d9c8-4de1-a10a-d1e09935ad25",
       "name": "Save Extractions to DB",
       "alwaysOutputData": true,
       "credentials": {
@@ -223,10 +212,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2288,
-        24
+        272,
+        448
       ],
-      "id": "a195256e-a7bf-4188-ae6e-fdffc36bac48",
+      "id": "8cfff2da-39dd-4c84-abab-f5a723655499",
       "name": "Build Summary Message"
     },
     {
@@ -236,10 +225,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2512,
-        128
+        720,
+        448
       ],
-      "id": "4b3f720a-b988-4f59-a96c-2272976040e0",
+      "id": "d7ff0aa4-b3d1-42f5-a10d-37aad4ec2f56",
       "name": "Prepare Emoji Reactions"
     },
     {
@@ -253,10 +242,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2960,
-        128
+        1168,
+        448
       ],
-      "id": "b1af4307-394f-4900-93d6-a09d6b8a202e",
+      "id": "124efe0a-5911-42ba-bd1f-4478da67fdff",
       "name": "Add Emoji Reactions",
       "credentials": {
         "discordBotApi": {
@@ -276,10 +265,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2960,
-        -64
+        1168,
+        256
       ],
-      "id": "5b6cfe76-52cc-459f-b65e-1e099f7367e8",
+      "id": "cc84e221-84fb-49bb-b72b-e0589a531893",
       "name": "Update Summary Message ID",
       "alwaysOutputData": true,
       "credentials": {
@@ -292,7 +281,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Prepare Context').item.json.guild_id }}/messages/{{ $('Prepare Context').item.json.message_id }}/reactions/💭/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Prepare Context').first().json.channel_id }}/messages/{{ $('Prepare Context').first().json.message_id }}/reactions/💭/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -300,10 +289,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3184,
-        -64
+        1392,
+        256
       ],
-      "id": "8fcd9334-3704-4341-8164-2a3679ca5aac",
+      "id": "3a889796-3250-4fef-af78-7b779e545595",
       "name": "Remove 💭 Reaction",
       "credentials": {
         "discordBotApi": {
@@ -331,10 +320,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1616,
-        320
+        -400,
+        640
       ],
-      "id": "7c10c000-b836-4a23-a29f-5c8e2a93dd51",
+      "id": "db0c5fb7-27f3-460d-b931-d0610a934431",
       "name": "Post No Extractions Message",
       "webhookId": "no-extractions-webhook",
       "credentials": {
@@ -354,10 +343,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        952,
-        448
+        -1064,
+        768
       ],
-      "id": "0e68a423-7026-4ee1-8552-7cda2a1c7aab",
+      "id": "1021e602-7ef3-4c22-bc16-74a99d6e8c30",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -376,10 +365,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        824,
-        448
+        -1192,
+        768
       ],
-      "id": "a036b63b-e10c-435c-bfc2-d538b1b77d2d",
+      "id": "aff3ef03-d804-40a6-98d9-b498298f4b69",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -408,10 +397,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        144,
-        128
+        -1872,
+        352
       ],
-      "id": "2b8fed49-d2bd-418b-ac6c-bf922d1e5801",
+      "id": "ee2bc94f-b03b-4d5c-a04e-3e80e8e3acf1",
       "name": "React with 💭",
       "webhookId": "2af02bbb-3f0b-490a-b0c9-234c0e9013ae",
       "credentials": {
@@ -440,10 +429,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        2288,
-        128
+        496,
+        448
       ],
-      "id": "0c2ac568-d090-405b-bcf0-4ffe51532349",
+      "id": "59068362-0e97-4e90-90c3-98373b60e25f",
       "name": "Send a message",
       "webhookId": "b9ec412c-e54b-4542-a3ad-41a388512da2",
       "credentials": {
@@ -460,10 +449,10 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        2736,
-        128
+        944,
+        448
       ],
-      "id": "da4570b2-d9cd-4fd6-ae29-bf41f6c5c72e",
+      "id": "ebfeb17a-a211-4a67-adf9-ec9c26e418cc",
       "name": "Loop Over Items"
     },
     {
@@ -473,10 +462,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3184,
-        128
+        1392,
+        520
       ],
-      "id": "3873e893-c2cb-4d0c-87b8-9abc8cc95379",
+      "id": "9a504ad1-2ee7-435b-9c81-ff106ef75821",
       "name": "Wait 1 s",
       "webhookId": "1803ab0e-bd94-42cf-8843-a2178b590fa6"
     }
@@ -510,17 +499,6 @@
       ]
     },
     "Get Thread History": {
-      "main": [
-        [
-          {
-            "node": "Merge Context",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge Context": {
       "main": [
         [
           {
@@ -683,13 +661,7 @@
     },
     "React with 💭": {
       "main": [
-        [
-          {
-            "node": "Merge Context",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Send a message": {
