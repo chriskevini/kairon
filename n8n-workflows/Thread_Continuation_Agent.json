@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -752,
-        32
+        480,
+        -160
       ],
-      "id": "83257752-6297-4c85-a05c-7ad9323f6bf1",
+      "id": "eaaa37b1-eab9-48d0-b6d2-165639617126",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -31,10 +31,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -528,
-        32
+        704,
+        -64
       ],
-      "id": "e7d77229-3b9e-4f1d-8d94-8e99cc9ab71e",
+      "id": "0074228d-b9f5-4b65-890e-3233cd594db0",
       "name": "Get Conversation",
       "credentials": {
         "postgres": {
@@ -54,10 +54,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -304,
-        32
+        928,
+        -352
       ],
-      "id": "ec2fc299-0bf1-4356-ac2b-313148ff99bb",
+      "id": "1f896d01-509b-446b-96a2-f7a93f07abee",
       "name": "Get Conversation History",
       "credentials": {
         "postgres": {
@@ -75,10 +75,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -80,
+        928,
         -160
       ],
-      "id": "5d55070a-789c-4097-b018-91fe018fd5d4",
+      "id": "4c61d646-d7be-4a90-85ce-97d098b6a2e8",
       "name": "Get North Star",
       "alwaysOutputData": true,
       "credentials": {
@@ -97,10 +97,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -80,
+        928,
         32
       ],
-      "id": "1bfa63ca-0003-44ac-b360-882bc49216e8",
+      "id": "d4ca804a-4906-4b9e-8c8f-d7e9f01d9f2c",
       "name": "Get Recent Activities",
       "alwaysOutputData": true,
       "credentials": {
@@ -119,10 +119,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -80,
+        928,
         224
       ],
-      "id": "fc910b92-cf04-4149-8239-00df89f8ff1b",
+      "id": "82dbdd87-4f7d-4dc8-800b-da2a83d2e481",
       "name": "Get Recent Notes",
       "alwaysOutputData": true,
       "credentials": {
@@ -134,16 +134,15 @@
     },
     {
       "parameters": {
-        "mode": "append",
         "numberInputs": 4
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        144,
-        16
+        1152,
+        0
       ],
-      "id": "0fef8206-61c3-408d-943c-4e09a4869782",
+      "id": "0dcc90f4-05d5-44bd-8af4-9a83f18d92e3",
       "name": "Wait for Context"
     },
     {
@@ -153,10 +152,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        368,
+        1376,
         32
       ],
-      "id": "923949ee-2d0c-46c0-b619-d89835e6cb35",
+      "id": "2cec9396-6656-410b-93c6-6d8d4aaf708f",
       "name": "Build Context"
     },
     {
@@ -169,10 +168,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        592,
+        1600,
         32
       ],
-      "id": "b7e3f953-3c2b-43b5-86c1-7534e704e76e",
+      "id": "92a122e6-dc29-4911-92c0-74d9a53dcc08",
       "name": "Generate Response"
     },
     {
@@ -185,10 +184,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        600,
+        1616,
         256
       ],
-      "id": "9cde9f0c-b9e1-4bb3-9ad8-95f765944980",
+      "id": "1fc46165-918a-407a-9172-fded2ee1ee95",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -207,10 +206,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        736,
-        224
+        1744,
+        256
       ],
-      "id": "3dd4a15d-48ce-4246-86fd-c8274c7dad6b",
+      "id": "5fa21be3-0e34-4ec7-b2e9-984f708b4b6f",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -238,10 +237,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        944,
+        1952,
         32
       ],
-      "id": "b05136d6-a55a-4e4e-ab8d-8aed5ac85956",
+      "id": "6e57d49d-ec2e-4dd8-8ac7-73201e5448fa",
       "name": "Post to Thread",
       "webhookId": "a65d6a4d-1d64-4ef4-b3b6-a4fe185b4957",
       "credentials": {
@@ -262,15 +261,71 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1168,
-        32
+        2176,
+        128
       ],
-      "id": "2ece7507-b5be-470a-9533-8a281fb3b867",
+      "id": "5b2a3140-3030-435b-9642-57a30e4179ef",
       "name": "Store Assistant Message",
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "react",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.event.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $json.event.message_id }}",
+        "emoji": "=💭"
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -256
+      ],
+      "id": "f901774c-f18a-40b7-87e1-5eafb0bf81ff",
+      "name": "React with 💭",
+      "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Build Context').item.json.thread_id }}/messages/{{ $('Build Context').item.json.message_id }}/reactions/💭/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2176,
+        -64
+      ],
+      "id": "8b88c815-9524-4770-9f39-93a22d080274",
+      "name": "Remove 💭  Reaction",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
         }
       }
     }
@@ -281,6 +336,11 @@
         [
           {
             "node": "Get Conversation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "React with 💭",
             "type": "main",
             "index": 0
           }
@@ -417,6 +477,11 @@
         [
           {
             "node": "Store Assistant Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove 💭  Reaction",
             "type": "main",
             "index": 0
           }
