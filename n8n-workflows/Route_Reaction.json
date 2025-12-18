@@ -106,12 +106,49 @@
     },
     {
       "parameters": {
-        "jsCode": "// Combine reaction data with conversation_id\nconst reaction = $('Parse Reaction Payload').first().json;\nconst dbResult = $('Check if Summary Message').first().json;\n\nreturn [{\n  json: {\n    ...reaction,\n    conversation_id: dbResult.conversation_id\n  }\n}];"
+        "jsCode": "// Map emoji to extraction index\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst reaction = $input.first().json;\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\n\n// Create synthetic idempotency key\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    synthetic_id: syntheticId,\n    author_login: reaction.user?.login || reaction.user_id,\n    thread_id: reaction.thread_id,\n    emoji: emoji,\n    message_id: messageId,\n    extraction_index: extractionIndex\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         752,
+        512
+      ],
+      "id": "9c8f3b21-4e15-4a82-b5f6-7d8e9a0b1c2d",
+      "name": "Prepare Reaction Event"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO raw_events (\n  id,\n  source_type,\n  discord_message_id,\n  author_login,\n  thread_id,\n  raw_text,\n  clean_text,\n  tag,\n  metadata\n) VALUES (\n  gen_random_uuid(),\n  'discord',\n  $1,\n  $2,\n  $3,\n  $4,\n  $5,\n  'REACTION',\n  jsonb_build_object(\n    'event_type', 'MESSAGE_REACTION_ADD',\n    'summary_message_id', $6,\n    'emoji_name', $4,\n    'extraction_index', $7,\n    'is_reaction', true\n  )\n)\nON CONFLICT (discord_message_id) DO UPDATE\nSET metadata = raw_events.metadata\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.synthetic_id }},={{ $json.author_login }},={{ $json.thread_id }},={{ $json.emoji }},=Save extraction {{ $json.extraction_index }},={{ $json.message_id }},={{ $json.extraction_index }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        976,
+        512
+      ],
+      "id": "3f4e5a6b-7c8d-9e0f-1a2b-3c4d5e6f7g8h",
+      "name": "Store Reaction Event",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine reaction data with conversation_id and raw_event_id\nconst reaction = $('Parse Reaction Payload').first().json;\nconst dbResult = $('Check if Summary Message').first().json;\nconst rawEvent = $('Store Reaction Event').first().json;\n\nreturn [{\n  json: {\n    ...reaction,\n    conversation_id: dbResult.conversation_id,\n    raw_event_id: rawEvent.id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
         512
       ],
       "id": "05763a80-1726-466f-b290-b0e8cde38fdc",
@@ -144,7 +181,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
       "position": [
-        976,
+        1424,
         512
       ],
       "id": "bab6860a-5d6f-4090-b757-234487c32435",
@@ -191,12 +228,34 @@
       "main": [
         [
           {
-            "node": "Prepare Handler Input",
+            "node": "Prepare Reaction Event",
             "type": "main",
             "index": 0
           }
         ],
         []
+      ]
+    },
+    "Prepare Reaction Event": {
+      "main": [
+        [
+          {
+            "node": "Store Reaction Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Reaction Event": {
+      "main": [
+        [
+          {
+            "node": "Prepare Handler Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Prepare Handler Input": {

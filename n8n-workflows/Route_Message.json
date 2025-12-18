@@ -610,7 +610,7 @@
             {
               "id": "0eccc231-bed6-4ca0-a35e-62e7a6da63ed",
               "name": "tag",
-              "value": "={{ (() => {\n  const content = $('Discord Webhook').item.json.body.content;\n  // Check for tags at position 0 with whitespace or EOL after\n  const tagMatch = content.match(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|::|cmd|\\$\\$|todo)(\\s+|$)/i);\n  if (tagMatch) {\n    // Normalize word alternatives to symbols\n    const tag = tagMatch[1].toLowerCase();\n    if (tag === 'act') return '!!';\n    if (tag === 'note') return '..';\n    if (tag === 'chat') return '++';\n    if (tag === 'save') return '--';\n    if (tag === 'cmd' || tag === '::') return '::';\n    if (tag === 'todo' || tag === '$$') return '$$';\n    return tagMatch[1];  // Return symbol as-is\n  }\n  return null;\n})() }}",
+              "value": "={{ (() => {\n  const content = $('Discord Webhook').item.json.body.content;\n  // Check for command tag (::) - doesn't require space after\n  if (content.startsWith('::')) {\n    return '::';\n  }\n  // Check for other tags at position 0 with whitespace or EOL after\n  const tagMatch = content.match(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|\\$\\$|todo)(\\s+|$)/i);\n  if (tagMatch) {\n    // Normalize word alternatives to symbols\n    const tag = tagMatch[1].toLowerCase();\n    if (tag === 'act') return '!!';\n    if (tag === 'note') return '..';\n    if (tag === 'chat') return '++';\n    if (tag === 'save') return '--';\n    if (tag === 'todo' || tag === '$$') return '$$';\n    return tagMatch[1];  // Return symbol as-is\n  }\n  return null;\n})() }}",
               "type": "string"
             }
           ]
