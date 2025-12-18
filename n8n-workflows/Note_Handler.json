@@ -159,6 +159,38 @@
           "name": "OpenRouter account"
         }
       }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Parse LLM Response').item.json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
+          "mode": "id"
+        },
+        "content": "=**[Note Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category_name }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        3888,
+        -544
+      ],
+      "id": "ac8c2104-79e7-46db-ab2b-902278bd85d4",
+      "name": "Log to Kairon Logs",
+      "webhookId": "dcf1cf1a-eda6-4488-8142-af689fbc76c3",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
     }
   ],
   "connections": {
@@ -199,7 +231,7 @@
       "main": [
         [
           {
-            "node": "Store Note",
+            "node": "Log to Kairon Logs",
             "type": "main",
             "index": 0
           }
@@ -234,6 +266,17 @@
           {
             "node": "Note Classifier",
             "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Kairon Logs": {
+      "main": [
+        [
+          {
+            "node": "Store Note",
+            "type": "main",
             "index": 0
           }
         ]
