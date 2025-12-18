@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        2976,
-        -544
+        9072,
+        -2416
       ],
-      "id": "795baa8a-2bd0-4e9e-84de-513fca974a5c",
+      "id": "51c02930-4e28-4480-94e8-aa4e5fe30136",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -27,10 +27,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3200,
-        -544
+        9296,
+        -2416
       ],
-      "id": "abeb9e37-29f2-4877-92c6-26e599f4d115",
+      "id": "4e424566-9cbb-4e44-9050-f9a5391c3fc6",
       "name": "Prepare LLM Context"
     },
     {
@@ -43,10 +43,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        3424,
-        -544
+        9520,
+        -2416
       ],
-      "id": "148b0dd5-54c5-4a6c-a99a-2f761f921f8a",
+      "id": "a2434954-254a-4336-946f-0d1ab067cc15",
       "name": "Note Classifier"
     },
     {
@@ -56,10 +56,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3776,
-        -544
+        9872,
+        -2416
       ],
-      "id": "893c39e3-aaaa-4194-ac4b-5748d63053fa",
+      "id": "5b98a789-9ad9-4c5a-affb-c21d33d96189",
       "name": "Parse LLM Response"
     },
     {
@@ -67,16 +67,16 @@
         "operation": "executeQuery",
         "query": "INSERT INTO notes (\n  raw_event_id,\n  timestamp,\n  category,\n  text,\n  metadata\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  $3::note_category,\n  $2,\n  '{\"llm_classified\": true}'::jsonb\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.raw_event_id }},={{ $json.text }},={{ $json.category }}"
+          "queryReplacement": "={{ $('Parse LLM Response').item.json.raw_event_id }},={{ $('Parse LLM Response').item.json.text }},={{ $('Parse LLM Response').item.json.category }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        4000,
-        -544
+        10320,
+        -2416
       ],
-      "id": "744e0a3b-a1f7-4f70-a0cc-41f0028c97f3",
+      "id": "cee38a74-3402-4a33-931b-20cac3beae43",
       "name": "Store Note",
       "credentials": {
         "postgres": {
@@ -105,10 +105,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        4224,
-        -544
+        10544,
+        -2416
       ],
-      "id": "048b7f30-4a21-4656-888a-411ce6d1cd1b",
+      "id": "0eaab7df-b380-4053-be65-38055c4b83b6",
       "name": "React with 📝",
       "webhookId": "60c18aeb-3403-429d-8436-05ab229456b7",
       "credentials": {
@@ -126,10 +126,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        3560,
-        -320
+        9656,
+        -2192
       ],
-      "id": "d2616491-0a65-46a2-8e20-2a8e7f20f798",
+      "id": "0c141715-cbf6-4603-8bd3-07e33d952686",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -148,10 +148,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        3432,
-        -320
+        9528,
+        -2192
       ],
-      "id": "8a0a3972-070a-4c5a-9ead-3ca98eae694e",
+      "id": "462c48d4-7538-458b-9c7a-1dead992f2dc",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -179,10 +179,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        3888,
-        -544
+        10096,
+        -2416
       ],
-      "id": "ac8c2104-79e7-46db-ab2b-902278bd85d4",
+      "id": "2d36fb77-b97d-44a4-9173-104c3d635335",
       "name": "Log to Kairon Logs",
       "webhookId": "dcf1cf1a-eda6-4488-8142-af689fbc76c3",
       "credentials": {
