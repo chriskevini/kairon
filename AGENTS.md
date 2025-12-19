@@ -13,13 +13,202 @@ This file is `.gitignored` and contains environment-specific info not suitable f
 
 ## Table of Contents
 
-1. [Workflow Export & Sanitization](#workflow-export--sanitization)
-2. [Environment Variables](#environment-variables)
-3. [Database Schema](#database-schema)
-4. [Code Style & Conventions](#code-style--conventions)
-5. [Git Commit Guidelines](#git-commit-guidelines)
-6. [Testing Workflows](#testing-workflows)
-7. [Documentation Updates](#documentation-updates)
+1. [n8n Best Practices](#n8n-best-practices) ⭐ **START HERE**
+2. [Workflow Export & Sanitization](#workflow-export--sanitization)
+3. [Environment Variables](#environment-variables)
+4. [Database Schema](#database-schema)
+5. [Code Style & Conventions](#code-style--conventions)
+6. [Git Commit Guidelines](#git-commit-guidelines)
+7. [Testing Workflows](#testing-workflows)
+8. [Documentation Updates](#documentation-updates)
+
+---
+
+## n8n Best Practices
+
+### ⚠️ CRITICAL: Read This First
+
+These patterns prevent the most common n8n workflow bugs. Following them will save hours of debugging.
+
+### 1. Flat Data Shape (No Nesting)
+
+**Problem:** Nested object access like `$json.event.trace_chain` or `$json.context.thread_history` breaks silently when parent is undefined.
+
+**Solution:** Use a flat data shape throughout all workflows.
+
+```javascript
+// ✅ CORRECT: Flat shape - every field at root level
+{
+  event_id: "uuid",
+  message_id: "discord-id",
+  clean_text: "the message",
+  raw_text: "!! the message",
+  tag: "!!" | ".." | "++" | "::" | null,
+  guild_id: "...",
+  channel_id: "...",
+  thread_id: null,  // null if not in thread
+  intent: "activity" | "note" | "chat" | "command",
+  trace_id: "uuid" | null,
+  trace_chain: [],
+  trace_chain_pg: "{}",  // PostgreSQL array format
+  conversation_id: null,
+  thread_history: []
+}
+
+// ❌ WRONG: Nested shape - breaks when parent is undefined
+{
+  event: {
+    id: "uuid",
+    trace_chain: []  // $json.event.trace_chain fails if event undefined
+  },
+  context: {
+    thread_history: []  // $json.context.thread_history fails if context undefined
+  }
+}
+```
+
+**Why flat?**
+- `$json.trace_chain` returns `undefined` safely if missing
+- `$json.event.trace_chain` throws error if `event` is undefined
+- Flat shape = fewer runtime errors, easier debugging
+
+### 2. PostgreSQL Array Format
+
+**Problem:** n8n's expression parser truncates complex expressions in `queryReplacement` parameters.
+
+**Solution:** Format PostgreSQL arrays in upstream Code nodes, not in query expressions.
+
+```javascript
+// ✅ CORRECT: Format in Code node, use simple reference in query
+// In Code node (e.g., "Prepare Trace Data"):
+const trace_chain = $json.trace_chain || [];
+const trace_chain_pg = `{${trace_chain.join(',')}}`;
+return { ...$json, trace_chain_pg };
+
+// In Postgres node queryReplacement:
+// $1 = {{ $json.trace_chain_pg }}
+
+// ❌ WRONG: Complex expression in queryReplacement (gets truncated!)
+// $1 = {{ `{${($json.trace_chain || []).join(',')}}` }}
+```
+
+### 3. Always Initialize Arrays
+
+**Problem:** Operations on undefined arrays fail silently or throw errors.
+
+**Solution:** Initialize arrays with defaults at workflow entry.
+
+```javascript
+// ✅ CORRECT: Initialize at start of workflow
+const data = {
+  ...$json,
+  trace_chain: $json.trace_chain || [],
+  thread_history: $json.thread_history || [],
+  errors: []
+};
+
+// ❌ WRONG: Assume arrays exist
+const chain = $json.trace_chain;  // undefined if not set
+chain.push(newId);  // TypeError: Cannot read property 'push' of undefined
+```
+
+### 4. Validate Before Access
+
+**Problem:** Accessing properties on undefined objects crashes workflows.
+
+**Solution:** Always validate objects exist before accessing nested properties.
+
+```javascript
+// ✅ CORRECT: Validate before access
+const event = $('Previous Node').item?.json;
+if (!event || !event.event_id) {
+  return {
+    error: true,
+    response: "❌ Missing event data",
+    ...($json || {})
+  };
+}
+const eventId = event.event_id;
+
+// ❌ WRONG: Assume data exists
+const eventId = $('Previous Node').item.json.event_id;  // Crashes if any part is undefined
+```
+
+### 5. Switch Node Fallbacks
+
+**Problem:** Switch nodes with no matching case produce no output, causing downstream nodes to fail.
+
+**Solution:** Always include a "fallback" or "default" case.
+
+```javascript
+// ✅ CORRECT: Switch with fallback
+// Switch node rules:
+// Rule 0: tag equals "!!" → Activity path
+// Rule 1: tag equals ".." → Note path
+// Rule 2: tag equals "++" → Chat path
+// Rule 3: tag equals "::" → Command path
+// Fallback: (always enabled) → Default path (e.g., chat)
+
+// ❌ WRONG: Switch with no fallback
+// If tag is null or unexpected value, nothing outputs
+```
+
+### 6. Error Response Pattern
+
+**Problem:** Workflows die silently, users see nothing.
+
+**Solution:** Always return a response object, even on errors.
+
+```javascript
+// ✅ CORRECT: Always return response
+try {
+  // risky operation
+  return { success: true, data: result, ...$json };
+} catch (error) {
+  return {
+    success: false,
+    error: true,
+    response: `❌ Operation failed: ${error.message}`,
+    channel_id: $json.channel_id,  // Preserve routing info
+    message_id: $json.message_id
+  };
+}
+
+// ❌ WRONG: Let errors propagate silently
+const result = riskyOperation();  // If this fails, workflow dies
+return result;
+```
+
+### 7. Preserving Data Through Branches
+
+**Problem:** Data gets lost when workflow branches and merges.
+
+**Solution:** Always spread original data and add new fields.
+
+```javascript
+// ✅ CORRECT: Preserve all fields
+return {
+  ...$json,           // Keep all existing fields
+  new_field: value,   // Add new fields
+  trace_id: newTraceId
+};
+
+// ❌ WRONG: Return only new data (loses context)
+return {
+  trace_id: newTraceId  // Lost: event_id, channel_id, etc.
+};
+```
+
+### Quick Reference: Data Shape Checklist
+
+Before any Code node or Postgres query:
+
+- [ ] Using flat field access (`$json.field`) not nested (`$json.event.field`)
+- [ ] Arrays initialized with defaults (`|| []`)
+- [ ] PostgreSQL arrays formatted in Code nodes (`trace_chain_pg`)
+- [ ] Validation before accessing optional data
+- [ ] Error path returns response to user
+- [ ] All original fields preserved with spread (`...$json`)
 
 ---
 
