@@ -8,13 +8,13 @@
           "queryReplacement": "={{ $json.event.guild_id }},={{ $json.event.channel_id }},={{ $json.event.message_id }},={{ $json.event.message_url }},={{ $json.event.author_login }},={{ $json.event.thread_id }},={{ $json.event.raw_text }},={{ $json.event.clean_text }},={{ $json.event.tag }},"
         }
       },
-      "id": "4a555af8-c5de-45df-a015-311c9edb109c",
+      "id": "a3ccfda7-2005-462f-be4a-50f0f93591b0",
       "name": "Store Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -11552,
-        7168
+        -12592,
+        7216
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -41,10 +41,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -11328,
-        7168
+        -12368,
+        7216
       ],
-      "id": "fddb9ff6-9595-4999-98b4-776d938244b4",
+      "id": "b82263d3-fbe4-4732-800b-40728d0878a2",
       "name": "Add Event ID"
     },
     {
@@ -150,28 +150,6 @@
                 },
                 "conditions": [
                   {
-                    "id": "save-thread-condition",
-                    "leftValue": "={{ $json.event.tag }}",
-                    "rightValue": "--",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
                     "id": "todo-condition",
                     "leftValue": "={{ $json.event.tag }}",
                     "rightValue": "$$",
@@ -188,201 +166,43 @@
         },
         "options": {}
       },
-      "id": "d523be42-e625-4d42-bd30-c09d16171ca4",
+      "id": "c4d0e42e-b172-4e1a-a33d-7f6ef2d0ea81",
       "name": "Check Tag",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -10880,
-        7392
+        -11920,
+        7440
       ]
     },
     {
       "parameters": {
-        "content": "## Thread Message Path\n\nMessages in threads go here.\n\nChecks if it's a commit command (++)\nOtherwise continues conversation.",
+        "content": "## Thread Message Path\n",
         "height": 416,
         "width": 480
       },
-      "id": "981f6a4e-9cf9-4d20-95b6-fef6ae6e9bec",
+      "id": "91fcad17-8ec5-4224-8134-04df24ed5ac7",
       "name": "Thread Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -10960,
-        6720
+        -12000,
+        6768
       ]
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "ZQCULmYAVMN7I6ww",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/ZQCULmYAVMN7I6ww",
-          "cachedResultName": "Activity_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -10656,
-        7168
-      ],
-      "id": "a244c823-1db8-483d-913f-90d1f8380757",
-      "name": "Handle !! Activity"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "nsLfmVGA6NeCJJRu",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
-          "cachedResultName": "Thread_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -10656,
-        7360
-      ],
-      "id": "547f83a3-7b94-444c-94bc-275659bb0c5a",
-      "name": "Handle ++ Thread Start"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "emoji",
-              "name": "emoji",
-              "value": "✅",
-              "type": "string"
-            },
-            {
-              "id": "intent",
-              "name": "intent",
-              "value": "Commit",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "ca9aa37c-cee9-49a8-b45e-4ddb918b6453",
-      "name": "Commit Thread",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
-      "position": [
-        -10656,
-        6784
-      ],
-      "notes": "TODO: Load conversation_messages\nTODO: Summarize with LLM\nTODO: Create note + activity"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "e78T3OMl6pDxTb13",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/e78T3OMl6pDxTb13",
-          "cachedResultName": "Thread_Continuation_Agent"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -10656,
-        6976
-      ],
-      "id": "278f5e07-27a7-4867-9adc-373aa665c24d",
-      "name": "Handle Thread Continuation"
-    },
-    {
-      "parameters": {
-        "content": "## Main Channel Path\n\nMessages in #arcane-shell.\n\nChecks for tags:\n- !! → Activity\n- ++ → Thread Start  \n- :: → Command\n- None → Router Agent",
+        "content": "## Main Channel Path\n",
         "height": 736,
         "width": 480
       },
-      "id": "48a4f65b-e29e-4b67-a85b-6cb4b51c1603",
+      "id": "15a31cc3-6e2a-4411-81f0-154d2de06bff",
       "name": "Main Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -10960,
-        7168
+        -12000,
+        7216
       ]
     },
     {
@@ -413,88 +233,11 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -11104,
-        7168
+        -12144,
+        7216
       ],
-      "id": "957e9c2c-4afe-4ae0-812e-dc7a45ae3101",
+      "id": "2982cc89-1daf-4aec-8edb-f68452ee7eb1",
       "name": "If in Thread"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "0ceb9e91-e374-4346-8706-97df7d95cfe6",
-              "leftValue": "={{ $json.event.tag }}",
-              "rightValue": "--",
-              "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter.operator.equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        -10880,
-        6880
-      ],
-      "id": "269bcc5d-90e6-4880-bbff-5371645020f0",
-      "name": "If Commit"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "7Qq2qMUBmnyAhLxg",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
-          "cachedResultName": "Note_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -10656,
-        7744
-      ],
-      "id": "ebf9639e-ea2c-44c4-9bc6-13c722c343c3",
-      "name": "Handle .. Note"
     },
     {
       "parameters": {
@@ -506,10 +249,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        -12128,
-        7388
+        -13168,
+        7440
       ],
-      "id": "fab40ef4-263a-4fff-9e7d-34723c68cfe0",
+      "id": "28bdff18-d9f2-4b89-8dfc-e819c8cab081",
       "name": "Intent Classifier"
     },
     {
@@ -531,10 +274,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -11776,
-        6944
+        -12816,
+        6992
       ],
-      "id": "9180697a-fc96-4ac7-835d-60655584bb59",
+      "id": "967fdb3e-51df-4f12-921b-376a845c5a74",
       "name": "Log classification to #kairon-logs",
       "webhookId": "18ae6288-f1c3-401a-9dcc-f832d8126ddf",
       "credentials": {
@@ -543,49 +286,6 @@
           "name": "Discord Bot account"
         }
       }
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "v6t7HCxr2OOXvb2z",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
-          "cachedResultName": "Command_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -10656,
-        7552
-      ],
-      "id": "499516b2-2b63-4002-bfe5-9253e4c45aab",
-      "name": "Handle :: Command"
     },
     {
       "parameters": {
@@ -604,10 +304,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -12576,
-        7264
+        -13616,
+        7312
       ],
-      "id": "1803ed8f-663e-4579-b3e0-e8e9a16203f2",
+      "id": "3ea1201d-2979-401d-abcf-4fe897ee94ad",
       "name": "Parse Tag"
     },
     {
@@ -627,10 +327,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -11776,
-        7168
+        -12816,
+        7216
       ],
-      "id": "0207d469-8925-4b66-8c4f-872b78fc7e8d",
+      "id": "c5c142da-bfca-4dba-a764-1cd2e8282120",
       "name": "Build Event Object"
     },
     {
@@ -671,10 +371,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -12352,
-        7264
+        -13392,
+        7312
       ],
-      "id": "253b8334-feb5-4ea9-94aa-c78660dd2c9e",
+      "id": "5a4d58cd-0114-463e-a127-1309937ef190",
       "name": "If Tag or Thread Detected"
     },
     {
@@ -687,10 +387,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -11992,
-        7612
+        -13040,
+        7664
       ],
-      "id": "2d1c739b-2d72-4b0e-9ef4-e5fd9e4d11a4",
+      "id": "5fcaf4bd-e587-435b-8463-e7776ba113e4",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -709,10 +409,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -12120,
-        7612
+        -13168,
+        7664
       ],
-      "id": "d417aeb8-eca7-4ae9-90fb-cfdce37e57e0",
+      "id": "38dc5004-8c40-44e6-8e23-36e50ea48981",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -728,10 +428,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -10432,
-        7264
+        -11472,
+        7312
       ],
-      "id": "700e9363-0b5d-40bb-8de7-fbc17de32679",
+      "id": "4b9da467-a9f3-499c-a28d-4d6bd6a2f55e",
       "name": "Wait 1 s (rate-limiting deterence)",
       "webhookId": "ae300d22-0f1a-4eac-9ead-3b7bb3b13d15"
     },
@@ -755,10 +455,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -12576,
-        7072
+        -13616,
+        7120
       ],
-      "id": "f6072f53-9275-440a-8c0e-c947d6fbb9e7",
+      "id": "737e97cb-0812-4e49-8fb9-b7cb808b7447",
       "name": "React with 🔵",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "credentials": {
@@ -771,7 +471,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Add Raw Event ID').item.json.event.channel_id }}/messages/{{ $('Add Raw Event ID').item.json.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Add Event ID').item.json.event.channel_id }}/messages/{{ $('Add Event ID').item.json.event.message_id }}/reactions/🔵/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -779,10 +479,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        -10208,
-        7264
+        -11248,
+        7312
       ],
-      "id": "57a0ed3a-a514-453a-bc40-e1a43628ae00",
+      "id": "62654409-5e13-4f13-96b5-9cb239a75921",
       "name": "Remove 🔵 Reaction",
       "credentials": {
         "discordBotApi": {
@@ -798,11 +498,302 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -12800,
-        7168
+        -13840,
+        7216
       ],
-      "id": "d10cc42d-5fa9-430e-b95a-d6a0a4397e91",
+      "id": "2a3633fe-6575-4be7-9dfc-a61177ea5be4",
       "name": "Discord Webhook"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "E4pamfDCwW3ZxHzH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
+          "cachedResultName": "Save_Chat"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -11696,
+        6832
+      ],
+      "id": "354649c2-dc75-484a-afbb-a0c747e09922",
+      "name": "Save Chat"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0ceb9e91-e374-4346-8706-97df7d95cfe6",
+              "leftValue": "={{ $json.event.tag }}",
+              "rightValue": "--",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -11920,
+        6928
+      ],
+      "id": "63f44c81-5d6e-4d71-bb3c-1caf748fca42",
+      "name": "If Save"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "e78T3OMl6pDxTb13",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/e78T3OMl6pDxTb13",
+          "cachedResultName": "Continue_Chat"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -11696,
+        7024
+      ],
+      "id": "4635994f-9cf6-4b55-a3e5-46efd2c88632",
+      "name": "Continue Chat"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ZQCULmYAVMN7I6ww",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ZQCULmYAVMN7I6ww",
+          "cachedResultName": "Save_Activity"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -11696,
+        7216
+      ],
+      "id": "b4fc2d83-477f-4b35-9ece-25ff91eafcb2",
+      "name": "Save Activity"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "nsLfmVGA6NeCJJRu",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
+          "cachedResultName": "Thread_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -11696,
+        7408
+      ],
+      "id": "6a53f911-8541-4432-8ea6-377c24556b0f",
+      "name": "Start Chat"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "v6t7HCxr2OOXvb2z",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
+          "cachedResultName": "Command_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -11696,
+        7600
+      ],
+      "id": "bb930904-b102-4973-b076-0b35f0b10ed6",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "7Qq2qMUBmnyAhLxg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
+          "cachedResultName": "Note_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -11696,
+        7792
+      ],
+      "id": "396f1087-7f0c-483e-8a5c-2933ca4f7257",
+      "name": "Save Note"
     }
   ],
   "connections": {
@@ -832,61 +823,28 @@
       "main": [
         [
           {
-            "node": "Handle !! Activity",
+            "node": "Save Activity",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle ++ Thread Start",
+            "node": "Start Chat",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle :: Command",
+            "node": "Execute Command",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle .. Note",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle !! Activity": {
-      "main": [
-        [
-          {
-            "node": "Wait 1 s (rate-limiting deterence)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle ++ Thread Start": {
-      "main": [
-        [
-          {
-            "node": "Wait 1 s (rate-limiting deterence)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle Thread Continuation": {
-      "main": [
-        [
-          {
-            "node": "Wait 1 s (rate-limiting deterence)",
+            "node": "Save Note",
             "type": "main",
             "index": 0
           }
@@ -897,7 +855,7 @@
       "main": [
         [
           {
-            "node": "If Commit",
+            "node": "If Save",
             "type": "main",
             "index": 0
           }
@@ -905,35 +863,6 @@
         [
           {
             "node": "Check Tag",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Commit": {
-      "main": [
-        [
-          {
-            "node": "Commit Thread",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Handle Thread Continuation",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle .. Note": {
-      "main": [
-        [
-          {
-            "node": "Wait 1 s (rate-limiting deterence)",
             "type": "main",
             "index": 0
           }
@@ -950,17 +879,6 @@
           },
           {
             "node": "Build Event Object",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle :: Command": {
-      "main": [
-        [
-          {
-            "node": "Wait 1 s (rate-limiting deterence)",
             "type": "main",
             "index": 0
           }
@@ -1040,11 +958,6 @@
         ]
       ]
     },
-    "React with 🔵": {
-      "main": [
-        []
-      ]
-    },
     "Discord Webhook": {
       "main": [
         [
@@ -1060,7 +973,117 @@
           }
         ]
       ]
+    },
+    "If Save": {
+      "main": [
+        [
+          {
+            "node": "Save Chat",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continue Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Chat": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s (rate-limiting deterence)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Activity": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s (rate-limiting deterence)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Chat": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s (rate-limiting deterence)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s (rate-limiting deterence)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Note": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s (rate-limiting deterence)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
+  },
+  "pinData": {
+    "Discord Webhook": [
+      {
+        "headers": {
+          "host": "n8n.chrisirineo.com",
+          "user-agent": "Python/3.12 aiohttp/3.13.2",
+          "content-length": "344",
+          "accept": "*/*",
+          "accept-encoding": "gzip, deflate",
+          "content-type": "application/json",
+          "via": "1.1 Caddy",
+          "x-forwarded-for": "164.92.84.170",
+          "x-forwarded-host": "n8n.chrisirineo.com",
+          "x-forwarded-proto": "https"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "event_type": "message",
+          "guild_id": "754207117157859388",
+          "channel_id": "1450406231146496132",
+          "parent_id": null,
+          "message_id": "1451428134342758492",
+          "thread_id": null,
+          "author": {
+            "login": "chr15",
+            "id": "183458868817297409",
+            "display_name": "chr15"
+          },
+          "content": "!! still testing workflows",
+          "timestamp": "2025-12-19T04:17:13.458000+00:00"
+        },
+        "webhookUrl": "n8n.chrisirineo.com/webhook/asoiaf92746087",
+        "executionMode": "production"
+      }
+    ]
   },
   "meta": {
     "templateCredsSetupCompleted": true,
