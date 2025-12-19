@@ -7,10 +7,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -14800,
-        7840
+        -12848,
+        8016
       ],
-      "id": "bee1b1f4-9daf-4223-b771-2668d0b0b7aa",
+      "id": "91f732dd-8250-4342-ae01-365e0b336809",
       "name": "Receive Event"
     },
     {
@@ -33,10 +33,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -14576,
-        7744
+        -12624,
+        7920
       ],
-      "id": "9075b4aa-5425-4927-a0b0-9dbd18741211",
+      "id": "476cc1ef-8e72-4df6-ab57-42bda8f06403",
       "name": "React with 🔵",
       "webhookId": "react-processing",
       "credentials": {
@@ -74,10 +74,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -14352,
-        8096
+        -12400,
+        8272
       ],
-      "id": "b36be63d-0b4c-4ae4-85f8-8e577ca2182e",
+      "id": "c3c18343-a082-4961-8b41-20c2af7240dc",
       "name": "Has Tag?"
     },
     {
@@ -87,10 +87,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -13840,
-        8000
+        -11888,
+        8176
       ],
-      "id": "96c089f5-aac6-4c34-ab87-c7b292d7fdd7",
+      "id": "c415f555-c0c2-4b40-a239-ff15c8e3a413",
       "name": "Map Tag to Intent"
     },
     {
@@ -100,10 +100,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -13552,
-        8000
+        -11600,
+        8176
       ],
-      "id": "b09e55dc-0876-459a-b8d5-2db5c62209e9",
+      "id": "326b139f-4c75-4a73-a767-332641a0b5a7",
       "name": "Prepare Deterministic Trace"
     },
     {
@@ -111,16 +111,16 @@
         "operation": "executeQuery",
         "query": "INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'intent_classification',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object(\n      'text', $2,\n      'tag', $3\n    ),\n    'prompt', NULL,\n    'completion', NULL,\n    'result', jsonb_build_object(\n      'intent', $4,\n      'confidence', 1.0,\n      'method', 'tag_shortcut'\n    ),\n    'model', NULL,\n    'duration_ms', 0\n  ),\n  $5::uuid[]\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_tag }},={{ $json.result_intent }},={{ JSON.stringify($json.event.trace_chain) }}"
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_tag }},={{ $json.result_intent }},={{ '{' + ($json.event.trace_chain || []).join(',') + '}' }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -13328,
-        7904
+        -11376,
+        8080
       ],
-      "id": "6a5616d5-a5aa-42a9-a39b-a45794b1f77b",
+      "id": "52366a45-41a3-4a4b-87c3-dd1418f946ae",
       "name": "Write Deterministic Trace",
       "alwaysOutputData": true,
       "credentials": {
@@ -147,10 +147,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -13328,
-        8096
+        -11376,
+        8272
       ],
-      "id": "9463cb0d-b26f-4de7-a409-93597268f951",
+      "id": "40bc9fd9-9516-48a5-ba8c-8475e944727a",
       "name": "Pass Event (Tagged)"
     },
     {
@@ -181,10 +181,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -14576,
-        7936
+        -12624,
+        8112
       ],
-      "id": "6111b988-3cc8-4b95-b3f4-bcb4c70bc6c1",
+      "id": "6f431c36-8c0b-4d84-9d44-a78ab41eadd1",
       "name": "In Thread?"
     },
     {
@@ -210,10 +210,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -14128,
-        8480
+        -12176,
+        8656
       ],
-      "id": "a240ad25-d0d3-4145-8f71-4208f114950d",
+      "id": "429540d2-daa5-41a6-a7d5-afb7f0bd216d",
       "name": "Set Inference Start"
     },
     {
@@ -226,10 +226,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -13904,
-        8704
+        -11952,
+        8880
       ],
-      "id": "b3830af9-38ca-4823-aeaf-3f69f9fbcbbb",
+      "id": "4001511d-daf5-4ead-bebe-5a1b407b776a",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -248,10 +248,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -13776,
-        8704
+        -11824,
+        8880
       ],
-      "id": "62c5b00c-5d5f-4d92-b310-20d781489559",
+      "id": "eb30bac3-5291-4714-9143-d3b834b73d4f",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -279,10 +279,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -13328,
-        8288
+        -11376,
+        8464
       ],
-      "id": "a8a05c84-8e30-4c11-a2a1-5a0bc90c204f",
+      "id": "575a7cc8-6f9b-4b97-b863-52925a82c0a0",
       "name": "Log to #kairon-logs",
       "webhookId": "log-classification",
       "credentials": {
@@ -299,10 +299,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -13552,
-        8480
+        -11600,
+        8656
       ],
-      "id": "a86cd2b6-7414-475d-af6c-6860187e6a4b",
+      "id": "a342b239-9c43-4348-b700-7beb6b9e97b1",
       "name": "Prepare Trace Data"
     },
     {
@@ -310,16 +310,16 @@
         "operation": "executeQuery",
         "query": "INSERT INTO traces (\n    event_id, \n    step_name, \n    step_order, \n    data, \n    trace_chain\n)\nVALUES (\n    $1::uuid,\n    'intent_classification',\n    1,\n    jsonb_build_object(\n        'input', jsonb_build_object(\n            'text', $2\n        ),\n        'prompt', $3,\n        'completion', $4,\n        'result', jsonb_build_object(\n            'intent', $5,\n            'confidence', $6::numeric,\n            'all_scores', $7::jsonb\n        ),\n        'model', 'xiaomi/mimo-v2-flash:free',\n        'duration_ms', $8::integer\n    ),\n    $9::uuid[]\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_intent }},={{ $json.result_confidence }},={{ JSON.stringify($json.result_all_scores) }},={{ $json.duration_ms }},={{ JSON.stringify($json.event.trace_chain) }}"
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_intent }},={{ $json.result_confidence }},={{ JSON.stringify($json.result_all_scores) }},={{ $json.duration_ms }},={{ '{' + ($json.event.trace_chain || []).join(',') + '}' }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -13328,
-        8480
+        -11376,
+        8656
       ],
-      "id": "8814244c-b09e-48f3-9dba-b5f2137f4810",
+      "id": "abd1014d-ffa9-4e89-b499-e5c464ec0351",
       "name": "Write Intent Classification Trace",
       "alwaysOutputData": true,
       "credentials": {
@@ -336,7 +336,7 @@
             {
               "id": "add-intent-to-event",
               "name": "event",
-              "value": "={{ Object.assign({}, $(\"Prepare Trace Data\").item.json.event, { trace_chain: [...$(\"Prepare Trace Data\").item.json.event.trace_chain, $(\"Write Intent Classification Trace\").item.json.id] }) }}",
+              "value": "={{ {\n...$json.event,\n} }}",
               "type": "object"
             }
           ]
@@ -346,10 +346,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -13328,
-        8672
+        -11376,
+        8848
       ],
-      "id": "1698ab04-d938-47de-9ccd-71723431df20",
+      "id": "1864fdf2-19e5-4533-9434-fc7c01c37d29",
       "name": "Add Intent to Event"
     },
     {
@@ -480,13 +480,13 @@
         },
         "options": {}
       },
-      "id": "e992df1e-b97b-4c6f-abff-cc3712a0fe75",
+      "id": "52b76dff-86bf-4376-896a-ffd61ade887b",
       "name": "Route by Intent",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -13104,
-        8240
+        -11152,
+        8416
       ]
     },
     {
@@ -525,10 +525,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -12880,
-        8192
+        -10928,
+        8368
       ],
-      "id": "ca87a559-01e0-47a7-91fc-a02804ab0669",
+      "id": "376c8c1a-01a8-431d-8697-19e26a8b244d",
       "name": "Save Note"
     },
     {
@@ -567,10 +567,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -12880,
-        8384
+        -10928,
+        8560
       ],
-      "id": "5a96e04d-22e2-437e-aa8a-17e7fbfb6fc8",
+      "id": "4f5dbc85-1925-42ca-9d48-7cfdb8bc862f",
       "name": "Start Chat"
     },
     {
@@ -609,10 +609,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -12880,
-        8576
+        -10928,
+        8752
       ],
-      "id": "0b4611eb-53d5-4cac-9a9e-6a5ae95ebfba",
+      "id": "be0f00ad-4e2f-4338-bfef-8816cee4777f",
       "name": "Execute Command"
     },
     {
@@ -626,10 +626,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        -12656,
-        8384
+        -10704,
+        8560
       ],
-      "id": "706a6543-d603-4bd2-9660-2ef670578115",
+      "id": "7670a683-7d81-4130-b671-1eec179d3872",
       "name": "Remove 🔵 Reaction",
       "retryOnFail": true,
       "maxTries": 3,
@@ -677,10 +677,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -14128,
-        7856
+        -12176,
+        8032
       ],
-      "id": "5e19d6d5-78fc-4a26-81fe-915483989449",
+      "id": "c2a931b5-275e-4fbc-bd3c-4ad40bfcca18",
       "name": "Continue Chat"
     },
     {
@@ -720,10 +720,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -12880,
-        8000
+        -10928,
+        8176
       ],
-      "id": "f814b6cc-d011-4cc7-8057-f95e536a123f",
+      "id": "331f40a5-4b02-4eb1-a7f2-4d1f24ed3489",
       "name": "Save Activity"
     },
     {
@@ -762,10 +762,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -14128,
-        7664
+        -12176,
+        7840
       ],
-      "id": "13360fe2-262b-4b4a-a3ff-155a6f759e33",
+      "id": "15a4061b-cde3-4fce-89b9-8d2864c1ad53",
       "name": "Save Chat"
     },
     {
@@ -778,10 +778,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        -13904,
-        8480
+        -11952,
+        8656
       ],
-      "id": "f816cae4-a7f5-4f12-bf1c-54099451c688",
+      "id": "1e9d62f5-930f-4c71-811f-6ce6447ecbca",
       "name": "Intent Classifier"
     },
     {
@@ -812,10 +812,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -14352,
-        7760
+        -12400,
+        7936
       ],
-      "id": "fa84d6b8-d9d5-4d48-be19-200fe0f65eb4",
+      "id": "aebd154b-14e4-4927-b668-9adf8d7107f4",
       "name": "Tag is --"
     }
   ],
