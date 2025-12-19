@@ -223,7 +223,7 @@ CREATE INDEX idx_traces_data ON traces USING gin(data);
 }
 ```
 
-**Important:** Tag detection (!!, .., ++, ::) is deterministic and happens BEFORE trace creation. Tags are not stored as traces.
+**Important:** Shortcut detection (!!, .., ++, ::) is deterministic and happens BEFORE trace creation. Shortcuts are not stored as traces.
 
 **Trace Chaining:**
 - `parent_trace_id` links traces into a chain
@@ -395,24 +395,24 @@ CREATE INDEX idx_embeddings_vector ON embeddings USING hnsw (embedding vector_co
 
 **Goal:** Extract ALL present items (activity, note, todo) from a single message.
 
-**Direct Capture with Tag (!! activity):**
+**Direct Capture with Shortcut (!! activity):**
 ```
 1. Event: discord_message with "!! working on router"
-2. Tag detection (deterministic, pre-trace): Detected '!!' → Skip to activity extraction
-3. Trace 1: Activity extraction ONLY (LLM respects tag override)
-   → Extracts: activity (ignores potential notes/todos due to tag)
+2. Shortcut detection (deterministic, pre-trace): Detected '!!' → Skip to activity extraction
+3. Trace 1: Activity extraction ONLY (LLM respects shortcut)
+   → Extracts: activity (ignores potential notes/todos due to shortcut)
 4. Projection created:
    - activity, status='auto_confirmed'
 ```
 
-**Tag as Hard Override:**
-- `!!` → Extract ONLY activity (skip multi-extraction)
-- `..` → Extract ONLY note (skip multi-extraction)
-- `++` → Thread start ONLY (no extraction)
-- `::` → Command ONLY (no extraction)
-- No tag → Multi-extraction (all types)
-
-**Untagged Message (Multi-extraction):**
+**Tag Shortcuts:**
+```javascript
+// Shortcuts skip multi-extraction, go straight to handler
+!! → Extract ONLY activity (no notes/todos)
+.. → Extract ONLY note (no activities/todos)
+++ → Thread start ONLY (no extraction)
+:: → Command ONLY (no extraction)
+(no tag) → Multi-extraction (all types)
 ```
 1. Event: discord_message with "working on router. realized error handling needs improvement"
 2. No tag detected

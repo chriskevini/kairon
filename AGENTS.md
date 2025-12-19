@@ -208,9 +208,9 @@ const webhookPath = $env.WEBHOOK_PATH;
 // - Extract on thread save only
 ```
 
-**Tag as Hard Override:**
+**Tag Shortcuts:**
 ```javascript
-// Tags skip multi-extraction, go straight to handler
+// Shortcuts skip multi-extraction, go straight to handler
 !! → Extract ONLY activity (no notes/todos)
 .. → Extract ONLY note (no activities/todos)
 ++ → Thread start ONLY (no extraction)
