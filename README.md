@@ -94,9 +94,9 @@ After routing, Kairon reacts to your message:
 
 ### ⚠️ MIGRATION IN PROGRESS
 
-**Current state:** Transitioning to Event-Trace-Projection architecture (see `docs/simplified-extensible-schema.md`)
+**Current state:** ✅ **Phase 3 Complete** - Data migrated to Event-Trace-Projection architecture (see `docs/simplified-extensible-schema.md`)
 
-**New 4-table schema (Migration 006 - pending):**
+**New 4-table schema (Migration 006 - ✅ COMPLETE):**
 1. **`events`** - Immutable event log (replaces raw_events)
 2. **`traces`** - LLM reasoning chains (replaces routing_decisions, adds multi-step support)
 3. **`projections`** - Structured outputs (replaces activity_log, notes, todos, thread_extractions)
