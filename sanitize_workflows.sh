@@ -1,11 +1,14 @@
 #!/bin/bash
 # Sanitize n8n workflow exports by removing pinData and sensitive IDs
 
+# Create backup directory if it doesn't exist
+mkdir -p ./backup/n8n-workflows
+
 for file in n8n-workflows/*.json; do
   echo "Sanitizing $file..."
   
-  # Create backup
-  cp "$file" "$file.backup"
+  # Create backup in central folder
+  cp "$file" "./backup/$file"
   
   # Remove pinData section (test execution data with real IDs)
   jq 'del(.pinData)' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
@@ -15,9 +18,4 @@ done
 
 echo ""
 echo "✅ Sanitization complete!"
-echo "Backups saved as *.backup"
-echo ""
-echo "⚠️  Manual steps required:"
-echo "1. In n8n UI, update webhook paths to use: {{ \$env.WEBHOOK_PATH }}"
-echo "2. Update Discord channel IDs to use environment variables"
-echo "3. Re-export workflows after making these changes"
+echo "Backups saved in backup folder"
