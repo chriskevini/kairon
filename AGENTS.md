@@ -126,84 +126,136 @@ const webhookPath = $env.WEBHOOK_PATH;
 
 ## Database Schema
 
-### Schema Location
+### ⚠️ IMPORTANT: Migration in Progress
 
-- **Primary schema:** `db/migrations/001_initial_schema.sql`
-- **Static categories:** `db/migrations/002_static_categories.sql`
-- **2-category notes:** `db/migrations/002c_fix_note_categories.sql`
-- **Seed data:** `db/seeds/001_initial_data.sql`
+**Current state:** Transitioning from legacy schema to Event-Trace-Projection architecture (see `docs/simplified-extensible-schema.md`)
 
-### Key Tables
+**Target schema (Migration 006):**
+- **`events`** - Immutable event log (replaces raw_events)
+- **`traces`** - LLM reasoning chains (replaces routing_decisions, adds multi-step support)
+- **`projections`** - Structured outputs (replaces activity_log, notes, todos, thread_extractions)
+- **`embeddings`** - Vector embeddings for RAG (new table, unpopulated initially)
 
-1. **`raw_events`** - Append-only event log (never delete)
-2. **`routing_decisions`** - Tracks LLM classification decisions
-3. **`activity_log`** - Point-in-time activity observations (uses `activity_category` enum)
-4. **`notes`** - Captured insights/thoughts (uses `note_category` enum)
-5. **`conversations`** - Thread metadata
-6. **`conversation_messages`** - Thread message history
-7. **`user_state`** - Current user state (sleeping, last_observation_at)
-8. **`config`** - Key-value configuration (north_star, etc.)
+**Legacy schema (still active):**
+- `raw_events`, `routing_decisions`, `activity_log`, `notes`, `todos`, `conversations`, `thread_messages`, `user_state`, `config`
 
-### Category System
+### Schema Locations
 
-**After migration 002/002c:**
+- **Current schema:** `db/migrations/001-005_*.sql`
+- **New architecture design:** `docs/simplified-extensible-schema.md`
+- **Migration 006 (pending):** `db/migrations/006_events_traces_projections.sql`
 
-Categories are now **static enums** (no more dynamic tables):
+### New Architecture: Event-Trace-Projection Pattern
 
-```sql
--- Activity categories (7 types)
-CREATE TYPE activity_category AS ENUM (
-  'work', 'leisure', 'study', 'health', 'sleep', 'relationships', 'admin'
-);
+**Core Principle:** Separate "The Truth" (events) from "The Interpretation" (traces + projections)
 
--- Note categories (2 types)
-CREATE TYPE note_category AS ENUM (
-  'fact',        -- External knowledge (birthdays, preferences, facts about people)
-  'reflection'   -- Internal knowledge (insights, decisions, observations)
-);
-```
+**4-Table Structure:**
 
-**Why 2 note categories?**
-- Clear semantic boundary: external vs internal knowledge
-- Optimal for RAG (pre-filter by category, then semantic search)
-- Enables cross-type queries (facts × todos, reflections × activities)
-- No collision with threads (questions) or todos (ideas)
+1. **`events`** - Immutable facts (Discord messages, reactions, corrections, cron)
+   - All events MUST have idempotency_key (never null)
+   - Event types: discord_message, user_correction, thread_save, cron_trigger, etc.
+   - Payload stored as JSONB (flexible schema)
+
+2. **`traces`** - LLM reasoning chains (multi-step, cancellable)
+   - Links: event_id (source) + parent_trace_id (chain structure)
+   - All LLM data in JSONB: result, prompt, confidence, duration_ms
+   - Supports voiding/correction via voided_at + superseded_by_trace_id
+
+3. **`projections`** - Structured outputs (activities, notes, todos, thread_extractions)
+   - References: trace_id + event_id + trace_chain (full audit trail)
+   - Categories stored as strings in JSONB (no enums = no migrations)
+   - Status lifecycle: pending → auto_confirmed/confirmed → voided
+   - Correction tracking: superseded_by_projection_id, voided_reason
+
+4. **`embeddings`** - Vector embeddings for RAG (unpopulated initially)
+   - One-to-many with projections (multi-model support)
+   - Easy model upgrades without touching projections
+
+**Key Design Decisions:**
+
+- **JSONB-first:** All LLM output in JSONB, minimal fixed columns
+- **No category enums:** Categories hardcoded in n8n prompts (easy iteration)
+- **Tag detection ≠ trace:** Tags (!!, .., ++, ::) are deterministic, happen before traces
+- **Multi-extraction:** Single LLM call extracts all types (activity + note + todo)
+- **Progressive feedback:** Single message with emoji updates (🛑 → 🕒 → ✅ → 🔄)
+- **Correction without deletion:** Void old projection, create new one, keep audit trail
+
+### Category System (Hardcoded in Prompts, Not DB)
+
+**Activity categories:** work, leisure, study, health, sleep, relationships, admin
+**Note categories:** fact (external knowledge), reflection (internal knowledge)
+
+**Why hardcoded in prompts instead of enums?**
+- ✅ No migrations when adding categories
+- ✅ Fast iteration on category definitions
+- ✅ Categories stored as strings in JSONB
+- ✅ Can migrate to DB table later if iteration speed becomes bottleneck
 
 ### Important Patterns
 
-**Use enums directly, not IDs:**
-```sql
--- ❌ Old way (before migration 002)
-WHERE category_id = (SELECT id FROM activity_categories WHERE name = 'work')
+**Root Channel vs Threads (Critical Distinction):**
+```javascript
+// Root channel (#arcane-shell): Immediate multi-extraction
+// - Atomic messages (no context needed)
+// - Extract ALL types: activity + note + todo
+// - Time-sensitive (accurate timestamps)
+// - Single LLM call per message
 
--- ✅ New way (after migration 002)
-WHERE category = 'work'::activity_category
+// Threads: Extract once on save
+// - Long conversations (full context needed)
+// - NO continuous extraction (spammy, inaccurate)
+// - NO activities extracted (not time-sensitive)
+// - Extract on thread save only
 ```
 
-**Note category examples:**
-```sql
--- Get all facts about people
-SELECT * FROM notes WHERE category = 'fact';
-
--- Get reflections about productivity
-SELECT * FROM notes 
-WHERE category = 'reflection' 
-  AND text ILIKE '%productivity%';
+**Tag as Hard Override:**
+```javascript
+// Tags skip multi-extraction, go straight to handler
+!! → Extract ONLY activity (no notes/todos)
+.. → Extract ONLY note (no activities/todos)
+++ → Thread start ONLY (no extraction)
+:: → Command ONLY (no extraction)
+(no tag) → Multi-extraction (all types)
 ```
 
-**Use views for common queries:**
+**Idempotency (events table):**
 ```sql
--- ✅ Use existing views
-SELECT * FROM recent_activities;
-SELECT * FROM recent_notes;
-```
-
-**Maintain idempotency:**
-```sql
--- ✅ Always use ON CONFLICT for raw_events
-INSERT INTO raw_events (...)
-ON CONFLICT (discord_message_id) DO NOTHING
+-- ✅ Always use ON CONFLICT for events
+INSERT INTO events (event_type, source, payload, idempotency_key)
+VALUES ('discord_message', 'discord', $1, $2)
+ON CONFLICT (event_type, idempotency_key) DO NOTHING
 RETURNING *;
+```
+
+**Query projections (exclude voided):**
+```sql
+-- ✅ Show only valid activities
+SELECT * FROM projections
+WHERE projection_type = 'activity'
+  AND status IN ('auto_confirmed', 'confirmed')
+  AND data->>'category' = 'work'
+ORDER BY (data->>'timestamp')::timestamptz DESC;
+
+-- ✅ Show recent notes
+SELECT * FROM projections
+WHERE projection_type = 'note'
+  AND status IN ('auto_confirmed', 'confirmed')
+ORDER BY created_at DESC;
+```
+
+**Trace chains (audit trail):**
+```sql
+-- ✅ Get full reasoning chain for a projection
+SELECT t.* FROM traces t
+WHERE t.id = ANY((SELECT trace_chain FROM projections WHERE id = $1));
+
+-- ✅ Find corrections
+SELECT 
+  p_old.data->>'category' as old_category,
+  p_new.data->>'category' as new_category
+FROM projections p_old
+JOIN projections p_new ON p_old.superseded_by_projection_id = p_new.id
+WHERE p_old.voided_reason = 'user_correction';
 ```
 
 ---

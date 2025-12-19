@@ -92,144 +92,97 @@ After routing, Kairon reacts to your message:
 
 ## 3) Database (PostgreSQL) — "The Ledger"
 
-### 3.1 Raw Ingest (append-only, mandatory)
+### ⚠️ MIGRATION IN PROGRESS
 
-**Table: `raw_events`**
+**Current state:** Transitioning to Event-Trace-Projection architecture (see `docs/simplified-extensible-schema.md`)
+
+**New 4-table schema (Migration 006 - pending):**
+1. **`events`** - Immutable event log (replaces raw_events)
+2. **`traces`** - LLM reasoning chains (replaces routing_decisions, adds multi-step support)
+3. **`projections`** - Structured outputs (replaces activity_log, notes, todos, thread_extractions)
+4. **`embeddings`** - Vector embeddings for RAG (unpopulated initially)
+
+**Key architectural shift:** Categories stored as strings in JSONB (no enums = no future migrations)
+
+See `docs/simplified-extensible-schema.md` for complete migration plan.
+
+---
+
+### 3.1 New Schema Overview (Target State)
+
+**Table: `events` (Immutable Facts)**
 ```sql
-CREATE TABLE raw_events (
+CREATE TABLE events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  source_type TEXT NOT NULL, -- 'discord' | 'cron'
-  
-  -- Discord metadata (nullable for cron)
-  discord_guild_id TEXT,
-  discord_channel_id TEXT,
-  discord_message_id TEXT UNIQUE, -- idempotency
-  message_url TEXT,
-  author_login TEXT,
-  thread_id TEXT,
-  
-  -- Content
-  raw_text TEXT NOT NULL,
-  clean_text TEXT NOT NULL, -- tag stripped
-  tag TEXT, -- '!!', '++', '::', or null
-  
-  -- Additional
-  metadata JSONB -- attachments, etc.
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  event_type TEXT NOT NULL,  -- 'discord_message', 'user_correction', 'thread_save', 'cron_trigger'
+  source TEXT NOT NULL,       -- 'discord', 'system', 'fitbit'
+  payload JSONB NOT NULL,     -- All event data (flexible schema)
+  idempotency_key TEXT NOT NULL,  -- REQUIRED (never null)
+  metadata JSONB DEFAULT '{}'::jsonb,
+  UNIQUE (event_type, idempotency_key)
 );
-
-CREATE INDEX idx_raw_events_received_at ON raw_events(received_at);
-CREATE INDEX idx_raw_events_thread_id ON raw_events(thread_id) WHERE thread_id IS NOT NULL;
 ```
 
-**Why:** Debugging, replay, citations, resilience.
-
-### 3.2 Routing Decisions (separate from raw events)
-
-**Table: `routing_decisions`**
+**Table: `traces` (AI Reasoning Chain)**
 ```sql
-CREATE TABLE routing_decisions (
+CREATE TABLE traces (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  raw_event_id UUID UNIQUE NOT NULL REFERENCES raw_events(id),
-  intent TEXT NOT NULL, -- 'Activity', 'Note', 'ThreadStart', 'Commit', 'Command'
-  forced_by TEXT NOT NULL, -- 'tag' | 'rule' | 'agent'
-  confidence NUMERIC, -- 0.0-1.0 (for agent classifications)
-  payload JSONB, -- agent reasoning, tool calls, etc.
-  routed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  parent_trace_id UUID NULL REFERENCES traces(id) ON DELETE CASCADE,
+  step_name TEXT NOT NULL,    -- 'multi_extraction', 'thread_summarization'
+  step_order INT NOT NULL,    -- 1, 2, 3... for ordering
+  data JSONB NOT NULL,        -- All LLM data: result, prompt, confidence, duration_ms
+  voided_at TIMESTAMPTZ NULL,
+  superseded_by_trace_id UUID NULL REFERENCES traces(id)
 );
-
-CREATE INDEX idx_routing_decisions_raw_event ON routing_decisions(raw_event_id);
 ```
 
-**Why:** Keep raw_events pure, make routing auditable.
-
-### 3.3 Categories (user-editable)
-
-**Table: `activity_categories`**
+**Table: `projections` (Structured Outputs)**
 ```sql
-CREATE TABLE activity_categories (
+CREATE TABLE projections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT UNIQUE NOT NULL,
-  active BOOLEAN NOT NULL DEFAULT true,
-  is_sleep_category BOOLEAN NOT NULL DEFAULT false,
-  sort_order INT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  trace_id UUID NOT NULL REFERENCES traces(id) ON DELETE CASCADE,
+  event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  trace_chain UUID[] NOT NULL,  -- Full audit trail: ['trace-1', 'trace-2', 'trace-3']
+  projection_type TEXT NOT NULL,  -- 'activity', 'note', 'todo', 'thread_extraction'
+  data JSONB NOT NULL,  -- category, description, timestamp, etc. (flexible schema)
+  status TEXT NOT NULL DEFAULT 'pending',  -- 'pending', 'auto_confirmed', 'confirmed', 'voided'
+  voided_at TIMESTAMPTZ NULL,
+  voided_reason TEXT NULL,  -- 'user_correction', 'user_rejected', 'duplicate'
+  superseded_by_projection_id UUID NULL REFERENCES projections(id)
 );
-
--- Seed data
-INSERT INTO activity_categories (name, is_sleep_category) VALUES
-  ('work', false),
-  ('leisure', false),
-  ('study', false),
-  ('relationships', false),
-  ('sleep', true),
-  ('health', false);
 ```
 
-**Table: `note_categories`**
+**Why this architecture?**
+- ✅ Re-process old events with better AI models (semantic replay)
+- ✅ Full audit trail (every projection traces back to source event)
+- ✅ No migrations when adding categories (stored as JSONB strings)
+- ✅ User corrections without data loss (void old, create new)
+- ✅ Multi-step LLM chains with cancellation support
+
+---
+
+### 3.2 Legacy Schema (Still Active)
+
+**Current tables (will be migrated in Phase 1):**
+
+- **`raw_events`** → will become `events`
+- **`routing_decisions`** → will become `traces` (single-step)
+- **`activity_log`** → will become `projections` (projection_type='activity')
+- **`notes`** → will become `projections` (projection_type='note')
+- **`todos`** → will become `projections` (projection_type='todo')
+- **`thread_extractions`** → will become `projections` (projection_type='thread_extraction')
+- **`conversations`** - Thread metadata (kept as-is)
+- **`thread_messages`** - Thread message history (kept as-is)
+- **`user_state`** - Current user state (kept as-is)
+- **`config`** - Key-value configuration (kept as-is)
+
+**Legacy enums (will be replaced with JSONB strings):**
 ```sql
-CREATE TABLE note_categories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT UNIQUE NOT NULL,
-  active BOOLEAN NOT NULL DEFAULT true,
-  sort_order INT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Seed data
-INSERT INTO note_categories (name) VALUES
-  ('idea'),
-  ('reflection'),
-  ('decision'),
-  ('question'),
-  ('meta');
+activity_category AS ENUM ('work', 'leisure', 'study', 'health', 'sleep', 'relationships', 'admin')
+note_category AS ENUM ('fact', 'reflection')
 ```
-
-**Why:** User can rename/add categories without breaking history (FK by ID).
-
-### 3.4 Activities (point-in-time observations)
-
-**Table: `activity_log`**
-```sql
-CREATE TABLE activity_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  raw_event_id UUID NOT NULL REFERENCES raw_events(id),
-  timestamp TIMESTAMPTZ NOT NULL,
-  category_id UUID NOT NULL REFERENCES activity_categories(id),
-  description TEXT NOT NULL,
-  thread_id TEXT, -- if created from thread commit
-  confidence NUMERIC, -- agent confidence
-  metadata JSONB
-);
-
-CREATE INDEX idx_activity_log_timestamp ON activity_log(timestamp);
-CREATE INDEX idx_activity_log_category ON activity_log(category_id);
-CREATE INDEX idx_activity_log_thread ON activity_log(thread_id) WHERE thread_id IS NOT NULL;
-```
-
-**No duration fields.** Durations derived later via sessionization.
-
-### 3.5 Notes
-
-**Table: `notes`**
-```sql
-CREATE TABLE notes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  raw_event_id UUID NOT NULL REFERENCES raw_events(id),
-  timestamp TIMESTAMPTZ NOT NULL,
-  category_id UUID NOT NULL REFERENCES note_categories(id),
-  title TEXT,
-  text TEXT NOT NULL,
-  thread_id TEXT, -- if created from thread commit
-  metadata JSONB
-);
-
-CREATE INDEX idx_notes_timestamp ON notes(timestamp);
-CREATE INDEX idx_notes_category ON notes(category_id);
-CREATE INDEX idx_notes_thread ON notes(thread_id) WHERE thread_id IS NOT NULL;
-```
-
-**Questions stored as notes** with `category='question'`.
 
 ### 3.6 User State (single user)
 
@@ -270,9 +223,9 @@ CREATE INDEX idx_conversations_thread_id ON conversations(thread_id);
 CREATE INDEX idx_conversations_status ON conversations(status);
 ```
 
-**Table: `conversation_messages`**
+**Table: `thread_messages`**
 ```sql
-CREATE TABLE conversation_messages (
+CREATE TABLE thread_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES conversations(id),
   raw_event_id UUID REFERENCES raw_events(id),
@@ -281,7 +234,7 @@ CREATE TABLE conversation_messages (
   text TEXT NOT NULL
 );
 
-CREATE INDEX idx_conversation_messages_conv ON conversation_messages(conversation_id, timestamp);
+CREATE INDEX idx_thread_messages_conv ON thread_messages(conversation_id, timestamp);
 ```
 
 ### 3.8 Configuration
@@ -503,7 +456,7 @@ For subsequent messages:
 **Memory:** Window Buffer (last 10 messages)
 
 **Storage:**
-- Full conversation also stored in `conversation_messages` (audit trail)
+- Full conversation also stored in `thread_messages` (audit trail)
 - n8n memory is just for agent context window
 
 ### 6.3 Thread Title Refinement
@@ -622,7 +575,7 @@ Requesting current activity status... Reply with: `!! <what you're doing>`
 ## 9) Implementation Phases
 
 ### Phase 0 — Foundations ✅
-- PostgreSQL tables (raw_events, routing_decisions, categories, activity_log, notes, user_state, conversations, conversation_messages, config)
+- PostgreSQL tables (raw_events, routing_decisions, categories, activity_log, notes, user_state, conversations, thread_messages, config)
 - Discord channels: `#arcane-shell`, `#obsidian-board`, `#kairon-log`
 - Webhook relay setup (message_id, channel_id, guild_id, thread_id, content, timestamp)
 
@@ -842,7 +795,7 @@ Thread_Agent (when implemented):
   8. n8n: PATCH thread title
   9. Calls retrieve_recent_activities(timeframe='yesterday')
   9. Responds: "Yesterday you worked on: authentication refactor (3h), code review (1h)..."
-  10. Store to conversation_messages
+  10. Store to thread_messages
   11. Post to Discord thread
   12. React with 💭
 ```
@@ -856,7 +809,7 @@ Router:
   2. In thread + tag='++' → Execute Commit_Thread
 
 Commit_Thread:
-  3. Load all conversation_messages for thread
+  3. Load all thread_messages for thread
   4. LLM call: summarize → JSON (note + activity)
   5. Write to notes (category='reflection', title='Work priorities analysis')
   6. Write to activity_log (category='work', description='Thinking session: work priorities')

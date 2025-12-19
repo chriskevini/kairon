@@ -235,7 +235,7 @@
           "value": "ZQCULmYAVMN7I6ww",
           "mode": "list",
           "cachedResultUrl": "/workflow/ZQCULmYAVMN7I6ww",
-          "cachedResultName": "Save_Activity"
+          "cachedResultName": "Activity_Handler"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -278,7 +278,7 @@
           "value": "nsLfmVGA6NeCJJRu",
           "mode": "list",
           "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
-          "cachedResultName": "Start_Chat"
+          "cachedResultName": "Thread_Handler"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -351,7 +351,7 @@
           "value": "e78T3OMl6pDxTb13",
           "mode": "list",
           "cachedResultUrl": "/workflow/e78T3OMl6pDxTb13",
-          "cachedResultName": "Continue_Chat"
+          "cachedResultName": "Thread_Continuation_Agent"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -476,7 +476,7 @@
           "value": "7Qq2qMUBmnyAhLxg",
           "mode": "list",
           "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
-          "cachedResultName": "Save_Note"
+          "cachedResultName": "Note_Handler"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -567,7 +567,7 @@
           "value": "v6t7HCxr2OOXvb2z",
           "mode": "list",
           "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
-          "cachedResultName": "Execute_Command"
+          "cachedResultName": "Command_Handler"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -610,7 +610,7 @@
             {
               "id": "0eccc231-bed6-4ca0-a35e-62e7a6da63ed",
               "name": "tag",
-              "value": "={{ (() => {\n  const content = $('Discord Webhook').item.json.body.content;\n  // Check for command tag (::) - doesn't require space after\n  if (content.startsWith('::')) {\n    return '::';\n  }\n  // Check for other tags at position 0 with whitespace or EOL after\n  const tagMatch = content.match(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|\\$\\$|todo)(\\s+|$)/i);\n  if (tagMatch) {\n    // Normalize word alternatives to symbols\n    const tag = tagMatch[1].toLowerCase();\n    if (tag === 'act') return '!!';\n    if (tag === 'note') return '..';\n    if (tag === 'chat') return '++';\n    if (tag === 'save') return '--';\n    if (tag === 'todo' || tag === '$$') return '$$';\n    return tagMatch[1];  // Return symbol as-is\n  }\n  return null;\n})() }}",
+              "value": "={{ (() => {\n  const content = $('Discord Webhook').item.json.body.content;\n  // Check for tags at position 0 with whitespace or EOL after\n  const tagMatch = content.match(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|::|cmd|\\$\\$|todo)(\\s+|$)/i);\n  if (tagMatch) {\n    // Normalize word alternatives to symbols\n    const tag = tagMatch[1].toLowerCase();\n    if (tag === 'act') return '!!';\n    if (tag === 'note') return '..';\n    if (tag === 'chat') return '++';\n    if (tag === 'save') return '--';\n    if (tag === 'cmd' || tag === '::') return '::';\n    if (tag === 'todo' || tag === '$$') return '$$';\n    return tagMatch[1];  // Return symbol as-is\n  }\n  return null;\n})() }}",
               "type": "string"
             }
           ]
@@ -1069,6 +1069,6 @@
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
-  },
-  "name": "Route_Message"
+  }
 }
+
