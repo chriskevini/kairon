@@ -2,50 +2,83 @@
   "nodes": [
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO events (\n  event_type,\n  source,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  'discord',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;",
-        "options": {
-          "queryReplacement": "={{ $json.event.guild_id }},={{ $json.event.channel_id }},={{ $json.event.message_id }},={{ $json.event.message_url }},={{ $json.event.author_login }},={{ $json.event.thread_id }},={{ $json.event.raw_text }},={{ $json.event.clean_text }},={{ $json.event.tag }},"
-        }
+        "inputSource": "passthrough"
       },
-      "id": "a3ccfda7-2005-462f-be4a-50f0f93591b0",
-      "name": "Store Event",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
       "position": [
-        -12592,
-        7216
+        -480,
+        240
       ],
-      "alwaysOutputData": true,
+      "id": "trigger-node",
+      "name": "Receive Event"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "react",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.event.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $json.event.message_id }}",
+        "emoji": "=🔵"
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        240
+      ],
+      "id": "react-processing",
+      "name": "React with 🔵",
+      "webhookId": "react-processing",
       "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
         }
       }
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
             {
-              "id": "add-event-id",
-              "name": "event",
-              "value": "={{ Object.assign({}, $('Build Event Object').item.json.event, { event_id: $json.id }) }}",
-              "type": "object"
+              "id": "has-tag",
+              "leftValue": "={{ $json.event.tag }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
             }
-          ]
+          ],
+          "combinator": "and"
         },
         "options": {}
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
       "position": [
-        -12368,
-        7216
+        -32,
+        240
       ],
-      "id": "b82263d3-fbe4-4732-800b-40728d0878a2",
-      "name": "Add Event ID"
+      "id": "check-tag",
+      "name": "Has Tag?"
     },
     {
       "parameters": {
@@ -56,34 +89,57 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 },
                 "conditions": [
                   {
+                    "id": "tag-activity",
                     "leftValue": "={{ $json.event.tag }}",
                     "rightValue": "!!",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    },
-                    "id": "c10146f0-bf28-4ff8-9478-df57f6a70ad0"
+                    }
                   }
                 ],
                 "combinator": "and"
-              }
+              },
+              "renameOutput": true,
+              "outputKey": "activity"
             },
             {
               "conditions": {
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 },
                 "conditions": [
                   {
-                    "id": "605cd974-50d7-474b-9b9c-719e1e880f6b",
+                    "id": "tag-note",
+                    "leftValue": "={{ $json.event.tag }}",
+                    "rightValue": "..",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "note"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "tag-chat",
                     "leftValue": "={{ $json.event.tag }}",
                     "rightValue": "++",
                     "operator": {
@@ -93,19 +149,20 @@
                   }
                 ],
                 "combinator": "and"
-              }
+              },
+              "renameOutput": true,
+              "outputKey": "chat"
             },
             {
               "conditions": {
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 },
                 "conditions": [
                   {
-                    "id": "d353c1c1-cb81-4bfd-ba4b-f93c94d890f1",
+                    "id": "tag-command",
                     "leftValue": "={{ $json.event.tag }}",
                     "rightValue": "::",
                     "operator": {
@@ -115,42 +172,43 @@
                   }
                 ],
                 "combinator": "and"
-              }
+              },
+              "renameOutput": true,
+              "outputKey": "command"
             },
             {
               "conditions": {
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 },
                 "conditions": [
                   {
-                    "id": "3b33f54e-2b45-4471-940c-eabe0299142c",
+                    "id": "tag-save",
                     "leftValue": "={{ $json.event.tag }}",
-                    "rightValue": "..",
+                    "rightValue": "--",
                     "operator": {
                       "type": "string",
-                      "operation": "equals",
-                      "name": "filter.operator.equals"
+                      "operation": "equals"
                     }
                   }
                 ],
                 "combinator": "and"
-              }
+              },
+              "renameOutput": true,
+              "outputKey": "save"
             },
             {
               "conditions": {
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
+                  "typeValidation": "strict"
                 },
                 "conditions": [
                   {
-                    "id": "todo-condition",
+                    "id": "tag-todo",
                     "leftValue": "={{ $json.event.tag }}",
                     "rightValue": "$$",
                     "operator": {
@@ -160,49 +218,21 @@
                   }
                 ],
                 "combinator": "and"
-              }
+              },
+              "renameOutput": true,
+              "outputKey": "todo"
             }
           ]
         },
         "options": {}
       },
-      "id": "c4d0e42e-b172-4e1a-a33d-7f6ef2d0ea81",
-      "name": "Check Tag",
+      "id": "route-by-tag",
+      "name": "Route by Tag",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -11920,
-        7440
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## Thread Message Path\n",
-        "height": 416,
-        "width": 480
-      },
-      "id": "91fcad17-8ec5-4224-8134-04df24ed5ac7",
-      "name": "Thread Path Note",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -12000,
-        6768
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## Main Channel Path\n",
-        "height": 736,
-        "width": 480
-      },
-      "id": "15a31cc3-6e2a-4411-81f0-154d2de06bff",
-      "name": "Main Path Note",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -12000,
-        7216
+        192,
+        144
       ]
     },
     {
@@ -216,7 +246,7 @@
           },
           "conditions": [
             {
-              "id": "91cb07bc-c96e-4220-abdb-05844ba93f75",
+              "id": "in-thread",
               "leftValue": "={{ $json.event.thread_id }}",
               "rightValue": "",
               "operator": {
@@ -233,171 +263,27 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -12144,
-        7216
+        192,
+        336
       ],
-      "id": "2982cc89-1daf-4aec-8edb-f68452ee7eb1",
-      "name": "If in Thread"
+      "id": "check-thread",
+      "name": "In Thread?"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n**Examples:**\n- \"working with the API\" → !! (I am doing this)\n- \"the API is fast\" → .. (observation about the API)\n- \"meeting with Sarah\" → !! (I am doing this)\n- \"Sarah prefers morning meetings\" → .. (fact about Sarah)\n- \"debugging the parser\" → !! (I am doing this)\n- \"the parser needs refactoring\" → .. (observation about code)\n\n# Guidelines\n- First-person + action verb → almost always !!\n- Third-person or \"X is/can/should\" → almost always ..\n- Questions → almost always ++\n- When in doubt: Who/what is the subject? If it's ME and an action, it's !!\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Examples\n\nrefining the authentication flow\n!!|97\n..|2\n++|1\n\njust woke up feeling groggy\n!!|94\n..|5\n++|1\n\ntesting the new endpoint\n!!|96\n..|3\n++|1\n\nscrolling Twitter during lunch\n!!|98\n..|1\n++|1\n\nheading to bed now\n!!|97\n..|2\n++|1\n\nthe new framework is really fast\n!!|3\n..|95\n++|2\n\nthis tool has great error handling\n!!|2\n..|96\n++|2\n\nTom prefers async communication\n!!|1\n..|97\n++|2\n\nneed to improve my sleep schedule\n!!|8\n..|90\n++|2\n\nadd validation to the form\n!!|5\n..|93\n++|2\n\nswitch to using environment variables\n!!|10\n..|88\n++|2\n\nwhy does the query fail sometimes\n!!|2\n..|10\n++|88\n\nshould I refactor this module\n!!|3\n..|8\n++|89\n\nhow can I optimize this query\n!!|4\n..|11\n++|85\n\n# User Message\n{{ $('Discord Webhook').first().json.body.content }}\n",
+        "text": "=You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n{{ $json.event.clean_text }}",
         "needsFallback": true,
         "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        -13168,
-        7440
+        416,
+        432
       ],
-      "id": "28bdff18-d9f2-4b89-8dfc-e819c8cab081",
-      "name": "Intent Classifier"
-    },
-    {
-      "parameters": {
-        "resource": "message",
-        "guildId": {
-          "__rl": true,
-          "value": "={{ $('Discord Webhook').item.json.body.guild_id }}",
-          "mode": "id"
-        },
-        "channelId": {
-          "__rl": true,
-          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
-          "mode": "id"
-        },
-        "content": "=**[Intent Classification]**\n**Message:** {{ $('Discord Webhook').item.json.body.content }}\n**Scores:** [ {{ $json.text.split('\\n').filter(line => line.includes('|')).map(line => { const [tag, score] = line.split('|'); return { tag, score: parseInt(score) }; }).sort((a, b) => b.score - a.score).map(item => `${item.tag}:${item.score}%`).join(' | ') }} ]",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.discord",
-      "typeVersion": 2,
-      "position": [
-        -12816,
-        6992
-      ],
-      "id": "967fdb3e-51df-4f12-921b-376a845c5a74",
-      "name": "Log classification to #kairon-logs",
-      "webhookId": "18ae6288-f1c3-401a-9dcc-f832d8126ddf",
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "0eccc231-bed6-4ca0-a35e-62e7a6da63ed",
-              "name": "tag",
-              "value": "={{ (() => {\n  const content = $('Discord Webhook').item.json.body.content;\n  // Check for tags at position 0 with whitespace or EOL after\n  const tagMatch = content.match(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|::|cmd|\\$\\$|todo)(\\s+|$)/i);\n  if (tagMatch) {\n    // Normalize word alternatives to symbols\n    const tag = tagMatch[1].toLowerCase();\n    if (tag === 'act') return '!!';\n    if (tag === 'note') return '..';\n    if (tag === 'chat') return '++';\n    if (tag === 'save') return '--';\n    if (tag === 'cmd' || tag === '::') return '::';\n    if (tag === 'todo' || tag === '$$') return '$$';\n    return tagMatch[1];  // Return symbol as-is\n  }\n  return null;\n})() }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -13616,
-        7312
-      ],
-      "id": "3ea1201d-2979-401d-abcf-4fe897ee94ad",
-      "name": "Parse Tag"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "event-object",
-              "name": "event",
-              "value": "={{ {\n  clean_text: $('Discord Webhook').first().json.body.content.replace(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|::|cmd|\\$\\$|todo)(\\s+|$)/i, '').trim(),\n  guild_id: $('Discord Webhook').item.json.body.guild_id,\n  channel_id: $('Discord Webhook').item.json.body.channel_id,\n  message_id: $('Discord Webhook').item.json.body.message_id,\n  author_login: $('Discord Webhook').item.json.body.author.login,\n  thread_id: $('Discord Webhook').item.json.body.thread_id,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook').item.json.body.guild_id + '/' + $('Discord Webhook').item.json.body.channel_id + '/' + $('Discord Webhook').item.json.body.message_id,\n  raw_text: $('Discord Webhook').item.json.body.content,\n  tag: $('Parse Tag').item.json.tag || (() => {\n    // Parse LLM classifier output if present\n    const llmText = $json.text;\n    if (llmText && llmText.includes('|')) {\n      const lines = llmText.split('\\n').filter(line => line.includes('|'));\n      let maxScore = 0;\n      let maxTag = null;\n      lines.forEach(line => {\n        const [tag, scoreStr] = line.split('|').map(s => s.trim());\n        const score = parseInt(scoreStr);\n        if (!isNaN(score) && score > maxScore) {\n          maxScore = score;\n          maxTag = tag;\n        }\n      });\n      return maxTag;\n    }\n    // Fallback: if in thread without tag, default to ++\n    return $('Discord Webhook').item.json.body.thread_id ? '++' : '..';\n  })()\n} }}",
-              "type": "object"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -12816,
-        7216
-      ],
-      "id": "c5c142da-bfca-4dba-a764-1cd2e8282120",
-      "name": "Build Event Object"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "49f84632-af0b-4306-9cdb-b5d5ea07706b",
-              "leftValue": "={{ $json.tag }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "exists",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "4a814004-d6e5-4edc-bd01-add0860c5ab6",
-              "leftValue": "={{ $('Discord Webhook').item.json.body.thread_id }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "exists",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "or"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        -13392,
-        7312
-      ],
-      "id": "5a4d58cd-0114-463e-a127-1309937ef190",
-      "name": "If Tag or Thread Detected"
-    },
-    {
-      "parameters": {
-        "model": "nvidia/nemotron-nano-9b-v2:free",
-        "options": {
-          "timeout": 10000
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        -13040,
-        7664
-      ],
-      "id": "5fcaf4bd-e587-435b-8463-e7776ba113e4",
-      "name": "nemotron-nano-9b",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
-        }
-      }
+      "id": "llm-classifier",
+      "name": "LLM Classifier"
     },
     {
       "parameters": {
@@ -409,10 +295,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -13168,
-        7664
+        416,
+        656
       ],
-      "id": "38dc5004-8c40-44e6-8e23-36e50ea48981",
+      "id": "llm-primary",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -423,44 +309,51 @@
     },
     {
       "parameters": {
-        "amount": 1
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "timeout": 10000
+        }
       },
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
       "position": [
-        -11472,
-        7312
+        544,
+        656
       ],
-      "id": "4b9da467-a9f3-499c-a28d-4d6bd6a2f55e",
-      "name": "Wait 1 s (rate-limiting deterence)",
-      "webhookId": "ae300d22-0f1a-4eac-9ead-3b7bb3b13d15"
+      "id": "llm-fallback",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
     },
     {
       "parameters": {
         "resource": "message",
-        "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.body.guild_id }}",
+          "value": "={{ $('Receive Event').item.json.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.body.channel_id }}",
+          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "messageId": "={{ $json.body.message_id }}",
-        "emoji": "=🔵"
+        "content": "=**[Intent Classification]**\n**Message:** {{ $('Receive Event').item.json.event.clean_text }}\n**Scores:** [ {{ $json.text.split('\\n').filter(line => line.includes('|')).map(line => { const [tag, score] = line.split('|'); return { tag, score: parseInt(score) }; }).sort((a, b) => b.score - a.score).map(item => `${item.tag}:${item.score}%`).join(' | ') }} ]",
+        "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -13616,
-        7120
+        640,
+        432
       ],
-      "id": "737e97cb-0812-4e49-8fb9-b7cb808b7447",
-      "name": "React with 🔵",
-      "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
+      "id": "log-classification",
+      "name": "Log to #kairon-logs",
+      "webhookId": "log-classification",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -470,158 +363,218 @@
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Add Event ID').item.json.event.channel_id }}/messages/{{ $('Add Event ID').item.json.event.message_id }}/reactions/🔵/@me",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "discordBotApi",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        -11248,
-        7312
-      ],
-      "id": "62654409-5e13-4f13-96b5-9cb239a75921",
-      "name": "Remove 🔵 Reaction",
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "inputSource": "passthrough"
-      },
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.1,
-      "position": [
-        -13840,
-        7216
-      ],
-      "id": "2a3633fe-6575-4be7-9dfc-a61177ea5be4",
-      "name": "Discord Webhook"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "E4pamfDCwW3ZxHzH",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
-          "cachedResultName": "Save_Chat"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
+        "assignments": {
+          "assignments": [
             {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
+              "id": "extract-intent",
+              "name": "intent",
+              "value": "={{ (() => {\n  const llmText = $json.text;\n  if (llmText && llmText.includes('|')) {\n    const lines = llmText.split('\\n').filter(line => line.includes('|'));\n    let maxScore = 0;\n    let maxTag = null;\n    lines.forEach(line => {\n      const [tag, scoreStr] = line.split('|').map(s => s.trim());\n      const score = parseInt(scoreStr);\n      if (!isNaN(score) && score > maxScore) {\n        maxScore = score;\n        maxTag = tag;\n      }\n    });\n    return maxTag || '..';\n  }\n  return '..';\n})() }}",
+              "type": "string"
             }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
+          ]
         },
         "options": {}
       },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        -11696,
-        6832
+        864,
+        432
       ],
-      "id": "354649c2-dc75-484a-afbb-a0c747e09922",
-      "name": "Save Chat"
+      "id": "set-intent",
+      "name": "Set Intent"
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
+        "assignments": {
+          "assignments": [
             {
-              "id": "0ceb9e91-e374-4346-8706-97df7d95cfe6",
-              "leftValue": "={{ $json.event.tag }}",
-              "rightValue": "--",
-              "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter.operator.equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        -11920,
-        6928
-      ],
-      "id": "63f44c81-5d6e-4d71-bb3c-1caf748fca42",
-      "name": "If Save"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "e78T3OMl6pDxTb13",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/e78T3OMl6pDxTb13",
-          "cachedResultName": "Continue_Chat"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
+              "id": "add-intent-to-event",
+              "name": "event",
+              "value": "={{ Object.assign({}, $('Receive Event').item.json.event, { intent: $json.intent }) }}",
               "type": "object"
             }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
+          ]
         },
         "options": {}
       },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        -11696,
-        7024
+        1088,
+        432
       ],
-      "id": "4635994f-9cf6-4b55-a3e5-46efd2c88632",
-      "name": "Continue Chat"
+      "id": "add-intent",
+      "name": "Add Intent to Event"
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1088,
+        240
+      ],
+      "id": "merge-paths",
+      "name": "Merge Tag and Classified Paths"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "intent-activity",
+                    "leftValue": "={{ $json.event.intent || $json.event.tag }}",
+                    "rightValue": "!!",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "activity"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "intent-note",
+                    "leftValue": "={{ $json.event.intent || $json.event.tag }}",
+                    "rightValue": "..",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "note"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "intent-chat",
+                    "leftValue": "={{ $json.event.intent || $json.event.tag }}",
+                    "rightValue": "++",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "chat"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "intent-command",
+                    "leftValue": "={{ $json.event.intent || $json.event.tag }}",
+                    "rightValue": "::",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "command"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "intent-save",
+                    "leftValue": "={{ $json.event.intent || $json.event.tag }}",
+                    "rightValue": "--",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "save"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "intent-todo",
+                    "leftValue": "={{ $json.event.intent || $json.event.tag }}",
+                    "rightValue": "$$",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "todo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "route-by-intent",
+      "name": "Route by Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1312,
+        240
+      ]
     },
     {
       "parameters": {
@@ -648,8 +601,7 @@
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
+              "type": "object"
             }
           ],
           "attemptToConvertTypes": false,
@@ -660,11 +612,53 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -11696,
-        7216
+        1536,
+        -16
       ],
-      "id": "b4fc2d83-477f-4b35-9ece-25ff91eafcb2",
+      "id": "handler-activity",
       "name": "Save Activity"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "7Qq2qMUBmnyAhLxg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
+          "cachedResultName": "Note_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1536,
+        112
+      ],
+      "id": "handler-note",
+      "name": "Save Note"
     },
     {
       "parameters": {
@@ -691,8 +685,7 @@
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
+              "type": "object"
             }
           ],
           "attemptToConvertTypes": false,
@@ -703,10 +696,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -11696,
-        7408
+        1536,
+        240
       ],
-      "id": "6a53f911-8541-4432-8ea6-377c24556b0f",
+      "id": "handler-chat",
       "name": "Start Chat"
     },
     {
@@ -734,8 +727,7 @@
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
+              "type": "object"
             }
           ],
           "attemptToConvertTypes": false,
@@ -746,20 +738,20 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -11696,
-        7600
+        1536,
+        368
       ],
-      "id": "bb930904-b102-4973-b076-0b35f0b10ed6",
+      "id": "handler-command",
       "name": "Execute Command"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "7Qq2qMUBmnyAhLxg",
+          "value": "E4pamfDCwW3ZxHzH",
           "mode": "list",
-          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
-          "cachedResultName": "Note_Handler"
+          "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
+          "cachedResultName": "Save_Chat"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -777,8 +769,7 @@
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
+              "type": "object"
             }
           ],
           "attemptToConvertTypes": false,
@@ -789,41 +780,233 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -11696,
-        7792
+        1536,
+        496
       ],
-      "id": "396f1087-7f0c-483e-8a5c-2933ca4f7257",
-      "name": "Save Note"
+      "id": "handler-save",
+      "name": "Save Thread"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.event.channel_id }}/messages/{{ $json.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1760,
+        240
+      ],
+      "id": "remove-reaction",
+      "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
     }
   ],
   "connections": {
-    "Store Event": {
+    "Receive Event": {
       "main": [
         [
           {
-            "node": "Add Event ID",
+            "node": "React with 🔵",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Add Event ID": {
+    "React with 🔵": {
       "main": [
         [
           {
-            "node": "If in Thread",
+            "node": "Has Tag?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Tag": {
+    "Has Tag?": {
+      "main": [
+        [
+          {
+            "node": "Route by Tag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "In Thread?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Tag": {
+      "main": [
+        [
+          {
+            "node": "Merge Tag and Classified Paths",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Tag and Classified Paths",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Tag and Classified Paths",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Tag and Classified Paths",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Tag and Classified Paths",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Tag and Classified Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "In Thread?": {
+      "main": [
+        [
+          {
+            "node": "Merge Tag and Classified Paths",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LLM Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Classifier": {
+      "main": [
+        [
+          {
+            "node": "Log to #kairon-logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM Classifier",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Log to #kairon-logs": {
+      "main": [
+        [
+          {
+            "node": "Set Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Intent": {
+      "main": [
+        [
+          {
+            "node": "Add Intent to Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Intent to Event": {
+      "main": [
+        [
+          {
+            "node": "Merge Tag and Classified Paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Tag and Classified Paths": {
+      "main": [
+        [
+          {
+            "node": "Route by Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Intent": {
       "main": [
         [
           {
             "node": "Save Activity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Note",
             "type": "main",
             "index": 0
           }
@@ -844,159 +1027,7 @@
         ],
         [
           {
-            "node": "Save Note",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If in Thread": {
-      "main": [
-        [
-          {
-            "node": "If Save",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Check Tag",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Intent Classifier": {
-      "main": [
-        [
-          {
-            "node": "Log classification to #kairon-logs",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Build Event Object",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Tag": {
-      "main": [
-        [
-          {
-            "node": "If Tag or Thread Detected",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Event Object": {
-      "main": [
-        [
-          {
-            "node": "Store Event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Tag or Thread Detected": {
-      "main": [
-        [
-          {
-            "node": "Build Event Object",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Intent Classifier",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "nemotron-nano-9b": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Intent Classifier",
-            "type": "ai_languageModel",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "mimo-v2-flash": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Intent Classifier",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Wait 1 s (rate-limiting deterence)": {
-      "main": [
-        [
-          {
-            "node": "Remove 🔵 Reaction",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Discord Webhook": {
-      "main": [
-        [
-          {
-            "node": "React with 🔵",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Parse Tag",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Save": {
-      "main": [
-        [
-          {
-            "node": "Save Chat",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Continue Chat",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Continue Chat": {
-      "main": [
-        [
-          {
-            "node": "Wait 1 s (rate-limiting deterence)",
+            "node": "Save Thread",
             "type": "main",
             "index": 0
           }
@@ -1007,29 +1038,7 @@
       "main": [
         [
           {
-            "node": "Wait 1 s (rate-limiting deterence)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Start Chat": {
-      "main": [
-        [
-          {
-            "node": "Wait 1 s (rate-limiting deterence)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute Command": {
-      "main": [
-        [
-          {
-            "node": "Wait 1 s (rate-limiting deterence)",
+            "node": "Remove 🔵 Reaction",
             "type": "main",
             "index": 0
           }
@@ -1040,7 +1049,40 @@
       "main": [
         [
           {
-            "node": "Wait 1 s (rate-limiting deterence)",
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Chat": {
+      "main": [
+        [
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Thread": {
+      "main": [
+        [
+          {
+            "node": "Remove 🔵 Reaction",
             "type": "main",
             "index": 0
           }
@@ -1048,45 +1090,8 @@
       ]
     }
   },
-  "pinData": {
-    "Discord Webhook": [
-      {
-        "headers": {
-          "host": "n8n.chrisirineo.com",
-          "user-agent": "Python/3.12 aiohttp/3.13.2",
-          "content-length": "344",
-          "accept": "*/*",
-          "accept-encoding": "gzip, deflate",
-          "content-type": "application/json",
-          "via": "1.1 Caddy",
-          "x-forwarded-for": "164.92.84.170",
-          "x-forwarded-host": "n8n.chrisirineo.com",
-          "x-forwarded-proto": "https"
-        },
-        "params": {},
-        "query": {},
-        "body": {
-          "event_type": "message",
-          "guild_id": "754207117157859388",
-          "channel_id": "1450406231146496132",
-          "parent_id": null,
-          "message_id": "1451428134342758492",
-          "thread_id": null,
-          "author": {
-            "login": "chr15",
-            "id": "183458868817297409",
-            "display_name": "chr15"
-          },
-          "content": "!! still testing workflows",
-          "timestamp": "2025-12-19T04:17:13.458000+00:00"
-        },
-        "webhookUrl": "n8n.chrisirineo.com/webhook/asoiaf92746087",
-        "executionMode": "production"
-      }
-    ]
-  },
   "meta": {
-    "templateCredsSetupCompleted": true,
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
-  }
+  },
+  "name": "Route_Message"
 }

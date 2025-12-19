@@ -2,16 +2,16 @@
   "nodes": [
     {
       "parameters": {
-        "jsCode": "return {\n  ...$input.first().json.body\n}"
+        "inputSource": "passthrough"
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
       "position": [
-        -144,
+        -368,
         512
       ],
-      "id": "48e34db2-679b-4824-824f-28f3e88ad421",
-      "name": "Parse Reaction Payload"
+      "id": "trigger-node",
+      "name": "Receive Event"
     },
     {
       "parameters": {
@@ -24,8 +24,8 @@
           },
           "conditions": [
             {
-              "id": "60b25b9e-4a74-4500-85ba-facfd310ec5d",
-              "leftValue": "={{ $json.action }}",
+              "id": "is-add-reaction",
+              "leftValue": "={{ $json.event.action }}",
               "rightValue": "add",
               "operator": {
                 "type": "string",
@@ -40,10 +40,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        80,
+        -144,
         512
       ],
-      "id": "4dfeed47-15be-49b7-b869-b651e1cdbd07",
+      "id": "check-action",
       "name": "Is Add Reaction?"
     },
     {
@@ -51,16 +51,16 @@
         "operation": "executeQuery",
         "query": "SELECT DISTINCT conversation_id FROM thread_extractions WHERE summary_message_id = $1;",
         "options": {
-          "queryReplacement": "={{ $json.message_id }}"
+          "queryReplacement": "={{ $json.event.message_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        304,
+        80,
         512
       ],
-      "id": "ed6288ec-cfca-4427-97e5-838b30a22260",
+      "id": "check-summary",
       "name": "Check if Summary Message",
       "alwaysOutputData": true,
       "credentials": {
@@ -81,7 +81,7 @@
           },
           "conditions": [
             {
-              "id": "1b12bd86-dd74-426c-99e6-62d0a936eef4",
+              "id": "has-conversation-id",
               "leftValue": "={{$json}}",
               "rightValue": "",
               "operator": {
@@ -98,74 +98,34 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        528,
+        304,
         512
       ],
-      "id": "88c7fca9-d7ba-4f9e-84d9-e064f7c91e0f",
+      "id": "check-result",
       "name": "Is Summary Message?"
     },
     {
       "parameters": {
-        "jsCode": "// Map emoji to extraction index\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst reaction = $input.first().json;\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\n\n// Create synthetic idempotency key\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    synthetic_id: syntheticId,\n    author_login: reaction.user?.login || reaction.user_id,\n    thread_id: reaction.thread_id,\n    emoji: emoji,\n    message_id: messageId,\n    extraction_index: extractionIndex\n  }\n}];"
+        "assignments": {
+          "assignments": [
+            {
+              "id": "add-conversation-id",
+              "name": "event",
+              "value": "={{ Object.assign({}, $('Receive Event').item.json.event, { conversation_id: $json.conversation_id }) }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        752,
+        528,
         512
       ],
-      "id": "9c8f3b21-4e15-4a82-b5f6-7d8e9a0b1c2d",
-      "name": "Prepare Reaction Event"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO raw_events (\n  id,\n  source_type,\n  discord_message_id,\n  author_login,\n  thread_id,\n  raw_text,\n  clean_text,\n  tag,\n  metadata\n) VALUES (\n  gen_random_uuid(),\n  'discord',\n  $1,\n  $2,\n  $3,\n  $4,\n  $5,\n  'REACTION',\n  jsonb_build_object(\n    'event_type', 'MESSAGE_REACTION_ADD',\n    'summary_message_id', $6,\n    'emoji_name', $4,\n    'extraction_index', $7,\n    'is_reaction', true\n  )\n)\nON CONFLICT (discord_message_id) DO UPDATE\nSET metadata = raw_events.metadata\nRETURNING *;",
-        "options": {
-          "queryReplacement": "={{ $json.synthetic_id }},={{ $json.author_login }},={{ $json.thread_id }},={{ $json.emoji }},=Save extraction {{ $json.extraction_index }},={{ $json.message_id }},={{ $json.extraction_index }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        976,
-        512
-      ],
-      "id": "3f4e5a6b-7c8d-9e0f-1a2b-3c4d5e6f7g8h",
-      "name": "Store Reaction Event",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Combine reaction data with conversation_id and raw_event_id\nconst reaction = $('Parse Reaction Payload').first().json;\nconst dbResult = $('Check if Summary Message').first().json;\nconst rawEvent = $('Store Reaction Event').first().json;\n\nreturn [{\n  json: {\n    ...reaction,\n    conversation_id: dbResult.conversation_id,\n    raw_event_id: rawEvent.id\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1200,
-        512
-      ],
-      "id": "05763a80-1726-466f-b290-b0e8cde38fdc",
-      "name": "Prepare Handler Input"
-    },
-    {
-      "parameters": {
-        "inputSource": "passthrough"
-      },
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.1,
-      "position": [
-        -368,
-        512
-      ],
-      "id": "69985f4f-f8a9-4fc1-a66e-3a6b0c482f48",
-      "name": "Discord Webhook"
+      "id": "add-conversation",
+      "name": "Add Conversation ID"
     },
     {
       "parameters": {
@@ -176,21 +136,42 @@
           "cachedResultUrl": "/workflow/po34MNNwDBJKdf4N",
           "cachedResultName": "Save_Extraction"
         },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.1,
+      "typeVersion": 1.3,
       "position": [
-        1424,
+        752,
         512
       ],
-      "id": "bab6860a-5d6f-4090-b757-234487c32435",
-      "name": "Save Extraction",
-      "notes": "Replace workflowId with actual ID after creating Handle_Extraction_Save workflow"
+      "id": "save-extraction",
+      "name": "Save Extraction"
     }
   ],
   "connections": {
-    "Parse Reaction Payload": {
+    "Receive Event": {
       "main": [
         [
           {
@@ -209,8 +190,7 @@
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "Check if Summary Message": {
@@ -228,37 +208,14 @@
       "main": [
         [
           {
-            "node": "Prepare Reaction Event",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Prepare Reaction Event": {
-      "main": [
-        [
-          {
-            "node": "Store Reaction Event",
+            "node": "Add Conversation ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Reaction Event": {
-      "main": [
-        [
-          {
-            "node": "Prepare Handler Input",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Handler Input": {
+    "Add Conversation ID": {
       "main": [
         [
           {
@@ -267,22 +224,6 @@
             "index": 0
           }
         ]
-      ]
-    },
-    "Discord Webhook": {
-      "main": [
-        [
-          {
-            "node": "Parse Reaction Payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Save Extraction": {
-      "main": [
-        []
       ]
     }
   },
