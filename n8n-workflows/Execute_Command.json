@@ -324,7 +324,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  (SELECT COUNT(*) FROM activity_log WHERE timestamp >= CURRENT_DATE) as activities_today,\n  (SELECT COUNT(*) FROM notes WHERE timestamp >= DATE_TRUNC('week', CURRENT_DATE)) as notes_this_week,\n  (SELECT COUNT(*) FROM raw_events WHERE source_type = 'discord') as total_events,\n  (SELECT last_observation_at FROM user_state LIMIT 1) as last_activity",
+        "query": "SELECT \n  (SELECT COUNT(*) FROM activity_log WHERE timestamp >= CURRENT_DATE) as activities_today,\n  (SELECT COUNT(*) FROM notes WHERE timestamp >= DATE_TRUNC('week', CURRENT_DATE)) as notes_this_week,\n  (SELECT COUNT(*) FROM raw_events WHERE source_type = 'discord') as total_events,\n  (SELECT MAX(received_at) FROM events) as last_activity",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -370,7 +370,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  us.user_login,\n  us.last_observation_at,\n  p.data->>'category' as last_activity_category,\n  EXTRACT(EPOCH FROM (NOW() - us.last_observation_at))/60 as minutes_since_activity\nFROM user_state us\nLEFT JOIN projections p ON p.projection_type = 'activity' \n  AND p.data->>'timestamp' = (\n    SELECT MAX(data->>'timestamp') \n    FROM projections \n    WHERE projection_type = 'activity'\n  )\nLIMIT 1",
+        "query": "WITH user_events AS (\n  SELECT \n    payload->>'author_login' as user_login,\n    MAX(received_at) as last_observation_at\n  FROM events\n  WHERE payload->>'author_login' IS NOT NULL\n  GROUP BY payload->>'author_login'\n  LIMIT 1\n)\nSELECT \n  ue.user_login,\n  ue.last_observation_at,\n  p.data->>'category' as last_activity_category,\n  EXTRACT(EPOCH FROM (NOW() - ue.last_observation_at))/60 as minutes_since_activity\nFROM user_events ue\nLEFT JOIN projections p ON p.projection_type = 'activity' \n  AND p.data->>'timestamp' = (\n    SELECT MAX(data->>'timestamp') \n    FROM projections \n    WHERE projection_type = 'activity'\n  )",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
