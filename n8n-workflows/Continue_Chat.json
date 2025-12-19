@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        480,
-        -160
+        1808,
+        1296
       ],
-      "id": "eaaa37b1-eab9-48d0-b6d2-165639617126",
+      "id": "1a8ffdb8-70b0-4f79-9370-9a880885c4a5",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -31,10 +31,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        704,
-        -64
+        2032,
+        1392
       ],
-      "id": "0074228d-b9f5-4b65-890e-3233cd594db0",
+      "id": "d202f815-53ee-4b68-94ee-bd6dfc5d30c0",
       "name": "Get Conversation",
       "credentials": {
         "postgres": {
@@ -54,10 +54,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        928,
-        -352
+        2256,
+        1104
       ],
-      "id": "1f896d01-509b-446b-96a2-f7a93f07abee",
+      "id": "5aa67a04-7ce1-4619-a2df-de66fd434d46",
       "name": "Get Conversation History",
       "credentials": {
         "postgres": {
@@ -75,10 +75,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        928,
-        -160
+        2256,
+        1296
       ],
-      "id": "4c61d646-d7be-4a90-85ce-97d098b6a2e8",
+      "id": "d7363b9d-6b86-4f93-95ef-7d4d4b99135f",
       "name": "Get North Star",
       "alwaysOutputData": true,
       "credentials": {
@@ -97,10 +97,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        928,
-        32
+        2256,
+        1488
       ],
-      "id": "d4ca804a-4906-4b9e-8c8f-d7e9f01d9f2c",
+      "id": "cc4e6210-52f7-4386-855c-addae69049c6",
       "name": "Get Recent Activities",
       "alwaysOutputData": true,
       "credentials": {
@@ -119,10 +119,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        928,
-        224
+        2256,
+        1680
       ],
-      "id": "82dbdd87-4f7d-4dc8-800b-da2a83d2e481",
+      "id": "350ec4b8-8bc1-4750-9e2e-648626542f4c",
       "name": "Get Recent Notes",
       "alwaysOutputData": true,
       "credentials": {
@@ -139,10 +139,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        1152,
-        0
+        2480,
+        1456
       ],
-      "id": "0dcc90f4-05d5-44bd-8af4-9a83f18d92e3",
+      "id": "653e7be4-4265-4b0a-947d-5e1b2494fa43",
       "name": "Wait for Context"
     },
     {
@@ -152,10 +152,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1376,
-        32
+        2704,
+        1488
       ],
-      "id": "2cec9396-6656-410b-93c6-6d8d4aaf708f",
+      "id": "cca861e9-b1e2-4836-b50b-3b554ea7f8f2",
       "name": "Build Context"
     },
     {
@@ -168,10 +168,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        1600,
-        32
+        3152,
+        1488
       ],
-      "id": "92a122e6-dc29-4911-92c0-74d9a53dcc08",
+      "id": "ef511c86-53d5-43b0-bdfc-4d82b3228f30",
       "name": "Generate Response"
     },
     {
@@ -184,10 +184,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1616,
-        256
+        3160,
+        1712
       ],
-      "id": "1fc46165-918a-407a-9172-fded2ee1ee95",
+      "id": "77263541-c744-43ea-940f-2cff08df3b59",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -206,10 +206,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1744,
-        256
+        3288,
+        1712
       ],
-      "id": "5fa21be3-0e34-4ec7-b2e9-984f708b4b6f",
+      "id": "e8bd1e6d-ba09-4fc0-a8aa-b407268dc7ed",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -237,10 +237,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1952,
-        32
+        3952,
+        1488
       ],
-      "id": "6e57d49d-ec2e-4dd8-8ac7-73201e5448fa",
+      "id": "835d7a4b-1a2d-4d1a-a58e-54e026053edc",
       "name": "Post to Thread",
       "webhookId": "a65d6a4d-1d64-4ef4-b3b6-a4fe185b4957",
       "credentials": {
@@ -261,10 +261,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2176,
-        128
+        4176,
+        1584
       ],
-      "id": "5b2a3140-3030-435b-9642-57a30e4179ef",
+      "id": "5968dda6-7034-4fa4-984c-738615e4ca9c",
       "name": "Store Assistant Message",
       "credentials": {
         "postgres": {
@@ -293,10 +293,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        704,
-        -256
+        2032,
+        1200
       ],
-      "id": "f901774c-f18a-40b7-87e1-5eafb0bf81ff",
+      "id": "e04d5007-c9cc-46ce-8bf2-6e8416165aee",
       "name": "React with 💭",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "credentials": {
@@ -317,10 +317,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        2176,
-        -64
+        4176,
+        1392
       ],
-      "id": "8b88c815-9524-4770-9f39-93a22d080274",
+      "id": "e9919f92-7403-4d1e-8ccb-031e055c1e15",
       "name": "Remove 💭  Reaction",
       "credentials": {
         "discordBotApi": {
@@ -352,10 +352,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1488,
-        32
+        2928,
+        1488
       ],
-      "id": "set-inference-start-continue",
+      "id": "d80f227c-8ef5-4c96-9e14-31bebcc9d7d1",
       "name": "Set Inference Start"
     },
     {
@@ -365,20 +365,16 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1824,
-        32
+        3504,
+        1488
       ],
-      "id": "prepare-trace-data-continue",
+      "id": "8005f6c4-e4a6-4763-80f8-ff86490d9ef0",
       "name": "Prepare Trace Data"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    ($9::uuid[])[array_upper($9::uuid[], 1)],\n    'thread_response',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'conversation_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $8::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $8::integer
-    ),
-    $9::uuid[]
-  )
-  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $9::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_response',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'conversation_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $8::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $8::integer\n    ),\n    $9::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $9::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
         "options": {
           "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_conversation_id }},={{ $json.input_history_length }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.duration_ms }},={{ JSON.stringify($json.trace_chain) }}"
         }
@@ -386,10 +382,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2048,
-        32
+        3728,
+        1488
       ],
-      "id": "write-thread-trace-continue",
+      "id": "9e40128c-9afa-47dd-9e9a-da31b8e1c161",
       "name": "Write Thread Response Trace",
       "credentials": {
         "postgres": {
@@ -591,8 +587,8 @@
       ]
     }
   },
+  "pinData": {},
   "meta": {
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
-  },
-  "name": "Continue_Chat"
+  }
 }

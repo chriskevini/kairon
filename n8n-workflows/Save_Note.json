@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        9072,
-        -2416
+        12448,
+        -3136
       ],
-      "id": "51c02930-4e28-4480-94e8-aa4e5fe30136",
+      "id": "fc2dd180-4dfd-4505-b445-49a034d25ff8",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -43,10 +43,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        9296,
-        -2416
+        12672,
+        -3136
       ],
-      "id": "set-inference-start",
+      "id": "6f6314f8-bce5-4c3e-ab3b-51e175c53d33",
       "name": "Set Inference Start"
     },
     {
@@ -56,35 +56,26 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        9520,
-        -2416
+        12896,
+        -3136
       ],
-      "id": "4e424566-9cbb-4e44-9050-f9a5391c3fc6",
+      "id": "798ea233-ac7f-485a-ab19-4e02afaa3014",
       "name": "Prepare LLM Context"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are a note classifier for a life-tracking system.\n\nClassify notes into exactly 2 categories. Assign probability scores (0-100) that add up to exactly 100.\n\n# Categories\n\nfact → External, objective, declarative knowledge about the world or people (birthdays, preferences, allergies, likes/dislikes, factual statements about others).\n\nreflection → Internal, subjective knowledge (insights, decisions, observations, realizations, thoughts, self-analysis, patterns, emotional states, personal commitments).\n\n# The Core Distinction\n- fact = \"Things about the world/others\" (external reality)\n- reflection = \"Things about me/my mind\" (internal experience)\n\n# Key Guidelines\n- Declarative statements about others → fact (\"John loves coffee\", \"Sarah is allergic to nuts\")\n- Dates, birthdays, preferences of others → fact\n- Personal insights, realizations → reflection (\"I work better in mornings\")\n- Decisions, commitments → reflection (\"decided to switch to async\")\n- Self-observations → reflection (\"I've been more focused lately\")\n- General observations about yourself → reflection\n- When in doubt: Is it about THEM or about ME? → fact vs reflection\n\nOutput format (only lines with score >5):\ncategory_name|score\n\n(Scores must sum to exactly 100, integers only)\n\n# Examples\n\nJohn loves dark roast coffee\nfact|95\nreflection|5\n\nMom's birthday is June 12\nfact|98\nreflection|2\n\nSarah is allergic to nuts\nfact|96\nreflection|4\n\nDad prefers evening phone calls\nfact|94\nreflection|6\n\nnoticed an interesting pattern in my productivity\nreflection|94\nfact|6\n\nI work better in the mornings\nreflection|88\nfact|12\n\ndecided to switch to async communication\nreflection|92\nfact|8\n\nI've been forgetting people's preferences lately\nreflection|85\nfact|15\n\nreducing context switching improves focus\nreflection|70\nfact|30\n\nfeeling more energized after morning walks\nreflection|92\nfact|8\n\nEmily doesn't drink alcohol\nfact...
+        "text": "=You are a note classifier for a life-tracking system.\n\nClassify notes into exactly 2 categories. Assign probability scores (0-100) that add up to exactly 100.\n\n# Categories\n\nfact → External, objective, declarative knowledge about the world or people (birthdays, preferences, allergies, likes/dislikes, factual statements about others).\n\nreflection → Internal, subjective knowledge (insights, decisions, observations, realizations, thoughts, self-analysis, patterns, emotional states, personal commitments).\n\n# The Core Distinction\n- fact = \"Things about the world/others\" (external reality)\n- reflection = \"Things about me/my mind\" (internal experience)\n\n# Key Guidelines\n- Declarative statements about others → fact (\"John loves coffee\", \"Sarah is allergic to nuts\")\n- Dates, birthdays, preferences of others → fact\n- Personal insights, realizations → reflection (\"I work better in mornings\")\n- Decisions, commitments → reflection (\"decided to switch to async\")\n- Self-observations → reflection (\"I've been more focused lately\")\n- General observations about yourself → reflection\n- When in doubt: Is it about THEM or about ME? → fact vs reflection\n\nOutput format (only lines with score >5):\ncategory_name|score\n\n(Scores must sum to exactly 100, integers only)\n\n# Examples\n\nJohn loves dark roast coffee\nfact|95\nreflection|5\n\nMom's birthday is June 12\nfact|98\nreflection|2\n\nSarah is allergic to nuts\nfact|96\nreflection|4\n\nDad prefers evening phone calls\nfact|94\nreflection|6\n\nnoticed an interesting pattern in my productivity\nreflection|94\nfact|6\n\nI work better in the mornings\nreflection|88\nfact|12\n\ndecided to switch to async communication\nreflection|92\nfact|8\n\nI've been forgetting people's preferences lately\nreflection|85\nfact|15\n\nreducing context switching improves focus\nreflection|70\nfact|30\n\nfeeling more energized after morning walks\nreflection|92\nfact|8\n\nEmily doesn't drink alcohol\nfact|95\nreflection|5",
         "needsFallback": true,
         "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        9744,
-        -2416
+        13120,
+        -3136
       ],
-      "id": "a2434954-254a-4336-946f-0d1ab067cc15",
-      "name": "Note Classifier"
-    },
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.7,
-      "position": [
-        9520,
-        -2416
-      ],
-      "id": "a2434954-254a-4336-946f-0d1ab067cc15",
+      "id": "780afe11-08a5-4943-85bd-24df32111ffd",
       "name": "Note Classifier"
     },
     {
@@ -94,20 +85,16 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        9968,
-        -2416
+        13472,
+        -3136
       ],
-      "id": "5b98a789-9ad9-4c5a-affb-c21d33d96189",
+      "id": "3601a4aa-85c3-4ad4-9c0c-51790154a2f6",
       "name": "Parse LLM Response"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    ($8::uuid[])[array_upper($8::uuid[], 1)],\n    'note_extraction',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2\n      ),\n      'prompt', $3,\n      'completion', $4,\n      'result', jsonb_build_object(\n        'category', $5,\n        'all_scores', $6::jsonb\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $7::integer
-    ),
-    $8::uuid[]
-  )
-  RETURNING id, event_id\n)\nINSERT INTO projections (\n  trace_id,\n  event_id,\n  trace_chain,\n  projection_type,\n  data,\n  status\n)\nSELECT\n  new_trace.id,\n  new_trace.event_id,\n  $8::uuid[] || new_trace.id,\n  'note',\n  jsonb_build_object(\n    'timestamp', NOW(),\n    'category', $5,\n    'text', $2\n  ),\n  'auto_confirmed'\nFROM new_trace\nRETURNING *;",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'note_extraction',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2\n      ),\n      'prompt', $3,\n      'completion', $4,\n      'result', jsonb_build_object(\n        'category', $5,\n        'all_scores', $6::jsonb\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id, event_id\n)\nINSERT INTO projections (\n  trace_id,\n  event_id,\n  trace_chain,\n  projection_type,\n  data,\n  status\n)\nSELECT\n  new_trace.id,\n  new_trace.event_id,\n  $8::uuid[] || new_trace.id,\n  'note',\n  jsonb_build_object(\n    'timestamp', NOW(),\n    'category', $5,\n    'text', $2\n  ),\n  'auto_confirmed'\nFROM new_trace\nRETURNING *;",
         "options": {
           "queryReplacement": "={{ $('Parse LLM Response').item.json.event_id }},={{ $('Parse LLM Response').item.json.input_text }},={{ $('Parse LLM Response').item.json.prompt_text }},={{ $('Parse LLM Response').item.json.completion_text }},={{ $('Parse LLM Response').item.json.result_category }},={{ JSON.stringify($('Parse LLM Response').item.json.result_all_scores) }},={{ $('Parse LLM Response').item.json.duration_ms }},={{ JSON.stringify($('Parse LLM Response').item.json.trace_chain) }}"
         }
@@ -115,10 +102,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        10320,
-        -2416
+        13920,
+        -3136
       ],
-      "id": "cee38a74-3402-4a33-931b-20cac3beae43",
+      "id": "634c8d6f-a2c5-4ba8-9488-2d45e53d204e",
       "name": "Store Note",
       "credentials": {
         "postgres": {
@@ -147,10 +134,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        10544,
-        -2416
+        14144,
+        -3136
       ],
-      "id": "0eaab7df-b380-4053-be65-38055c4b83b6",
+      "id": "66a7ff8c-f7bc-463a-92f8-7ddc0740da47",
       "name": "React with 📝",
       "webhookId": "60c18aeb-3403-429d-8436-05ab229456b7",
       "credentials": {
@@ -168,10 +155,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        9656,
-        -2192
+        13256,
+        -2912
       ],
-      "id": "0c141715-cbf6-4603-8bd3-07e33d952686",
+      "id": "4ae98681-44e0-426b-8456-e0ab3b78b9b4",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -190,10 +177,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        9528,
-        -2192
+        13128,
+        -2912
       ],
-      "id": "462c48d4-7538-458b-9c7a-1dead992f2dc",
+      "id": "cb897f95-0272-460f-af65-5168ab0a96b4",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -221,10 +208,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        10096,
-        -2416
+        13696,
+        -3136
       ],
-      "id": "2d36fb77-b97d-44a4-9173-104c3d635335",
+      "id": "bcba5c37-b968-4bb6-aa54-c75f7e073029",
       "name": "Log to Kairon Logs",
       "webhookId": "dcf1cf1a-eda6-4488-8142-af689fbc76c3",
       "credentials": {
@@ -336,8 +323,8 @@
       ]
     }
   },
+  "pinData": {},
   "meta": {
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
-  },
-  "name": "Save_Note"
+  }
 }
