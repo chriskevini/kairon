@@ -229,7 +229,9 @@
           "value": {
             "event": "={{ $json.event }}"
           },
-          "matchingColumns": ["event"],
+          "matchingColumns": [
+            "event"
+          ],
           "schema": [
             {
               "id": "event",
@@ -269,7 +271,9 @@
           "value": {
             "event": "={{ $json.event }}"
           },
-          "matchingColumns": ["event"],
+          "matchingColumns": [
+            "event"
+          ],
           "schema": [
             {
               "id": "event",
