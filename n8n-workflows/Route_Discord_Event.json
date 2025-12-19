@@ -149,7 +149,7 @@
             {
               "id": "build-event-obj",
               "name": "event",
-              "value": "={{ {\n  event_id: $json.id,\n  event_type: 'discord_message',\n  guild_id: $('Discord Webhook Entry').item.json.body.guild_id,\n  channel_id: $('Discord Webhook Entry').item.json.body.channel_id,\n  message_id: $('Discord Webhook Entry').item.json.body.message_id,\n  author_login: $('Discord Webhook Entry').item.json.body.author.login,\n  thread_id: $('Discord Webhook Entry').item.json.body.thread_id || null,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook Entry').item.json.body.guild_id + '/' + $('Discord Webhook Entry').item.json.body.channel_id + '/' + $('Discord Webhook Entry').item.json.body.message_id,\n  raw_text: $('Discord Webhook Entry').item.json.body.content,\n  clean_text: $('Parse Message').item.json.clean_text,\n  tag: $('Parse Message').item.json.tag,\n  trace_stack: [$json.id]\n} }}",
+              "value": "={{ {\n  event_id: $json.id,\n  event_type: 'discord_message',\n  guild_id: $('Discord Webhook Entry').item.json.body.guild_id,\n  channel_id: $('Discord Webhook Entry').item.json.body.channel_id,\n  message_id: $('Discord Webhook Entry').item.json.body.message_id,\n  author_login: $('Discord Webhook Entry').item.json.body.author.login,\n  thread_id: $('Discord Webhook Entry').item.json.body.thread_id || null,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook Entry').item.json.body.guild_id + '/' + $('Discord Webhook Entry').item.json.body.channel_id + '/' + $('Discord Webhook Entry').item.json.body.message_id,\n  raw_text: $('Discord Webhook Entry').item.json.body.content,\n  clean_text: $('Parse Message').item.json.clean_text,\n  tag: $('Parse Message').item.json.tag,\n  trace_chain: [$json.id]\n} }}",
               "type": "object"
             }
           ]
@@ -172,7 +172,7 @@
             {
               "id": "build-reaction-event-obj",
               "name": "event",
-              "value": "={{ {\n  event_id: $json.id,\n  event_type: 'discord_reaction',\n  guild_id: $('Discord Webhook Entry').item.json.body.guild_id,\n  channel_id: $('Discord Webhook Entry').item.json.body.channel_id,\n  message_id: $('Discord Webhook Entry').item.json.body.message_id,\n  author_login: $('Discord Webhook Entry').item.json.body.user?.login || $('Discord Webhook Entry').item.json.body.user_id,\n  thread_id: $('Discord Webhook Entry').item.json.body.thread_id || null,\n  emoji: $('Parse Reaction').item.json.emoji,\n  extraction_index: $('Parse Reaction').item.json.extraction_index,\n  action: $('Discord Webhook Entry').item.json.body.action,\n  trace_stack: [$json.id]\n} }}",
+              "value": "={{ {\n  event_id: $json.id,\n  event_type: 'discord_reaction',\n  guild_id: $('Discord Webhook Entry').item.json.body.guild_id,\n  channel_id: $('Discord Webhook Entry').item.json.body.channel_id,\n  message_id: $('Discord Webhook Entry').item.json.body.message_id,\n  author_login: $('Discord Webhook Entry').item.json.body.user?.login || $('Discord Webhook Entry').item.json.body.user_id,\n  thread_id: $('Discord Webhook Entry').item.json.body.thread_id || null,\n  emoji: $('Parse Reaction').item.json.emoji,\n  extraction_index: $('Parse Reaction').item.json.extraction_index,\n  action: $('Discord Webhook Entry').item.json.body.action,\n  trace_chain: [$json.id]\n} }}",
               "type": "object"
             }
           ]

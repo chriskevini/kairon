@@ -137,7 +137,7 @@
             {
               "id": "pass-event",
               "name": "event",
-              "value": "={{ Object.assign({}, $(\"Prepare Deterministic Trace\").item.json.event, { trace_stack: [... $(\"Prepare Deterministic Trace\").item.json.event.trace_stack, $(\"Write Deterministic Trace\").item.json.id] }) }}",
+              "value": "={{ Object.assign({}, $(\"Prepare Deterministic Trace\").item.json.event, { trace_chain: [... $(\"Prepare Deterministic Trace\").item.json.event.trace_chain, $(\"Write Deterministic Trace\").item.json.id] }) }}",
               "type": "object"
             }
           ]
@@ -336,7 +336,7 @@
             {
               "id": "add-intent-to-event",
               "name": "event",
-              "value": "={{ Object.assign({}, $(\"Prepare Trace Data\").item.json.event, { trace_stack: [...$(\"Prepare Trace Data\").item.json.event.trace_stack, $(\"Write Intent Classification Trace\").item.json.id] }) }}",
+              "value": "={{ Object.assign({}, $(\"Prepare Trace Data\").item.json.event, { trace_chain: [...$(\"Prepare Trace Data\").item.json.event.trace_chain, $(\"Write Intent Classification Trace\").item.json.id] }) }}",
               "type": "object"
             }
           ]
