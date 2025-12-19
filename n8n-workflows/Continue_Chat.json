@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        1808,
-        1296
+        6656,
+        544
       ],
-      "id": "1a8ffdb8-70b0-4f79-9370-9a880885c4a5",
+      "id": "cf49146a-7b65-4fe1-8882-9190f8ac80f3",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -31,10 +31,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2032,
-        1392
+        6880,
+        640
       ],
-      "id": "d202f815-53ee-4b68-94ee-bd6dfc5d30c0",
+      "id": "1235a573-6d9a-4b08-a35a-805fb8498500",
       "name": "Get Conversation",
       "credentials": {
         "postgres": {
@@ -54,10 +54,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2256,
-        1104
+        7104,
+        352
       ],
-      "id": "5aa67a04-7ce1-4619-a2df-de66fd434d46",
+      "id": "862be3f8-3ec4-4873-9601-51c0412b5953",
       "name": "Get Conversation History",
       "credentials": {
         "postgres": {
@@ -75,10 +75,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2256,
-        1296
+        7104,
+        544
       ],
-      "id": "d7363b9d-6b86-4f93-95ef-7d4d4b99135f",
+      "id": "466482ef-e173-4639-920d-4a7d4a809c9d",
       "name": "Get North Star",
       "alwaysOutputData": true,
       "credentials": {
@@ -97,10 +97,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2256,
-        1488
+        7104,
+        736
       ],
-      "id": "cc4e6210-52f7-4386-855c-addae69049c6",
+      "id": "583b8b02-bf8c-4dd6-ab42-1f0e4df1d3e6",
       "name": "Get Recent Activities",
       "alwaysOutputData": true,
       "credentials": {
@@ -119,10 +119,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2256,
-        1680
+        7104,
+        928
       ],
-      "id": "350ec4b8-8bc1-4750-9e2e-648626542f4c",
+      "id": "7a6cb0ab-38bd-449e-89f4-302bcab90d06",
       "name": "Get Recent Notes",
       "alwaysOutputData": true,
       "credentials": {
@@ -139,23 +139,23 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        2480,
-        1456
+        7328,
+        704
       ],
-      "id": "653e7be4-4265-4b0a-947d-5e1b2494fa43",
+      "id": "3e910a00-1800-474d-aba6-8f67169d3a9b",
       "name": "Wait for Context"
     },
     {
       "parameters": {
-        "jsCode": "// Get event and conversation from previous nodes\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst conversation = $('Get Conversation').first().json;\n\n// Get all merged inputs\nconst allInputs = $input.all();\n\n// Extract conversation history\nconst historyItems = allInputs.filter(item => item.json.role !== undefined && item.json.text !== undefined);\nconst history = historyItems.reverse().map(item => ({\n  role: item.json.role,\n  text: item.json.text\n}));\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItem = allInputs.find(item => item.json.value !== undefined && item.json.key === undefined);\nif (northStarItem) {\n  northStar = northStarItem.json.value;\n}\n\n// Extract activities\nconst activities = allInputs\n  .filter(item => item.json.category && item.json.description)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    description: item.json.description\n  }));\n\n// Extract notes\nconst notes = allInputs\n  .filter(item => item.json.category && item.json.text)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    text: item.json.text\n  }));\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversation.id,\n    north_star: northStar,\n    history: history,\n    activities: activities,\n    notes: notes\n  }\n}];"
+        "jsCode": "// Get event and conversation from previous nodes\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst conversation = $('Get Conversation').first().json;\n\n// Get all merged inputs\nconst allInputs = $input.all();\n\n// Extract conversation history\nconst historyItems = allInputs.filter(item => item.json.role !== undefined && item.json.text !== undefined);\nconst history = historyItems.reverse().map(item => ({\n  role: item.json.role,\n  text: item.json.text\n}));\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItem = allInputs.find(item => item.json.value !== undefined && item.json.key === undefined);\nif (northStarItem) {\n  northStar = northStarItem.json.value;\n}\n\n// Extract activities\nconst activities = allInputs\n  .filter(item => item.json.category && item.json.description)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    description: item.json.description\n  }));\n\n// Extract notes\nconst notes = allInputs\n  .filter(item => item.json.category && item.json.text)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    text: item.json.text\n  }));\nconst inference_start = Date.now()\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversation.id,\n    north_star: northStar,\n    history: history,\n    activities: activities,\n    notes: notes,\n    inference_start\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2704,
-        1488
+        7552,
+        736
       ],
-      "id": "cca861e9-b1e2-4836-b50b-3b554ea7f8f2",
+      "id": "66722f6e-f428-4136-bc15-f60097699a36",
       "name": "Build Context"
     },
     {
@@ -168,10 +168,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        3152,
-        1488
+        7776,
+        736
       ],
-      "id": "ef511c86-53d5-43b0-bdfc-4d82b3228f30",
+      "id": "4119f733-a0a8-4c97-bcf3-a67ab535c4b5",
       "name": "Generate Response"
     },
     {
@@ -184,10 +184,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        3160,
-        1712
+        7784,
+        960
       ],
-      "id": "77263541-c744-43ea-940f-2cff08df3b59",
+      "id": "120ceee9-00cb-4175-8df8-57f862e218fd",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -206,10 +206,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        3288,
-        1712
+        7912,
+        960
       ],
-      "id": "e8bd1e6d-ba09-4fc0-a8aa-b407268dc7ed",
+      "id": "9c28edb3-a048-474e-8217-915ddee94e23",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -231,16 +231,16 @@
           "value": "={{ $('Build Context').item.json.thread_id }}",
           "mode": "id"
         },
-        "content": "={{ $json.text }}",
+        "content": "={{ $json.completion_text }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        3952,
-        1488
+        8352,
+        640
       ],
-      "id": "835d7a4b-1a2d-4d1a-a58e-54e026053edc",
+      "id": "742d2510-b9ca-4252-9f4e-4d2c485050a9",
       "name": "Post to Thread",
       "webhookId": "a65d6a4d-1d64-4ef4-b3b6-a4fe185b4957",
       "credentials": {
@@ -261,10 +261,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        4176,
-        1584
+        8576,
+        640
       ],
-      "id": "5968dda6-7034-4fa4-984c-738615e4ca9c",
+      "id": "1913f4a7-1f6c-4b15-b89f-e0058415f94c",
       "name": "Store Assistant Message",
       "credentials": {
         "postgres": {
@@ -293,10 +293,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        2032,
-        1200
+        6880,
+        448
       ],
-      "id": "e04d5007-c9cc-46ce-8bf2-6e8416165aee",
+      "id": "3d6f0aee-f86f-437e-aa57-0683b80c2ced",
       "name": "React with 💭",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "credentials": {
@@ -317,10 +317,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        4176,
-        1392
+        8576,
+        448
       ],
-      "id": "e9919f92-7403-4d1e-8ccb-031e055c1e15",
+      "id": "2a9bd784-1d1e-482e-b808-590e4b3f3b71",
       "name": "Remove 💭  Reaction",
       "credentials": {
         "discordBotApi": {
@@ -331,44 +331,15 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "start-time",
-              "name": "inference_start",
-              "value": "={{ Date.now() }}",
-              "type": "number"
-            },
-            {
-              "id": "pass-context",
-              "name": "context",
-              "value": "={{ $json }}",
-              "type": "object"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        2928,
-        1488
-      ],
-      "id": "d80f227c-8ef5-4c96-9e14-31bebcc9d7d1",
-      "name": "Set Inference Start"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Prepare trace data after LLM inference (Option E schema)\nconst context = $('Set Inference Start').first().json.context;\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst inferenceStart = $('Set Inference Start').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${context.north_star}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n${context.activities.map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${context.notes.map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${context.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${context.clean_text}\"\n\nRespond to their message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_text: context.clean_text,\n    input_conversation_id: context.conversation_id,\n    input_history_length: context.history.length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: context.activities.length,\n    result_referenced_notes: context.notes.length,\n    duration_ms: durationMs,\n    event_id: event.event_id,\n    trace_chain_pg: traceChainPg,\n    ...context  // Pass through all context fields\n  }\n}];"
+        "jsCode": "// Prepare trace data after LLM inference (Option E schema)\nconst context = $('Build Context').first().json;\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst inferenceStart = $('Build Context').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${context.north_star}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n${context.activities.map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${context.notes.map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${context.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${context.clean_text}\"\n\nRespond to their message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_text: context.clean_text,\n    input_conversation_id: context.conversation_id,\n    input_history_length: context.history.length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: context.activities.length,\n    result_referenced_notes: context.notes.length,\n    duration_ms: durationMs,\n    event_id: event.event_id,\n    trace_chain_pg: traceChainPg,\n    ...context  // Pass through all context fields\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3504,
-        1488
+        8128,
+        736
       ],
-      "id": "8005f6c4-e4a6-4763-80f8-ff86490d9ef0",
+      "id": "02a979dc-1ba9-49d2-a9cd-7eff23c82510",
       "name": "Prepare Trace Data"
     },
     {
@@ -382,10 +353,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        3728,
-        1488
+        8352,
+        832
       ],
-      "id": "9e40128c-9afa-47dd-9e9a-da31b8e1c161",
+      "id": "2e8e0334-a3c1-496e-81f2-6ae0d19f3425",
       "name": "Write Thread Response Trace",
       "credentials": {
         "postgres": {
@@ -497,7 +468,7 @@
       "main": [
         [
           {
-            "node": "Set Inference Start",
+            "node": "Generate Response",
             "type": "main",
             "index": 0
           }
@@ -553,22 +524,16 @@
         ]
       ]
     },
-    "Set Inference Start": {
-      "main": [
-        [
-          {
-            "node": "Generate Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Prepare Trace Data": {
       "main": [
         [
           {
             "node": "Write Thread Response Trace",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post to Thread",
             "type": "main",
             "index": 0
           }
@@ -577,13 +542,7 @@
     },
     "Write Thread Response Trace": {
       "main": [
-        [
-          {
-            "node": "Post to Thread",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },

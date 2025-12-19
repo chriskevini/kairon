@@ -14,10 +14,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        14336,
-        -1712
+        18496,
+        -2320
       ],
-      "id": "9e7d1ac3-02e8-45d6-8f34-643030f84d26",
+      "id": "a929c09f-94de-42dc-a2ff-923accc5e9ab",
       "name": "Execute Workflow Trigger"
     },
     {
@@ -34,10 +34,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        14560,
-        -1808
+        18720,
+        -2416
       ],
-      "id": "d2631731-57b2-4cd1-9828-5a14d0237003",
+      "id": "85fce562-824f-47c1-83cf-ea4d7e807ea4",
       "name": "Create Discord Thread",
       "credentials": {
         "discordBotApi": {
@@ -55,10 +55,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        14560,
-        -1616
+        18720,
+        -2224
       ],
-      "id": "005e9521-84a1-4ac6-bab4-4bbad9e61d4d",
+      "id": "14297959-30b4-415d-b84e-c44604749da7",
       "name": "Get North Star",
       "alwaysOutputData": true,
       "credentials": {
@@ -73,10 +73,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        14784,
-        -1712
+        18944,
+        -2320
       ],
-      "id": "54b8003a-fb4c-4836-9b8b-40c389c0e5e5",
+      "id": "54301339-2cc0-447e-92ff-0c0fc46ccb87",
       "name": "Wait for Both"
     },
     {
@@ -86,10 +86,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        15008,
-        -1712
+        19168,
+        -2320
       ],
-      "id": "f2760439-fbad-4100-a10e-237b45492f72",
+      "id": "bea95006-7a4f-498b-bbe3-10948a565808",
       "name": "Prepare Context"
     },
     {
@@ -103,10 +103,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        15232,
-        -1712
+        19392,
+        -2320
       ],
-      "id": "abcf54d7-b922-4663-af47-36eee6c7c2f3",
+      "id": "e694621b-8ff9-46d2-a68a-9e5e6f91c9c3",
       "name": "Store Conversation",
       "credentials": {
         "postgres": {
@@ -126,10 +126,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        15456,
-        -1712
+        19616,
+        -2320
       ],
-      "id": "65c244c2-f90d-45f2-a702-e729d6aef4fe",
+      "id": "a3414055-58dd-4cc1-ab7e-5fcd74e80498",
       "name": "Store User Message",
       "credentials": {
         "postgres": {
@@ -148,10 +148,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        15904,
-        -1712
+        20064,
+        -2320
       ],
-      "id": "0b942e6b-1da9-4eb9-b3e3-9432e4b3c26d",
+      "id": "f6f390a8-c453-4cee-8d6d-2b9a415e3a29",
       "name": "Generate Initial Response"
     },
     {
@@ -164,10 +164,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        15920,
-        -1488
+        20080,
+        -2096
       ],
-      "id": "4514b5ed-53a2-4889-a5be-031d20ff9643",
+      "id": "0c6a309d-86ff-4aa3-b02f-33230ae4f092",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -186,10 +186,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        16048,
-        -1488
+        20208,
+        -2096
       ],
-      "id": "7386e1a8-c33c-4ec7-94fa-0fde55f8f6a1",
+      "id": "60963dec-c78a-4918-8b32-12e1a0f25d8b",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -211,16 +211,16 @@
           "value": "={{ $('Prepare Context').item.json.thread_id }}",
           "mode": "id"
         },
-        "content": "={{ $json.text.trim().replace(/^[\"']|[\"']$/g, '') }}",
+        "content": "={{ $json.completion_text.trim().replace(/^[\"']|[\"']$/g, '') }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        16704,
-        -1712
+        20640,
+        -2224
       ],
-      "id": "b832fc76-0de1-4ecf-b94d-182a518afc0b",
+      "id": "a5785f29-feef-42f4-8da5-d5eaeb9fd055",
       "name": "Send Response to Thread",
       "webhookId": "b265fcc0-4670-437b-9913-59b5d32bc95b",
       "credentials": {
@@ -235,16 +235,16 @@
         "operation": "executeQuery",
         "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  'assistant',\n  $2\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Generate Initial Response').item.json.text.trim().replace(/^[\"']|[\"']$/g, '') }}"
+          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $json.content }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        16928,
-        -1712
+        20864,
+        -2224
       ],
-      "id": "d2ff2406-1287-4b4d-aea2-11d6adb0813c",
+      "id": "42809a1e-efe7-4950-bb4e-d805e073327f",
       "name": "Store Assistant Response",
       "credentials": {
         "postgres": {
@@ -273,10 +273,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        17152,
-        -1712
+        21088,
+        -2224
       ],
-      "id": "e9b40119-aab8-4db3-ad18-159d13160bb9",
+      "id": "1e7b0d2a-54ee-4607-bcd9-7872585cb7c1",
       "name": "React with 🗨️",
       "webhookId": "d9babcdf-8243-4adb-83c8-bbaf038fbfc7",
       "credentials": {
@@ -309,10 +309,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        15680,
-        -1712
+        19840,
+        -2320
       ],
-      "id": "385cba93-c8ec-463f-bee7-543339cd46e8",
+      "id": "0abfd7cc-9559-48da-a48b-c8b6c1d5d853",
       "name": "Set Inference Start"
     },
     {
@@ -322,10 +322,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        16256,
-        -1712
+        20416,
+        -2320
       ],
-      "id": "a1a9ac3a-c31e-40ad-ac60-67e992158bc1",
+      "id": "fbff38ac-ebf5-48aa-8666-8117b8d13d0e",
       "name": "Prepare Trace Data"
     },
     {
@@ -339,10 +339,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        16480,
-        -1712
+        20640,
+        -2416
       ],
-      "id": "9f1fd762-2add-438b-9ceb-84a0589e73a0",
+      "id": "b1b95f53-19af-4782-a1d7-6204f58efaca",
       "name": "Write Thread Initial Trace",
       "credentials": {
         "postgres": {
@@ -508,19 +508,18 @@
             "node": "Write Thread Initial Trace",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Write Thread Initial Trace": {
-      "main": [
-        [
+          },
           {
             "node": "Send Response to Thread",
             "type": "main",
             "index": 0
           }
         ]
+      ]
+    },
+    "Write Thread Initial Trace": {
+      "main": [
+        []
       ]
     }
   },
