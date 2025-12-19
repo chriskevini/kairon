@@ -386,12 +386,49 @@
     },
     {
       "parameters": {
+        "jsCode": "// Parse LLM classification scores\nconst llmText = $('LLM Classifier').item.json.text;\nconst scores = {};\n\nif (llmText && llmText.includes('|')) {\n  const lines = llmText.split('\\n').filter(line => line.includes('|'));\n  lines.forEach(line => {\n    const [tag, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    if (!isNaN(score)) {\n      scores[tag] = score;\n    }\n  });\n}\n\nconst intent = $('Set Intent').item.json.intent;\nconst confidence = scores[intent] || 0;\n\nreturn [{\n  json: {\n    event_id: $('Receive Event').item.json.event.event_id,\n    intent: intent,\n    confidence: confidence / 100,\n    all_scores: scores,\n    prompt: 'Intent Classification',\n    llm_output: llmText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        432
+      ],
+      "id": "prepare-trace",
+      "name": "Prepare Trace Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data)\nVALUES (\n  $1::uuid,\n  NULL,\n  'intent_classification',\n  1,\n  jsonb_build_object(\n    'result', jsonb_build_object(\n      'intent', $2,\n      'confidence', $3::numeric,\n      'all_scores', $4::jsonb\n    ),\n    'prompt', $5,\n    'model', 'xiaomi/mimo-v2-flash:free',\n    'llm_output', $6\n  )\n)\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.event_id }},={{ $json.intent }},={{ $json.confidence }},={{ JSON.stringify($json.all_scores) }},={{ $json.prompt }},={{ $json.llm_output }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1312,
+        432
+      ],
+      "id": "write-trace",
+      "name": "Write Intent Classification Trace",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "assignments": {
           "assignments": [
             {
               "id": "add-intent-to-event",
               "name": "event",
-              "value": "={{ Object.assign({}, $('Receive Event').item.json.event, { intent: $json.intent }) }}",
+              "value": "={{ Object.assign({}, $('Receive Event').item.json.event, { intent: $('Set Intent').item.json.intent }) }}",
               "type": "object"
             }
           ]
@@ -401,7 +438,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1088,
+        1536,
         432
       ],
       "id": "add-intent",
@@ -415,7 +452,7 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        1088,
+        1536,
         240
       ],
       "id": "merge-paths",
@@ -572,7 +609,7 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        1312,
+        1760,
         240
       ]
     },
@@ -612,8 +649,185 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1536,
+        1984,
         -16
+      ],
+      "id": "handler-activity",
+      "name": "Save Activity"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "7Qq2qMUBmnyAhLxg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
+          "cachedResultName": "Note_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": ["event"],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1984,
+        112
+      ],
+      "id": "handler-note",
+      "name": "Save Note"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "nsLfmVGA6NeCJJRu",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
+          "cachedResultName": "Thread_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": ["event"],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1984,
+        240
+      ],
+      "id": "handler-chat",
+      "name": "Start Chat"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "v6t7HCxr2OOXvb2z",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
+          "cachedResultName": "Command_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": ["event"],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1984,
+        368
+      ],
+      "id": "handler-command",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "E4pamfDCwW3ZxHzH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
+          "cachedResultName": "Save_Chat"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": ["event"],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1984,
+        496
+      ],
+      "id": "handler-save",
+      "name": "Save Thread"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.event.channel_id }}/messages/{{ $json.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2208,
+        240
       ],
       "id": "handler-activity",
       "name": "Save Activity"
@@ -963,6 +1177,28 @@
       ]
     },
     "Set Intent": {
+      "main": [
+        [
+          {
+            "node": "Prepare Trace Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Trace Data": {
+      "main": [
+        [
+          {
+            "node": "Write Intent Classification Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Intent Classification Trace": {
       "main": [
         [
           {
