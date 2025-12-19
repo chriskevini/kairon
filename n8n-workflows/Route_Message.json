@@ -109,7 +109,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data)\nVALUES (\n  $1::uuid,\n  NULL,\n  'intent_classification',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object(\n      'text', $2,\n      'tag', $3\n    ),\n    'prompt', NULL,\n    'completion', NULL,\n    'result', jsonb_build_object(\n      'intent', $4,\n      'confidence', 1.0,\n      'method', 'tag_shortcut'\n    ),\n    'model', NULL,\n    'duration_ms', 0\n  )\n)\nRETURNING *;",
+        "query": "INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data, trace_chain)\nVALUES (\n  $1::uuid,\n  NULL,\n  'intent_classification',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object(\n      'text', $2,\n      'tag', $3\n    ),\n    'prompt', NULL,\n    'completion', NULL,\n    'result', jsonb_build_object(\n      'intent', $4,\n      'confidence', 1.0,\n      'method', 'tag_shortcut'\n    ),\n    'model', NULL,\n    'duration_ms', 0\n  )\n)\nRETURNING *;",
         "options": {
           "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_tag }},={{ $json.result_intent }}"
         }
@@ -308,7 +308,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data)\nVALUES (\n  $1::uuid,\n  NULL,\n  'intent_classification',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object(\n      'text', $2\n    ),\n    'prompt', $3,\n    'completion', $4,\n    'result', jsonb_build_object(\n      'intent', $5,\n      'confidence', $6::numeric,\n      'all_scores', $7::jsonb\n    ),\n    'model', 'xiaomi/mimo-v2-flash:free',\n    'duration_ms', $8::integer\n  )\n)\nRETURNING *;",
+        "query": "INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data, trace_chain)\nVALUES (\n  $1::uuid,\n  NULL,\n  'intent_classification',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object(\n      'text', $2\n    ),\n    'prompt', $3,\n    'completion', $4,\n    'result', jsonb_build_object(\n      'intent', $5,\n      'confidence', $6::numeric,\n      'all_scores', $7::jsonb\n    ),\n    'model', 'xiaomi/mimo-v2-flash:free',\n    'duration_ms', $8::integer\n  )\n)\nRETURNING *;",
         "options": {
           "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_intent }},={{ $json.result_confidence }},={{ JSON.stringify($json.result_all_scores) }},={{ $json.duration_ms }}"
         }

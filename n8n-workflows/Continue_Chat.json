@@ -374,7 +374,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data)\n  VALUES (\n    $1::uuid,\n    ($9::uuid[])[array_upper($9::uuid[], 1)],\n    'thread_response',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'conversation_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $8::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $8::integer\n    )\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $9::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    ($9::uuid[])[array_upper($9::uuid[], 1)],\n    'thread_response',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'conversation_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $8::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $8::integer
+    ),
+    $9::uuid[]
+  )
+  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $9::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
         "options": {
           "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_conversation_id }},={{ $json.input_history_length }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.duration_ms }},={{ JSON.stringify($json.trace_chain) }}"
         }
