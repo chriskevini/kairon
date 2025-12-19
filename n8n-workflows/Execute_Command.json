@@ -370,7 +370,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  user_login,\n  sleeping,\n  last_observation_at,\n  EXTRACT(EPOCH FROM (NOW() - last_observation_at))/60 as minutes_since_activity\nFROM user_state\nLIMIT 1",
+        "query": "SELECT \n  us.user_login,\n  us.last_observation_at,\n  p.data->>'category' as last_activity_category,\n  EXTRACT(EPOCH FROM (NOW() - us.last_observation_at))/60 as minutes_since_activity\nFROM user_state us\nLEFT JOIN projections p ON p.projection_type = 'activity' \n  AND p.data->>'timestamp' = (\n    SELECT MAX(data->>'timestamp') \n    FROM projections \n    WHERE projection_type = 'activity'\n  )\nLIMIT 1",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -460,7 +460,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format status response\ntry {\n  const status = $input.item?.json;\n  const event = $('When Executed by Another Workflow').first().json.event;\n\n  if (!status) {\n    return {\n      response: `❌ Unable to retrieve status. Please try again.`,\n      ...event\n    };\n  }\n\n  const sleepIcon = status.sleeping ? '😴' : '👁️';\n  const sleepStatus = status.sleeping ? 'Sleeping' : 'Awake';\n  const lastActivity = status.last_observation_at\n    ? new Date(status.last_observation_at).toLocaleString()\n    : 'Never';\n  const minutesAgo = Math.round(status.minutes_since_activity || 0);\n\n  return {\n    response: `${sleepIcon} **Status**\\n\\n` +\n      `State: ${sleepStatus}\\n` +\n      `Last activity: ${lastActivity}\\n` +\n      `Time since: ${minutesAgo} minutes ago`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting status: ${error.message}`,\n    ...event\n  };\n}"
+        "jsCode": "// Format status response\ntry {\n  const status = $input.item?.json;\n  const event = $('When Executed by Another Workflow').first().json.event;\n\n  if (!status) {\n    return {\n      response: `❌ Unable to retrieve status. Please try again.`,\n      ...event\n    };\n  }\n\n  const isSleeping = status.last_activity_category === 'sleep';\n  const sleepIcon = isSleeping ? '😴' : '👁️';\n  const sleepStatus = isSleeping ? 'Sleeping' : 'Awake';\n  const lastActivity = status.last_observation_at\n    ? new Date(status.last_observation_at).toLocaleString()\n    : 'Never';\n  const minutesAgo = Math.round(status.minutes_since_activity || 0);\n  const lastCategory = status.last_activity_category || 'unknown';\n\n  return {\n    response: `${sleepIcon} **Status**\\n\\n` +\n      `State: ${sleepStatus}\\n` +\n      `Last activity: ${lastActivity}\\n` +\n      `Last category: ${lastCategory}\\n` +\n      `Time since: ${minutesAgo} minutes ago`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting status: ${error.message}`,\n    ...event\n  };\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

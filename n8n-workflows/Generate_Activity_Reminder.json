@@ -24,7 +24,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  user_login,\n  sleeping,\n  last_observation_at,\n  EXTRACT(EPOCH FROM (NOW() - COALESCE(last_observation_at, '1970-01-01')))/60 as minutes_since_activity\nFROM user_state\nWHERE sleeping = false\n  AND (last_observation_at IS NULL OR last_observation_at < NOW() - INTERVAL '30 minutes')\nLIMIT 1",
+        "query": "WITH latest_activity AS (\n  SELECT \n    us.user_login,\n    us.last_observation_at,\n    p.data->>'category' as last_category,\n    EXTRACT(EPOCH FROM (NOW() - COALESCE(us.last_observation_at, '1970-01-01')))/60 as minutes_since_activity\n  FROM user_state us\n  LEFT JOIN projections p ON p.projection_type = 'activity' \n    AND p.data->>'timestamp' = (\n      SELECT MAX(data->>'timestamp') \n      FROM projections \n      WHERE projection_type = 'activity'\n    )\n  WHERE us.last_observation_at IS NULL \n    OR us.last_observation_at < NOW() - INTERVAL '30 minutes'\n  LIMIT 1\n)\nSELECT * \nFROM latest_activity\nWHERE last_category IS NULL OR last_category != 'sleep'",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -41,7 +41,7 @@
           "name": "Postgres account"
         }
       },
-      "notes": "Checks if:\n1. User is awake (sleeping = false)\n2. No activity in last 30 minutes\n\nIf conditions met, returns row and continues.\nIf not met, returns nothing and workflow stops (desired behavior)."
+      "notes": "Checks if:\n1. User is awake (last activity != 'sleep')\n2. No activity in last 30 minutes\n\nSleep status derived from latest activity projection.\nIf conditions met, returns row and continues.\nIf not met, returns nothing and workflow stops."
     },
     {
       "parameters": {

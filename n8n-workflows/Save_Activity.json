@@ -120,9 +120,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO user_state (user_login, sleeping, last_observation_at)\nVALUES (\n  $2,\n  ($1 = 'sleep'),\n  NOW()\n)\nON CONFLICT (user_login) \nDO UPDATE SET\n  sleeping = EXCLUDED.sleeping,\n  last_observation_at = EXCLUDED.last_observation_at,\n  updated_at = NOW()\nRETURNING *;",
+        "query": "INSERT INTO user_state (user_login, last_observation_at)\nVALUES (\n  $1,\n  NOW()\n)\nON CONFLICT (user_login) \nDO UPDATE SET\n  last_observation_at = EXCLUDED.last_observation_at,\n  updated_at = NOW()\nRETURNING *;",
         "options": {
-          "queryReplacement": "=={{ $json.category }},={{ $('Parse LLM Response').item.json.author_login}}"
+          "queryReplacement": "=={{ $('Parse LLM Response').item.json.author_login}}"
         }
       },
       "type": "n8n-nodes-base.postgres",

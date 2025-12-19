@@ -2,35 +2,19 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "={{ $env.WEBHOOK_PATH }}/message",
-        "options": {}
-      },
-      "id": "dd605198-d92e-44c6-9683-c75da70e3ca5",
-      "name": "Discord Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [
-        -5600,
-        5648
-      ],
-      "webhookId": "discord-message-webhook"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO events (\n  event_type,\n  source,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  'discord',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;",
         "options": {
           "queryReplacement": "={{ $json.event.guild_id }},={{ $json.event.channel_id }},={{ $json.event.message_id }},={{ $json.event.message_url }},={{ $json.event.author_login }},={{ $json.event.thread_id }},={{ $json.event.raw_text }},={{ $json.event.clean_text }},={{ $json.event.tag }},"
         }
       },
-      "id": "2cf5af24-fe15-4ea7-b189-e712a8b7f887",
+      "id": "4a555af8-c5de-45df-a015-311c9edb109c",
       "name": "Store Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -4128,
-        5552
+        -11552,
+        7168
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -57,10 +41,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -3904,
-        5552
+        -11328,
+        7168
       ],
-      "id": "18a100d7-9892-47eb-95ba-e613ba2ab13a",
+      "id": "fddb9ff6-9595-4999-98b4-776d938244b4",
       "name": "Add Event ID"
     },
     {
@@ -204,13 +188,13 @@
         },
         "options": {}
       },
-      "id": "8130cd93-4791-4610-b1fb-b30d6bb8ccd1",
+      "id": "d523be42-e625-4d42-bd30-c09d16171ca4",
       "name": "Check Tag",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -3456,
-        5808
+        -10880,
+        7392
       ]
     },
     {
@@ -219,13 +203,13 @@
         "height": 416,
         "width": 480
       },
-      "id": "3c99012f-654c-442d-98c5-8ae798f37ea7",
+      "id": "981f6a4e-9cf9-4d20-95b6-fef6ae6e9bec",
       "name": "Thread Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -3536,
-        5104
+        -10960,
+        6720
       ]
     },
     {
@@ -265,10 +249,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -3232,
-        5552
+        -10656,
+        7168
       ],
-      "id": "ea3c5e75-ba28-46be-ab74-6740a3e6d1ce",
+      "id": "a244c823-1db8-483d-913f-90d1f8380757",
       "name": "Handle !! Activity"
     },
     {
@@ -308,10 +292,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -3232,
-        5744
+        -10656,
+        7360
       ],
-      "id": "ff55a4c8-583b-4abe-a417-d2bdf091e867",
+      "id": "547f83a3-7b94-444c-94bc-275659bb0c5a",
       "name": "Handle ++ Thread Start"
     },
     {
@@ -334,13 +318,13 @@
         },
         "options": {}
       },
-      "id": "229f86c1-1b7e-4848-9249-b4972619f749",
+      "id": "ca9aa37c-cee9-49a8-b45e-4ddb918b6453",
       "name": "Commit Thread",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        -3232,
-        5168
+        -10656,
+        6784
       ],
       "notes": "TODO: Load conversation_messages\nTODO: Summarize with LLM\nTODO: Create note + activity"
     },
@@ -380,10 +364,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -3232,
-        5360
+        -10656,
+        6976
       ],
-      "id": "2493e2bc-322a-435e-8af9-e99a2b3404bd",
+      "id": "278f5e07-27a7-4867-9adc-373aa665c24d",
       "name": "Handle Thread Continuation"
     },
     {
@@ -392,13 +376,13 @@
         "height": 736,
         "width": 480
       },
-      "id": "fa4d7d32-ff5e-4160-8e50-8537eb2e6891",
+      "id": "48a4f65b-e29e-4b67-a85b-6cb4b51c1603",
       "name": "Main Path Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -3536,
-        5552
+        -10960,
+        7168
       ]
     },
     {
@@ -429,10 +413,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -3680,
-        5552
+        -11104,
+        7168
       ],
-      "id": "371ddf8c-d1e6-4498-a5e4-74469e363029",
+      "id": "957e9c2c-4afe-4ae0-812e-dc7a45ae3101",
       "name": "If in Thread"
     },
     {
@@ -463,10 +447,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -3440,
-        5312
+        -10880,
+        6880
       ],
-      "id": "496f7aa0-7353-4cf9-8e05-ee64801d2f1e",
+      "id": "269bcc5d-90e6-4880-bbff-5371645020f0",
       "name": "If Commit"
     },
     {
@@ -506,10 +490,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -3232,
-        6128
+        -10656,
+        7744
       ],
-      "id": "7dd7298e-a06a-4c13-a2ce-05e99d12d302",
+      "id": "ebf9639e-ea2c-44c4-9bc6-13c722c343c3",
       "name": "Handle .. Note"
     },
     {
@@ -522,10 +506,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        -4704,
-        5776
+        -12128,
+        7388
       ],
-      "id": "a43e3f77-47f1-4df0-bc1a-818a0f36a2cf",
+      "id": "fab40ef4-263a-4fff-9e7d-34723c68cfe0",
       "name": "Intent Classifier"
     },
     {
@@ -547,10 +531,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -4352,
-        5824
+        -11776,
+        6944
       ],
-      "id": "d1efec41-1c7a-40ba-8b7f-3a766b893dc8",
+      "id": "9180697a-fc96-4ac7-835d-60655584bb59",
       "name": "Log classification to #kairon-logs",
       "webhookId": "18ae6288-f1c3-401a-9dcc-f832d8126ddf",
       "credentials": {
@@ -597,10 +581,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -3232,
-        5936
+        -10656,
+        7552
       ],
-      "id": "47a505c1-5dac-41ab-a081-89e17aab43d3",
+      "id": "499516b2-2b63-4002-bfe5-9253e4c45aab",
       "name": "Handle :: Command"
     },
     {
@@ -620,10 +604,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -5152,
-        5648
+        -12576,
+        7264
       ],
-      "id": "0726cc67-ec03-4e1c-b2bd-8abeb9a8ed5f",
+      "id": "1803ed8f-663e-4579-b3e0-e8e9a16203f2",
       "name": "Parse Tag"
     },
     {
@@ -643,10 +627,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -4352,
-        5552
+        -11776,
+        7168
       ],
-      "id": "cff719f5-e88c-42e5-8607-ba2199691ca6",
+      "id": "0207d469-8925-4b66-8c4f-872b78fc7e8d",
       "name": "Build Event Object"
     },
     {
@@ -687,10 +671,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -4928,
-        5648
+        -12352,
+        7264
       ],
-      "id": "370cc567-a981-43e9-b2e5-56edf9775e20",
+      "id": "253b8334-feb5-4ea9-94aa-c78660dd2c9e",
       "name": "If Tag or Thread Detected"
     },
     {
@@ -703,10 +687,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -4512,
-        6032
+        -11992,
+        7612
       ],
-      "id": "3d8d048f-6ce9-4fcb-9632-ae56211999a8",
+      "id": "2d1c739b-2d72-4b0e-9ef4-e5fd9e4d11a4",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -725,10 +709,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -4688,
-        6032
+        -12120,
+        7612
       ],
-      "id": "3673f0e8-0bf2-47a6-a621-22f3a6e953c7",
+      "id": "d417aeb8-eca7-4ae9-90fb-cfdce37e57e0",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -744,10 +728,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -2960,
-        5840
+        -10432,
+        7264
       ],
-      "id": "c58f98b4-c400-4411-b042-abe7736cc0a4",
+      "id": "700e9363-0b5d-40bb-8de7-fbc17de32679",
       "name": "Wait 1 s (rate-limiting deterence)",
       "webhookId": "ae300d22-0f1a-4eac-9ead-3b7bb3b13d15"
     },
@@ -771,10 +755,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -5376,
-        5648
+        -12576,
+        7072
       ],
-      "id": "46c284d1-a685-4621-8ffa-c529b6412df1",
+      "id": "f6072f53-9275-440a-8c0e-c947d6fbb9e7",
       "name": "React with 🔵",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "credentials": {
@@ -795,10 +779,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        -2784,
-        5840
+        -10208,
+        7264
       ],
-      "id": "de7b4c83-35a0-48bf-8edb-015208a6cde7",
+      "id": "57a0ed3a-a514-453a-bc40-e1a43628ae00",
       "name": "Remove 🔵 Reaction",
       "credentials": {
         "discordBotApi": {
@@ -806,20 +790,22 @@
           "name": "Discord Bot account"
         }
       }
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -12800,
+        7168
+      ],
+      "id": "d10cc42d-5fa9-430e-b95a-d6a0a4397e91",
+      "name": "Discord Webhook"
     }
   ],
   "connections": {
-    "Discord Webhook": {
-      "main": [
-        [
-          {
-            "node": "React with 🔵",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Store Event": {
       "main": [
         [
@@ -1056,7 +1042,17 @@
     },
     "React with 🔵": {
       "main": [
+        []
+      ]
+    },
+    "Discord Webhook": {
+      "main": [
         [
+          {
+            "node": "React with 🔵",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "Parse Tag",
             "type": "main",
