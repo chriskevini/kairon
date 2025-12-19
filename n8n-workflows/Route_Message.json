@@ -7,10 +7,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -480,
-        240
+        -14208,
+        7432
       ],
-      "id": "trigger-node",
+      "id": "3135e7fd-d449-42f9-901d-cedcb40afda2",
       "name": "Receive Event"
     },
     {
@@ -33,10 +33,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -256,
-        240
+        -13984,
+        7336
       ],
-      "id": "react-processing",
+      "id": "3ed21ea8-a578-4a31-b885-1c04cfdcb0dd",
       "name": "React with 🔵",
       "webhookId": "react-processing",
       "credentials": {
@@ -74,166 +74,11 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -32,
-        240
+        -13760,
+        7696
       ],
-      "id": "check-tag",
+      "id": "a379e953-a592-4651-a551-d3c7f63c9ae4",
       "name": "Has Tag?"
-    },
-    {
-      "parameters": {
-        "rules": {
-          "values": [
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "id": "tag-activity",
-                    "leftValue": "={{ $json.event.tag }}",
-                    "rightValue": "!!",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "activity"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "id": "tag-note",
-                    "leftValue": "={{ $json.event.tag }}",
-                    "rightValue": "..",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "note"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "id": "tag-chat",
-                    "leftValue": "={{ $json.event.tag }}",
-                    "rightValue": "++",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "chat"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "id": "tag-command",
-                    "leftValue": "={{ $json.event.tag }}",
-                    "rightValue": "::",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "command"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "id": "tag-save",
-                    "leftValue": "={{ $json.event.tag }}",
-                    "rightValue": "--",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "save"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "id": "tag-todo",
-                    "leftValue": "={{ $json.event.tag }}",
-                    "rightValue": "$$",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "todo"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "route-by-tag",
-      "name": "Route by Tag",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
-      "position": [
-        192,
-        144
-      ]
     },
     {
       "parameters": {
@@ -242,10 +87,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        416,
-        144
+        -13248,
+        7600
       ],
-      "id": "map-tag-to-intent",
+      "id": "7a505733-86be-4cb2-b05e-722e1201097d",
       "name": "Map Tag to Intent"
     },
     {
@@ -255,10 +100,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        640,
-        144
+        -12960,
+        7600
       ],
-      "id": "prepare-deterministic-trace",
+      "id": "191e7912-6f76-4302-a425-8a05b212c02f",
       "name": "Prepare Deterministic Trace"
     },
     {
@@ -272,10 +117,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        864,
-        144
+        -12736,
+        7504
       ],
-      "id": "write-deterministic-trace",
+      "id": "e942b786-c748-4306-9c82-8f0e3659074e",
       "name": "Write Deterministic Trace",
       "alwaysOutputData": true,
       "credentials": {
@@ -292,7 +137,7 @@
             {
               "id": "pass-event",
               "name": "event",
-              "value": "={{ $('Prepare Deterministic Trace').item.json.event }}",
+              "value": "={{ Object.assign({}, $(\"Prepare Deterministic Trace\").item.json.event, { trace_stack: [... $(\"Prepare Deterministic Trace\").item.json.event.trace_stack, $(\"Write Deterministic Trace\").item.json.id] }) }}",
               "type": "object"
             }
           ]
@@ -302,10 +147,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1088,
-        144
+        -12736,
+        7696
       ],
-      "id": "pass-event-tagged",
+      "id": "14dd6a29-80ed-4611-a62c-d133bf4b029a",
       "name": "Pass Event (Tagged)"
     },
     {
@@ -336,10 +181,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        192,
-        336
+        -13984,
+        7528
       ],
-      "id": "check-thread",
+      "id": "f5acfd50-0c7b-423c-ae2b-e28ac5179b5f",
       "name": "In Thread?"
     },
     {
@@ -365,27 +210,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        416,
-        432
+        -13536,
+        8080
       ],
-      "id": "set-inference-start",
+      "id": "f3526f4d-6478-48e6-8ef0-107f9a14c5ae",
       "name": "Set Inference Start"
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "=You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n{{ $('Set Inference Start').item.json.event.clean_text }}",
-        "needsFallback": true,
-        "batching": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.7,
-      "position": [
-        640,
-        432
-      ],
-      "id": "llm-classifier",
-      "name": "LLM Classifier"
     },
     {
       "parameters": {
@@ -397,10 +226,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        416,
-        656
+        -13304,
+        8304
       ],
-      "id": "llm-primary",
+      "id": "cb843889-a9d2-4207-a87a-92cf4c1b8cd2",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -419,10 +248,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        544,
-        656
+        -13176,
+        8304
       ],
-      "id": "llm-fallback",
+      "id": "cbde129d-a46c-4e8e-b396-439b6241e8d0",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -436,7 +265,7 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Set Inference Start').item.json.event.guild_id }}",
+          "value": "={{ $json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
@@ -450,10 +279,10 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        864,
-        432
+        -12736,
+        7888
       ],
-      "id": "log-classification",
+      "id": "402d5477-da47-4cd7-9734-8b016c3aff70",
       "name": "Log to #kairon-logs",
       "webhookId": "log-classification",
       "credentials": {
@@ -465,15 +294,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM classification scores and map to semantic intents (Option E schema)\nconst llmText = $('LLM Classifier').item.json.text;\nconst event = $('Set Inference Start').item.json.event;\nconst inferenceStart = $('Set Inference Start').item.json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Tag to semantic intent mapping\nconst tagToIntent = {\n  '!!': 'activity',\n  '..': 'note',\n  '++': 'chat',\n  '::': 'command',\n  '--': 'save',\n  '$$': 'todo'\n};\n\n// Parse scores\nconst tagScores = {};\nconst intentScores = {};\nif (llmText && llmText.includes('|')) {\n  const lines = llmText.split('\\n').filter(line => line.includes('|'));\n  lines.forEach(line => {\n    const [tag, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    if (!isNaN(score)) {\n      tagScores[tag] = score;\n      const intent = tagToIntent[tag] || tag;\n      intentScores[intent] = score;\n    }\n  });\n}\n\n// Find top tag\nlet topTag = '..';\nlet topScore = 0;\nfor (const [tag, score] of Object.entries(tagScores)) {\n  if (score > topScore) {\n    topScore = score;\n    topTag = tag;\n  }\n}\n\n// Map to semantic intent\nconst intent = tagToIntent[topTag] || 'note';\nconst confidence = topScore / 100;\n\n// Get full prompt text\nconst promptText = `You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n${event.clean_text}`;\n\nreturn [{\n  json: {\n    event_id: event.event_id,\n    input_text: event.clean_text,\n    prompt_text: promptText,\n    completion_text: llmText,\n    result_intent: intent,\n    result_confidence: confidence,\n    result_all_scores: intentScores,\n    duration_ms: durationMs,\n    event: {\n      ...event,\n      intent: intent\n    }\n  }\n}];"
+        "jsCode": "// Parse LLM classification scores and map to semantic intents (Option E schema)\nconst llmText = $('Intent Classifier').item.json.text;\nconst event = $('Set Inference Start').item.json.event;\nconst inferenceStart = $('Set Inference Start').item.json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Tag to semantic intent mapping\nconst tagToIntent = {\n  '!!': 'activity',\n  '..': 'note',\n  '++': 'chat',\n  '::': 'command',\n  '--': 'save',\n  '$$': 'todo'\n};\n\n// Parse scores\nconst tagScores = {};\nconst intentScores = {};\nif (llmText && llmText.includes('|')) {\n  const lines = llmText.split('\\n').filter(line => line.includes('|'));\n  lines.forEach(line => {\n    const [tag, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    if (!isNaN(score)) {\n      tagScores[tag] = score;\n      const intent = tagToIntent[tag] || tag;\n      intentScores[intent] = score;\n    }\n  });\n}\n\n// Find top tag\nlet topTag = '..';\nlet topScore = 0;\nfor (const [tag, score] of Object.entries(tagScores)) {\n  if (score > topScore) {\n    topScore = score;\n    topTag = tag;\n  }\n}\n\n// Map to semantic intent\nconst intent = tagToIntent[topTag] || 'note';\nconst confidence = topScore / 100;\n\n// Get full prompt text\nconst promptText = `You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n${event.clean_text}`;\n\nreturn [{\n  json: {\n    event_id: event.event_id,\n    input_text: event.clean_text,\n    prompt_text: promptText,\n    completion_text: llmText,\n    result_intent: intent,\n    result_confidence: confidence,\n    result_all_scores: intentScores,\n    duration_ms: durationMs,\n    event: {\n      ...event,\n      intent: intent\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1088,
-        432
+        -12960,
+        8080
       ],
-      "id": "prepare-trace",
+      "id": "3d860d41-5b13-47b7-bbb3-039a668fdd4c",
       "name": "Prepare Trace Data"
     },
     {
@@ -487,10 +316,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1312,
-        432
+        -12736,
+        8080
       ],
-      "id": "write-trace",
+      "id": "ed549623-a41f-41d1-b6a1-bf414416c6ac",
       "name": "Write Intent Classification Trace",
       "alwaysOutputData": true,
       "credentials": {
@@ -507,7 +336,7 @@
             {
               "id": "add-intent-to-event",
               "name": "event",
-              "value": "={{ $('Prepare Trace Data').item.json.event }}",
+              "value": "={{ Object.assign({}, $(\"Prepare Trace Data\").item.json.event, { trace_stack: [...$(\"Prepare Trace Data\").item.json.event.trace_stack, $(\"Write Intent Classification Trace\").item.json.id] }) }}",
               "type": "object"
             }
           ]
@@ -517,25 +346,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1536,
-        432
+        -12736,
+        8272
       ],
-      "id": "add-intent",
+      "id": "84dc939d-d276-4f99-b54d-2cab5a4ae7a5",
       "name": "Add Intent to Event"
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        1536,
-        240
-      ],
-      "id": "merge-paths",
-      "name": "Merge Tag and Classified Paths"
     },
     {
       "parameters": {
@@ -546,7 +361,8 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -569,7 +385,8 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -592,7 +409,8 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -615,7 +433,8 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -638,30 +457,8 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
-                },
-                "conditions": [
-                  {
-                    "id": "intent-save",
-                    "leftValue": "={{ $json.event.intent }}",
-                    "rightValue": "save",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "save"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -683,14 +480,208 @@
         },
         "options": {}
       },
-      "id": "route-by-intent",
+      "id": "112483f4-a199-48be-b610-fb64e9b4c629",
       "name": "Route by Intent",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        1760,
-        240
+        -12512,
+        7840
       ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "7Qq2qMUBmnyAhLxg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
+          "cachedResultName": "Note_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -12288,
+        7792
+      ],
+      "id": "d9f27d66-7768-48e8-aa9c-8fefb1f71291",
+      "name": "Save Note"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "nsLfmVGA6NeCJJRu",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
+          "cachedResultName": "Thread_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -12288,
+        7984
+      ],
+      "id": "36d102cc-14d9-4321-8d84-69f83cf893c8",
+      "name": "Start Chat"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "v6t7HCxr2OOXvb2z",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
+          "cachedResultName": "Command_Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -12288,
+        8176
+      ],
+      "id": "adc90a88-2445-449c-a215-f45ad9303be9",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Receive Event').item.json.event.channel_id }}/messages/{{ $('Receive Event').item.json.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -12064,
+        7984
+      ],
+      "id": "5c448824-c6d7-4b2b-bdd2-86f73e444fbe",
+      "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "e78T3OMl6pDxTb13",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/e78T3OMl6pDxTb13",
+          "cachedResultName": "Continue_Chat"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event": "={{ $json.event }}"
+          },
+          "matchingColumns": [
+            "event"
+          ],
+          "schema": [
+            {
+              "id": "event",
+              "displayName": "event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -13536,
+        7456
+      ],
+      "id": "085b78a2-6c7b-4ba2-8454-0f9cd9030285",
+      "name": "Continue Chat"
     },
     {
       "parameters": {
@@ -717,7 +708,8 @@
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
-              "type": "object"
+              "type": "object",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -728,137 +720,11 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1984,
-        -16
+        -12288,
+        7600
       ],
-      "id": "handler-activity",
+      "id": "ef0012f1-f385-425c-a38b-ea96ec008085",
       "name": "Save Activity"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "7Qq2qMUBmnyAhLxg",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
-          "cachedResultName": "Note_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        1984,
-        112
-      ],
-      "id": "handler-note",
-      "name": "Save Note"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "nsLfmVGA6NeCJJRu",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
-          "cachedResultName": "Thread_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        1984,
-        240
-      ],
-      "id": "handler-chat",
-      "name": "Start Chat"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "v6t7HCxr2OOXvb2z",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
-          "cachedResultName": "Command_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        1984,
-        368
-      ],
-      "id": "handler-command",
-      "name": "Execute Command"
     },
     {
       "parameters": {
@@ -896,222 +762,61 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1984,
-        496
+        -13536,
+        7264
       ],
-      "id": "handler-save",
-      "name": "Save Thread"
+      "id": "c6caccec-0cc5-469a-83de-1ace41834744",
+      "name": "Save Chat"
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.event.channel_id }}/messages/{{ $json.event.message_id }}/reactions/🔵/@me",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "discordBotApi",
-        "options": {}
+        "promptType": "define",
+        "text": "=You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n{{ $('Set Inference Start').item.json.event.clean_text }}",
+        "needsFallback": true,
+        "batching": {}
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
       "position": [
-        2208,
-        240
+        -13312,
+        8080
       ],
-      "id": "handler-activity",
-      "name": "Save Activity"
+      "id": "3e806745-de5b-4382-aa0b-297c13ae81de",
+      "name": "Intent Classifier"
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "7Qq2qMUBmnyAhLxg",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
-          "cachedResultName": "Note_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
           },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
+          "conditions": [
             {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
+              "id": "0ceb9e91-e374-4346-8706-97df7d95cfe6",
+              "leftValue": "={{ $json.event.tag }}",
+              "rightValue": "--",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
             }
           ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
+          "combinator": "and"
         },
         "options": {}
       },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
       "position": [
-        1536,
-        112
+        -13760,
+        7360
       ],
-      "id": "handler-note",
-      "name": "Save Note"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "nsLfmVGA6NeCJJRu",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
-          "cachedResultName": "Thread_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        1536,
-        240
-      ],
-      "id": "handler-chat",
-      "name": "Start Chat"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "v6t7HCxr2OOXvb2z",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
-          "cachedResultName": "Command_Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        1536,
-        368
-      ],
-      "id": "handler-command",
-      "name": "Execute Command"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "E4pamfDCwW3ZxHzH",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
-          "cachedResultName": "Save_Chat"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        1536,
-        496
-      ],
-      "id": "handler-save",
-      "name": "Save Thread"
-    },
-    {
-      "parameters": {
-        "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.event.channel_id }}/messages/{{ $json.event.message_id }}/reactions/🔵/@me",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "discordBotApi",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        1760,
-        240
-      ],
-      "id": "remove-reaction",
-      "name": "Remove 🔵 Reaction",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
-        }
-      }
+      "id": "b5919bac-ad5d-4661-b1fc-44e9553f51c2",
+      "name": "Tag is --"
     }
   ],
   "connections": {
@@ -1122,15 +827,9 @@
             "node": "React with 🔵",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "React with 🔵": {
-      "main": [
-        [
+          },
           {
-            "node": "Has Tag?",
+            "node": "In Thread?",
             "type": "main",
             "index": 0
           }
@@ -1141,24 +840,6 @@
       "main": [
         [
           {
-            "node": "Route by Tag",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "In Thread?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Route by Tag": {
-      "main": [
-        [
-          {
             "node": "Map Tag to Intent",
             "type": "main",
             "index": 0
@@ -1166,35 +847,7 @@
         ],
         [
           {
-            "node": "Map Tag to Intent",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Map Tag to Intent",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Map Tag to Intent",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Map Tag to Intent",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Map Tag to Intent",
+            "node": "Set Inference Start",
             "type": "main",
             "index": 0
           }
@@ -1219,13 +872,7 @@
             "node": "Write Deterministic Trace",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Write Deterministic Trace": {
-      "main": [
-        [
+          },
           {
             "node": "Pass Event (Tagged)",
             "type": "main",
@@ -1234,11 +881,16 @@
         ]
       ]
     },
+    "Write Deterministic Trace": {
+      "main": [
+        []
+      ]
+    },
     "Pass Event (Tagged)": {
       "main": [
         [
           {
-            "node": "Merge Tag and Classified Paths",
+            "node": "Route by Intent",
             "type": "main",
             "index": 0
           }
@@ -1249,14 +901,14 @@
       "main": [
         [
           {
-            "node": "Merge Tag and Classified Paths",
+            "node": "Tag is --",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Set Inference Start",
+            "node": "Has Tag?",
             "type": "main",
             "index": 0
           }
@@ -1267,18 +919,7 @@
       "main": [
         [
           {
-            "node": "LLM Classifier",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "LLM Classifier": {
-      "main": [
-        [
-          {
-            "node": "Log to #kairon-logs",
+            "node": "Intent Classifier",
             "type": "main",
             "index": 0
           }
@@ -1289,7 +930,7 @@
       "ai_languageModel": [
         [
           {
-            "node": "LLM Classifier",
+            "node": "Intent Classifier",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -1300,7 +941,7 @@
       "ai_languageModel": [
         [
           {
-            "node": "LLM Classifier",
+            "node": "Intent Classifier",
             "type": "ai_languageModel",
             "index": 1
           }
@@ -1309,13 +950,7 @@
     },
     "Log to #kairon-logs": {
       "main": [
-        [
-          {
-            "node": "Prepare Trace Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Prepare Trace Data": {
@@ -1325,33 +960,26 @@
             "node": "Write Intent Classification Trace",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Write Intent Classification Trace": {
-      "main": [
-        [
+          },
           {
             "node": "Add Intent to Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to #kairon-logs",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Add Intent to Event": {
+    "Write Intent Classification Trace": {
       "main": [
-        [
-          {
-            "node": "Merge Tag and Classified Paths",
-            "type": "main",
-            "index": 1
-          }
-        ]
+        []
       ]
     },
-    "Merge Tag and Classified Paths": {
+    "Add Intent to Event": {
       "main": [
         [
           {
@@ -1391,24 +1019,6 @@
             "type": "main",
             "index": 0
           }
-        ],
-        [
-          {
-            "node": "Save Thread",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Save Activity": {
-      "main": [
-        [
-          {
-            "node": "Remove 🔵 Reaction",
-            "type": "main",
-            "index": 0
-          }
         ]
       ]
     },
@@ -1445,7 +1055,7 @@
         ]
       ]
     },
-    "Save Thread": {
+    "Save Activity": {
       "main": [
         [
           {
@@ -1455,10 +1065,39 @@
           }
         ]
       ]
+    },
+    "Intent Classifier": {
+      "main": [
+        [
+          {
+            "node": "Prepare Trace Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag is --": {
+      "main": [
+        [
+          {
+            "node": "Save Chat",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continue Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
-  },
-  "name": "Route_Message"
+  }
 }

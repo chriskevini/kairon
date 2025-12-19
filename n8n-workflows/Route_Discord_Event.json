@@ -6,13 +6,13 @@
         "path": "={{ $env.WEBHOOK_PATH }}",
         "options": {}
       },
-      "id": "1003e606-4a37-4ce9-ac86-53e21b6594d7",
+      "id": "cd624af2-2b2d-4c54-a6f2-c16f72817ee4",
       "name": "Discord Webhook Entry",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -480,
-        240
+        -768,
+        256
       ],
       "webhookId": "discord-events"
     },
@@ -25,7 +25,8 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -48,7 +49,8 @@
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 1
                 },
                 "conditions": [
                   {
@@ -70,43 +72,14 @@
         },
         "options": {}
       },
-      "id": "375b6932-4817-4f8b-9928-10fdd40968cd",
+      "id": "1c5b0871-58a8-457f-8b94-c1225e4e38b7",
       "name": "Route by Event Type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -256,
-        240
+        -544,
+        256
       ]
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "parse-tag",
-              "name": "tag",
-              "value": "={{ (() => {\n  const content = $json.body.content;\n  if (!content) return null;\n  const tagMatch = content.match(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|::|cmd|\\$\\$|todo)(\\s+|$)/i);\n  if (tagMatch) {\n    const tag = tagMatch[1].toLowerCase();\n    if (tag === 'act') return '!!';\n    if (tag === 'note') return '..';\n    if (tag === 'chat') return '++';\n    if (tag === 'save') return '--';\n    if (tag === 'cmd' || tag === '::') return '::';\n    if (tag === 'todo' || tag === '$$') return '$$';\n    return tagMatch[1];\n  }\n  return null;\n})() }}",
-              "type": "string"
-            },
-            {
-              "id": "clean-text",
-              "name": "clean_text",
-              "value": "={{ $json.body.content ? $json.body.content.replace(/^(!!|act|\\.\\.|\\.\\.|note|\\+\\+|chat|--|save|::|cmd|\\$\\$|todo)(\\s+|$)/i, '').trim() : '' }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        -32,
-        144
-      ],
-      "id": "parse-tag-node",
-      "name": "Parse Message"
     },
     {
       "parameters": {
@@ -115,10 +88,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -32,
-        336
+        -320,
+        352
       ],
-      "id": "parse-reaction-node",
+      "id": "1ffa970a-a79d-4d92-ad89-666e68c48276",
       "name": "Parse Reaction"
     },
     {
@@ -126,16 +99,16 @@
         "operation": "executeQuery",
         "query": "INSERT INTO events (\n  event_type,\n  source,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  'discord',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.body.guild_id }},={{ $json.body.channel_id }},={{ $json.body.message_id }},={{ 'https://discord.com/channels/' + $json.body.guild_id + '/' + $json.body.channel_id + '/' + $json.body.message_id }},={{ $json.body.author.login }},={{ $json.body.thread_id || null }},={{ $json.body.content }},={{ $('Parse Message').item.json.clean_text }},={{ $('Parse Message').item.json.tag || null }}"
+          "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ 'https://discord.com/channels/' + $json.guild_id + '/' + $json.channel_id + '/' + $json.message_id }},={{ $json.author.login }},={{ $json.thread_id || null }},={{ $json.content }},={{ $('Parse Message').item.json.clean_text }},={{ $('Parse Message').item.json.tag || null }}"
         }
       },
-      "id": "store-message-event",
+      "id": "22b228b1-5999-4f45-8dc4-498385ad6aa9",
       "name": "Store Message Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        192,
-        144
+        -96,
+        160
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -153,13 +126,13 @@
           "queryReplacement": "={{ $json.body.guild_id }},={{ $json.body.channel_id }},={{ $json.body.message_id }},={{ $json.body.user?.login || $json.body.user_id }},={{ $json.body.thread_id || null }},={{ $('Parse Reaction').item.json.emoji }},={{ $('Parse Reaction').item.json.extraction_index }},={{ $json.body.action }},={{ $('Parse Reaction').item.json.synthetic_id }}"
         }
       },
-      "id": "store-reaction-event",
+      "id": "a6bdb18b-71f2-4c8f-afce-c269250fb9ac",
       "name": "Store Reaction Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        192,
-        336
+        -96,
+        352
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -176,7 +149,7 @@
             {
               "id": "build-event-obj",
               "name": "event",
-              "value": "={{ {\n  event_id: $json.id,\n  event_type: 'discord_message',\n  guild_id: $('Discord Webhook Entry').item.json.body.guild_id,\n  channel_id: $('Discord Webhook Entry').item.json.body.channel_id,\n  message_id: $('Discord Webhook Entry').item.json.body.message_id,\n  author_login: $('Discord Webhook Entry').item.json.body.author.login,\n  thread_id: $('Discord Webhook Entry').item.json.body.thread_id || null,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook Entry').item.json.body.guild_id + '/' + $('Discord Webhook Entry').item.json.body.channel_id + '/' + $('Discord Webhook Entry').item.json.body.message_id,\n  raw_text: $('Discord Webhook Entry').item.json.body.content,\n  clean_text: $('Parse Message').item.json.clean_text,\n  tag: $('Parse Message').item.json.tag\n} }}",
+              "value": "={{ {\n  event_id: $json.id,\n  event_type: 'discord_message',\n  guild_id: $('Discord Webhook Entry').item.json.body.guild_id,\n  channel_id: $('Discord Webhook Entry').item.json.body.channel_id,\n  message_id: $('Discord Webhook Entry').item.json.body.message_id,\n  author_login: $('Discord Webhook Entry').item.json.body.author.login,\n  thread_id: $('Discord Webhook Entry').item.json.body.thread_id || null,\n  message_url: 'https://discord.com/channels/' + $('Discord Webhook Entry').item.json.body.guild_id + '/' + $('Discord Webhook Entry').item.json.body.channel_id + '/' + $('Discord Webhook Entry').item.json.body.message_id,\n  raw_text: $('Discord Webhook Entry').item.json.body.content,\n  clean_text: $('Parse Message').item.json.clean_text,\n  tag: $('Parse Message').item.json.tag,\n  trace_stack: [$json.id]\n} }}",
               "type": "object"
             }
           ]
@@ -186,10 +159,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        416,
-        144
+        128,
+        160
       ],
-      "id": "build-message-event",
+      "id": "ebc352f8-4d54-4ecd-9aee-d6e36d191099",
       "name": "Build Message Event Object"
     },
     {
@@ -199,7 +172,7 @@
             {
               "id": "build-reaction-event-obj",
               "name": "event",
-              "value": "={{ {\n  event_id: $json.id,\n  event_type: 'discord_reaction',\n  guild_id: $('Discord Webhook Entry').item.json.body.guild_id,\n  channel_id: $('Discord Webhook Entry').item.json.body.channel_id,\n  message_id: $('Discord Webhook Entry').item.json.body.message_id,\n  author_login: $('Discord Webhook Entry').item.json.body.user?.login || $('Discord Webhook Entry').item.json.body.user_id,\n  thread_id: $('Discord Webhook Entry').item.json.body.thread_id || null,\n  emoji: $('Parse Reaction').item.json.emoji,\n  extraction_index: $('Parse Reaction').item.json.extraction_index,\n  action: $('Discord Webhook Entry').item.json.body.action\n} }}",
+              "value": "={{ {\n  event_id: $json.id,\n  event_type: 'discord_reaction',\n  guild_id: $('Discord Webhook Entry').item.json.body.guild_id,\n  channel_id: $('Discord Webhook Entry').item.json.body.channel_id,\n  message_id: $('Discord Webhook Entry').item.json.body.message_id,\n  author_login: $('Discord Webhook Entry').item.json.body.user?.login || $('Discord Webhook Entry').item.json.body.user_id,\n  thread_id: $('Discord Webhook Entry').item.json.body.thread_id || null,\n  emoji: $('Parse Reaction').item.json.emoji,\n  extraction_index: $('Parse Reaction').item.json.extraction_index,\n  action: $('Discord Webhook Entry').item.json.body.action,\n  trace_stack: [$json.id]\n} }}",
               "type": "object"
             }
           ]
@@ -209,10 +182,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        416,
-        336
+        128,
+        352
       ],
-      "id": "build-reaction-event",
+      "id": "9377cd32-3d33-458d-9cb9-bca0ffb63490",
       "name": "Build Reaction Event Object"
     },
     {
@@ -251,10 +224,10 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        640,
-        336
+        352,
+        352
       ],
-      "id": "a4681d61-ef90-4763-a860-6fd74ddf512b",
+      "id": "a03ea0a9-a9d2-4ce7-bb70-3a12397a5719",
       "name": "Route Reaction"
     },
     {
@@ -293,11 +266,24 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        640,
-        144
+        352,
+        160
       ],
-      "id": "d0214f51-a01c-49a0-940e-8edc211fec18",
+      "id": "29f4a14c-4ba5-481b-9ac0-7d8200241a40",
       "name": "Route Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const json = $input.first().json;\nconst content = (json.body.content || \"\").trim();\nconst lowerContent = content.toLowerCase();\n\nconst TAG_TABLE = [\n  [\"!!\", \"act\"],\n  [\"..\", \"note\"],\n  [\"++\", \"chat\"],\n  [\"--\", \"save\"],\n  [\"::\", \"cmd\"],\n  [\"$$\", \"todo\", \"to-do\"]\n];\n\nlet tag = null;\nlet clean_text = content;\n\nfor (const row of TAG_TABLE) {\n  const normalized = row[0];\n  \n  const match = row.find(alias => {\n    const a = alias.toLowerCase();\n    \n    // Check if alias is strictly symbols (no letters or numbers)\n    const isSymbolOnly = !/[a-z0-9]/i.test(a);\n\n    if (isSymbolOnly) {\n      // Symbols match even if glued to text: \"!!task\"\n      return lowerContent.startsWith(a);\n    } else {\n      // Words require a space or exact match: \"act task\" or \"act\"\n      return lowerContent.startsWith(a + \" \") || lowerContent === a;\n    }\n  });\n\n  if (match) {\n    tag = normalized;\n    clean_text = content.slice(match.length).trim();\n    break;\n  }\n}\n\nreturn { ...json.body, tag, clean_text };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        160
+      ],
+      "id": "5f108e4e-41d7-4284-be7e-dcd784e855e6",
+      "name": "Parse Message"
     }
   ],
   "connections": {
@@ -324,17 +310,6 @@
         [
           {
             "node": "Parse Reaction",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Message": {
-      "main": [
-        [
-          {
-            "node": "Store Message Event",
             "type": "main",
             "index": 0
           }
@@ -395,10 +370,20 @@
           }
         ]
       ]
+    },
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Store Message Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "meta": {
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
-  },
-  "name": "Route_Discord_Event"
+  }
 }

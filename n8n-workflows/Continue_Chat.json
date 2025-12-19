@@ -328,6 +328,71 @@
           "name": "Discord Bot account"
         }
       }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "start-time",
+              "name": "inference_start",
+              "value": "={{ Date.now() }}",
+              "type": "number"
+            },
+            {
+              "id": "pass-context",
+              "name": "context",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1488,
+        32
+      ],
+      "id": "set-inference-start-continue",
+      "name": "Set Inference Start"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare trace data after LLM inference (Option E schema)\nconst context = $('Set Inference Start').first().json.context;\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst inferenceStart = $('Set Inference Start').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${context.north_star}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n${context.activities.map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${context.notes.map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${context.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${context.clean_text}\"\n\nRespond to their message now.`;\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_text: context.clean_text,\n    input_conversation_id: context.conversation_id,\n    input_history_length: context.history.length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: context.activities.length,\n    result_referenced_notes: context.notes.length,\n    duration_ms: durationMs,\n    event_id: event.id,\n    trace_stack: event.trace_stack || [],\n    ...context  // Pass through all context fields\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        32
+      ],
+      "id": "prepare-trace-data-continue",
+      "name": "Prepare Trace Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data)\n  VALUES (\n    $1::uuid,\n    ($9::uuid[])[array_upper($9::uuid[], 1)],\n    'thread_response',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'conversation_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $8::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $8::integer\n    )\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $9::uuid[] || new_trace.id as updated_trace_stack\nFROM new_trace;",
+        "options": {
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_conversation_id }},={{ $json.input_history_length }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.duration_ms }},={{ JSON.stringify($json.trace_stack) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2048,
+        32
+      ],
+      "id": "write-thread-trace-continue",
+      "name": "Write Thread Response Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
     }
   ],
   "connections": {
@@ -432,7 +497,7 @@
       "main": [
         [
           {
-            "node": "Generate Response",
+            "node": "Set Inference Start",
             "type": "main",
             "index": 0
           }
@@ -443,7 +508,7 @@
       "main": [
         [
           {
-            "node": "Post to Thread",
+            "node": "Prepare Trace Data",
             "type": "main",
             "index": 0
           }
@@ -482,6 +547,39 @@
           },
           {
             "node": "Remove 💭  Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Inference Start": {
+      "main": [
+        [
+          {
+            "node": "Generate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Trace Data": {
+      "main": [
+        [
+          {
+            "node": "Write Thread Response Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Thread Response Trace": {
+      "main": [
+        [
+          {
+            "node": "Post to Thread",
             "type": "main",
             "index": 0
           }
