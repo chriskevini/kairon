@@ -22,8 +22,15 @@
 
 BEGIN;
 
--- Enable pgvector extension for embeddings
-CREATE EXTENSION IF NOT EXISTS vector;
+-- Enable pgvector extension for embeddings (optional - skip if not available)
+DO $$ 
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS vector;
+    RAISE NOTICE 'pgvector extension enabled';
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'pgvector extension not available - embeddings table will be created without vector column';
+END $$;
 
 -- ============================================================================
 -- 1. EVENTS TABLE (Immutable Facts)
@@ -139,29 +146,64 @@ COMMENT ON COLUMN projections.trace_chain IS 'Full audit trail: array of trace I
 -- 4. EMBEDDINGS TABLE (RAG Support)
 -- ============================================================================
 
-CREATE TABLE embeddings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  
-  -- Reference to source projection
-  projection_id UUID NOT NULL REFERENCES projections(id) ON DELETE CASCADE,
-  
-  -- Embedding metadata
-  model TEXT NOT NULL,          -- 'text-embedding-3-small', 'voyage-2', 'text-embedding-3-large'
-  model_version TEXT NULL,      -- Track version for reproducibility
-  embedding vector(1536),       -- pgvector type, dimension varies by model
-  
-  -- What was embedded (denormalized for speed)
-  embedded_text TEXT NOT NULL,
-  
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Note: This table requires pgvector extension. If not available, it will be skipped.
+DO $$ 
+BEGIN
+    -- Check if vector type exists (pgvector installed)
+    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vector') THEN
+        -- Create embeddings table with vector column
+        CREATE TABLE embeddings (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          
+          -- Reference to source projection
+          projection_id UUID NOT NULL REFERENCES projections(id) ON DELETE CASCADE,
+          
+          -- Embedding metadata
+          model TEXT NOT NULL,          -- 'text-embedding-3-small', 'voyage-2', 'text-embedding-3-large'
+          model_version TEXT NULL,      -- Track version for reproducibility
+          embedding vector(1536),       -- pgvector type, dimension varies by model
+          
+          -- What was embedded (denormalized for speed)
+          embedded_text TEXT NOT NULL,
+          
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
 
-CREATE INDEX idx_embeddings_projection ON embeddings(projection_id);
-CREATE INDEX idx_embeddings_model ON embeddings(model);
-CREATE INDEX idx_embeddings_vector ON embeddings USING hnsw (embedding vector_cosine_ops);
+        CREATE INDEX idx_embeddings_projection ON embeddings(projection_id);
+        CREATE INDEX idx_embeddings_model ON embeddings(model);
+        CREATE INDEX idx_embeddings_vector ON embeddings USING hnsw (embedding vector_cosine_ops);
 
-COMMENT ON TABLE embeddings IS 'Vector embeddings for RAG (unpopulated initially)';
-COMMENT ON COLUMN embeddings.embedding IS 'Vector dimension varies by model: 1536 for text-embedding-3-small, 1024 for voyage-2';
+        COMMENT ON TABLE embeddings IS 'Vector embeddings for RAG (unpopulated initially)';
+        COMMENT ON COLUMN embeddings.embedding IS 'Vector dimension varies by model: 1536 for text-embedding-3-small, 1024 for voyage-2';
+        
+        RAISE NOTICE 'embeddings table created with pgvector support';
+    ELSE
+        -- Create embeddings table without vector column (placeholder for future)
+        CREATE TABLE embeddings (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          
+          -- Reference to source projection
+          projection_id UUID NOT NULL REFERENCES projections(id) ON DELETE CASCADE,
+          
+          -- Embedding metadata
+          model TEXT NOT NULL,
+          model_version TEXT NULL,
+          embedding_data JSONB,  -- Store as JSONB until pgvector is installed
+          
+          -- What was embedded (denormalized for speed)
+          embedded_text TEXT NOT NULL,
+          
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+
+        CREATE INDEX idx_embeddings_projection ON embeddings(projection_id);
+        CREATE INDEX idx_embeddings_model ON embeddings(model);
+
+        COMMENT ON TABLE embeddings IS 'Vector embeddings for RAG (pgvector not available - using JSONB temporarily)';
+        
+        RAISE NOTICE 'embeddings table created WITHOUT pgvector (using JSONB placeholder)';
+    END IF;
+END $$;
 
 -- ============================================================================
 -- 5. MIGRATION VIEWS (Backward Compatibility)
