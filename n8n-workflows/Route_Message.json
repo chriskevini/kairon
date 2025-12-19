@@ -19,13 +19,13 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO raw_events (\n  source_type,\n  discord_guild_id,\n  discord_channel_id,\n  discord_message_id,\n  message_url,\n  author_login,\n  thread_id,\n  raw_text,\n  clean_text,\n  tag\n) VALUES (\n  'discord',\n  $1, $2, $3, $4, $5, $6, $7, $8, $9\n)\nON CONFLICT (discord_message_id) \nDO UPDATE SET discord_message_id = EXCLUDED.discord_message_id\nRETURNING *;",
+        "query": "INSERT INTO events (\n  event_type,\n  source,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  'discord',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.event.guild_id }},{{ $json.event.channel_id }},{{ $json.event.message_id }},{{ $json.event.message_url }},{{ $json.event.author_login }},{{ $json.event.thread_id }},{{ $json.event.raw_text }},{{ $json.event.clean_text }},{{ $json.event.tag }},"
+          "queryReplacement": "={{ $json.event.guild_id }},={{ $json.event.channel_id }},={{ $json.event.message_id }},={{ $json.event.message_url }},={{ $json.event.author_login }},={{ $json.event.thread_id }},={{ $json.event.raw_text }},={{ $json.event.clean_text }},={{ $json.event.tag }},"
         }
       },
       "id": "2cf5af24-fe15-4ea7-b189-e712a8b7f887",
-      "name": "Store Raw Event",
+      "name": "Store Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
@@ -45,9 +45,9 @@
         "assignments": {
           "assignments": [
             {
-              "id": "add-raw-event-id",
+              "id": "add-event-id",
               "name": "event",
-              "value": "={{ Object.assign({}, $('Build Event Object').item.json.event, { raw_event_id: $json.id }) }}",
+              "value": "={{ Object.assign({}, $('Build Event Object').item.json.event, { event_id: $json.id }) }}",
               "type": "object"
             }
           ]
@@ -61,7 +61,7 @@
         5552
       ],
       "id": "18a100d7-9892-47eb-95ba-e613ba2ab13a",
-      "name": "Add Raw Event ID"
+      "name": "Add Event ID"
     },
     {
       "parameters": {
@@ -820,18 +820,18 @@
         ]
       ]
     },
-    "Store Raw Event": {
+    "Store Event": {
       "main": [
         [
           {
-            "node": "Add Raw Event ID",
+            "node": "Add Event ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Add Raw Event ID": {
+    "Add Event ID": {
       "main": [
         [
           {
@@ -996,7 +996,7 @@
       "main": [
         [
           {
-            "node": "Store Raw Event",
+            "node": "Store Event",
             "type": "main",
             "index": 0
           }
@@ -1071,4 +1071,3 @@
     "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
   }
 }
-

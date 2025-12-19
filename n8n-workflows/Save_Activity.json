@@ -97,9 +97,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO activity_log (\n  raw_event_id,\n  timestamp,\n  category,\n  description,\n  metadata\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  $3::activity_category,\n  $2,\n  jsonb_build_object(\n    'llm_classified', true,\n    'confidence', $4::numeric,\n    'all_scores', $5::jsonb\n  )\n)\nRETURNING *;",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, parent_trace_id, step_name, step_order, data)\n  VALUES (\n    $1::uuid,\n    NULL,\n    'activity_extraction',\n    1,\n    jsonb_build_object(\n      'result', jsonb_build_object(\n        'category', $3,\n        'confidence', $4::numeric,\n        'all_scores', $5::jsonb\n      ),\n      'prompt', 'Activity Classifier',\n      'model', 'xiaomi/mimo-v2-flash:free'\n    )\n  )\n  RETURNING id, event_id\n)\nINSERT INTO projections (\n  trace_id,\n  event_id,\n  trace_chain,\n  projection_type,\n  data,\n  status\n)\nSELECT\n  new_trace.id,\n  new_trace.event_id,\n  ARRAY[new_trace.id],\n  'activity',\n  jsonb_build_object(\n    'timestamp', NOW(),\n    'category', $3,\n    'description', $2,\n    'confidence', $4::numeric,\n    'all_scores', $5::jsonb\n  ),\n  'auto_confirmed'\nFROM new_trace\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.raw_event_id }},={{ $json.description }},={{ $json.category }},={{ $json.confidence }},={{ JSON.stringify($json.all_scores) }}"
+          "queryReplacement": "={{ $json.event_id }},={{ $json.description }},={{ $json.category }},={{ $json.confidence }},={{ JSON.stringify($json.all_scores) }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO user_state (user_login, sleeping, last_observation_at)\nVALUES (\n  $2,\n  ($1::activity_category = 'sleep'),\n  NOW()\n)\nON CONFLICT (user_login) \nDO UPDATE SET\n  sleeping = EXCLUDED.sleeping,\n  last_observation_at = EXCLUDED.last_observation_at,\n  updated_at = NOW()\nRETURNING *;",
+        "query": "INSERT INTO user_state (user_login, sleeping, last_observation_at)\nVALUES (\n  $2,\n  ($1 = 'sleep'),\n  NOW()\n)\nON CONFLICT (user_login) \nDO UPDATE SET\n  sleeping = EXCLUDED.sleeping,\n  last_observation_at = EXCLUDED.last_observation_at,\n  updated_at = NOW()\nRETURNING *;",
         "options": {
           "queryReplacement": "=={{ $json.category }},={{ $('Parse LLM Response').item.json.author_login}}"
         }
