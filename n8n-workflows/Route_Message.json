@@ -111,7 +111,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'intent_classification',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object(\n      'text', $2,\n      'tag', $3\n    ),\n    'prompt', NULL,\n    'completion', NULL,\n    'result', jsonb_build_object(\n      'intent', $4,\n      'confidence', 1.0,\n      'method', 'tag_shortcut'\n    ),\n    'model', NULL,\n    'duration_ms', 0\n  ),\n  $5::uuid[]\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_tag }},={{ $json.result_intent }}, {{ $json.event.trace_stack }}"
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_tag }},={{ $json.result_intent }},={{ JSON.stringify($json.event.trace_chain) }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -310,7 +310,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO traces (\n    event_id, \n    step_name, \n    step_order, \n    data, \n    trace_chain\n)\nVALUES (\n    $1::uuid,\n    'intent_classification',\n    1,\n    jsonb_build_object(\n        'input', jsonb_build_object(\n            'text', $2\n        ),\n        'prompt', $3,\n        'completion', $4,\n        'result', jsonb_build_object(\n            'intent', $5,\n            'confidence', $6::numeric,\n            'all_scores', $7::jsonb\n        ),\n        'model', 'xiaomi/mimo-v2-flash:free',\n        'duration_ms', $8::integer\n    ),\n    $9::uuid[]\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_intent }},={{ $json.result_confidence }},={{ JSON.stringify($json.result_all_scores) }},={{ $json.duration_ms }}, {{ $json.event.trace_chain }}"
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_intent }},={{ $json.result_confidence }},={{ JSON.stringify($json.result_all_scores) }},={{ $json.duration_ms }},={{ JSON.stringify($json.event.trace_chain) }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -1080,28 +1080,6 @@
         ]
       ]
     }
-  },
-  "pinData": {
-    "Receive Event": [
-      {
-        "event": {
-          "event_id": "0af166dd-ad89-47d4-b85c-c5d2081a9169",
-          "event_type": "discord_message",
-          "guild_id": "754207117157859388",
-          "channel_id": "1450406231146496132",
-          "message_id": "1451527876351365212",
-          "author_login": "chr15",
-          "thread_id": null,
-          "message_url": "https://discord.com/channels/754207117157859388/1450406231146496132/1451527876351365212",
-          "raw_text": ".. claude sonnet degraded hard over this coding session. maybe i need a better harness? probably just need to start a new chat and refresh context window",
-          "clean_text": "claude sonnet degraded hard over this coding session. maybe i need a better harness? probably just need to start a new chat and refresh context window",
-          "tag": "..",
-          "trace_stack": [
-            "0af166dd-ad89-47d4-b85c-c5d2081a9169"
-          ]
-        }
-      }
-    ]
   },
   "meta": {
     "templateCredsSetupCompleted": true,
