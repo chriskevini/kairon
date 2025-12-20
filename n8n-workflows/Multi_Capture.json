@@ -1,0 +1,457 @@
+{
+  "name": "Multi_Capture",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1600,
+        936
+      ],
+      "id": "trigger-multi-extract",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare for multi-capture\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: ctx,\n    inference_start: Date.now()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1376,
+        840
+      ],
+      "id": "prepare-extraction",
+      "name": "Prepare Capture"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1376,
+        1032
+      ],
+      "id": "remove-blue-reaction",
+      "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an extraction agent for a life-tracking system. Analyze the message and extract all relevant items.\n\n## Message to Analyze\n\n\"{{ $json.ctx.event.clean_text }}\"\n\n## Extraction Types\n\n### Activity (what the user is doing NOW)\nExtract if the message describes a CURRENT or RECENT action by the user.\n- **Categories:** work, leisure, study, health, sleep, relationships, admin\n- **Indicators:** \"I am\", \"I'm\", \"-ing verbs\", \"just did\", present/recent past tense\n\n### Note (observation, insight, or fact worth remembering)\nExtract if the message contains knowledge, observations, or reflections.\n- **Categories:** reflection (about self), fact (about world/others)\n- **Indicators:** observations about things/people, realizations, ideas, decisions\n\n### Todo (actionable task to complete)\nExtract if the message contains a clear task to do later.\n- **Priority:** high, medium, low\n- **Indicators:** \"need to\", \"should\", \"have to\", \"TODO\", future tasks\n\n## Key Rules\n\n1. A message can have 0, 1, 2, or 3 extractions\n2. Set confidence 0.0-1.0 based on how clearly the message indicates each type\n3. Only include extractions with confidence >= 0.5\n4. Prefer fewer high-confidence extractions over many low-confidence ones\n5. Activity describes what I'M doing; Note describes observations about anything else\n\n## Output Format\n\nOutput ONLY valid JSON, no explanation:\n\n{\"activity\": {\"category\": \"work\", \"description\": \"debugging auth\", \"confidence\": 0.92}, \"note\": {\"category\": \"reflection\", \"text\": \"noticed pattern in logs\", \"confidence\": 0.78}, \"todo\": null}",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -1152,
+        840
+      ],
+      "id": "multi-extractor",
+      "name": "Multi Capturer"
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1144,
+        1064
+      ],
+      "id": "mimo-v2-flash",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1016,
+        1064
+      ],
+      "id": "nemotron-nano-9b",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse LLM response, filter by confidence, split into items with emoji\nconst EMOJI = { activity: '🔘', note: '📝', todo: '✅' };\nconst CONFIDENCE_THRESHOLD = 0.5;\n\nconst llmText = $json.text?.trim() || '';\nconst prepareItem = $('Prepare Capture').first().json;\nconst ctx = prepareItem.ctx;\nconst durationMs = Date.now() - prepareItem.inference_start;\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Parse JSON from LLM output\nlet parsed = { activity: null, note: null, todo: null };\nlet parseError = null;\n\ntry {\n  let jsonStr = llmText;\n  const codeBlock = llmText.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (codeBlock) jsonStr = codeBlock[1].trim();\n  const objMatch = jsonStr.match(/\\{[\\s\\S]*\\}/);\n  if (objMatch) jsonStr = objMatch[0];\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  parseError = e.message;\n}\n\n// Build captures array\nconst captures = [];\nconst emojis = [];\n\nif (parsed.activity?.confidence >= CONFIDENCE_THRESHOLD) {\n  captures.push({\n    type: 'activity',\n    emoji: EMOJI.activity,\n    data: {\n      timestamp: new Date().toISOString(),\n      category: parsed.activity.category || 'work',\n      description: parsed.activity.description || ctx.event.clean_text,\n      confidence: parsed.activity.confidence\n    }\n  });\n  emojis.push(EMOJI.activity);\n}\n\nif (parsed.note?.confidence >= CONFIDENCE_THRESHOLD) {\n  captures.push({\n    type: 'note',\n    emoji: EMOJI.note,\n    data: {\n      timestamp: new Date().toISOString(),\n      category: parsed.note.category || 'reflection',\n      text: parsed.note.text || ctx.event.clean_text,\n      confidence: parsed.note.confidence\n    }\n  });\n  emojis.push(EMOJI.note);\n}\n\nif (parsed.todo?.confidence >= CONFIDENCE_THRESHOLD) {\n  captures.push({\n    type: 'todo',\n    emoji: EMOJI.todo,\n    data: {\n      timestamp: new Date().toISOString(),\n      priority: parsed.todo.priority || 'medium',\n      text: parsed.todo.text || ctx.event.clean_text,\n      confidence: parsed.todo.confidence\n    }\n  });\n  emojis.push(EMOJI.todo);\n}\n\n// Fallback: if nothing captured, create low-confidence note\nif (captures.length === 0) {\n  captures.push({\n    type: 'note',\n    emoji: EMOJI.note,\n    data: {\n      timestamp: new Date().toISOString(),\n      category: 'reflection',\n      text: ctx.event.clean_text,\n      confidence: 0.3\n    }\n  });\n  emojis.push(EMOJI.note);\n}\n\n// Pre-stringify the result for postgres jsonb\nconst resultJson = JSON.stringify(captures.map(c => ({ type: c.type, confidence: c.data.confidence })));\n\n// Return one item per capture\nreturn captures.map((capture, idx) => ({\n  json: {\n    ctx,\n    capture,\n    emoji: capture.emoji,\n    capture_index: idx,\n    total_captures: captures.length,\n    emojis,\n    raw_response: llmText,\n    parse_error: parseError,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg,\n    result_json: resultJson\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        840
+      ],
+      "id": "parse-and-split",
+      "name": "Parse & Split"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'multi_capture',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object('text', $2),\n    'completion', $3,\n    'result', $4::jsonb,\n    'model', 'xiaomi/mimo-v2-flash:free',\n    'duration_ms', $5::integer,\n    'capture_count', $6::integer\n  ),\n  $7::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.ctx.event.clean_text }},={{ $json.raw_response }},={{ $json.result_json }},={{ $json.duration_ms }},={{ $json.total_captures }},={{ $json.trace_chain_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -576,
+        1032
+      ],
+      "id": "store-llm-trace",
+      "name": "Store LLM Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare projection data with trace_id from Store LLM Trace\nconst traceResult = $json;\nconst allCaptures = $('Parse & Split').all();\n\nconst llmTraceId = traceResult.id;\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\nreturn allCaptures.map(item => ({\n  json: {\n    ...item.json,\n    llm_trace_id: llmTraceId,\n    trace_chain_pg: updatedTraceChainPg\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        1032
+      ],
+      "id": "prepare-projections",
+      "name": "Prepare Projections"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  $4,\n  $5::jsonb,\n  'auto_confirmed'\n)\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.llm_trace_id }},={{ $json.ctx.event.event_id }},={{ $json.trace_chain_pg }},={{ $json.capture.type }},={{ JSON.stringify($json.capture.data) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -128,
+        1032
+      ],
+      "id": "store-projection",
+      "name": "Store Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect results for logging\nconst items = $('Parse & Split').all();\nconst first = items[0]?.json || {};\n\nreturn [{\n  json: {\n    ctx: first.ctx,\n    emojis: first.emojis || ['📝'],\n    projection_count: items.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        840
+      ],
+      "id": "collect-results",
+      "name": "Collect Results"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/{{ $json.emoji }}/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -352,
+        528
+      ],
+      "id": "add-emoji-reactions",
+      "name": "Add Emoji Reactions",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
+          "mode": "id"
+        },
+        "content": "=**[Multi-Capture]**\n**Message:** {{ $json.ctx.event.clean_text }}\n**Captures:** {{ $json.emojis.join(' ') }} ({{ $json.projection_count }} items)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        840
+      ],
+      "id": "log-to-kairon-logs",
+      "name": "Log to Kairon Logs",
+      "webhookId": "multi-capture-log",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -128,
+        552
+      ],
+      "id": "wait-rate-limit",
+      "name": "Wait 1s",
+      "webhookId": "471830ad-77d3-4266-9eca-bf75cfee85a2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -576,
+        552
+      ],
+      "id": "2741faa1-e8ab-4588-b3b5-bc67839680a3",
+      "name": "Loop Over Items"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Capture",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Capture": {
+      "main": [
+        [
+          {
+            "node": "Multi Capturer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Multi Capturer": {
+      "main": [
+        [
+          {
+            "node": "Parse & Split",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Split": {
+      "main": [
+        [
+          {
+            "node": "Store LLM Trace",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store LLM Trace": {
+      "main": [
+        [
+          {
+            "node": "Prepare Projections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Projections": {
+      "main": [
+        [
+          {
+            "node": "Store Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Projection": {
+      "main": [
+        []
+      ]
+    },
+    "Collect Results": {
+      "main": [
+        [
+          {
+            "node": "Log to Kairon Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Emoji Reactions": {
+      "main": [
+        [
+          {
+            "node": "Wait 1s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Multi Capturer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Multi Capturer",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Wait 1s": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Add Emoji Reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
+}

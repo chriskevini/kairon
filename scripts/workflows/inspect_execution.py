@@ -53,17 +53,22 @@ def run_ssh_curl(endpoint, env_vars, method="GET"):
         sys.exit(1)
     
     url = f"{api_url}/api/v1{endpoint}"
-    cmd = [
-        "ssh", remote_host,
-        "curl", "-s", "-X", method, url,
-        "-H", "Accept: application/json",
-        "-H", f"X-N8N-API-KEY: {api_key}"
-    ]
+    # Build curl command as a single string to avoid shell quoting issues
+    curl_cmd = f"curl -s -X {method} '{url}' -H 'Accept: application/json' -H 'X-N8N-API-KEY: {api_key}'"
+    cmd = ["ssh", remote_host, curl_cmd]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"Error: {result.stderr}", file=sys.stderr)
+        print(f"SSH/curl error: {result.stderr}", file=sys.stderr)
         sys.exit(1)
-    return json.loads(result.stdout) if result.stdout else {}
+    if not result.stdout:
+        print("Error: Empty response from API", file=sys.stderr)
+        sys.exit(1)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON: {e}", file=sys.stderr)
+        print(f"Response: {result.stdout[:500]}", file=sys.stderr)
+        sys.exit(1)
 
 def format_timestamp(ts):
     """Format ISO timestamp to readable format"""
@@ -132,6 +137,19 @@ def print_execution_summary(exec_data):
         last_node = result_data.get('lastNodeExecuted')
         if last_node:
             print(f"Last Node:    {last_node}")
+        
+        # Check for top-level error in resultData
+        top_error = result_data.get('error')
+        if top_error:
+            print(f"\nError Type:   {top_error.get('name', 'Unknown')}")
+            print(f"Message:      {top_error.get('message', 'No message')}")
+            if top_error.get('description'):
+                print(f"Description:  {top_error.get('description')}")
+            if top_error.get('stack'):
+                print(f"\nStack Trace:")
+                stack_lines = top_error['stack'].split('\n')[:5]
+                for line in stack_lines:
+                    print(f"  {line}")
         
         # Check for error in runData
         run_data = result_data.get('runData', {})
