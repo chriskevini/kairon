@@ -159,7 +159,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "fallbackOutput": "extra"
+        }
       },
       "id": "route-by-type",
       "name": "Route by Type",
@@ -264,6 +266,7 @@
     },
     {
       "parameters": {
+        "mode": "append",
         "numberInputs": 3
       },
       "type": "n8n-nodes-base.merge",
@@ -400,6 +403,13 @@
         [
           {
             "node": "Todo Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Note Classifier",
             "type": "main",
             "index": 0
           }
