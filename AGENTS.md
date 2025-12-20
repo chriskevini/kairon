@@ -4,12 +4,6 @@ This document contains instructions for AI coding agents working on the Kairon p
 
 ---
 
-## ⚠️ Local Configuration
-
-**Run `./scripts/show-local-config.sh` to see local development setup** (SSH access, docker containers, etc.)
-
-This reads from `.env.local` which is `.gitignored` and contains environment-specific info not suitable for public repos. The script exists because AI agents cannot read `.env*` files directly.
-
 ---
 
 ## Table of Contents
@@ -1504,12 +1498,11 @@ kairon/
 │   │   ├── inspect_workflow.py     # Workflow inspector/search
 │   │   ├── sanitize_workflows.sh   # Remove sensitive data
 │   │   └── n8n-sync.sh             # Sync workflows to remote server
-│   ├── db/                      # Database scripts
-│   │   ├── run-migration.sh        # Run migrations with backup
-│   │   ├── db-query.sh             # Run SQL queries remotely
-│   │   ├── setup_db.sh             # Initial DB setup
-│   │   └── find_postgres_*.sh      # Postgres discovery
-│   └── show-local-config.sh     # Show .env and .env.local (for AI agents)
+│   └── db/                      # Database scripts
+│       ├── run-migration.sh        # Run migrations with backup
+│       ├── db-query.sh             # Run SQL queries remotely
+│       ├── setup_db.sh             # Initial DB setup
+│       └── find_postgres_*.sh      # Postgres discovery
 ├── .githooks/
 │   └── pre-commit               # Workflow validation hook
 ├── n8n-workflows/               # n8n workflow exports (sanitized)
