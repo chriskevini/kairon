@@ -1,14 +1,16 @@
 #!/bin/bash
 # validate_workflows.sh - Validate all n8n workflow JSON files
 #
-# Usage: ./validate_workflows.sh [workflow_file.json]
+# Usage: ./scripts/workflows/validate_workflows.sh [workflow_file.json]
 #
 # If no argument provided, validates all workflows in n8n-workflows/
 # Returns exit code 0 if all valid, 1 if any invalid
 
 set -e
 
-WORKFLOW_DIR="n8n-workflows"
+# Find repo root (works when called from any directory)
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color

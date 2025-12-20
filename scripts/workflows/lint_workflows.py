@@ -346,9 +346,12 @@ def main():
     if args:
         files = args
     else:
-        workflow_dir = Path('n8n-workflows')
+        # Find repo root (script is in scripts/workflows/)
+        script_dir = Path(__file__).parent
+        repo_root = script_dir.parent.parent
+        workflow_dir = repo_root / 'n8n-workflows'
         if not workflow_dir.exists():
-            print(f"{RED}n8n-workflows directory not found{NC}")
+            print(f"{RED}n8n-workflows directory not found at {workflow_dir}{NC}")
             sys.exit(1)
         files = sorted(workflow_dir.glob('*.json'))
     

@@ -6,8 +6,9 @@ This document contains instructions for AI coding agents working on the Kairon p
 
 ## ⚠️ Local Configuration
 
-**Check `.env.local` for local development setup** (SSH access, docker containers, etc.)  
-This file is `.gitignored` and contains environment-specific info not suitable for public repos.
+**Run `./scripts/show-local-config.sh` to see local development setup** (SSH access, docker containers, etc.)
+
+This reads from `.env.local` which is `.gitignored` and contains environment-specific info not suitable for public repos. The script exists because AI agents cannot read `.env*` files directly.
 
 ---
 
@@ -471,7 +472,7 @@ Before any Code node or Postgres query:
 
 ```bash
 # Run sanitization script
-./sanitize_workflows.sh
+./scripts/workflows/sanitize_workflows.sh
 
 # Verify changes
 git diff n8n-workflows/*.json
@@ -480,6 +481,8 @@ git diff n8n-workflows/*.json
 git add n8n-workflows/*.json
 git commit -m "your message"
 ```
+
+**Note:** A pre-commit hook automatically validates workflow files. See [Pre-Commit Hook](#pre-commit-hook) for setup.
 
 ### Why Sanitize?
 
@@ -497,7 +500,7 @@ n8n workflow exports contain a `pinData` section with test execution data that i
 2. **Test the workflow** with real data
 3. **Export the workflow** (Download as JSON)
 4. **Save to** `n8n-workflows/` directory
-5. **Run sanitization script:** `./sanitize_workflows.sh`
+5. **Run sanitization script:** `./scripts/workflows/sanitize_workflows.sh`
 6. **Review the diff:** `git diff n8n-workflows/*.json`
 7. **Commit the sanitized file**
 
@@ -1050,7 +1053,7 @@ update stuff
 
 Before every commit:
 
-- [ ] Run `./sanitize_workflows.sh` if workflows changed
+- [ ] Run `./scripts/workflows/sanitize_workflows.sh` if workflows changed
 - [ ] Update relevant documentation (README, docs/)
 - [ ] Test changes if possible
 - [ ] Check for sensitive data: `git diff | grep -E "(password|token|secret|api_key)"`
@@ -1243,7 +1246,7 @@ const tag = $json.content.match(/!!|\\+\\+/)[0];
 **1. Always sanitize before committing**
 ```bash
 # ✅ Do
-./sanitize_workflows.sh
+./scripts/workflows/sanitize_workflows.sh
 git add n8n-workflows/*.json
 git commit -m "update workflow"
 ```
@@ -1322,7 +1325,7 @@ const tag = match ? match[0] : null;
 
 ```bash
 # Sanitize workflows before commit
-./sanitize_workflows.sh
+./scripts/workflows/sanitize_workflows.sh
 
 # Check for sensitive data
 git diff | grep -E "(password|token|secret|key|[0-9]{18})"
@@ -1361,10 +1364,10 @@ Validates that all workflow JSON files are syntactically correct.
 
 ```bash
 # Validate all workflows
-./validate_workflows.sh
+./scripts/workflows/validate_workflows.sh
 
 # Validate specific file
-./validate_workflows.sh n8n-workflows/Execute_Command.json
+./scripts/workflows/validate_workflows.sh n8n-workflows/Execute_Command.json
 ```
 
 **Exit codes:**
@@ -1381,10 +1384,10 @@ Checks workflows for compliance with the `ctx` object pattern and n8n best pract
 
 ```bash
 # Lint all workflows
-./lint_workflows.py
+./scripts/workflows/lint_workflows.py
 
 # Lint specific workflow
-./lint_workflows.py n8n-workflows/Execute_Command.json
+./scripts/workflows/lint_workflows.py n8n-workflows/Execute_Command.json
 ```
 
 **Exit codes:**
@@ -1423,23 +1426,23 @@ Inspect workflow structure, view node details, and search across workflows.
 
 ```bash
 # Show workflow overview
-./inspect_workflow.py n8n-workflows/Execute_Command.json
+./scripts/workflows/inspect_workflow.py n8n-workflows/Execute_Command.json
 
 # List all nodes grouped by type
-./inspect_workflow.py n8n-workflows/Execute_Command.json --nodes
+./scripts/workflows/inspect_workflow.py n8n-workflows/Execute_Command.json --nodes
 
 # Show specific node details (including code)
-./inspect_workflow.py n8n-workflows/Execute_Command.json --node "Validate Get"
+./scripts/workflows/inspect_workflow.py n8n-workflows/Execute_Command.json --node "Validate Get"
 
 # Show all Code node contents
-./inspect_workflow.py n8n-workflows/Execute_Command.json --code
+./scripts/workflows/inspect_workflow.py n8n-workflows/Execute_Command.json --code
 
 # Show connection graph
-./inspect_workflow.py n8n-workflows/Execute_Command.json --connections
+./scripts/workflows/inspect_workflow.py n8n-workflows/Execute_Command.json --connections
 
 # Search for pattern across workflows
-./inspect_workflow.py "n8n-workflows/*.json" --find "ctx.event"
-./inspect_workflow.py "n8n-workflows/*.json" --find "validation.valid"
+./scripts/workflows/inspect_workflow.py "n8n-workflows/*.json" --find "ctx.event"
+./scripts/workflows/inspect_workflow.py "n8n-workflows/*.json" --find "validation.valid"
 ```
 
 **Common use cases:**
@@ -1457,44 +1460,70 @@ Inspect workflow structure, view node details, and search across workflows.
 #    (Download workflow JSON, save to n8n-workflows/)
 
 # 2. Validate JSON syntax
-./validate_workflows.sh
+./scripts/workflows/validate_workflows.sh
 
 # 3. Check ctx pattern compliance
-./lint_workflows.py
+./scripts/workflows/lint_workflows.py
 
 # 4. Review specific nodes if needed
-./inspect_workflow.py n8n-workflows/MyWorkflow.json --node "Problem Node"
+./scripts/workflows/inspect_workflow.py n8n-workflows/MyWorkflow.json --node "Problem Node"
 
 # 5. Sanitize before commit
-./sanitize_workflows.sh
+./scripts/workflows/sanitize_workflows.sh
 
 # 6. Commit
 git add n8n-workflows/*.json
 git commit -m "feat: add new workflow feature"
 ```
 
+### Pre-Commit Hook
+
+A pre-commit hook automatically validates workflow files before each commit. It checks:
+- JSON syntax validity
+- Absence of `pinData` (sensitive test data)
+
+**Setup (one-time per clone):**
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook will block commits if:
+- Any workflow JSON is invalid
+- Any workflow contains `pinData`
+
+If blocked, run `./scripts/workflows/sanitize_workflows.sh` and re-stage files.
+
 ### File Locations
 
 ```
 kairon/
-├── n8n-workflows/           # n8n workflow exports (sanitized)
+├── scripts/
+│   ├── workflows/               # Workflow development tools
+│   │   ├── validate_workflows.sh   # JSON syntax validation
+│   │   ├── lint_workflows.py       # ctx pattern linter
+│   │   ├── inspect_workflow.py     # Workflow inspector/search
+│   │   └── sanitize_workflows.sh   # Remove sensitive data
+│   ├── db/                      # Database scripts
+│   │   ├── setup_db.sh             # Initial DB setup
+│   │   ├── run_migration_*.sh      # Migration runners
+│   │   └── find_postgres_*.sh      # Postgres discovery
+│   └── show-local-config.sh     # Show .env.local (for AI agents)
+├── .githooks/
+│   └── pre-commit               # Workflow validation hook
+├── n8n-workflows/               # n8n workflow exports (sanitized)
 │   ├── Route_Discord_Event.json
 │   ├── Route_Message.json
 │   ├── Execute_Command.json
 │   └── ...
 ├── db/
-│   ├── migrations/          # Database schema
-│   └── seeds/               # Initial data
-├── docs/                    # Detailed documentation
-├── prompts/                 # LLM prompts
-├── discord_relay.py         # Discord bot
-├── sanitize_workflows.sh    # Remove sensitive data from exports
-├── validate_workflows.sh    # Validate JSON syntax
-├── lint_workflows.py        # Check ctx pattern compliance
-├── inspect_workflow.py      # Inspect workflow structure
-├── .env.example             # Environment variable template
-├── README.md                # Main documentation
-└── AGENTS.md                # This file
+│   ├── migrations/              # Database schema
+│   └── seeds/                   # Initial data
+├── docs/                        # Detailed documentation
+├── prompts/                     # LLM prompts
+├── discord_relay.py             # Discord bot
+├── .env.example                 # Environment variable template
+├── README.md                    # Main documentation
+└── AGENTS.md                    # This file
 ```
 
 ### n8n Expression Cheatsheet
@@ -1571,7 +1600,7 @@ Steps to reproduce:
 1. **Understand the change** - Read relevant docs
 2. **Make changes in n8n UI** - Test thoroughly
 3. **Export workflows** - Download as JSON
-4. **Sanitize exports** - Run `./sanitize_workflows.sh`
+4. **Sanitize exports** - Run `./scripts/workflows/sanitize_workflows.sh`
 5. **Update documentation** - Keep docs in sync
 6. **Test end-to-end** - Real Discord messages
 7. **Commit with good message** - Follow guidelines above
