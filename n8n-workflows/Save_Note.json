@@ -137,6 +137,29 @@
     },
     {
       "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        14368,
+        -3136
+      ],
+      "id": "remove-blue-reaction-save-note",
+      "name": "Remove 🔵 Reaction",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "model": "nvidia/nemotron-nano-9b-v2:free",
         "options": {}
       },
@@ -262,15 +285,30 @@
             "node": "Log to Kairon Logs",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Store Note",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "React with 📝",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
     },
     "Store Note": {
       "main": [
+        []
+      ]
+    },
+    "React with 📝": {
+      "main": [
         [
           {
-            "node": "React with 📝",
+            "node": "Remove 🔵 Reaction",
             "type": "main",
             "index": 0
           }
@@ -301,13 +339,7 @@
     },
     "Log to Kairon Logs": {
       "main": [
-        [
-          {
-            "node": "Store Note",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },

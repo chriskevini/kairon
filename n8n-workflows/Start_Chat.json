@@ -281,6 +281,29 @@
     },
     {
       "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Prepare Context').item.json.ctx.event.channel_id }}/messages/{{ $('Prepare Context').item.json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        21312,
+        -2224
+      ],
+      "id": "remove-blue-reaction-start-chat",
+      "name": "Remove 🔵 Reaction",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "assignments": {
           "assignments": [
             {
@@ -478,6 +501,17 @@
         ]
       ]
     },
+    "React with 🗨️": {
+      "main": [
+        [
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Set Inference Start": {
       "main": [
         [
@@ -503,11 +537,6 @@
             "index": 0
           }
         ]
-      ]
-    },
-    "Write Thread Initial Trace": {
-      "main": [
-        []
       ]
     }
   },

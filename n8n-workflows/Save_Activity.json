@@ -210,6 +210,29 @@
           "name": "Discord Bot account"
         }
       }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1456,
+        -144
+      ],
+      "id": "remove-blue-reaction-save-activity",
+      "name": "Remove 🔵 Reaction",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
     }
   ],
   "connections": {
@@ -269,15 +292,25 @@
             "node": "Store Activity",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "React with 🔘",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
     },
     "Store Activity": {
       "main": [
+        []
+      ]
+    },
+    "React with 🔘": {
+      "main": [
         [
           {
-            "node": "React with 🔘",
+            "node": "Remove 🔵 Reaction",
             "type": "main",
             "index": 0
           }

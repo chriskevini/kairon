@@ -9,9 +9,9 @@ Instructions for AI agents working on Kairon - a life-tracking system using n8n 
 git config core.hooksPath .githooks
 
 # Workflow development
-./scripts/workflows/n8n-export.sh          # Pull changes from server
-./scripts/workflows/n8n-sync.sh            # Push changes to server
-./scripts/workflows/n8n-sync.sh --dry-run  # Preview what would sync
+./scripts/workflows/n8n-pull.sh            # Pull changes from server
+./scripts/workflows/n8n-push.sh            # Push changes to server
+./scripts/workflows/n8n-push.sh --dry-run  # Preview what would push
 
 # The pre-commit hook automatically validates and sanitizes workflows
 ```
@@ -20,7 +20,7 @@ git config core.hooksPath .githooks
 
 ```
 n8n-workflows/       # Workflow JSON files (synced with server)
-scripts/workflows/   # n8n-export.sh, n8n-sync.sh, sanitize, validate, lint
+scripts/workflows/   # n8n-push.sh, n8n-pull.sh, sanitize, validate, lint
 scripts/db/          # run-migration.sh, db-query.sh
 db/migrations/       # SQL migrations
 prompts/             # LLM prompts
@@ -51,6 +51,41 @@ Every workflow uses a `ctx` object to pass data between nodes. This prevents dat
 3. Native nodes need a "Merge" wrapper to restore ctx
 4. Set nodes: enable `includeOtherFields: true`
 5. Read data from `$json.ctx.*`, never `$('Node Name').item.json`
+
+### Sub-Workflow Pattern: Fire-and-Forget
+
+When calling sub-workflows via Execute Workflow nodes, **do not expect ctx back**. Sub-workflows are fully responsible for their own lifecycle, including any cleanup or finalization (e.g., adding/removing reactions).
+
+**Why:**
+- Simpler contracts - Execute Workflow nodes are fire-and-forget
+- Less coupling - Parent doesn't need to know ctx shape after sub-workflow transforms it
+- Clearer ownership - Each workflow owns its complete lifecycle
+- Easier debugging - No wondering if ctx got corrupted on return
+- ctx shape stability - Only the trigger defines the shape
+
+**Pattern:**
+```
+Parent Workflow                    Sub-Workflow
+─────────────────                  ─────────────────
+[Receive Event]                    
+      │                            
+[Add 🔵 Reaction]                  
+      │                            
+[Execute Workflow] ──────────────► [Execute Workflow Trigger]
+      │ (fire-and-forget)                    │
+      │                            [Do work, add own reaction]
+      │                            [Remove 🔵 Reaction] ◄── sub-workflow handles cleanup
+      │                                      │
+      ▼                                      ▼
+[Continue parent                   [End - nothing returned]
+ logic if needed]
+```
+
+**Anti-pattern:** Don't do this:
+```javascript
+// ❌ Parent waiting for ctx back from sub-workflow
+[Execute Sub-Workflow] → [Use $json.ctx from sub-workflow] → [Remove reaction]
+```
 
 ### Error Handling
 
@@ -132,8 +167,8 @@ Key variables: `WEBHOOK_PATH`, `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_*`, `OPENROU
 
 | Script | Purpose |
 |--------|---------|
-| `n8n-sync.sh` | Push local workflows to server |
-| `n8n-export.sh` | Pull workflows from server |
+| `n8n-push.sh` | Push local workflows to server |
+| `n8n-pull.sh` | Pull workflows from server |
 | `sanitize_workflows.sh` | Remove pinData (auto-run by hooks) |
 | `validate_workflows.sh` | Check JSON syntax |
 | `lint_workflows.py` | Check ctx pattern compliance |

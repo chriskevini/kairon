@@ -324,6 +324,29 @@
     },
     {
       "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Build Context').item.json.ctx.event.channel_id }}/messages/{{ $('Build Context').item.json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8800,
+        448
+      ],
+      "id": "remove-blue-reaction-continue-chat",
+      "name": "Remove 🔵 Reaction",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "jsCode": "// Prepare trace data after LLM inference (using ctx pattern)\nconst ctx = $('Build Context').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${ctx.db.north_star}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n${ctx.db.activities.map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${ctx.db.notes.map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${ctx.db.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${ctx.event.clean_text}\"\n\nRespond to their message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        completion_text: response,\n        response_length: response.length,\n        referenced_activities: ctx.db.activities.length,\n        referenced_notes: ctx.db.notes.length\n      }\n    },\n    // Trace data for query\n    input_text: ctx.event.clean_text,\n    input_conversation_id: ctx.db.conversation_id,\n    input_history_length: ctx.db.history.length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: ctx.db.activities.length,\n    result_referenced_notes: ctx.db.notes.length,\n    duration_ms: durationMs,\n    event_id: ctx.event.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
@@ -561,9 +584,15 @@
         ]
       ]
     },
-    "Write Thread Response Trace": {
+    "Remove 💭  Reaction": {
       "main": [
-        []
+        [
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

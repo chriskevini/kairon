@@ -296,6 +296,29 @@
     },
     {
       "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Build Summary Message').first().json.ctx.event.channel_id }}/messages/{{ $('Build Summary Message').first().json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1616,
+        256
+      ],
+      "id": "remove-blue-reaction-save-chat",
+      "name": "Remove 🔵 Reaction",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "resource": "message",
         "guildId": {
           "__rl": true,
@@ -319,6 +342,29 @@
       "id": "db0c5fb7-27f3-460d-b931-d0610a934431",
       "name": "Post No Extractions Message",
       "webhookId": "no-extractions-webhook",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -176,
+        640
+      ],
+      "id": "remove-blue-reaction-save-chat-no-extract",
+      "name": "Remove 🔵 Reaction (No Extract)",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -595,11 +641,22 @@
         ]
       ]
     },
+    "Prepare Trace Data": {
+      "main": [
+        [
+          {
+            "node": "Has Extractions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Has Extractions?": {
       "main": [
         [
           {
-            "node": "Clear Old Extractions",
+            "node": "Write Thread Extraction Trace",
             "type": "main",
             "index": 0
           }
@@ -607,6 +664,17 @@
         [
           {
             "node": "Post No Extractions Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Thread Extraction Trace": {
+      "main": [
+        [
+          {
+            "node": "Clear Old Extractions",
             "type": "main",
             "index": 0
           }
@@ -684,6 +752,17 @@
         [
           {
             "node": "Remove 💭 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove 💭 Reaction": {
+      "main": [
+        [
+          {
+            "node": "Remove 🔵 Reaction",
             "type": "main",
             "index": 0
           }
@@ -768,22 +847,11 @@
         ]
       ]
     },
-    "Prepare Trace Data": {
+    "Post No Extractions Message": {
       "main": [
         [
           {
-            "node": "Write Thread Extraction Trace",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write Thread Extraction Trace": {
-      "main": [
-        [
-          {
-            "node": "Has Extractions?",
+            "node": "Remove 🔵 Reaction (No Extract)",
             "type": "main",
             "index": 0
           }
