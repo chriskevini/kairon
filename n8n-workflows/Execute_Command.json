@@ -19,14 +19,14 @@
           "assignments": [
             {
               "id": "command",
-              "name": "command",
-              "value": "={{ $json.clean_text.trim().split(/\\s+/)[0] }}",
+              "name": "ctx.command.name",
+              "value": "={{ $json.ctx.event.clean_text.trim().split(/\\s+/)[0] }}",
               "type": "string"
             },
             {
               "id": "args",
-              "name": "args",
-              "value": "={{ $json.clean_text.trim().split(/\\s+/).slice(1) }}",
+              "name": "ctx.command.args",
+              "value": "={{ $json.ctx.event.clean_text.trim().split(/\\s+/).slice(1) }}",
               "type": "array"
             }
           ]
@@ -57,7 +57,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.command }}",
+                    "leftValue": "={{ $json.ctx.command.name }}",
                     "rightValue": "get",
                     "operator": {
                       "type": "string",
@@ -81,7 +81,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.command }}",
+                    "leftValue": "={{ $json.ctx.command.name }}",
                     "rightValue": "set",
                     "operator": {
                       "type": "string",
@@ -105,7 +105,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.command }}",
+                    "leftValue": "={{ $json.ctx.command.name }}",
                     "rightValue": "recent",
                     "operator": {
                       "type": "string",
@@ -129,7 +129,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.command }}",
+                    "leftValue": "={{ $json.ctx.command.name }}",
                     "rightValue": "delete",
                     "operator": {
                       "type": "string",
@@ -153,7 +153,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.command }}",
+                    "leftValue": "={{ $json.ctx.command.name }}",
                     "rightValue": "stats",
                     "operator": {
                       "type": "string",
@@ -177,7 +177,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.command }}",
+                    "leftValue": "={{ $json.ctx.command.name }}",
                     "rightValue": "status",
                     "operator": {
                       "type": "string",
@@ -201,7 +201,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.command }}",
+                    "leftValue": "={{ $json.ctx.command.name }}",
                     "rightValue": "ping",
                     "operator": {
                       "type": "string",
@@ -225,7 +225,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.command }}",
+                    "leftValue": "={{ $json.ctx.command.name }}",
                     "rightValue": "help",
                     "operator": {
                       "type": "string",
@@ -256,7 +256,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle ping command\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nreturn {\n  response: '🏓 pong',\n  ...event\n};"
+        "jsCode": "// Handle ping command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: '🏓 pong'\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -272,7 +272,7 @@
         "operation": "executeQuery",
         "query": "SELECT key, value FROM config WHERE key = COALESCE($1, '')",
         "options": {
-          "queryReplacement": "={{ $('Validate Get').item.json.normalized_key }}"
+          "queryReplacement": "={{ $json.ctx.validation.normalized_key }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -296,7 +296,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO config (key, value, updated_at)\nVALUES ($1, $2, NOW())\nON CONFLICT (key) DO UPDATE\nSET value = EXCLUDED.value, updated_at = NOW()\nRETURNING key, value",
         "options": {
-          "queryReplacement": "={{ $('Validate Set').item.json.normalized_key }},={{ $('Validate Set').item.json.normalized_value }}"
+          "queryReplacement": "={{ $json.ctx.validation.normalized_key }},={{ $json.ctx.validation.normalized_value }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -342,7 +342,7 @@
         "operation": "executeQuery",
         "query": "WITH activities_data AS (\n  SELECT \n    'activity' as type,\n    a.id,\n    a.timestamp,\n    a.category::text as category,\n    a.description as text\n  FROM activity_log a\n  WHERE $1::text IN ('activities', 'activity', '')\n  ORDER BY a.timestamp DESC\n  LIMIT $2::int\n),\nnotes_data AS (\n  SELECT \n    'note' as type,\n    n.id,\n    n.timestamp,\n    n.category::text as category,\n    n.text as text\n  FROM notes n\n  WHERE $1::text IN ('notes', 'note')\n  ORDER BY n.timestamp DESC\n  LIMIT $2::int\n)\nSELECT * FROM activities_data\nUNION ALL\nSELECT * FROM notes_data\nORDER BY timestamp DESC;",
         "options": {
-          "queryReplacement": "={{ $('Validate Recent').item.json.normalized_type }},={{ $('Validate Recent').item.json.normalized_limit }}"
+          "queryReplacement": "={{ $json.ctx.validation.normalized_type }},={{ $json.ctx.validation.normalized_limit }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -385,7 +385,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle help command\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nconst helpText = `📚 **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions → !! (activity)\n- Observations/notes → .. (note)\n- Questions/requests → ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent activities [N]\\` - Show last N activities (default 10)\n\\`::recent notes [N]\\` - Show last N notes (default 10)\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM format)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`++ what should I focus on today?\\`\n\\`::set north_star Focus on deep work\\`\n\\`::recent activities 20\\`\n\\`::delete activity 1 3 5\\``;\n\nreturn {\n  response: helpText,\n  ...event\n};"
+        "jsCode": "// Handle help command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nconst helpText = `📚 **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions → !! (activity)\n- Observations/notes → .. (note)\n- Questions/requests → ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent activities [N]\\` - Show last N activities (default 10)\n\\`::recent notes [N]\\` - Show last N notes (default 10)\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM format)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`++ what should I focus on today?\\`\n\\`::set north_star Focus on deep work\\`\n\\`::recent activities 20\\`\n\\`::delete activity 1 3 5\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: helpText\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -399,7 +399,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format get command response\ntry {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  const key = $('Validate Get').item.json.normalized_key;\n  const result = $input.item?.json;\n\n  // Check if query returned data\n  if (!result || !result.key || !result.value) {\n    return {\n      response: `❌ Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.\\n\\nAvailable keys: north_star, summary_time`,\n      ...event\n    };\n  }\n\n  return {\n    response: `**${result.key}:** ${result.value}`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting get response: ${error.message}`,\n    ...event\n  };\n}"
+        "jsCode": "// Format get command response - merge DB result into ctx\nconst ctx = $('If Valid Get').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if query returned data\nif (!result || !result.key || !result.value) {\n  const key = ctx.validation.normalized_key;\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.\\n\\nAvailable keys: north_star, summary_time`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content: `**${result.key}:** ${result.value}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -413,7 +413,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format set command response\ntry {\n  const result = $input.item?.json;\n  const event = $('When Executed by Another Workflow').first().json.event;\n\n  // Check if database operation succeeded\n  if (!result || !result.key) {\n    return {\n      response: `❌ Failed to set config value. Please try again.`,\n      ...event\n    };\n  }\n\n  return {\n    response: `✅ Set **${result.key}** = ${result.value}`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting set response: ${error.message}`,\n    ...event\n  };\n}"
+        "jsCode": "// Format set command response - merge DB result into ctx\nconst ctx = $('If Valid Set').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if database operation succeeded\nif (!result || !result.key) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ Failed to set config value. Please try again.`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content: `✅ Set **${result.key}** = ${result.value}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -427,7 +427,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format stats response\ntry {\n  const stats = $input.item?.json;\n  const event = $('When Executed by Another Workflow').first().json.event;\n\n  if (!stats) {\n    return {\n      response: `❌ Unable to retrieve statistics. Please try again.`,\n      ...event\n    };\n  }\n\n  const lastActivity = stats.last_activity \n    ? new Date(stats.last_activity).toLocaleString()\n    : 'Never';\n\n  return {\n    response: `📊 **Statistics**\\n\\n` +\n      `Activities today: ${stats.activities_today || 0}\\n` +\n      `Notes this week: ${stats.notes_this_week || 0}\\n` +\n      `Total events: ${stats.total_events || 0}\\n` +\n      `Last activity: ${lastActivity}`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting stats: ${error.message}`,\n    ...event\n  };\n}"
+        "jsCode": "// Format stats response - merge DB result into ctx\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst stats = $input.item?.json;\n\nif (!stats) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ Unable to retrieve statistics. Please try again.`\n      }\n    }\n  };\n}\n\nconst lastActivity = stats.last_activity \n  ? new Date(stats.last_activity).toLocaleString()\n  : 'Never';\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { stats },\n    response: {\n      content: `📊 **Statistics**\\n\\n` +\n        `Activities today: ${stats.activities_today || 0}\\n` +\n        `Notes this week: ${stats.notes_this_week || 0}\\n` +\n        `Total events: ${stats.total_events || 0}\\n` +\n        `Last activity: ${lastActivity}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -440,7 +440,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format recent items response (numbered list for easy deletion)\ntry {\n  const items = $input.all();\n  const event = $('When Executed by Another Workflow').first().json.event;\n  const itemType = $('Validate Recent').item.json.normalized_type;\n\n  if (!items || items.length === 0) {\n    return { \n      response: `📭 No recent ${itemType} found`,\n      ...event\n    };\n  }\n\n  // Determine icon and title based on type\n  const firstItem = items[0].json;\n  const isActivity = firstItem.type === 'activity';\n  const icon = isActivity ? '📊' : '📝';\n  const title = isActivity ? 'Activities' : 'Notes';\n\n  let response = `${icon} **Recent ${title} (${items.length})**\\n\\n`;\n\n  items.forEach((item, i) => {\n    const data = item.json;\n    // Use Luxon (n8n built-in) to convert UTC to local timezone\n    const dt = DateTime.fromISO(data.timestamp, { zone: 'utc' }).setZone('America/Los_Angeles');\n    const dateStr = dt.toFormat('MMM d');  // \"Dec 17\"\n    const timeStr = dt.toFormat('HH:mm');   // \"19:24\" (24-hour)\n    \n    const text = data.text.length > 60 \n      ? data.text.substring(0, 60) + '...' \n      : data.text;\n    \n    response += `${i + 1}. ${dateStr} ${timeStr} - **${data.category}** - ${text}\\n`;\n  });\n\n  response += `\\n💡 Use \\`::delete ${isActivity ? 'activity' : 'note'} <number>\\` to delete items\\nExample: \\`::delete ${isActivity ? 'activity' : 'note'} 1\\` or \\`::delete ${isActivity ? 'activity' : 'note'} 1 3 5\\``;\n\n  return { response, ...event };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting recent response: ${error.message}`,\n    ...event\n  };\n}"
+        "jsCode": "// Format recent items response (numbered list for easy deletion)\nconst ctx = $('If Valid Recent').first().json.ctx;\nconst items = $input.all();\nconst itemType = ctx.validation.normalized_type;\n\nif (!items || items.length === 0) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `📭 No recent ${itemType} found`\n      }\n    }\n  };\n}\n\n// Determine icon and title based on type\nconst firstItem = items[0].json;\nconst isActivity = firstItem.type === 'activity';\nconst icon = isActivity ? '📊' : '📝';\nconst title = isActivity ? 'Activities' : 'Notes';\n\nlet responseText = `${icon} **Recent ${title} (${items.length})**\\n\\n`;\n\nitems.forEach((item, i) => {\n  const data = item.json;\n  // Use Luxon (n8n built-in) to convert UTC to local timezone\n  const dt = DateTime.fromISO(data.timestamp, { zone: 'utc' }).setZone('America/Los_Angeles');\n  const dateStr = dt.toFormat('MMM d');  // \"Dec 17\"\n  const timeStr = dt.toFormat('HH:mm');   // \"19:24\" (24-hour)\n  \n  const text = data.text.length > 60 \n    ? data.text.substring(0, 60) + '...' \n    : data.text;\n  \n  responseText += `${i + 1}. ${dateStr} ${timeStr} - **${data.category}** - ${text}\\n`;\n});\n\nresponseText += `\\n💡 Use \\`::delete ${isActivity ? 'activity' : 'note'} <number>\\` to delete items\\nExample: \\`::delete ${isActivity ? 'activity' : 'note'} 1\\` or \\`::delete ${isActivity ? 'activity' : 'note'} 1 3 5\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { recent_items: items.map(i => i.json) },\n    response: {\n      content: responseText\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -454,7 +454,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format status response\ntry {\n  const status = $input.item?.json;\n  const event = $('When Executed by Another Workflow').first().json.event;\n\n  if (!status) {\n    return {\n      response: `❌ Unable to retrieve status. Please try again.`,\n      ...event\n    };\n  }\n\n  const isSleeping = status.last_activity_category === 'sleep';\n  const sleepIcon = isSleeping ? '😴' : '👁️';\n  const sleepStatus = isSleeping ? 'Sleeping' : 'Awake';\n  const lastActivity = status.last_observation_at\n    ? new Date(status.last_observation_at).toLocaleString()\n    : 'Never';\n  const minutesAgo = Math.round(status.minutes_since_activity || 0);\n  const lastCategory = status.last_activity_category || 'unknown';\n\n  return {\n    response: `${sleepIcon} **Status**\\n\\n` +\n      `State: ${sleepStatus}\\n` +\n      `Last activity: ${lastActivity}\\n` +\n      `Last category: ${lastCategory}\\n` +\n      `Time since: ${minutesAgo} minutes ago`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting status: ${error.message}`,\n    ...event\n  };\n}"
+        "jsCode": "// Format status response - merge DB result into ctx\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst status = $input.item?.json;\n\nif (!status) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ Unable to retrieve status. Please try again.`\n      }\n    }\n  };\n}\n\nconst isSleeping = status.last_activity_category === 'sleep';\nconst sleepIcon = isSleeping ? '😴' : '👁️';\nconst sleepStatus = isSleeping ? 'Sleeping' : 'Awake';\nconst lastActivity = status.last_observation_at\n  ? new Date(status.last_observation_at).toLocaleString()\n  : 'Never';\nconst minutesAgo = Math.round(status.minutes_since_activity || 0);\nconst lastCategory = status.last_activity_category || 'unknown';\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { user_status: status },\n    response: {\n      content: `${sleepIcon} **Status**\\n\\n` +\n        `State: ${sleepStatus}\\n` +\n        `Last activity: ${lastActivity}\\n` +\n        `Last category: ${lastCategory}\\n` +\n        `Time since: ${minutesAgo} minutes ago`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -468,7 +468,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Unknown command handler\nconst command = $('Parse Command and Args').item.json.command;\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nreturn {\n  response: `❌ Unknown command: \\`${command}\\`\\n\\nUse \\`::help\\` to see available commands.`,\n  ...event\n};"
+        "jsCode": "// Unknown command handler\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst command = ctx.command.name;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `❌ Unknown command: \\`${command}\\`\\n\\nUse \\`::help\\` to see available commands.`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -484,7 +484,7 @@
         "operation": "executeQuery",
         "query": "-- Delete activity or note by index (1-based position in recent list)\nWITH input_array AS (\n  SELECT ARRAY[\n    NULLIF($2, '')::int,\n    NULLIF($3, '')::int,\n    NULLIF($4, '')::int,\n    NULLIF($5, '')::int,\n    NULLIF($6, '')::int,\n    NULLIF($7, '')::int,\n    NULLIF($8, '')::int,\n    NULLIF($9, '')::int,\n    NULLIF($10, '')::int\n  ] as indices\n),\ntarget_indices AS (\n  SELECT (unnest(indices) - 1) AS idx\n  FROM input_array\n),\nrecent_activities AS (\n  SELECT \n    a.id,\n    a.timestamp,\n    a.description as text,\n    'activity' as type,\n    (ROW_NUMBER() OVER (ORDER BY a.timestamp DESC) - 1) as idx\n  FROM activity_log a\n  WHERE $1::text = 'activity'\n  ORDER BY a.timestamp DESC\n  LIMIT 100\n),\nrecent_notes AS (\n  SELECT \n    n.id,\n    n.timestamp,\n    n.text as text,\n    'note' as type,\n    (ROW_NUMBER() OVER (ORDER BY n.timestamp DESC) - 1) as idx\n  FROM notes n\n  WHERE $1::text = 'note'\n  ORDER BY n.timestamp DESC\n  LIMIT 100\n),\ndeleted_activities AS (\n  DELETE FROM activity_log\n  WHERE id IN (\n    SELECT ra.id FROM recent_activities ra\n    INNER JOIN target_indices ti ON ra.idx = ti.idx\n  )\n  RETURNING id, timestamp, description as text, 'activity' as type\n),\ndeleted_notes AS (\n  DELETE FROM notes\n  WHERE id IN (\n    SELECT rn.id FROM recent_notes rn\n    INNER JOIN target_indices ti ON rn.idx = ti.idx\n  )\n  RETURNING id, timestamp, text, 'note' as type\n)\nSELECT * FROM deleted_activities\nUNION ALL\nSELECT * FROM deleted_notes;",
         "options": {
-          "queryReplacement": "={{ $('Validate Delete').item.json.normalized_item_type }},={{ $('Parse Command and Args').item.json.args[1] || '' }},={{ $('Parse Command and Args').item.json.args[2] || '' }},={{ $('Parse Command and Args').item.json.args[3] || '' }},={{ $('Parse Command and Args').item.json.args[4] || '' }},={{ $('Parse Command and Args').item.json.args[5] || '' }},={{ $('Parse Command and Args').item.json.args[6] || '' }},={{ $('Parse Command and Args').item.json.args[7] || '' }},={{ $('Parse Command and Args').item.json.args[8] || '' }},={{ $('Parse Command and Args').item.json.args[9] || '' }}"
+          "queryReplacement": "={{ $json.ctx.validation.normalized_item_type }},={{ $json.ctx.command.args[1] || '' }},={{ $json.ctx.command.args[2] || '' }},={{ $json.ctx.command.args[3] || '' }},={{ $json.ctx.command.args[4] || '' }},={{ $json.ctx.command.args[5] || '' }},={{ $json.ctx.command.args[6] || '' }},={{ $json.ctx.command.args[7] || '' }},={{ $json.ctx.command.args[8] || '' }},={{ $json.ctx.command.args[9] || '' }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -505,7 +505,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format delete response (index-based deletion)\ntry {\n  const deleted = $input.all();\n  const event = $('When Executed by Another Workflow').first().json.event;\n  const itemType = $('Validate Delete').item.json.normalized_item_type || 'activity';\n  const indices = $('Validate Delete').item.json.indices || [];\n\n  // Check if any items were actually deleted\n  if (!deleted || deleted.length === 0) {\n    const indexStr = indices.join(', ');\n    return {\n      response: `❌ No ${itemType}s found at position(s): ${indexStr}\\n\\nUse \\`::recent ${itemType}s\\` to see the current numbered list.`,\n      ...event\n    };\n  }\n\n  if (deleted.length === 1) {\n    const item = deleted[0].json;\n    const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n    return {\n      response: `✅ Deleted ${item.type} #${indices[0]}: \"${text}\"`,\n      ...event\n    };\n  }\n\n  const typeLabel = deleted[0].json.type === 'activity' ? 'activities' : 'notes';\n  return {\n    response: `✅ Deleted ${deleted.length} ${typeLabel} at positions: ${indices.join(', ')}`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting delete response: ${error.message}`,\n    ...event\n  };\n}"
+        "jsCode": "// Format delete response (index-based deletion)\nconst ctx = $('If Valid Delete').first().json.ctx;\nconst deleted = $input.all();\nconst itemType = ctx.validation.normalized_item_type || 'activity';\nconst indices = ctx.validation.indices || [];\n\n// Check if any items were actually deleted\nif (!deleted || deleted.length === 0) {\n  const indexStr = indices.join(', ');\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ No ${itemType}s found at position(s): ${indexStr}\\n\\nUse \\`::recent ${itemType}s\\` to see the current numbered list.`\n      }\n    }\n  };\n}\n\nif (deleted.length === 1) {\n  const item = deleted[0].json;\n  const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n  return {\n    ctx: {\n      ...ctx,\n      db: { deleted_items: [item] },\n      response: {\n        content: `✅ Deleted ${item.type} #${indices[0]}: \"${text}\"`\n      }\n    }\n  };\n}\n\nconst typeLabel = deleted[0].json.type === 'activity' ? 'activities' : 'notes';\nreturn {\n  ctx: {\n    ...ctx,\n    db: { deleted_items: deleted.map(d => d.json) },\n    response: {\n      content: `✅ Deleted ${deleted.length} ${typeLabel} at positions: ${indices.join(', ')}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -518,7 +518,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate GET command\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\n\n// Join all args into a single key (support \"north star\" -> \"north_star\")\nconst key = args.join('_');\n\n// Validation: check if key provided\nif (!key || key.trim() === '') {\n  return {\n    valid: false,\n    error_message: `❌ Missing config key. Syntax: \\`::get <key>\\`\\n\\nAvailable keys: north_star, summary_time\\nUse \\`::help\\` for more info.`,\n    ...event\n  };\n}\n\n// Valid - pass the normalized key\nreturn {\n  valid: true,\n  normalized_key: key,\n  ...event\n};"
+        "jsCode": "// Validate GET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\n\n// Join all args into a single key (support \"north star\" -> \"north_star\")\nconst key = args.join('_');\n\n// Validation: check if key provided\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Missing config key. Syntax: \\`::get <key>\\`\\n\\nAvailable keys: north_star, summary_time\\nUse \\`::help\\` for more info.`\n      }\n    }\n  };\n}\n\n// Valid - pass the normalized key\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_key: key\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -531,7 +531,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate SET command\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\n\n// Validation: need at least 2 args (key and value)\nif (!args || args.length < 2) {\n  return {\n    valid: false,\n    error_message: `❌ Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Be present and intentional\\`\\n\\nAvailable keys: north_star, summary_time`,\n    ...event\n  };\n}\n\n// Normalize key: convert spaces to underscores (north_star or summary_time)\nconst key = args[0];\nif (!key || key.trim() === '') {\n  return {\n    valid: false,\n    error_message: `❌ Invalid config key (empty string).\\n\\nExample: \\`::set north_star <your principle>\\``,\n    ...event\n  };\n}\n\n// Join remaining args as value\nconst value = args.slice(1).join(' ');\n\n// Valid - pass normalized key and value\nreturn {\n  valid: true,\n  normalized_key: key,\n  normalized_value: value,\n  ...event\n};"
+        "jsCode": "// Validate SET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\n\n// Validation: need at least 2 args (key and value)\nif (!args || args.length < 2) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Be present and intentional\\`\\n\\nAvailable keys: north_star, summary_time`\n      }\n    }\n  };\n}\n\n// Normalize key: convert spaces to underscores (north_star or summary_time)\nconst key = args[0];\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid config key (empty string).\\n\\nExample: \\`::set north_star <your principle>\\``\n      }\n    }\n  };\n}\n\n// Join remaining args as value\nconst value = args.slice(1).join(' ');\n\n// Valid - pass normalized key and value\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_key: key,\n      normalized_value: value\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -544,7 +544,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate DELETE command (now uses indices, not short IDs)\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\nconst itemType = args[0];\n\n// Validation: need item type (activity/note)\nif (!itemType || !['activity', 'note', 'activities', 'notes'].includes(itemType)) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid item type. Syntax: \\`::delete activity <index>\\` or \\`::delete note <index>\\`\\n\\nUse \\`::recent activities\\` or \\`::recent notes\\` to see numbered list.`,\n    ...event\n  };\n}\n\n// Validation: need at least one index\nif (args.length < 2 || !args[1]) {\n  return {\n    valid: false,\n    error_message: `❌ Missing index. Syntax: \\`::delete ${itemType} <index>\\`\\n\\nExample: \\`::delete ${itemType} 1\\` (deletes first item)\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`,\n    ...event\n  };\n}\n\n// Validation: check indices are valid numbers (1-100)\nconst indices = args.slice(1).filter(arg => arg !== null && arg !== undefined);\nconst invalidIndices = [];\nconst validIndices = [];\n\nfor (const idx of indices) {\n  const num = parseInt(idx);\n  if (isNaN(num) || num < 1 || num > 100) {\n    invalidIndices.push(idx);\n  } else {\n    validIndices.push(num);\n  }\n}\n\nif (invalidIndices.length > 0) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid index: ${invalidIndices.join(', ')}\\n\\nIndices must be numbers between 1 and 100.\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`,\n    ...event\n  };\n}\n\nif (validIndices.length === 0) {\n  return {\n    valid: false,\n    error_message: `❌ No valid indices provided.\\n\\nExample: \\`::delete ${itemType} 1 2 3\\``,\n    ...event\n  };\n}\n\n// Normalize type to singular form\nconst normalizedItemType = (itemType === 'activities' ? 'activity' : (itemType === 'notes' ? 'note' : itemType));\n\n// Valid\nreturn {\n  valid: true,\n  normalized_item_type: normalizedItemType,\n  indices: validIndices,\n  ...event\n};"
+        "jsCode": "// Validate DELETE command (uses indices, not short IDs)\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\nconst itemType = args[0];\n\n// Validation: need item type (activity/note)\nif (!itemType || !['activity', 'note', 'activities', 'notes'].includes(itemType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid item type. Syntax: \\`::delete activity <index>\\` or \\`::delete note <index>\\`\\n\\nUse \\`::recent activities\\` or \\`::recent notes\\` to see numbered list.`\n      }\n    }\n  };\n}\n\n// Validation: need at least one index\nif (args.length < 2 || !args[1]) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Missing index. Syntax: \\`::delete ${itemType} <index>\\`\\n\\nExample: \\`::delete ${itemType} 1\\` (deletes first item)\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`\n      }\n    }\n  };\n}\n\n// Validation: check indices are valid numbers (1-100)\nconst indices = args.slice(1).filter(arg => arg !== null && arg !== undefined);\nconst invalidIndices = [];\nconst validIndices = [];\n\nfor (const idx of indices) {\n  const num = parseInt(idx);\n  if (isNaN(num) || num < 1 || num > 100) {\n    invalidIndices.push(idx);\n  } else {\n    validIndices.push(num);\n  }\n}\n\nif (invalidIndices.length > 0) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid index: ${invalidIndices.join(', ')}\\n\\nIndices must be numbers between 1 and 100.\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`\n      }\n    }\n  };\n}\n\nif (validIndices.length === 0) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ No valid indices provided.\\n\\nExample: \\`::delete ${itemType} 1 2 3\\``\n      }\n    }\n  };\n}\n\n// Normalize type to singular form\nconst normalizedItemType = itemType === 'activities' ? 'activity' : (itemType === 'notes' ? 'note' : itemType);\n\n// Valid - pass normalized values and indices\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_item_type: normalizedItemType,\n      indices: validIndices\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -557,7 +557,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate RECENT command\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\n\n// Default values\nconst itemType = args[0] || 'activities';\nconst limit = args[1] ? parseInt(args[1]) : 10;\n\n// Validation: check item type is valid\nconst validTypes = ['activities', 'activity', 'notes', 'note', ''];\nif (!validTypes.includes(itemType)) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid item type: \\`${itemType}\\`\\n\\nValid types: activities, notes\\nSyntax: \\`::recent [activities|notes] [limit]\\`\\n\\nExample: \\`::recent activities 20\\``,\n    ...event\n  };\n}\n\n// Validation: check limit is a valid number (1-100)\nif (isNaN(limit) || limit < 1 || limit > 100) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid limit: \\`${args[1]}\\`\\n\\nLimit must be a number between 1 and 100.\\nExample: \\`::recent activities 20\\``,\n    ...event\n  };\n}\n\n// Normalize type to plural form for query\nconst normalizedType = itemType === 'activity' ? 'activities' : (itemType === 'note' ? 'notes' : itemType);\n\n// Valid - pass normalized values\nreturn {\n  valid: true,\n  normalized_type: normalizedType || 'activities',\n  normalized_limit: limit,\n  ...event\n};"
+        "jsCode": "// Validate RECENT command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\n\n// Default values\nconst itemType = args[0] || 'activities';\nconst limit = args[1] ? parseInt(args[1]) : 10;\n\n// Validation: check item type is valid\nconst validTypes = ['activities', 'activity', 'notes', 'note', ''];\nif (!validTypes.includes(itemType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid item type: \\`${itemType}\\`\\n\\nValid types: activities, notes\\nSyntax: \\`::recent [activities|notes] [limit]\\`\\n\\nExample: \\`::recent activities 20\\``\n      }\n    }\n  };\n}\n\n// Validation: check limit is a valid number (1-100)\nif (isNaN(limit) || limit < 1 || limit > 100) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid limit: \\`${args[1]}\\`\\n\\nLimit must be a number between 1 and 100.\\nExample: \\`::recent activities 20\\``\n      }\n    }\n  };\n}\n\n// Normalize type to plural form for query\nconst normalizedType = itemType === 'activity' ? 'activities' : (itemType === 'note' ? 'notes' : itemType);\n\n// Valid - pass normalized values\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_type: normalizedType || 'activities',\n      normalized_limit: limit\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -580,7 +580,7 @@
           "conditions": [
             {
               "id": "valid-check-recent",
-              "leftValue": "={{ $json.valid }}",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -614,7 +614,7 @@
           "conditions": [
             {
               "id": "valid-check",
-              "leftValue": "={{ $json.valid }}",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -648,7 +648,7 @@
           "conditions": [
             {
               "id": "valid-check",
-              "leftValue": "={{ $json.valid }}",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -682,7 +682,7 @@
           "conditions": [
             {
               "id": "valid-check",
-              "leftValue": "={{ $json.valid }}",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -709,15 +709,15 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.channel_id }}",
+          "value": "={{ $json.ctx.event.channel_id }}",
           "mode": "id"
         },
-        "content": "={{ $json.error_message }}",
+        "content": "={{ $json.ctx.validation.error_message }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -741,15 +741,15 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.channel_id }}",
+          "value": "={{ $json.ctx.event.channel_id }}",
           "mode": "id"
         },
-        "content": "={{ $json.response }}",
+        "content": "={{ $json.ctx.response.content }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",

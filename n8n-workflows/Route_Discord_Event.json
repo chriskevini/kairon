@@ -144,7 +144,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build flat event object - all fields at root level\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Message').item.json;\n\nreturn [{\n  json: {\n    event_id: dbResult.id,\n    event_type: 'discord_message',\n    guild_id: webhook.guild_id,\n    channel_id: webhook.channel_id,\n    message_id: webhook.message_id,\n    author_login: webhook.author?.login || webhook.author_login,\n    thread_id: webhook.thread_id || null,\n    message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n    raw_text: webhook.content,\n    clean_text: parsed.clean_text,\n    tag: parsed.tag || null,\n    trace_chain: [dbResult.id],\n    trace_chain_pg: `{${dbResult.id}}`\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Message').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -153,11 +153,11 @@
         160
       ],
       "id": "ebc352f8-4d54-4ecd-9aee-d6e36d191099",
-      "name": "Build Message Event Object"
+      "name": "Initialize Message Context"
     },
     {
       "parameters": {
-        "jsCode": "// Build flat reaction event object - all fields at root level\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Reaction').item.json;\n\nreturn [{\n  json: {\n    event_id: dbResult.id,\n    event_type: 'discord_reaction',\n    guild_id: webhook.guild_id,\n    channel_id: webhook.channel_id,\n    message_id: webhook.message_id,\n    author_login: webhook.user?.login || webhook.user_id,\n    thread_id: webhook.thread_id || null,\n    emoji: parsed.emoji,\n    extraction_index: parsed.extraction_index,\n    action: webhook.action,\n    trace_chain: [dbResult.id],\n    trace_chain_pg: `{${dbResult.id}}`\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Reaction').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -166,7 +166,7 @@
         352
       ],
       "id": "9377cd32-3d33-458d-9cb9-bca0ffb63490",
-      "name": "Build Reaction Event Object"
+      "name": "Initialize Reaction Context"
     },
     {
       "parameters": {
@@ -285,7 +285,7 @@
       "main": [
         [
           {
-            "node": "Build Message Event Object",
+            "node": "Initialize Message Context",
             "type": "main",
             "index": 0
           }
@@ -296,14 +296,14 @@
       "main": [
         [
           {
-            "node": "Build Reaction Event Object",
+            "node": "Initialize Reaction Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Message Event Object": {
+    "Initialize Message Context": {
       "main": [
         [
           {
@@ -314,7 +314,7 @@
         ]
       ]
     },
-    "Build Reaction Event Object": {
+    "Initialize Reaction Context": {
       "main": [
         [
           {

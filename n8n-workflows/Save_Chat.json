@@ -18,7 +18,7 @@
         "operation": "executeQuery",
         "query": "SELECT id FROM conversations WHERE thread_id = $1;",
         "options": {
-          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.thread_id }}"
+          "queryReplacement": "={{ $json.ctx.event.thread_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -63,7 +63,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get conversation ID\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $input.all().toReversed();\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get original event data (flat shape)\nconst event = $('Execute Workflow Trigger').first().json;\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversationId,\n    thread_history: threadHistory,\n  }\n}];"
+        "jsCode": "// Merge DB results into ctx pattern\n// Get conversation ID from previous query\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $input.all().toReversed();\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get ctx from trigger (already initialized by Route_Message)\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        conversation_id: conversationId,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -77,7 +77,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom’s birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom’s birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus\n\n**Example Thread 3:**\n\"I feel drained after back-to-back calls. I should probably book a vacation soon. The team lunch is next Thursday at the Italian place downtown. I've committed to no email checks after 8 PM.\"\n\n**Good Extraction:**\nreflection|I feel drained after back-to-back calls\nreflection|I've committed to no email checks after 8 PM\ntodo|Book a vacation\nfact|The team lunch is next Thursday at the Italian place downtown\n\n## Rules\n- Extract only items **explicitly stated or strongly implied** — never invent or infer new information.\n- Use the user's own words/phrasing when possible; minor edits only for clarity/conciseness.\n- Be specific and concrete — skip vague statements.\n- Limit to **maximum 10 items**.\n- Order by **importance/relevance** (most impactful, urgent, or personal first).\n- Prioritize categories: todo > reflection > fact (if something could fit multiple).\n- If unsure between reflection and fact, choose reflection.\n- Edge cases:\n  - \"I should probably...\" or \"Maybe I need to...\" → reflection unless clear commitment (\"I'm going to...\").\n  - Wishes/hypotheticals → reflection only if they reveal a pattern; otherwise omit.\n  - Advice from others → ignore unless user explicitly adopts it.\n  - Repeated ideas → extract only once (best phrasing).\n  - Negations (e.g., \"I hate early meetings\") → reflection.\n\n## Output Format\nOutput **only** the extracted lines, one per item, exactly like this (no preamble, no explanations, no extra text):\n\ntype|text\ntype|text\n...\n\nExtract thoughtfully for maximum signal and relevance.",
+        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.ctx.db.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom’s birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom’s birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus\n\n**Example Thread 3:**\n\"I feel drained after back-to-back calls. I should probably book a vacation soon. The team lunch is next Thursday at the Italian place downtown. I've committed to no email checks after 8 PM.\"\n\n**Good Extraction:**\nreflection|I feel drained after back-to-back calls\nreflection|I've committed to no email checks after 8 PM\ntodo|Book a vacation\nfact|The team lunch is next Thursday at the Italian place downtown\n\n## Rules\n- Extract only items **explicitly stated or strongly implied** — never invent or infer new information.\n- Use the user's own words/phrasing when possible; minor edits only for clarity/conciseness.\n- Be specific and concrete — skip vague statements.\n- Limit to **maximum 10 items**.\n- Order by **importance/relevance** (most impactful, urgent, or personal first).\n- Prioritize categories: todo > reflection > fact (if something could fit multiple).\n- If unsure between reflection and fact, choose reflection.\n- Edge cases:\n  - \"I should probably...\" or \"Maybe I need to...\" → reflection unless clear commitment (\"I'm going to...\").\n  - Wishes/hypotheticals → reflection only if they reveal a pattern; otherwise omit.\n  - Advice from others → ignore unless user explicitly adopts it.\n  - Repeated ideas → extract only once (best phrasing).\n  - Negations (e.g., \"I hate early meetings\") → reflection.\n\n## Output Format\nOutput **only** the extracted lines, one per item, exactly like this (no preamble, no explanations, no extra text):\n\ntype|text\ntype|text\n...\n\nExtract thoughtfully for maximum signal and relevance.",
         "needsFallback": true,
         "batching": {}
       },
@@ -92,7 +92,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output in pipe format: \"type|text\"\nlet llmOutput = $input.first().json.text.trim();\nconst context = $('Prepare Context').first().json;\n\ntry {\n  const lines = llmOutput.split('\\n').filter(line => line.includes('|'));\n  const extractions = [];\n  let displayOrder = 1;\n  \n  lines.forEach(line => {\n    const parts = line.split('|');\n    if (parts.length < 2) return;\n    \n    const itemType = parts[0].trim();\n    const text = parts.slice(1).join('|').trim(); // Handle pipes in text\n    \n    // Validate item_type\n    if (!['reflection', 'fact', 'todo'].includes(itemType)) {\n      console.error(`Invalid item_type: ${itemType}`);\n      return;\n    }\n    \n    extractions.push({\n      conversation_id: context.conversation_id,\n      item_type: itemType,\n      text: text,\n      display_order: displayOrder++\n    });\n  });\n  \n  // If no extractions, return empty array with context\n  if (extractions.length === 0) {\n    return [{\n      json: {\n        ...context,\n        extractions: [],\n        has_extractions: false\n      }\n    }];\n  }\n  \n  return [{\n    json: {\n      ...context,\n      extractions: extractions,\n      has_extractions: true\n    }\n  }];\n} catch (error) {\n  // On error, return empty extractions\n  return [{\n    json: {\n      ...context,\n      extractions: [],\n      has_extractions: false,\n      parse_error: error.message\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output in pipe format: \"type|text\"\nlet llmOutput = $input.first().json.text.trim();\nconst ctx = $('Prepare Context').first().json.ctx;\n\ntry {\n  const lines = llmOutput.split('\\n').filter(line => line.includes('|'));\n  const extractions = [];\n  let displayOrder = 1;\n  \n  lines.forEach(line => {\n    const parts = line.split('|');\n    if (parts.length < 2) return;\n    \n    const itemType = parts[0].trim();\n    const text = parts.slice(1).join('|').trim(); // Handle pipes in text\n    \n    // Validate item_type\n    if (!['reflection', 'fact', 'todo'].includes(itemType)) {\n      console.error(`Invalid item_type: ${itemType}`);\n      return;\n    }\n    \n    extractions.push({\n      conversation_id: ctx.db.conversation_id,\n      item_type: itemType,\n      text: text,\n      display_order: displayOrder++\n    });\n  });\n  \n  // Return ctx with llm namespace added\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: extractions,\n          has_extractions: extractions.length > 0\n        }\n      }\n    }\n  }];\n} catch (error) {\n  // On error, return empty extractions\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: [],\n          has_extractions: false,\n          parse_error: error.message\n        }\n      }\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -115,7 +115,7 @@
           "conditions": [
             {
               "id": "e3ae6cd9-7b12-406f-b233-afdc77ea403e",
-              "leftValue": "={{ $json.extractions }}",
+              "leftValue": "={{ $json.ctx.llm.extractions }}",
               "rightValue": "",
               "operator": {
                 "type": "array",
@@ -142,7 +142,7 @@
         "operation": "executeQuery",
         "query": "DELETE FROM thread_extractions WHERE conversation_id = $1::uuid;",
         "options": {
-          "queryReplacement": "={{ $json.conversation_id }}"
+          "queryReplacement": "={{ $json.ctx.db.conversation_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -163,7 +163,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build SQL query to insert all extractions\nconst data = $('Write Thread Extraction Trace').first().json\nconst extractions = $('Has Extractions?').first().json.extractions;\nconst extractionTraceId = data.trace_id;\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// 5 parameters per row: conversation_id, item_type, text, display_order, extraction_trace_id\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 5; \n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, $${offset + 5}::uuid)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  conversation_id,\n  item_type,\n  text,\n  display_order,\n  extraction_trace_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5... sequence (5 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.conversation_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n  params.push(extractionTraceId);\n});\n\nreturn [{\n  json: {\n    ...data,\n    sql_query: query,\n    sql_params: params\n  }\n}];"
+        "jsCode": "// Build SQL query to insert all extractions\nconst ctx = $('Has Extractions?').first().json.ctx;\nconst traceResult = $('Write Thread Extraction Trace').first().json;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = traceResult.trace_id;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// 5 parameters per row: conversation_id, item_type, text, display_order, extraction_trace_id\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 5; \n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, $${offset + 5}::uuid)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  conversation_id,\n  item_type,\n  text,\n  display_order,\n  extraction_trace_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5... sequence (5 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.conversation_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n  params.push(extractionTraceId);\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      }\n    },\n    sql_query: query,\n    sql_params: params\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -200,7 +200,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build Discord summary message\nconst data = $('Parse Extractions').first().json;\nconst extractions = $('Has Extractions?').first().json.extractions;\nconst extractionTraceId = data.trace_id;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '📊 **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '💡 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '📋 **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '❌ Dismiss • 🗑️ Delete thread';\n\nreturn [{\n  json: {\n    ...data,\n    summary_content: content,\n    emoji_count: extractions.length\n  }\n}];"
+        "jsCode": "// Build Discord summary message\nconst ctx = $('Build Insert Query').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '📊 **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '💡 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '📋 **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '❌ Dismiss • 🗑️ Delete thread';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        summary_content: content,\n        emoji_count: extractions.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -213,7 +213,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst data = $('Build Summary Message').first().json;\nconst extractions = $('Has Extractions?').first().json.extractions;\nconst extractionTraceId = data.trace_id;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${data.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${data.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '❌'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${data.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '🗑️'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ...data,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
+        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst ctx = $('Build Summary Message').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '❌'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '🗑️'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ctx: ctx,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -252,7 +252,7 @@
         "operation": "executeQuery",
         "query": "UPDATE thread_extractions SET summary_message_id = $1 WHERE conversation_id = $2;",
         "options": {
-          "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.conversation_id }}"
+          "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.ctx.db.conversation_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -274,7 +274,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Prepare Context').first().json.channel_id }}/messages/{{ $('Prepare Context').first().json.message_id }}/reactions/💭/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Build Summary Message').first().json.ctx.event.channel_id }}/messages/{{ $('Build Summary Message').first().json.ctx.event.message_id }}/reactions/💭/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -299,12 +299,12 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.thread_id }}",
+          "value": "={{ $json.ctx.event.thread_id }}",
           "mode": "id"
         },
         "content": "❌ No items extracted from this thread. You must have had quite an interesting conversation.",
@@ -376,15 +376,15 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.channel_id }}",
+          "value": "={{ $json.ctx.event.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $json.message_id }}",
+        "messageId": "={{ $json.ctx.event.message_id }}",
         "emoji": "💭"
       },
       "type": "n8n-nodes-base.discord",
@@ -408,15 +408,15 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.channel_id }}",
+          "value": "={{ $json.ctx.event.channel_id }}",
           "mode": "id"
         },
-        "content": "={{ $json.summary_content }}",
+        "content": "={{ $json.ctx.response.summary_content }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -468,7 +468,7 @@
           "assignments": [
             {
               "id": "start-time",
-              "name": "inference_start",
+              "name": "ctx.timing.inference_start",
               "value": "={{ Date.now() }}",
               "type": "number"
             }
@@ -488,7 +488,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data for thread extraction (Option E schema)\n// Using flat data shape - context is at root of Set Inference Start output\nconst context = $('Set Inference Start').first().json;\nconst event = $('Execute Workflow Trigger').first().json;\nconst inferenceStart = context.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedData = $input.first().json;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${context.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_thread_history: context.thread_history,\n    input_conversation_id: context.conversation_id,\n    prompt_text: promptText,\n    completion_text: llmOutput,\n    result_extraction_count: parsedData.extractions?.length || 0,\n    result_has_extractions: parsedData.has_extractions,\n    duration_ms: durationMs,\n    event_id: event.event_id || event.id,\n    trace_chain_pg: traceChainPg,\n    ...parsedData  // Pass through parsed extractions\n  }\n}];"
+        "jsCode": "// Prepare trace data for thread extraction (using ctx pattern)\nconst ctx = $('Set Inference Start').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedCtx = $input.first().json.ctx;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${ctx.db.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: parsedCtx,\n    // Trace data for query\n    input_thread_history: ctx.db.thread_history,\n    input_conversation_id: ctx.db.conversation_id,\n    prompt_text: promptText,\n    completion_text: llmOutput,\n    result_extraction_count: parsedCtx.llm.extractions?.length || 0,\n    result_has_extractions: parsedCtx.llm.has_extractions,\n    duration_ms: durationMs,\n    event_id: ctx.event.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

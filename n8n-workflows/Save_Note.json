@@ -39,7 +39,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Flat data shape - pass through with cleanText at top for LLM prompt\nreturn [{\n  json: {\n    ...$json\n  }\n}];"
+        "jsCode": "// Just pass through ctx\nreturn [{\n  json: $json\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -68,7 +68,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output in pipe format: \"category|score\" (Option E schema)\nlet text = $input.item.json.text.trim();\n\nconst event = $('Set Inference Start').first().json;\nconst inferenceStart = event.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Build full prompt text (filled prompt for Option E)\nconst promptText = `You are a note classifier for a life-tracking system.\n\nClassify notes into exactly 2 categories. Assign probability scores (0-100) that add up to exactly 100.\n\n# Categories\n\nfact → External, objective, declarative knowledge about the world or people (birthdays, preferences, allergies, likes/dislikes, factual statements about others).\n\nreflection → Internal, subjective knowledge (insights, decisions, observations, realizations, thoughts, self-analysis, patterns, emotional states, personal commitments).\n\n# The Core Distinction\n- fact = \"Things about the world/others\" (external reality)\n- reflection = \"Things about me/my mind\" (internal experience)\n\n# Key Guidelines\n- Declarative statements about others → fact (\"John loves coffee\", \"Sarah is allergic to nuts\")\n- Dates, birthdays, preferences of others → fact\n- Personal insights, realizations → reflection (\"I work better in mornings\")\n- Decisions, commitments → reflection (\"decided to switch to async\")\n- Self-observations → reflection (\"I've been more focused lately\")\n- General observations about yourself → reflection\n- When in doubt: Is it about THEM or about ME? → fact vs reflection\n\nOutput format (only lines with score >5):\ncategory_name|score\n\n(Scores must sum to exactly 100, integers only)\n\n# Message to classify:\n${event.clean_text}`;\n\ntry {\n  // Parse pipe format: \"fact|95\\nreflection|5\"\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  const all_scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      all_scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  // Ensure we have at least one category\n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  return [{\n    json: {\n      // Option E schema fields for trace\n      input_text: event.clean_text,\n      prompt_text: promptText,\n      completion_text: text,\n      result_category: topCategory,\n      result_all_scores: all_scores,\n      duration_ms: durationMs,\n      \n      // Projection fields\n      category: topCategory,\n      all_scores: all_scores,\n      text: event.clean_text,  // Use original message as note text (pure user thought)\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"reflection\" category\n  return [{\n    json: {\n      input_text: event.clean_text,\n      prompt_text: promptText,\n      completion_text: text,\n      result_category: \"reflection\",\n      result_all_scores: {},\n      duration_ms: durationMs,\n      \n      category: \"reflection\",\n      all_scores: {},\n      text: event.clean_text,\n      parse_error: error.message,\n      trace_chain_pg: traceChainPg,\n      trace_chain_pg: traceChainPg,\n      ...event\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output and add ctx.llm\nlet text = $input.item.json.text.trim();\n\nconst inputItem = $('Set Inference Start').first().json;\nconst inferenceStart = inputItem.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\nconst promptText = `Note classifier prompt... (see Note Classifier node)`;\n\nconst traceChain = inputItem.ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\ntry {\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  if (!topCategory) {\n    topCategory = 'reflection';\n    topScore = 50;\n  }\n  \n  return [{\n    json: {\n      ctx: {\n        ...inputItem.ctx,\n        llm: {\n          category: topCategory,\n          confidence: topScore / 100,\n          all_scores: scores\n        }\n      },\n      input_text: inputItem.ctx.event.clean_text,\n      prompt_text: promptText,\n      completion_text: text,\n      result_category: topCategory,\n      result_all_scores: scores,\n      duration_ms: durationMs,\n      trace_chain_pg: traceChainPg\n    }\n  }];\n} catch (e) {\n  return [{\n    json: {\n      ctx: {\n        ...inputItem.ctx,\n        llm: {\n          category: 'reflection',\n          confidence: 0.5,\n          all_scores: { reflection: 50, fact: 50 }\n        }\n      },\n      input_text: inputItem.ctx.event.clean_text,\n      prompt_text: promptText,\n      completion_text: text,\n      result_category: 'reflection',\n      result_all_scores: { reflection: 50, fact: 50 },\n      duration_ms: durationMs,\n      trace_chain_pg: traceChainPg\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -84,7 +84,7 @@
         "operation": "executeQuery",
         "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'note_extraction',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2\n      ),\n      'prompt', $3,\n      'completion', $4,\n      'result', jsonb_build_object(\n        'category', $5,\n        'all_scores', $6::jsonb\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id, event_id\n)\nINSERT INTO projections (\n  trace_id,\n  event_id,\n  trace_chain,\n  projection_type,\n  data,\n  status\n)\nSELECT\n  new_trace.id,\n  new_trace.event_id,\n  $8::uuid[] || new_trace.id,\n  'note',\n  jsonb_build_object(\n    'timestamp', NOW(),\n    'category', $5,\n    'text', $2\n  ),\n  'auto_confirmed'\nFROM new_trace\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Parse LLM Response').item.json.event_id }},={{ $('Parse LLM Response').item.json.input_text }},={{ $('Parse LLM Response').item.json.prompt_text }},={{ $('Parse LLM Response').item.json.completion_text }},={{ $('Parse LLM Response').item.json.result_category }},={{ JSON.stringify($('Parse LLM Response').item.json.result_all_scores) }},={{ $('Parse LLM Response').item.json.duration_ms }},={{ $('Parse LLM Response').item.json.trace_chain_pg }}"
+          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.input_text }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_category }},={{ JSON.stringify($json.result_all_scores) }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -108,15 +108,15 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Parse LLM Response').item.json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Parse LLM Response').item.json.channel_id }}",
+          "value": "={{ $json.ctx.event.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $('Parse LLM Response').item.json.message_id }}",
+        "messageId": "={{ $json.ctx.event.message_id }}",
         "emoji": "=📝"
       },
       "type": "n8n-nodes-base.discord",
@@ -182,7 +182,7 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Parse LLM Response').item.json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
@@ -190,7 +190,7 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Note Classification]**\n**Message:** {{ $json.clean_text }}\n**Category:** {{ $json.category }}\n**Confidence:** [ {{ Object.entries($json.all_scores || {}).sort((a, b) => b[1] - a[1]).map(([cat, score]) => `${cat}:${score}%`).join(' | ') }} ]",
+        "content": "=**[Note Classification]**\n**Message:** {{ $json.ctx.event.clean_text }}\n**Category:** {{ $json.ctx.llm.category }}\n**Confidence:** [ {{ Object.entries($json.ctx.llm.all_scores || {}).sort((a, b) => b[1] - a[1]).map(([cat, score]) => `${cat}:${score}%`).join(' | ') }} ]",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",

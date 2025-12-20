@@ -16,12 +16,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages/{{ $json.message_id }}/threads",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/threads",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"name\": $json.clean_text.slice(0, 100) } }}",
+        "jsonBody": "={{ { \"name\": $json.ctx.event.clean_text.slice(0, 100) } }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -74,7 +74,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get event from trigger (flat data shape)\nconst event = $('Execute Workflow Trigger').first().json;\n\n// Access thread creation result (first input to merge)\nconst threadResult = $input.first().json;\nconst threadId = threadResult.id;\n\n// Access north star result (second input to merge)\nconst northStarItems = $input.all();\nlet northStar = 'Not set';\nconst northStarResult = northStarItems.find(item => item.json.value !== undefined);\nif (northStarResult) {\n  northStar = northStarResult.json.value;\n}\n\nreturn [{\n  json: {\n    ...event,\n    north_star: northStar,\n    thread_id: threadId,\n  }\n}];"
+        "jsCode": "// Merge thread creation and north star into ctx pattern\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\n\n// Access thread creation result (first input to merge)\nconst threadResult = $input.first().json;\nconst threadId = threadResult.id;\n\n// Access north star result (second input to merge)\nconst northStarItems = $input.all();\nlet northStar = 'Not set';\nconst northStarResult = northStarItems.find(item => item.json.value !== undefined);\nif (northStarResult) {\n  northStar = northStarResult.json.value;\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        north_star: northStar,\n        thread_id: threadId\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -90,7 +90,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO conversations (\n  thread_id,\n  created_from_raw_event_id,\n  status,\n  topic,\n  metadata\n)\nVALUES (\n  $1,\n  $2::uuid,\n  'active',\n  $3,\n  '{\"initial_message\": true}'::jsonb\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.thread_id }},={{ $json.event_id }},={{ $json.clean_text }}"
+          "queryReplacement": "={{ $json.ctx.db.thread_id }},={{ $json.ctx.event.event_id }},={{ $json.ctx.event.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -113,7 +113,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  'user',\n  $2\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Prepare Context').item.json.clean_text }}"
+          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Prepare Context').item.json.ctx.event.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -134,7 +134,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $('Prepare Context').item.json.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $('Prepare Context').item.json.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) → Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) → Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that shows you're listening\n3. Uses different phrasing each time (not robotic)\n4. Matches the user's tone and energy\n\nRespond now to the user's message.",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $('Prepare Context').item.json.ctx.db.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $('Prepare Context').item.json.ctx.event.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) → Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) → Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that shows you're listening\n3. Uses different phrasing each time (not robotic)\n4. Matches the user's tone and energy\n\nRespond now to the user's message.",
         "needsFallback": true,
         "batching": {}
       },
@@ -196,12 +196,12 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Prepare Context').item.json.guild_id }}",
+          "value": "={{ $('Prepare Context').item.json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Prepare Context').item.json.thread_id }}",
+          "value": "={{ $('Prepare Context').item.json.ctx.db.thread_id }}",
           "mode": "id"
         },
         "content": "={{ $json.completion_text.trim().replace(/^[\"']|[\"']$/g, '') }}",
@@ -252,15 +252,15 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Prepare Context').item.json.guild_id }}",
+          "value": "={{ $('Prepare Context').item.json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Prepare Context').item.json.channel_id }}",
+          "value": "={{ $('Prepare Context').item.json.ctx.event.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $('Prepare Context').item.json.message_id }}",
+        "messageId": "={{ $('Prepare Context').item.json.ctx.event.message_id }}",
         "emoji": "=🗨️"
       },
       "type": "n8n-nodes-base.discord",
@@ -285,18 +285,13 @@
           "assignments": [
             {
               "id": "start-time",
-              "name": "inference_start",
+              "name": "ctx.timing.inference_start",
               "value": "={{ Date.now() }}",
               "type": "number"
-            },
-            {
-              "id": "pass-context",
-              "name": "context",
-              "value": "={{ $json }}",
-              "type": "object"
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -310,7 +305,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data after LLM inference (Option E schema)\nconst context = $('Set Inference Start').first().json.context;\nconst inferenceStart = $('Set Inference Start').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template) with fallbacks\nconst northStar = context.north_star || '(not set)';\nconst cleanText = context.clean_text || '';\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${northStar}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: ${cleanText}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n...\n\nRespond to their initial message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type (context has flat event fields)\nconst traceChain = context.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_text: context.clean_text || '',\n    input_conversation_id: context.thread_id,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    duration_ms: durationMs,\n    event_id: context.event_id,\n    trace_chain_pg: traceChainPg,\n    ...context  // Pass through all context fields\n  }\n}];"
+        "jsCode": "// Prepare trace data after LLM inference (using ctx pattern)\nconst ctx = $('Set Inference Start').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template) with fallbacks\nconst northStar = ctx.db.north_star || '(not set)';\nconst cleanText = ctx.event.clean_text || '';\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${northStar}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: ${cleanText}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n...\n\nRespond to their initial message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        completion_text: response,\n        response_length: response.length\n      }\n    },\n    // Trace data for query\n    input_text: ctx.event.clean_text || '',\n    input_conversation_id: ctx.db.thread_id,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    duration_ms: durationMs,\n    event_id: ctx.event.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

@@ -30,32 +30,44 @@ This file is `.gitignored` and contains environment-specific info not suitable f
 
 These patterns prevent the most common n8n workflow bugs. Following them will save hours of debugging.
 
-### 1. Flat Data Shape (No Nesting)
+### 1. Context Object Structure
 
-**Problem:** Nested object access like `$json.event.trace_chain` or `$json.context.thread_history` breaks silently when parent is undefined.
+**Problem:** Nested object access like `$json.event.trace_chain` breaks silently when parent is undefined. But flat shapes create field collisions and make it unclear where data came from.
 
-**Solution:** Use a flat data shape throughout all workflows.
+**Solution:** Use a structured `ctx` object with namespaced keys. The `ctx` object is always initialized at workflow start, so nested access is safe.
 
 ```javascript
-// ✅ CORRECT: Flat shape - every field at root level
+// ✅ CORRECT: Structured ctx object with namespaces
 {
-  event_id: "uuid",
-  message_id: "discord-id",
-  clean_text: "the message",
-  raw_text: "!! the message",
-  tag: "!!" | ".." | "++" | "::" | null,
-  guild_id: "...",
-  channel_id: "...",
-  thread_id: null,  // null if not in thread
-  intent: "activity" | "note" | "chat" | "command",
-  trace_id: "uuid" | null,
-  trace_chain: [],
-  trace_chain_pg: "{}",  // PostgreSQL array format
-  conversation_id: null,
-  thread_history: []
+  ctx: {
+    event: {
+      event_id: "uuid",
+      message_id: "discord-id",
+      clean_text: "the message",
+      raw_text: "!! the message",
+      tag: "!!" | ".." | "++" | "::" | null,
+      guild_id: "...",
+      channel_id: "...",
+      thread_id: null,
+      trace_chain: [],
+      trace_chain_pg: "{}"
+    },
+    routing: {
+      intent: "activity" | "note" | "chat" | "command",
+      confidence: 0.95
+    },
+    db: {
+      inserted_id: "uuid",
+      conversation_id: null
+    },
+    llm: {
+      completion_text: "...",
+      tokens_used: 42
+    }
+  }
 }
 
-// ❌ WRONG: Nested shape - breaks when parent is undefined
+// ❌ WRONG: Random nested shape without initialization
 {
   event: {
     id: "uuid",
@@ -67,10 +79,11 @@ These patterns prevent the most common n8n workflow bugs. Following them will sa
 }
 ```
 
-**Why flat?**
-- `$json.trace_chain` returns `undefined` safely if missing
-- `$json.event.trace_chain` throws error if `event` is undefined
-- Flat shape = fewer runtime errors, easier debugging
+**Why ctx object?**
+- `ctx` is ALWAYS initialized at workflow start, so `$json.ctx.event` is always safe
+- Namespaces prevent field collisions (`ctx.db.user_id` vs `ctx.event.user_id`)
+- Clear provenance: you know where each field came from
+- See **Section 8: Context Object Pattern** for full implementation details
 
 ### 2. PostgreSQL Array Format
 
@@ -199,16 +212,254 @@ return {
 };
 ```
 
+### 8. Context Object Pattern (CRITICAL)
+
+**Problem:** Every node overwrites `$json` with its output. Postgres nodes return query results, losing the event context. This forces brittle node name references like `$('Some Node').item.json.field` scattered throughout workflows.
+
+**Solution:** Maintain a single `ctx` (context) object that flows through the entire workflow, with each node adding its output under a namespaced key.
+
+#### Core Concept
+
+```javascript
+// All data flows through a ctx object with namespaced keys
+{
+  ctx: {
+    event: { event_id, channel_id, clean_text, ... },  // From trigger
+    routing: { intent, confidence },                     // From classification
+    db: { inserted_id, user_record },                   // From queries
+    llm: { completion_text, tokens_used }               // From LLM calls
+  }
+}
+```
+
+**Why this wins:**
+- **Refactor-safe:** Rename/move nodes without breaking references
+- **Explicit dependencies:** Every node reads from `$json.ctx.*`, not random node names
+- **No collisions:** `ctx.source_user.id` vs `ctx.target_user.id` are unambiguous
+- **AI-friendly:** Simple, consistent rule for agents to follow
+
+#### Standard Namespaces
+
+| Namespace | Purpose | Example Fields |
+|-----------|---------|----------------|
+| `ctx.event` | Trigger/webhook data | `event_id`, `channel_id`, `clean_text`, `tag` |
+| `ctx.routing` | Classification results | `intent`, `confidence`, `all_scores` |
+| `ctx.db` | Database query results | `inserted_id`, `user_record`, `history` |
+| `ctx.llm` | LLM/AI responses | `completion_text`, `tokens_used` |
+| `ctx.http` | External API responses | `status`, `body`, `headers` |
+| `ctx.command` | Parsed command data | `name`, `args`, `raw` |
+
+#### Implementation
+
+##### 1. Initialize Context (First Node After Trigger)
+
+Every workflow starts with a Code node that wraps trigger data:
+
+```javascript
+// Name: "Initialize Context"
+// Place immediately after trigger/webhook
+return {
+  ctx: {
+    event: {
+      event_id: $json.event_id,
+      message_id: $json.message_id,
+      channel_id: $json.channel_id,
+      clean_text: $json.clean_text,
+      raw_text: $json.raw_text,
+      tag: $json.tag,
+      guild_id: $json.guild_id,
+      user_id: $json.user_id,
+      thread_id: $json.thread_id || null,
+      trace_chain: $json.trace_chain || [],
+      trace_chain_pg: $json.trace_chain_pg || '{}'
+    }
+  }
+};
+```
+
+##### 2. Code Nodes: Spread and Extend
+
+Every Code node spreads existing context and adds to its namespace:
+
+```javascript
+// ✅ CORRECT: Spread ctx, add new namespace
+const result = doSomething($json.ctx.event.clean_text);
+return {
+  ctx: {
+    ...$json.ctx,
+    processed: {
+      result: result,
+      timestamp: new Date().toISOString()
+    }
+  }
+};
+
+// ❌ WRONG: Overwrite ctx or return flat data
+return { result: result };  // Lost: ctx.event, ctx.routing, etc.
+```
+
+##### 3. Native Node Wrappers (Postgres, HTTP, LLM)
+
+Native nodes overwrite `$json`. Add a **wrapper Code node** immediately after:
+
+```javascript
+// Name: "Merge [Node Name]" (e.g., "Merge Get User")
+// Place immediately after the native node
+const queryResult = $input.first().json;
+
+return {
+  ctx: {
+    ...$('Previous Context Node').first().json.ctx,  // Get ctx from before native node
+    db: {
+      // Add query results under semantic namespace
+      user_id: queryResult.id,
+      user_name: queryResult.name,
+      created_at: queryResult.created_at
+    }
+  }
+};
+```
+
+**Naming convention:** Wrapper nodes are named `Merge [Original Node Name]`:
+- Postgres node: "Get User" → Wrapper: "Merge Get User"
+- HTTP node: "Call API" → Wrapper: "Merge Call API"
+- LLM node: "Generate Response" → Wrapper: "Merge Generate Response"
+
+##### 4. Set Nodes: Include Other Fields
+
+For Set nodes, always enable pass-through:
+
+```json
+{
+  "parameters": {
+    "assignments": { ... },
+    "includeOtherFields": true  // CRITICAL: Preserves ctx
+  }
+}
+```
+
+##### 5. Execute Workflow Nodes
+
+Use passthrough to send full context to sub-workflows:
+
+```json
+{
+  "parameters": {
+    "inputSource": "passthrough"  // Sends $json (including ctx) to sub-workflow
+  }
+}
+```
+
+Sub-workflows receive `ctx` and should follow the same pattern.
+
+#### Complete Example
+
+**Workflow:** Process Discord message → Query DB → Call LLM → Insert result → Respond
+
+```
+Webhook → Init Context → Get User → Merge Get User → Call LLM → Merge LLM → Insert Result → Merge Insert → Send Response
+```
+
+**Data shape evolution:**
+
+```javascript
+// After "Init Context"
+{
+  ctx: {
+    event: { event_id: "abc", channel_id: "123", clean_text: "hello", ... }
+  }
+}
+
+// After "Merge Get User"
+{
+  ctx: {
+    event: { event_id: "abc", channel_id: "123", clean_text: "hello", ... },
+    db: { user_id: "u1", user_name: "Chris", preferences: {...} }
+  }
+}
+
+// After "Merge LLM"
+{
+  ctx: {
+    event: { event_id: "abc", channel_id: "123", clean_text: "hello", ... },
+    db: { user_id: "u1", user_name: "Chris", preferences: {...} },
+    llm: { completion_text: "Hello! How can I help?", tokens_used: 42 }
+  }
+}
+
+// After "Merge Insert"
+{
+  ctx: {
+    event: { ... },
+    db: { user_id: "u1", ..., inserted_id: "msg-123" },
+    llm: { completion_text: "Hello! How can I help?", tokens_used: 42 }
+  }
+}
+
+// "Send Response" reads:
+// Channel: $json.ctx.event.channel_id
+// Message: $json.ctx.llm.completion_text
+```
+
+#### Anti-Pattern: Scattered Node References
+
+```javascript
+// ❌ WRONG: Node references scattered throughout workflow
+const event = $('Execute Workflow Trigger').first().json;
+const user = $('Get User').first().json;
+const llmResult = $('Call LLM').first().json;
+const dbResult = $('Insert Record').first().json;
+
+// ✅ CORRECT: Everything flows through ctx
+const { event, db, llm } = $json.ctx;
+const channel = event.channel_id;
+const response = llm.completion_text;
+```
+
+**The Rule:** Node name references should ONLY appear in wrapper nodes (the one place where you merge native node output back into ctx). Everywhere else, use `$json.ctx.*`.
+
+#### Context Pruning (Optional)
+
+At natural workflow boundaries, prune ctx to only needed fields:
+
+```javascript
+// Name: "Prune Context" (before sub-workflow or at major boundary)
+return {
+  ctx: {
+    event: {
+      event_id: $json.ctx.event.event_id,
+      channel_id: $json.ctx.event.channel_id
+      // Drop: clean_text, raw_text, etc. (no longer needed)
+    },
+    result: $json.ctx.llm.completion_text
+    // Drop: db, routing, etc.
+  }
+};
+```
+
+#### Context Object Checklist
+
+Before committing any workflow:
+
+- [ ] First node after trigger initializes `ctx.event`
+- [ ] Every Code node returns `{ ctx: { ...$json.ctx, namespace: {...} } }`
+- [ ] Every native node (Postgres, HTTP, LLM) has a "Merge" wrapper node
+- [ ] Set nodes have `includeOtherFields: true`
+- [ ] Execute Workflow nodes have `inputSource: "passthrough"`
+- [ ] Final nodes read from `$json.ctx.*`, never from `$('Node Name')`
+- [ ] Only wrapper nodes contain node name references
+
 ### Quick Reference: Data Shape Checklist
 
 Before any Code node or Postgres query:
 
-- [ ] Using flat field access (`$json.field`) not nested (`$json.event.field`)
+- [ ] All data flows through `ctx` object
+- [ ] Namespaces used: `ctx.event`, `ctx.routing`, `ctx.db`, `ctx.llm`, `ctx.http`, `ctx.command`
 - [ ] Arrays initialized with defaults (`|| []`)
 - [ ] PostgreSQL arrays formatted in Code nodes (`trace_chain_pg`)
 - [ ] Validation before accessing optional data
 - [ ] Error path returns response to user
-- [ ] All original fields preserved with spread (`...$json`)
+- [ ] Context preserved with spread (`...$json.ctx`)
 
 ---
 

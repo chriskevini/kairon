@@ -25,7 +25,7 @@
           "conditions": [
             {
               "id": "is-add-reaction",
-              "leftValue": "={{ $json.action }}",
+              "leftValue": "={{ $json.ctx.event.action }}",
               "rightValue": "add",
               "operator": {
                 "type": "string",
@@ -51,7 +51,7 @@
         "operation": "executeQuery",
         "query": "SELECT DISTINCT conversation_id FROM thread_extractions WHERE summary_message_id = $1;",
         "options": {
-          "queryReplacement": "={{ $json.message_id }}"
+          "queryReplacement": "={{ $json.ctx.event.message_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -106,7 +106,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Merge original flat event data with conversation_id from DB query\nconst originalEvent = $('Receive Event').item.json;\nconst conversationId = $json.conversation_id;\n\nreturn [{\n  json: {\n    ...originalEvent,\n    conversation_id: conversationId\n  }\n}];"
+        "jsCode": "// Merge conversation_id from DB query into ctx.db\nconst originalCtx = $('Receive Event').item.json.ctx;\nconst conversationId = $json.conversation_id;\n\nreturn [{\n  json: {\n    ctx: {\n      ...originalCtx,\n      db: {\n        conversation_id: conversationId\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
