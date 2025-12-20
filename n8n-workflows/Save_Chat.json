@@ -2,14 +2,7 @@
   "nodes": [
     {
       "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "event",
-              "type": "object"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -25,7 +18,7 @@
         "operation": "executeQuery",
         "query": "SELECT id FROM conversations WHERE thread_id = $1;",
         "options": {
-          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.event.thread_id }}"
+          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.thread_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -70,7 +63,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get conversation ID\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $input.all().toReversed();\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get original event\nconst event = $('Execute Workflow Trigger').first().json.event;\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversationId,\n    thread_history: threadHistory,\n  }\n}];"
+        "jsCode": "// Get conversation ID\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $input.all().toReversed();\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get original event data (flat shape)\nconst event = $('Execute Workflow Trigger').first().json;\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversationId,\n    thread_history: threadHistory,\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -306,12 +299,12 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.event.guild_id }}",
+          "value": "={{ $('Execute Workflow Trigger').item.json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Execute Workflow Trigger').item.json.event.thread_id }}",
+          "value": "={{ $('Execute Workflow Trigger').item.json.thread_id }}",
           "mode": "id"
         },
         "content": "❌ No items extracted from this thread. You must have had quite an interesting conversation.",
@@ -383,15 +376,15 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.event.guild_id }}",
+          "value": "={{ $json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.event.channel_id }}",
+          "value": "={{ $json.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $json.event.message_id }}",
+        "messageId": "={{ $json.message_id }}",
         "emoji": "💭"
       },
       "type": "n8n-nodes-base.discord",
@@ -478,15 +471,10 @@
               "name": "inference_start",
               "value": "={{ Date.now() }}",
               "type": "number"
-            },
-            {
-              "id": "pass-context",
-              "name": "context",
-              "value": "={{ $json }}",
-              "type": "object"
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -500,7 +488,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data for thread extraction (Option E schema)\nconst context = $('Set Inference Start').first().json.context;\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst inferenceStart = $('Set Inference Start').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedData = $input.first().json;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${context.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_thread_history: context.thread_history,\n    input_conversation_id: context.conversation_id,\n    prompt_text: promptText,\n    completion_text: llmOutput,\n    result_extraction_count: parsedData.extractions?.length || 0,\n    result_has_extractions: parsedData.has_extractions,\n    duration_ms: durationMs,\n    event_id: event.event_id || event.id,\n    trace_chain_pg: traceChainPg,\n    ...parsedData  // Pass through parsed extractions\n  }\n}];"
+        "jsCode": "// Prepare trace data for thread extraction (Option E schema)\n// Using flat data shape - context is at root of Set Inference Start output\nconst context = $('Set Inference Start').first().json;\nconst event = $('Execute Workflow Trigger').first().json;\nconst inferenceStart = context.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedData = $input.first().json;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${context.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_thread_history: context.thread_history,\n    input_conversation_id: context.conversation_id,\n    prompt_text: promptText,\n    completion_text: llmOutput,\n    result_extraction_count: parsedData.extractions?.length || 0,\n    result_has_extractions: parsedData.has_extractions,\n    duration_ms: durationMs,\n    event_id: event.event_id || event.id,\n    trace_chain_pg: traceChainPg,\n    ...parsedData  // Pass through parsed extractions\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

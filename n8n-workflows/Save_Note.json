@@ -2,14 +2,7 @@
   "nodes": [
     {
       "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "event",
-              "type": "object"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -29,15 +22,10 @@
               "name": "inference_start",
               "value": "={{ Date.now() }}",
               "type": "number"
-            },
-            {
-              "id": "pass-event",
-              "name": "event",
-              "value": "={{ $json.event }}",
-              "type": "object"
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -51,7 +39,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const event = $json.event;\n\nreturn [{\n  json: {\n    cleanText: event.clean_text,\n    ...event\n  }\n}];"
+        "jsCode": "// Flat data shape - pass through with cleanText at top for LLM prompt\nreturn [{\n  json: {\n    ...$json\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -80,7 +68,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output in pipe format: \"category|score\" (Option E schema)\nlet text = $input.item.json.text.trim();\n\nconst event = $('Set Inference Start').first().json.event;\nconst inferenceStart = $('Set Inference Start').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\ntry {\n  // Parse pipe format: \"fact|95\\nreflection|5\"\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  const all_scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      all_scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  // Ensure we have at least one category\n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  // Build full prompt text (filled prompt for Option E)\n  const promptText = `You are a note classifier for a life-tracking system.\n\nClassify notes into exactly 2 categories. Assign probability scores (0-100) that add up to exactly 100.\n\n# Categories\n\nfact → External, objective, declarative knowledge about the world or people (birthdays, preferences, allergies, likes/dislikes, factual statements about others).\n\nreflection → Internal, subjective knowledge (insights, decisions, observations, realizations, thoughts, self-analysis, patterns, emotional states, personal commitments).\n\n# The Core Distinction\n- fact = \"Things about the world/others\" (external reality)\n- reflection = \"Things about me/my mind\" (internal experience)\n\n# Key Guidelines\n- Declarative statements about others → fact (\"John loves coffee\", \"Sarah is allergic to nuts\")\n- Dates, birthdays, preferences of others → fact\n- Personal insights, realizations → reflection (\"I work better in mornings\")\n- Decisions, commitments → reflection (\"decided to switch to async\")\n- Self-observations → reflection (\"I've been more focused lately\")\n- General observations about yourself → reflection\n- When in doubt: Is it about THEM or about ME? → fact vs reflection\n\nOutput format (only lines with score >5):\ncategory_name|score\n\n(Scores must sum to exactly 100, integers only)\n\n# Message to classify:\n${event.clean_text}`;\n  \n  return [{\n    json: {\n      // Option E schema fields for trace\n      input_text: event.clean_text,\n      prompt_text: promptText,\n      completion_text: text,\n      result_category: topCategory,\n      result_all_scores: all_scores,\n      duration_ms: durationMs,\n      \n      // Projection fields\n      category: topCategory,\n      all_scores: all_scores,\n      text: event.clean_text,  // Use original message as note text (pure user thought)\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"reflection\" category\n  return [{\n    json: {\n      input_text: event.clean_text,\n      prompt_text: '',\n      completion_text: text,\n      result_category: \"reflection\",\n      result_all_scores: {},\n      duration_ms: durationMs,\n      \n      category: \"reflection\",\n      all_scores: {},\n      text: event.clean_text,\n      parse_error: error.message,\n      trace_chain_pg: traceChainPg,\n      trace_chain_pg: traceChainPg,\n      ...event\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output in pipe format: \"category|score\" (Option E schema)\nlet text = $input.item.json.text.trim();\n\nconst event = $('Set Inference Start').first().json;\nconst inferenceStart = event.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\ntry {\n  // Parse pipe format: \"fact|95\\nreflection|5\"\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  const all_scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      all_scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  // Ensure we have at least one category\n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  // Build full prompt text (filled prompt for Option E)\n  const promptText = `You are a note classifier for a life-tracking system.\n\nClassify notes into exactly 2 categories. Assign probability scores (0-100) that add up to exactly 100.\n\n# Categories\n\nfact → External, objective, declarative knowledge about the world or people (birthdays, preferences, allergies, likes/dislikes, factual statements about others).\n\nreflection → Internal, subjective knowledge (insights, decisions, observations, realizations, thoughts, self-analysis, patterns, emotional states, personal commitments).\n\n# The Core Distinction\n- fact = \"Things about the world/others\" (external reality)\n- reflection = \"Things about me/my mind\" (internal experience)\n\n# Key Guidelines\n- Declarative statements about others → fact (\"John loves coffee\", \"Sarah is allergic to nuts\")\n- Dates, birthdays, preferences of others → fact\n- Personal insights, realizations → reflection (\"I work better in mornings\")\n- Decisions, commitments → reflection (\"decided to switch to async\")\n- Self-observations → reflection (\"I've been more focused lately\")\n- General observations about yourself → reflection\n- When in doubt: Is it about THEM or about ME? → fact vs reflection\n\nOutput format (only lines with score >5):\ncategory_name|score\n\n(Scores must sum to exactly 100, integers only)\n\n# Message to classify:\n${event.clean_text}`;\n  \n  return [{\n    json: {\n      // Option E schema fields for trace\n      input_text: event.clean_text,\n      prompt_text: promptText,\n      completion_text: text,\n      result_category: topCategory,\n      result_all_scores: all_scores,\n      duration_ms: durationMs,\n      \n      // Projection fields\n      category: topCategory,\n      all_scores: all_scores,\n      text: event.clean_text,  // Use original message as note text (pure user thought)\n      ...event  // Pass through all event fields\n    }\n  }];\n} catch (error) {\n  // Fallback: if parsing fails, default to \"reflection\" category\n  return [{\n    json: {\n      input_text: event.clean_text,\n      prompt_text: '',\n      completion_text: text,\n      result_category: \"reflection\",\n      result_all_scores: {},\n      duration_ms: durationMs,\n      \n      category: \"reflection\",\n      all_scores: {},\n      text: event.clean_text,\n      parse_error: error.message,\n      trace_chain_pg: traceChainPg,\n      trace_chain_pg: traceChainPg,\n      ...event\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

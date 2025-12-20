@@ -2,14 +2,7 @@
   "nodes": [
     {
       "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "event",
-              "type": "object"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -22,7 +15,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const event = $json.event;\n\nreturn [{\n  json: {\n    clean_text: event.clean_text,\n    ...event\n  }\n}];"
+        "jsCode": "// Flat data shape - just pass through with clean_text at top for LLM prompt\nreturn [{\n  json: {\n    ...$json\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -42,15 +35,10 @@
               "name": "inference_start",
               "value": "={{ Date.now() }}",
               "type": "number"
-            },
-            {
-              "id": "pass-event",
-              "name": "event",
-              "value": "={{ $json }}",
-              "type": "object"
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -80,7 +68,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output in pipe format: \"category|score\"\nlet text = $input.first().json.text.trim();\n\nconst event = $('Set Inference Start').first().json.event;\nconst inferenceStart = $('Set Inference Start').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Build prompt text for trace logging\nconst promptText = `You are an activity classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each category. Scores must add up to exactly 100.\n\n## Categories\n\nwork → Productive, focused effort on projects, coding, building, debugging, refining systems, testing, or task-oriented development.\nleisure → Relaxed, non-productive enjoyment: scrolling, watching videos, browsing, casual reading, coffee breaks.\nstudy → Intentional learning or skill-building not directly tied to immediate project work.\nhealth → Physical or mental self-care: exercise, eating meals, hygiene, mindfulness.\nsleep → Going to bed, waking up, napping, or sleep transitions.\nrelationships → Social interaction: chatting with friends/family/partners, or personal/social AI conversations.\nadmin → Organizational/maintenance tasks: planning schedules, managing todos, fixing tools/setup, meta work on tracking system.\n\n## Input\n${event.clean_text}`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\ntry {\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  return [{\n    json: {\n      input_text: event.clean_text,\n      prompt_text: promptText,\n      completion_text: text,\n      result_category: topCategory,\n      result_confidence: topScore / 100,\n      result_all_scores: scores,\n      duration_ms: durationMs,\n      category: topCategory,\n      confidence: topScore / 100,\n      all_scores: scores,\n      description: event.clean_text,\n      trace_chain_pg: traceChainPg,\n      trace_chain_pg: traceChainPg,\n      ...event\n    }\n  }];\n} catch (error) {\n  return [{\n    json: {\n      input_text: event.clean_text,\n      prompt_text: promptText,\n      result_category: \"admin\",\n      result_confidence: 0.5,\n      result_all_scores: {},\n      duration_ms: durationMs,\n      category: \"admin\",\n      parse_error: error.message,\n      trace_chain_pg: traceChainPg,\n      trace_chain_pg: traceChainPg,\n      ...event\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output in pipe format: \"category|score\"\nlet text = $input.first().json.text.trim();\n\nconst event = $('Set Inference Start').first().json;\nconst inferenceStart = event.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Build prompt text for trace logging\nconst promptText = `You are an activity classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each category. Scores must add up to exactly 100.\n\n## Categories\n\nwork → Productive, focused effort on projects, coding, building, debugging, refining systems, testing, or task-oriented development.\nleisure → Relaxed, non-productive enjoyment: scrolling, watching videos, browsing, casual reading, coffee breaks.\nstudy → Intentional learning or skill-building not directly tied to immediate project work.\nhealth → Physical or mental self-care: exercise, eating meals, hygiene, mindfulness.\nsleep → Going to bed, waking up, napping, or sleep transitions.\nrelationships → Social interaction: chatting with friends/family/partners, or personal/social AI conversations.\nadmin → Organizational/maintenance tasks: planning schedules, managing todos, fixing tools/setup, meta work on tracking system.\n\n## Input\n${event.clean_text}`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\ntry {\n  const lines = text.split('\\n').filter(line => line.includes('|'));\n  const scores = {};\n  let topCategory = null;\n  let topScore = 0;\n  \n  lines.forEach(line => {\n    const [category, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    \n    if (!isNaN(score)) {\n      scores[category] = score;\n      \n      if (score > topScore) {\n        topScore = score;\n        topCategory = category;\n      }\n    }\n  });\n  \n  if (!topCategory) {\n    throw new Error('No valid categories found in LLM response');\n  }\n  \n  return [{\n    json: {\n      input_text: event.clean_text,\n      prompt_text: promptText,\n      completion_text: text,\n      result_category: topCategory,\n      result_confidence: topScore / 100,\n      result_all_scores: scores,\n      duration_ms: durationMs,\n      category: topCategory,\n      confidence: topScore / 100,\n      all_scores: scores,\n      description: event.clean_text,\n      trace_chain_pg: traceChainPg,\n      trace_chain_pg: traceChainPg,\n      ...event\n    }\n  }];\n} catch (error) {\n  return [{\n    json: {\n      input_text: event.clean_text,\n      prompt_text: promptText,\n      result_category: \"admin\",\n      result_confidence: 0.5,\n      result_all_scores: {},\n      duration_ms: durationMs,\n      category: \"admin\",\n      parse_error: error.message,\n      trace_chain_pg: traceChainPg,\n      trace_chain_pg: traceChainPg,\n      ...event\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

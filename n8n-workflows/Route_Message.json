@@ -19,15 +19,15 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.event.guild_id }}",
+          "value": "={{ $json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.event.channel_id }}",
+          "value": "={{ $json.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $json.event.message_id }}",
+        "messageId": "={{ $json.message_id }}",
         "emoji": "=🔵"
       },
       "type": "n8n-nodes-base.discord",
@@ -58,7 +58,7 @@
           "conditions": [
             {
               "id": "has-tag",
-              "leftValue": "={{ $json.event.tag }}",
+              "leftValue": "={{ $json.tag }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -82,7 +82,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Map tag shortcuts to semantic intent names\nconst tagToIntent = {\n  '!!': 'activity',\n  '..': 'note',\n  '++': 'chat',\n  '::': 'command',\n  '--': 'save',\n  '$$': 'todo'\n};\n\nconst event = $json.event;\nconst intent = tagToIntent[event.tag] || 'chat';\n\nreturn [{\n  json: {\n    event: {\n      ...event,\n      intent: intent\n    }\n  }\n}];"
+        "jsCode": "// Map tag shortcuts to semantic intent names\nconst tagToIntent = {\n  '!!': 'activity',\n  '..': 'note',\n  '++': 'chat',\n  '::': 'command',\n  '--': 'save',\n  '$$': 'todo'\n};\n\nconst intent = tagToIntent[$json.tag] || 'chat';\n\nreturn [{\n  json: {\n    ...$json,\n    intent: intent\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare deterministic trace data (Option E schema)\nconst event = $json.event;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    event_id: event.event_id,\n    input_text: event.clean_text,\n    input_tag: event.tag,\n    result_intent: event.intent,\n    trace_chain_pg: traceChainPg,\n    event: event\n  }\n}];"
+        "jsCode": "// Prepare deterministic trace data (Option E schema)\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = $json.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ...$json,\n    trace_chain_pg: traceChainPg\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -111,7 +111,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'intent_classification',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object(\n      'text', $2,\n      'tag', $3\n    ),\n    'prompt', NULL,\n    'completion', NULL,\n    'result', jsonb_build_object(\n      'intent', $4,\n      'confidence', 1.0,\n      'method', 'tag_shortcut'\n    ),\n    'model', NULL,\n    'duration_ms', 0\n  ),\n  $5::uuid[]\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_tag }},={{ $json.result_intent }},={{ $json.trace_chain_pg }}"
+          "queryReplacement": "={{ $json.event_id }},={{ $json.clean_text }},={{ $json.tag }},={{ $json.intent }},={{ $json.trace_chain_pg }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -135,13 +135,14 @@
         "assignments": {
           "assignments": [
             {
-              "id": "pass-event",
-              "name": "event",
-              "value": "={{ {\n...$json.event,\n} }}",
-              "type": "object"
+              "id": "pass-data",
+              "name": "passthrough",
+              "value": "={{ true }}",
+              "type": "boolean"
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -165,7 +166,7 @@
           "conditions": [
             {
               "id": "in-thread",
-              "leftValue": "={{ $json.event.thread_id }}",
+              "leftValue": "={{ $json.thread_id }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -198,13 +199,14 @@
               "type": "number"
             },
             {
-              "id": "pass-event",
-              "name": "event",
-              "value": "={{ $json.event }}",
-              "type": "object"
+              "id": "pass-data",
+              "name": "passthrough",
+              "value": "={{ true }}",
+              "type": "boolean"
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -273,7 +275,7 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Intent Classification]**\n**Message:** {{ $('Set Inference Start').item.json.event.clean_text }}\n**Scores:** [ {{ Object.entries($json.result_all_scores || {}).sort((a, b) => b[1] - a[1]).map(([intent, score]) => `${intent}:${score}%`).join(' | ') }} ]",
+        "content": "=**[Intent Classification]**\n**Message:** {{ $('Set Inference Start').item.json.clean_text }}\n**Scores:** [ {{ Object.entries($json.result_all_scores || {}).sort((a, b) => b[1] - a[1]).map(([intent, score]) => `${intent}:${score}%`).join(' | ') }} ]",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -294,7 +296,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM classification scores and map to semantic intents (Option E schema)\nconst llmText = $('Intent Classifier').item.json.text;\nconst event = $('Set Inference Start').item.json.event;\nconst inferenceStart = $('Set Inference Start').item.json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Tag to semantic intent mapping\nconst tagToIntent = {\n  '!!': 'activity',\n  '..': 'note',\n  '++': 'chat',\n  '::': 'command',\n  '--': 'save',\n  '$$': 'todo'\n};\n\n// Parse scores\nconst tagScores = {};\nconst intentScores = {};\nif (llmText && llmText.includes('|')) {\n  const lines = llmText.split('\\n').filter(line => line.includes('|'));\n  lines.forEach(line => {\n    const [tag, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    if (!isNaN(score)) {\n      tagScores[tag] = score;\n      const intent = tagToIntent[tag] || tag;\n      intentScores[intent] = score;\n    }\n  });\n}\n\n// Find top tag\nlet topTag = '..';\nlet topScore = 0;\nfor (const [tag, score] of Object.entries(tagScores)) {\n  if (score > topScore) {\n    topScore = score;\n    topTag = tag;\n  }\n}\n\n// Map to semantic intent\nconst intent = tagToIntent[topTag] || 'note';\nconst confidence = topScore / 100;\n\n// Get full prompt text\nconst promptText = `You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n${event.clean_text}`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    event_id: event.event_id,\n    input_text: event.clean_text,\n    prompt_text: promptText,\n    completion_text: llmText,\n    result_intent: intent,\n    result_confidence: confidence,\n    result_all_scores: intentScores,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg,\n    event: {\n      ...event,\n      intent: intent\n    }\n  }\n}];"
+        "jsCode": "// Parse LLM classification scores and map to semantic intents (Option E schema)\nconst llmText = $('Intent Classifier').item.json.text;\n// Using flat data shape - all fields at root level\nconst inputItem = $('Set Inference Start').item.json;\nconst inferenceStart = inputItem.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Tag to semantic intent mapping\nconst tagToIntent = {\n  '!!': 'activity',\n  '..': 'note',\n  '++': 'chat',\n  '::': 'command',\n  '--': 'save',\n  '$$': 'todo'\n};\n\n// Parse scores\nconst tagScores = {};\nconst intentScores = {};\nif (llmText && llmText.includes('|')) {\n  const lines = llmText.split('\\n').filter(line => line.includes('|'));\n  lines.forEach(line => {\n    const [tag, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    if (!isNaN(score)) {\n      tagScores[tag] = score;\n      const intent = tagToIntent[tag] || tag;\n      intentScores[intent] = score;\n    }\n  });\n}\n\n// Find top tag\nlet topTag = '..';\nlet topScore = 0;\nfor (const [tag, score] of Object.entries(tagScores)) {\n  if (score > topScore) {\n    topScore = score;\n    topTag = tag;\n  }\n}\n\n// Map to semantic intent\nconst intent = tagToIntent[topTag] || 'note';\nconst confidence = topScore / 100;\n\n// Get full prompt text\nconst promptText = `You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n${inputItem.clean_text}`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = inputItem.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ...inputItem,\n    intent: intent,\n    input_text: inputItem.clean_text,\n    prompt_text: promptText,\n    completion_text: llmText,\n    result_intent: intent,\n    result_confidence: confidence,\n    result_all_scores: intentScores,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -335,12 +337,13 @@
           "assignments": [
             {
               "id": "add-intent-to-event",
-              "name": "event",
-              "value": "={{ {\n...$json.event,\n} }}",
-              "type": "object"
+              "name": "passthrough",
+              "value": "={{ true }}",
+              "type": "boolean"
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -367,7 +370,7 @@
                 "conditions": [
                   {
                     "id": "intent-activity",
-                    "leftValue": "={{ $json.event.intent }}",
+                    "leftValue": "={{ $json.intent }}",
                     "rightValue": "activity",
                     "operator": {
                       "type": "string",
@@ -391,7 +394,7 @@
                 "conditions": [
                   {
                     "id": "intent-note",
-                    "leftValue": "={{ $json.event.intent }}",
+                    "leftValue": "={{ $json.intent }}",
                     "rightValue": "note",
                     "operator": {
                       "type": "string",
@@ -415,7 +418,7 @@
                 "conditions": [
                   {
                     "id": "intent-chat",
-                    "leftValue": "={{ $json.event.intent }}",
+                    "leftValue": "={{ $json.intent }}",
                     "rightValue": "chat",
                     "operator": {
                       "type": "string",
@@ -439,7 +442,7 @@
                 "conditions": [
                   {
                     "id": "intent-command",
-                    "leftValue": "={{ $json.event.intent }}",
+                    "leftValue": "={{ $json.intent }}",
                     "rightValue": "command",
                     "operator": {
                       "type": "string",
@@ -463,7 +466,7 @@
                 "conditions": [
                   {
                     "id": "intent-todo",
-                    "leftValue": "={{ $json.event.intent }}",
+                    "leftValue": "={{ $json.intent }}",
                     "rightValue": "todo",
                     "operator": {
                       "type": "string",
@@ -498,28 +501,7 @@
           "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
           "cachedResultName": "Note_Handler"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -540,28 +522,7 @@
           "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
           "cachedResultName": "Thread_Handler"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -582,28 +543,7 @@
           "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
           "cachedResultName": "Command_Handler"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -618,7 +558,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Receive Event').item.json.event.channel_id }}/messages/{{ $('Receive Event').item.json.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Receive Event').item.json.channel_id }}/messages/{{ $('Receive Event').item.json.message_id }}/reactions/🔵/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -650,28 +590,7 @@
           "cachedResultUrl": "/workflow/e78T3OMl6pDxTb13",
           "cachedResultName": "Continue_Chat"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -692,29 +611,7 @@
           "cachedResultUrl": "/workflow/ZQCULmYAVMN7I6ww",
           "cachedResultName": "Save_Activity"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object",
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -735,28 +632,7 @@
           "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
           "cachedResultName": "Save_Chat"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "event": "={{ $json.event }}"
-          },
-          "matchingColumns": [
-            "event"
-          ],
-          "schema": [
-            {
-              "id": "event",
-              "displayName": "event",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "canBeUsedToMatch": true,
-              "type": "object"
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -771,7 +647,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n{{ $('Set Inference Start').item.json.event.clean_text }}",
+        "text": "=You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n{{ $('Set Inference Start').item.json.clean_text }}",
         "needsFallback": true,
         "batching": {}
       },
@@ -796,7 +672,7 @@
           "conditions": [
             {
               "id": "0ceb9e91-e374-4346-8706-97df7d95cfe6",
-              "leftValue": "={{ $json.event.tag }}",
+              "leftValue": "={{ $json.tag }}",
               "rightValue": "--",
               "operator": {
                 "type": "string",

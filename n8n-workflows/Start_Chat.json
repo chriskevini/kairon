@@ -2,14 +2,7 @@
   "nodes": [
     {
       "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "event",
-              "type": "object"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -23,12 +16,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.event.channel_id }}/messages/{{ $json.event.message_id }}/threads",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages/{{ $json.message_id }}/threads",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"name\": $json.event.clean_text.slice(0, 100) } }}",
+        "jsonBody": "={{ { \"name\": $json.clean_text.slice(0, 100) } }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -81,7 +74,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get event from trigger\nconst event = $('Execute Workflow Trigger').first().json.event;\n\n// Access thread creation result (first input to merge)\nconst threadResult = $input.first().json;\nconst threadId = threadResult.id;\n\n// Access north star result (second input to merge)\nconst northStarItems = $input.all();\nlet northStar = 'Not set';\nconst northStarResult = northStarItems.find(item => item.json.value !== undefined);\nif (northStarResult) {\n  northStar = northStarResult.json.value;\n}\n\nreturn [{\n  json: {\n    ...event,\n    north_star: northStar,\n    thread_id: threadId,\n  }\n}];"
+        "jsCode": "// Get event from trigger (flat data shape)\nconst event = $('Execute Workflow Trigger').first().json;\n\n// Access thread creation result (first input to merge)\nconst threadResult = $input.first().json;\nconst threadId = threadResult.id;\n\n// Access north star result (second input to merge)\nconst northStarItems = $input.all();\nlet northStar = 'Not set';\nconst northStarResult = northStarItems.find(item => item.json.value !== undefined);\nif (northStarResult) {\n  northStar = northStarResult.json.value;\n}\n\nreturn [{\n  json: {\n    ...event,\n    north_star: northStar,\n    thread_id: threadId,\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

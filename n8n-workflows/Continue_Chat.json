@@ -2,14 +2,7 @@
   "nodes": [
     {
       "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "event",
-              "type": "object"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -25,7 +18,7 @@
         "operation": "executeQuery",
         "query": "SELECT id, created_from_raw_event_id, topic, metadata\nFROM conversations\nWHERE thread_id = $1\n  AND status = 'active'\nLIMIT 1;",
         "options": {
-          "queryReplacement": "={{ $json.event.thread_id }}"
+          "queryReplacement": "={{ $json.thread_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -279,15 +272,15 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.event.guild_id }}",
+          "value": "={{ $json.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.event.channel_id }}",
+          "value": "={{ $json.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $json.event.message_id }}",
+        "messageId": "={{ $json.message_id }}",
         "emoji": "=💭"
       },
       "type": "n8n-nodes-base.discord",

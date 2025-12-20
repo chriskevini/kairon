@@ -2,14 +2,7 @@
   "nodes": [
     {
       "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "event",
-              "type": "object"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -27,17 +20,18 @@
             {
               "id": "command",
               "name": "command",
-              "value": "={{ $json.event.clean_text.trim().split(/\\s+/)[0] }}",
+              "value": "={{ $json.clean_text.trim().split(/\\s+/)[0] }}",
               "type": "string"
             },
             {
               "id": "args",
               "name": "args",
-              "value": "={{ $json.event.clean_text.trim().split(/\\s+/).slice(1) }}",
+              "value": "={{ $json.clean_text.trim().split(/\\s+/).slice(1) }}",
               "type": "array"
             }
           ]
         },
+        "includeOtherFields": true,
         "options": {}
       },
       "type": "n8n-nodes-base.set",
