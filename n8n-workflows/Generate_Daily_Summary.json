@@ -81,7 +81,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  a.timestamp,\n  a.category::text,\n  a.description\nFROM activity_log a\nWHERE DATE(a.timestamp) = CURRENT_DATE\nORDER BY a.timestamp;",
+        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'description' as description\nFROM projections p\nWHERE p.projection_type = 'activity'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\nORDER BY (p.data->>'timestamp')::timestamptz;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -103,7 +103,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  n.timestamp,\n  n.category::text,\n  n.text\nFROM notes n\nWHERE DATE(n.timestamp) = CURRENT_DATE\nORDER BY n.timestamp;",
+        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'text' as text\nFROM projections p\nWHERE p.projection_type = 'note'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\nORDER BY (p.data->>'timestamp')::timestamptz;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -125,7 +125,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  a.category::text as category,\n  COUNT(*) as count\nFROM activity_log a\nWHERE DATE(a.timestamp) = CURRENT_DATE\nGROUP BY a.category\nORDER BY count DESC;",
+        "query": "SELECT \n  p.data->>'category' as category,\n  COUNT(*) as count\nFROM projections p\nWHERE p.projection_type = 'activity'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\nGROUP BY p.data->>'category'\nORDER BY count DESC;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -211,15 +211,15 @@
       "id": "2d3ec420-6f75-49e0-8851-af9ba845977d",
       "name": "Post to #obsidian-board",
       "webhookId": "58ab7668-0a2a-4b1e-8245-a70e0ae0054d",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000
+      }
     },
     {
       "parameters": {
@@ -272,8 +272,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1632,
-        2032
+        1624,
+        2080
       ],
       "id": "e496385a-60a2-4122-a8b3-ede7452fc36d",
       "name": "mimo-v2-flash",

@@ -129,15 +129,15 @@
       "id": "66a7ff8c-f7bc-463a-92f8-7ddc0740da47",
       "name": "React with 📝",
       "webhookId": "60c18aeb-3403-429d-8436-05ab229456b7",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -156,15 +156,15 @@
       ],
       "id": "remove-blue-reaction-save-note",
       "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -234,15 +234,15 @@
       "id": "bcba5c37-b968-4bb6-aa54-c75f7e073029",
       "name": "Log to Kairon Logs",
       "webhookId": "dcf1cf1a-eda6-4488-8142-af689fbc76c3",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     }
   ],

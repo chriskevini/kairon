@@ -105,15 +105,15 @@
       "id": "7ba92e2f-ff30-47b9-bd76-349c272f14ce",
       "name": "Log to Kairon Logs",
       "webhookId": "bd9abd19-64d4-4da4-8578-07aa4dedadbf",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -209,15 +209,15 @@
       "id": "10c1a424-1a1e-493d-8460-e21a640e2f90",
       "name": "React with 🔘",
       "webhookId": "7d6473eb-7f05-4fc7-ba61-8a8ae16deae0",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -236,15 +236,15 @@
       ],
       "id": "remove-blue-reaction-save-activity",
       "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     }
   ],

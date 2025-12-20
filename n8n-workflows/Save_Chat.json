@@ -17,7 +17,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id FROM threads WHERE thread_id = $1;",
+        "query": "SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 ORDER BY timestamp ASC;",
         "options": {
           "queryReplacement": "={{ $json.ctx.event.thread_id }}"
         }
@@ -26,30 +26,6 @@
       "typeVersion": 2.4,
       "position": [
         -1872,
-        544
-      ],
-      "id": "84595fd7-74f7-468c-992a-388d9bcb1cb0",
-      "name": "Get Conversation ID",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  role,\n  text,\n  timestamp\nFROM conversation_messages\nWHERE thread_id = $1::uuid\nORDER BY timestamp DESC;",
-        "options": {
-          "queryReplacement": "={{ $('Get Conversation ID').item.json.id }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        -1648,
         544
       ],
       "id": "837680d8-e710-4699-ae2d-9e1c5fc045c0",
@@ -64,7 +40,20 @@
     },
     {
       "parameters": {
-        "jsCode": "// Merge DB results into ctx pattern\n// Get conversation ID from previous query\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $input.all().toReversed();\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get ctx from trigger (already initialized by Route_Message)\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        thread_id: conversationId,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
+        "numberInputs": 1
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -1648,
+        544
+      ],
+      "id": "merge-thread-data",
+      "name": "Merge Thread Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge DB results into ctx pattern\n// All inputs come via Merge node in append mode\nconst allInputs = $input.all();\n\n// Get thread messages (items with role and text properties)\nconst messages = allInputs\n  .filter(item => item.json.role !== undefined && item.json.text !== undefined)\n  .toReversed();\n\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get ctx from trigger (already initialized by Route_Message)\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        thread_id: ctx.event.thread_id,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -141,7 +130,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM thread_extractions WHERE thread_id = $1::uuid;",
+        "query": "UPDATE projections SET status = 'voided', voided_at = NOW(), voided_reason = 'replaced_by_new_extraction' WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $1 AND status = 'pending';",
         "options": {
           "queryReplacement": "={{ $('Has Extractions?').first().json.ctx.db.thread_id }}"
         }
@@ -153,7 +142,7 @@
         448
       ],
       "id": "a3a014f0-33c5-4103-80aa-6b645163d8b2",
-      "name": "Clear Old Extractions",
+      "name": "Void Old Extractions",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -164,7 +153,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build SQL query to insert all extractions\nconst ctx = $('Has Extractions?').first().json.ctx;\nconst traceResult = $('Write Thread Extraction Trace').first().json;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = traceResult.trace_id;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// 5 parameters per row: thread_id, item_type, text, display_order, extraction_trace_id\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 5; \n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, $${offset + 5}::uuid)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  thread_id,\n  item_type,\n  text,\n  display_order,\n  extraction_trace_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5... sequence (5 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.thread_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n  params.push(extractionTraceId);\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      }\n    },\n    sql_query: query,\n    sql_params: params\n  }\n}];"
+        "jsCode": "// Build SQL query to insert extractions as projections\nconst ctx = $('Has Extractions?').first().json.ctx;\nconst traceResult = $('Write Thread Extraction Trace').first().json;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = traceResult.trace_id;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst updatedTraceChain = [...traceChain, extractionTraceId];\nconst traceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// 6 parameters per row: event_id, trace_id, trace_chain, projection_type, data (jsonb), status\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 6;\n  return `($${offset + 1}::uuid, $${offset + 2}::uuid, $${offset + 3}::uuid[], $${offset + 4}, $${offset + 5}::jsonb, $${offset + 6})`;\n}).join(', ');\n\nconst query = `\nINSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  data,\n  status\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5, $6... sequence (6 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ctx.event.event_id);  // event_id\n  params.push(extractionTraceId);    // trace_id\n  params.push(traceChainPg);         // trace_chain\n  params.push('thread_extraction');  // projection_type\n  params.push(JSON.stringify({       // data as JSONB\n    thread_id: ext.thread_id,\n    item_type: ext.item_type,\n    text: ext.text,\n    display_order: ext.display_order\n  }));\n  params.push('pending');            // status\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      }\n    },\n    sql_query: query,\n    sql_params: params\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -241,21 +230,21 @@
       ],
       "id": "124efe0a-5911-42ba-bd1f-4478da67fdff",
       "name": "Add Emoji Reactions",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE thread_extractions SET summary_message_id = $1 WHERE thread_id = $2;",
+        "query": "UPDATE projections SET data = data || jsonb_build_object('summary_message_id', $1) WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $2 AND status = 'pending';",
         "options": {
           "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.ctx.db.thread_id }}"
         }
@@ -292,15 +281,15 @@
       ],
       "id": "3a889796-3250-4fef-af78-7b779e545595",
       "name": "Remove 💭 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -328,15 +317,15 @@
       "id": "db0c5fb7-27f3-460d-b931-d0610a934431",
       "name": "Post No Extractions Message",
       "webhookId": "no-extractions-webhook",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -355,15 +344,15 @@
       ],
       "id": "remove-blue-reaction-save-chat-no-extract",
       "name": "Remove 🔵 Reaction (No Extract)",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -436,15 +425,15 @@
       "id": "ee2bc94f-b03b-4d5c-a04e-3e80e8e3acf1",
       "name": "React with 💭",
       "webhookId": "2af02bbb-3f0b-490a-b0c9-234c0e9013ae",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -472,15 +461,15 @@
       "id": "59068362-0e97-4e90-90c3-98373b60e25f",
       "name": "Send a message",
       "webhookId": "b9ec412c-e54b-4542-a3ad-41a388512da2",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000
+      }
     },
     {
       "parameters": {
@@ -575,7 +564,7 @@
       "main": [
         [
           {
-            "node": "Get Conversation ID",
+            "node": "Get Thread History",
             "type": "main",
             "index": 0
           },
@@ -597,18 +586,18 @@
         ]
       ]
     },
-    "Get Conversation ID": {
+    "Get Thread History": {
       "main": [
         [
           {
-            "node": "Get Thread History",
+            "node": "Merge Thread Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Thread History": {
+    "Merge Thread Data": {
       "main": [
         [
           {
@@ -685,14 +674,14 @@
       "main": [
         [
           {
-            "node": "Clear Old Extractions",
+            "node": "Void Old Extractions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Clear Old Extractions": {
+    "Void Old Extractions": {
       "main": [
         [
           {

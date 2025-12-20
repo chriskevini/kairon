@@ -40,15 +40,15 @@
       "id": "476cc1ef-8e72-4df6-ab57-42bda8f06403",
       "name": "React with 🔵",
       "webhookId": "react-processing",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -292,15 +292,15 @@
       "id": "575a7cc8-6f9b-4b97-b863-52925a82c0a0",
       "name": "Log to #kairon-logs",
       "webhookId": "log-classification",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -914,6 +914,7 @@
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false,
+    "timeSavedMode": "fixed",
     "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
   "staticData": null,
