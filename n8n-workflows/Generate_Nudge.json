@@ -37,7 +37,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Insert system event for nudge\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'source_type', 'scheduler',\n    'trigger_type', 'nudge',\n    'trigger_reason', $2\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
+        "query": "-- Insert system event for nudge\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'nudge',\n    'trigger_reason', $2\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
         "options": {
           "queryReplacement": "={{ $json.idempotency_key }},={{ $json.trigger_reason }}"
         }

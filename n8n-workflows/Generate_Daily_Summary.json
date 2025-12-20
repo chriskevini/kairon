@@ -59,7 +59,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Insert system event for daily summary\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'source_type', 'scheduler',\n    'trigger_type', 'daily_summary',\n    'trigger_reason', $2,\n    'scheduled_date', $3\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id, idempotency_key;",
+        "query": "-- Insert system event for daily summary\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'daily_summary',\n    'trigger_reason', $2,\n    'scheduled_date', $3\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id, idempotency_key;",
         "options": {
           "queryReplacement": "=scheduled:daily_summary:{{ $json.today }},={{ $json.trigger_reason }},={{ $json.today }}"
         }

@@ -926,7 +926,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Insert system event for manual generation\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'source_type', 'command',\n    'trigger_type', $2,\n    'trigger_reason', 'manual',\n    'triggered_by_event_id', $3\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
+        "query": "-- Insert system event for manual generation\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', $2,\n    'trigger_reason', 'manual',\n    'triggered_by_event_id', $3\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
         "options": {
           "queryReplacement": "={{ $json.ctx.generate.idempotency_key }},={{ $json.ctx.generate.type === 'summary' ? 'daily_summary' : 'nudge' }},={{ $json.ctx.event.event_id }}"
         }

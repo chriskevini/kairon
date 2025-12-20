@@ -121,7 +121,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Add projection type to ctx for Capture_Projection workflow\nconst projectionType = $json.ctx.routing.intent; // 'activity', 'note', or 'todo'\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      projection: {\n        type: projectionType\n      }\n    }\n  }\n}];"
+        "jsCode": "// Add projection type to ctx for Capture_Projection workflow\n// Derive type from tag (!! = activity, .. = note, $$ = todo)\nconst tag = $json.ctx.event.tag;\nconst tagToType = { '!!': 'activity', '..': 'note', '$$': 'todo' };\nconst projectionType = tagToType[tag] || 'activity';\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      projection: {\n        type: projectionType\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
