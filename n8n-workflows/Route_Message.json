@@ -460,7 +460,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "fallbackOutput": "extra"
+        }
       },
       "id": "52b76dff-86bf-4376-896a-ffd61ade887b",
       "name": "Route by Tag",
@@ -587,6 +589,13 @@
         [
           {
             "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Multi Capture",
             "type": "main",
             "index": 0
           }
