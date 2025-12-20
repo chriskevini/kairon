@@ -1,6 +1,6 @@
-# Multi-Extraction System Prompt
+# Multi-Capture System Prompt
 
-You are an extraction agent for a life-tracking system. Analyze the message and extract all relevant items.
+You are a capture agent for a life-tracking system. Analyze the message and capture all relevant items.
 
 ## Message to Analyze
 

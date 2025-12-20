@@ -1,5 +1,5 @@
 {
-  "name": "Multi_Extract",
+  "name": "Multi_Capture",
   "nodes": [
     {
       "parameters": {
@@ -9,23 +9,23 @@
       "typeVersion": 1.1,
       "position": [
         -1600,
-        700
+        816
       ],
       "id": "trigger-multi-extract",
       "name": "Execute Workflow Trigger"
     },
     {
       "parameters": {
-        "jsCode": "// Prepare for multi-extraction\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: ctx,\n    inference_start: Date.now()\n  }\n}];"
+        "jsCode": "// Prepare for multi-capture\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: ctx,\n    inference_start: Date.now()\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -1376,
-        700
+        720
       ],
       "id": "prepare-extraction",
-      "name": "Prepare Extraction"
+      "name": "Prepare Capture"
     },
     {
       "parameters": {
@@ -39,7 +39,7 @@
       "typeVersion": 4.2,
       "position": [
         -1376,
-        900
+        912
       ],
       "id": "remove-blue-reaction",
       "name": "Remove 🔵 Reaction",
@@ -65,10 +65,10 @@
       "typeVersion": 1.7,
       "position": [
         -1152,
-        700
+        720
       ],
       "id": "multi-extractor",
-      "name": "Multi Extractor"
+      "name": "Multi Capturer"
     },
     {
       "parameters": {
@@ -80,8 +80,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -1152,
-        1100
+        -1144,
+        944
       ],
       "id": "mimo-v2-flash",
       "name": "mimo-v2-flash",
@@ -102,8 +102,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -1008,
-        1100
+        -1016,
+        944
       ],
       "id": "nemotron-nano-9b",
       "name": "nemotron-nano-9b",
@@ -116,43 +116,66 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse multi-extraction JSON response\nconst llmText = $json.text?.trim() || '';\nconst prepareItem = $('Prepare Extraction').first().json;\nconst ctx = prepareItem.ctx;\nconst inferenceStart = prepareItem.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Parse JSON from LLM output\nlet extractions = { activity: null, note: null, todo: null };\nlet parseError = null;\n\ntry {\n  // Try to extract JSON from the response\n  let jsonStr = llmText;\n  \n  // Handle markdown code blocks\n  const jsonMatch = llmText.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (jsonMatch) {\n    jsonStr = jsonMatch[1].trim();\n  }\n  \n  // Find JSON object in response\n  const objMatch = jsonStr.match(/\\{[\\s\\S]*\\}/);\n  if (objMatch) {\n    jsonStr = objMatch[0];\n  }\n  \n  extractions = JSON.parse(jsonStr);\n} catch (e) {\n  parseError = e.message;\n  // Default to empty extractions on parse error\n}\n\n// Filter by confidence threshold (0.5)\nconst CONFIDENCE_THRESHOLD = 0.5;\nconst validExtractions = [];\nconst emojis = [];\n\nif (extractions.activity && extractions.activity.confidence >= CONFIDENCE_THRESHOLD) {\n  validExtractions.push({\n    type: 'activity',\n    data: {\n      timestamp: new Date().toISOString(),\n      category: extractions.activity.category || 'work',\n      description: extractions.activity.description || ctx.event.clean_text,\n      confidence: extractions.activity.confidence\n    }\n  });\n  emojis.push('🔘');\n}\n\nif (extractions.note && extractions.note.confidence >= CONFIDENCE_THRESHOLD) {\n  validExtractions.push({\n    type: 'note',\n    data: {\n      timestamp: new Date().toISOString(),\n      category: extractions.note.category || 'reflection',\n      text: extractions.note.text || ctx.event.clean_text,\n      confidence: extractions.note.confidence\n    }\n  });\n  emojis.push('📝');\n}\n\nif (extractions.todo && extractions.todo.confidence >= CONFIDENCE_THRESHOLD) {\n  validExtractions.push({\n    type: 'todo',\n    data: {\n      timestamp: new Date().toISOString(),\n      priority: extractions.todo.priority || 'medium',\n      description: extractions.todo.description || ctx.event.clean_text,\n      confidence: extractions.todo.confidence\n    }\n  });\n  emojis.push('✅');\n}\n\n// If no valid extractions, fall back to note with low confidence\nif (validExtractions.length === 0) {\n  validExtractions.push({\n    type: 'note',\n    data: {\n      timestamp: new Date().toISOString(),\n      category: 'reflection',\n      text: ctx.event.clean_text,\n      confidence: 0.3\n    }\n  });\n  emojis.push('📝');\n}\n\nreturn [{\n  json: {\n    ctx: ctx,\n    extractions: validExtractions,\n    emojis: emojis,\n    raw_response: llmText,\n    parse_error: parseError,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+        "jsCode": "// Parse multi-capture JSON response\nconst llmText = $json.text?.trim() || '';\nconst prepareItem = $('Prepare Capture').first().json;\nconst ctx = prepareItem.ctx;\nconst inferenceStart = prepareItem.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Parse JSON from LLM output\nlet captures = { activity: null, note: null, todo: null };\nlet parseError = null;\n\ntry {\n  // Try to extract JSON from the response\n  let jsonStr = llmText;\n  \n  // Handle markdown code blocks\n  const jsonMatch = llmText.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (jsonMatch) {\n    jsonStr = jsonMatch[1].trim();\n  }\n  \n  // Find JSON object in response\n  const objMatch = jsonStr.match(/\\{[\\s\\S]*\\}/);\n  if (objMatch) {\n    jsonStr = objMatch[0];\n  }\n  \n  captures = JSON.parse(jsonStr);\n} catch (e) {\n  parseError = e.message;\n  // Default to empty captures on parse error\n}\n\n// Filter by confidence threshold (0.5)\nconst CONFIDENCE_THRESHOLD = 0.5;\nconst validCaptures = [];\nconst emojis = [];\n\nif (captures.activity && captures.activity.confidence >= CONFIDENCE_THRESHOLD) {\n  validCaptures.push({\n    type: 'activity',\n    data: {\n      timestamp: new Date().toISOString(),\n      category: captures.activity.category || 'work',\n      description: captures.activity.description || ctx.event.clean_text,\n      confidence: captures.activity.confidence\n    }\n  });\n  emojis.push('🔘');\n}\n\nif (captures.note && captures.note.confidence >= CONFIDENCE_THRESHOLD) {\n  validCaptures.push({\n    type: 'note',\n    data: {\n      timestamp: new Date().toISOString(),\n      category: captures.note.category || 'reflection',\n      text: captures.note.text || ctx.event.clean_text,\n      confidence: captures.note.confidence\n    }\n  });\n  emojis.push('📝');\n}\n\nif (captures.todo && captures.todo.confidence >= CONFIDENCE_THRESHOLD) {\n  validCaptures.push({\n    type: 'todo',\n    data: {\n      timestamp: new Date().toISOString(),\n      priority: captures.todo.priority || 'medium',\n      description: captures.todo.description || ctx.event.clean_text,\n      confidence: captures.todo.confidence\n    }\n  });\n  emojis.push('✅');\n}\n\n// If no valid captures, fall back to note with low confidence\nif (validCaptures.length === 0) {\n  validCaptures.push({\n    type: 'note',\n    data: {\n      timestamp: new Date().toISOString(),\n      category: 'reflection',\n      text: ctx.event.clean_text,\n      confidence: 0.3\n    }\n  });\n  emojis.push('📝');\n}\n\nreturn [{\n  json: {\n    ctx: ctx,\n    captures: validCaptures,\n    emojis: emojis,\n    raw_response: llmText,\n    parse_error: parseError,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -928,
-        700
+        -800,
+        720
       ],
       "id": "parse-extractions",
-      "name": "Parse Extractions"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Split extractions into separate items for parallel processing\nconst input = $json;\nconst extractions = input.extractions || [];\n\nreturn extractions.map((extraction, index) => ({\n  json: {\n    ctx: input.ctx,\n    extraction: extraction,\n    extraction_index: index,\n    total_extractions: extractions.length,\n    emojis: input.emojis,\n    raw_response: input.raw_response,\n    duration_ms: input.duration_ms,\n    trace_chain_pg: input.trace_chain_pg\n  }\n}));"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -704,
-        700
-      ],
-      "id": "split-extractions",
-      "name": "Split Extractions"
+      "name": "Parse Captures"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'multi_extract_' || $2,\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object('text', $3),\n      'completion', $4,\n      'result', $5::jsonb,\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $6::integer\n    ),\n    $7::uuid[]\n  )\n  RETURNING id, event_id\n)\nINSERT INTO projections (\n  trace_id,\n  event_id,\n  trace_chain,\n  projection_type,\n  data,\n  status\n)\nSELECT\n  new_trace.id,\n  new_trace.event_id,\n  $7::uuid[] || new_trace.id,\n  $2,\n  $5::jsonb,\n  'auto_confirmed'\nFROM new_trace\nRETURNING *;",
+        "query": "INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'multi_capture',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object('text', $2),\n    'completion', $3,\n    'result', $4::jsonb,\n    'model', 'xiaomi/mimo-v2-flash:free',\n    'duration_ms', $5::integer,\n    'capture_count', $6::integer\n  ),\n  $7::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.extraction.type }},={{ $json.ctx.event.clean_text }},={{ $json.raw_response }},={{ JSON.stringify($json.extraction.data) }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.ctx.event.clean_text }},={{ $json.raw_response }},={{ JSON.stringify($json.captures.map(c => ({ type: c.type, confidence: c.data.confidence }))) }},={{ $json.duration_ms }},={{ $json.captures.length }},={{ $json.trace_chain_pg }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -480,
-        700
+        -576,
+        720
+      ],
+      "id": "store-llm-trace",
+      "name": "Store LLM Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge LLM trace result with capture data and split into separate items\nconst parseData = $('Parse Captures').first().json;\nconst traceResult = $json;\n\n// Get the new trace ID and updated chain from the DB result\nconst llmTraceId = traceResult.id;\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\nconst captures = parseData.captures || [];\n\nreturn captures.map((capture, index) => ({\n  json: {\n    ctx: parseData.ctx,\n    capture: capture,\n    capture_index: index,\n    total_captures: captures.length,\n    emojis: parseData.emojis,\n    raw_response: parseData.raw_response,\n    duration_ms: parseData.duration_ms,\n    llm_trace_id: llmTraceId,\n    trace_chain_pg: updatedTraceChainPg\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        912
+      ],
+      "id": "split-extractions",
+      "name": "Split Captures"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  $4,\n  $5::jsonb,\n  'auto_confirmed'\n)\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.llm_trace_id }},={{ $json.ctx.event.event_id }},={{ $json.trace_chain_pg }},={{ $json.capture.type }},={{ JSON.stringify($json.capture.data) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -128,
+        912
       ],
       "id": "store-projection",
       "name": "Store Projection",
@@ -165,47 +188,21 @@
     },
     {
       "parameters": {
-        "mode": "append"
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        -256,
-        700
-      ],
-      "id": "merge-results",
-      "name": "Merge Results"
-    },
-    {
-      "parameters": {
         "jsCode": "// Collect all stored projections and prepare for reactions\nconst items = $input.all();\nconst firstItem = items[0]?.json || {};\n\n// Get emojis from the first item (they're all the same)\nconst emojis = firstItem.emojis || ['📝'];\nconst ctx = firstItem.ctx;\n\nreturn [{\n  json: {\n    ctx: ctx,\n    emojis: emojis,\n    projection_count: items.length,\n    projections: items.map(i => i.json)\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -32,
-        700
+        -128,
+        720
       ],
       "id": "collect-results",
       "name": "Collect Results"
     },
     {
       "parameters": {
-        "jsCode": "// Generate items for each emoji reaction\nconst emojis = $json.emojis || ['📝'];\nconst ctx = $json.ctx;\n\nreturn emojis.map(emoji => ({\n  json: {\n    ctx: ctx,\n    emoji: emoji\n  }\n}));"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        192,
-        700
-      ],
-      "id": "split-emojis",
-      "name": "Split Emojis"
-    },
-    {
-      "parameters": {
         "method": "PUT",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/{{ encodeURIComponent($json.emoji) }}/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/{{ $json.emoji }}/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -213,8 +210,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        416,
-        700
+        -128,
+        528
       ],
       "id": "add-emoji-reactions",
       "name": "Add Emoji Reactions",
@@ -234,7 +231,7 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Collect Results').item.json.ctx.event.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
@@ -242,18 +239,18 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Multi-Extract]**\n**Message:** {{ $('Collect Results').item.json.ctx.event.clean_text }}\n**Extractions:** {{ $('Collect Results').item.json.emojis.join(' ') }} ({{ $('Collect Results').item.json.projection_count }} items)",
+        "content": "=**[Multi-Capture]**\n**Message:** {{ $('Collect Results').item.json.ctx.event.clean_text }}\n**Captures:** {{ $('Collect Results').item.json.emojis.join(' ') }} ({{ $('Collect Results').item.json.projection_count }} items)",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        640,
-        700
+        96,
+        720
       ],
       "id": "log-to-kairon-logs",
       "name": "Log to Kairon Logs",
-      "webhookId": "multi-extract-log",
+      "webhookId": "multi-capture-log",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -264,6 +261,44 @@
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3a53ec39-1d98-4c37-afc3-804166e10731",
+              "name": "emoji",
+              "value": "={{(()=>{\n  let EMOJI = {\nactivity: \"🔘\",\nnote: \"📝\",\ntodo: \"✅\"\n  }\n  return EMOJI[$json.capture.type]\n})()}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -352,
+        720
+      ],
+      "id": "caf7278e-93ed-44a1-a0e7-7fd83fda5e32",
+      "name": "Set Emoji"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        96,
+        528
+      ],
+      "id": "18bebcd7-34cb-43b8-947a-918034a69473",
+      "name": "Wait 1 s",
+      "webhookId": "471830ad-77d3-4266-9eca-bf75cfee85a2"
     }
   ],
   "connections": {
@@ -271,7 +306,7 @@
       "main": [
         [
           {
-            "node": "Prepare Extraction",
+            "node": "Prepare Capture",
             "type": "main",
             "index": 0
           },
@@ -283,44 +318,55 @@
         ]
       ]
     },
-    "Prepare Extraction": {
+    "Prepare Capture": {
       "main": [
         [
           {
-            "node": "Multi Extractor",
+            "node": "Multi Capturer",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Multi Extractor": {
+    "Multi Capturer": {
       "main": [
         [
           {
-            "node": "Parse Extractions",
+            "node": "Parse Captures",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Extractions": {
+    "Parse Captures": {
       "main": [
         [
           {
-            "node": "Split Extractions",
+            "node": "Store LLM Trace",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Split Extractions": {
+    "Store LLM Trace": {
       "main": [
         [
           {
-            "node": "Store Projection",
+            "node": "Split Captures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Captures": {
+      "main": [
+        [
+          {
+            "node": "Set Emoji",
             "type": "main",
             "index": 0
           }
@@ -329,49 +375,10 @@
     },
     "Store Projection": {
       "main": [
-        [
-          {
-            "node": "Merge Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge Results": {
-      "main": [
-        [
-          {
-            "node": "Collect Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Collect Results": {
-      "main": [
-        [
-          {
-            "node": "Split Emojis",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Split Emojis": {
-      "main": [
-        [
-          {
-            "node": "Add Emoji Reactions",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Add Emoji Reactions": {
       "main": [
         [
           {
@@ -382,11 +389,22 @@
         ]
       ]
     },
+    "Add Emoji Reactions": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "mimo-v2-flash": {
       "ai_languageModel": [
         [
           {
-            "node": "Multi Extractor",
+            "node": "Multi Capturer",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -397,11 +415,37 @@
       "ai_languageModel": [
         [
           {
-            "node": "Multi Extractor",
+            "node": "Multi Capturer",
             "type": "ai_languageModel",
             "index": 1
           }
         ]
+      ]
+    },
+    "Set Emoji": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store Projection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Add Emoji Reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1 s": {
+      "main": [
+        []
       ]
     }
   },

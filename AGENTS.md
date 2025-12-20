@@ -141,10 +141,20 @@ Key variables: `WEBHOOK_PATH`, `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_*`, `OPENROU
 
 ## Database Schema
 
+**Core principle: One LLM call = one trace. Everything points back to an event.**
+
+```
+Event (immutable log)
+  └── Trace (one per LLM call)
+        ├── Projection (activity)
+        ├── Projection (note)
+        └── Projection (todo)
+```
+
 **Current architecture** (Migration 006+):
-- `events` - Immutable event log
-- `traces` - LLM reasoning chains  
-- `projections` - Structured outputs (activities, notes, todos)
+- `events` - Immutable event log (the root of everything)
+- `traces` - LLM reasoning (one trace per LLM call, references event)
+- `projections` - Structured outputs (reference their trace)
 - `embeddings` - Vector embeddings for RAG
 
 **Key patterns:**
