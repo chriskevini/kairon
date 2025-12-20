@@ -45,7 +45,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Check if we should run summary (time matches AND not already run today)\nconst currentHour = $now.hour;\nconst todayDate = $now.toFormat('yyyy-MM-dd');\nconst inputItems = $input.all();\n\n// Extract config values\nlet targetHour = 20; // default\nlet lastSummaryDate = null;\n\nfor (const item of inputItems) {\n  if (item.json.key === 'summary_time') {\n    const configTime = item.json.value;\n    if (configTime.includes(':')) {\n      targetHour = parseInt(configTime.split(':')[0]);\n    } else {\n      targetHour = parseInt(configTime);\n    }\n  } else if (item.json.key === 'last_summary_date') {\n    lastSummaryDate = item.json.value;\n  }\n}\n\n// Check 1: Is it the right hour?\nif (currentHour !== targetHour) {\n  return [];\n}\n\n// Check 2: Already ran today?\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - time matches and not run today\nreturn [{ json: { should_run: true, today: todayDate } }];"
+        "jsCode": "// Check if we should run summary (time matches AND not already run today)\nconst currentHour = $now.hour;\nconst todayDate = $now.toFormat('yyyy-MM-dd');\nconst inputItems = $input.all();\n\n// Extract config values\nlet targetHour = 20; // default\nlet lastSummaryDate = null;\n\nfor (const item of inputItems) {\n  if (item.json.key === 'summary_time') {\n    const configTime = item.json.value;\n    if (configTime.includes(':')) {\n      targetHour = parseInt(configTime.split(':')[0]);\n    } else {\n      targetHour = parseInt(configTime);\n    }\n  } else if (item.json.key === 'last_summary_date') {\n    lastSummaryDate = item.json.value;\n  }\n}\n\n// Check 1: Is it the right hour?\nif (currentHour !== targetHour) {\n  return [];\n}\n\n// Check 2: Already ran today?\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - time matches and not run today\nreturn [{ json: { should_run: true, today: todayDate, trigger_reason: 'cron' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -59,13 +59,49 @@
     {
       "parameters": {
         "operation": "executeQuery",
+        "query": "-- Insert system_scheduled event for daily summary\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system_scheduled',\n  jsonb_build_object(\n    'source_type', 'scheduler',\n    'trigger_type', 'daily_summary',\n    'trigger_reason', $2,\n    'scheduled_date', $3\n  )\n)\nON CONFLICT (idempotency_key) DO UPDATE SET id = events.id\nRETURNING id, idempotency_key;",
+        "options": {
+          "queryReplacement": "=scheduled:daily_summary:{{ $json.today }},={{ $json.trigger_reason }},={{ $json.today }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        816,
+        1856
+      ],
+      "id": "insert-event",
+      "name": "Insert Event",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize ctx with event_id for downstream nodes\nconst eventResult = $json;\nconst checkResult = $('Check Should Run').first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'daily_summary',\n        trigger_reason: checkResult.trigger_reason,\n        today: checkResult.today,\n        trace_chain: []\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        1856
+      ],
+      "id": "init-ctx",
+      "name": "Initialize ctx"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
         "query": "SELECT value FROM config WHERE key = 'north_star';",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        816,
+        1264,
         1568
       ],
       "id": "03b962d9-8335-4f8e-927a-b88324ffb5de",
@@ -87,7 +123,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        816,
+        1264,
         1760
       ],
       "id": "61db4575-cc50-4b14-b340-559a9d98bb4c",
@@ -109,7 +145,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        816,
+        1264,
         1952
       ],
       "id": "1336a366-b325-47a5-8926-663031f808d8",
@@ -131,7 +167,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        816,
+        1264,
         2144
       ],
       "id": "1878c56b-6b40-4588-a17b-2a041bcff537",
@@ -146,12 +182,12 @@
     },
     {
       "parameters": {
-        "numberInputs": 4
+        "numberInputs": 5
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        1040,
+        1488,
         1824
       ],
       "id": "f2d0c053-bb7d-48c1-bc8b-ab1a7f62dfee",
@@ -159,12 +195,12 @@
     },
     {
       "parameters": {
-        "jsCode": "// Safely merge all data for LLM summarization\n// Handles empty results and errors gracefully\n\nconst allItems = $input.all();\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItems = allItems.filter(item => item.json.value !== undefined && !item.json.error);\nif (northStarItems.length > 0) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities (has 'description' field)\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract notes (has 'text' field but not 'description')\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  !item.json.error\n);\n\n// Extract breakdown (has 'count' field and 'category' but not description/text)\nconst breakdownItems = allItems.filter(item => \n  item.json.count !== undefined && \n  item.json.category !== undefined &&\n  item.json.description === undefined &&\n  item.json.text === undefined &&\n  !item.json.error\n);\n\n// Format activities list\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activityItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (noteItems.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  noteItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    notesList += `- ${time} [${item.json.category}] ${item.json.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet breakdownText = '';\nif (breakdownItems.length === 0) {\n  breakdownText = '(No category data)';\n} else {\n  breakdownItems.forEach(item => {\n    breakdownText += `- ${item.json.category}: ${item.json.count} activities\\n`;\n  });\n}\n\nreturn [{\n  json: {\n    north_star: northStar,\n    activities_list: activitiesList,\n    notes_list: notesList,\n    category_breakdown: breakdownText,\n    activity_count: activityItems.length,\n    note_count: noteItems.length\n  }\n}];"
+        "jsCode": "// Safely merge all data for LLM summarization\n// Handles empty results and errors gracefully\n\nconst allItems = $input.all();\n\n// First item should be ctx from Initialize ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItems = allItems.filter(item => item.json.value !== undefined && !item.json.error);\nif (northStarItems.length > 0) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities (has 'description' field)\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract notes (has 'text' field but not 'description')\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  !item.json.error\n);\n\n// Extract breakdown (has 'count' field and 'category' but not description/text)\nconst breakdownItems = allItems.filter(item => \n  item.json.count !== undefined && \n  item.json.category !== undefined &&\n  item.json.description === undefined &&\n  item.json.text === undefined &&\n  !item.json.error\n);\n\n// Format activities list\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activityItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (noteItems.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  noteItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    notesList += `- ${time} [${item.json.category}] ${item.json.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet breakdownText = '';\nif (breakdownItems.length === 0) {\n  breakdownText = '(No category data)';\n} else {\n  breakdownItems.forEach(item => {\n    breakdownText += `- ${item.json.category}: ${item.json.count}\\n`;\n  });\n}\n\n// Build input for LLM (for trace storage)\nconst llmInput = {\n  north_star: northStar,\n  activity_count: activityItems.length,\n  note_count: noteItems.length,\n  activities: activityItems.map(i => i.json),\n  notes: noteItems.map(i => i.json),\n  breakdown: breakdownItems.map(i => i.json)\n};\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    activities_list: activitiesList,\n    notes_list: notesList,\n    category_breakdown: breakdownText,\n    activity_count: activityItems.length,\n    note_count: noteItems.length,\n    llm_input: llmInput,\n    inference_start: Date.now()\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1264,
+        1712,
         1856
       ],
       "id": "e29ca6f7-efbc-418c-b9cd-e61fa111e178",
@@ -180,11 +216,96 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        1488,
+        1936,
         1856
       ],
       "id": "4c73ad0b-072b-41c5-a6a7-5e3069f63663",
       "name": "Generate Summary with LLM"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse LLM response and prepare for trace/projection storage\nconst prepareData = $('Prepare Summary Data').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    summary_text: llmText,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg,\n    llm_input: prepareData.llm_input,\n    llm_input_json: JSON.stringify(prepareData.llm_input)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        1856
+      ],
+      "id": "parse-llm-response",
+      "name": "Parse LLM Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'daily_summary',\n  jsonb_build_object(\n    'input', $2::jsonb,\n    'prompt', 'daily-summary-prompt',\n    'completion', $3,\n    'result', jsonb_build_object('summary', $3),\n    'duration_ms', $4::integer\n  ),\n  $5::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.llm_input_json }},={{ $json.summary_text }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2384,
+        1856
+      ],
+      "id": "store-trace",
+      "name": "Store Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare projection data with trace_id\nconst traceResult = $json;\nconst parseData = $('Parse LLM Response').first().json;\nconst ctx = parseData.ctx;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    summary_text: parseData.summary_text,\n    projection_data: {\n      timestamp: new Date().toISOString(),\n      summary_date: ctx.event.today,\n      text: parseData.summary_text,\n      activity_count: parseData.llm_input?.activity_count || 0,\n      note_count: parseData.llm_input?.note_count || 0\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        1856
+      ],
+      "id": "prepare-projection",
+      "name": "Prepare Projection"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'daily_summary',\n  $4::jsonb,\n  'auto_confirmed'\n)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.trace_id }},={{ $json.ctx.event.event_id }},={{ $json.trace_chain_pg }},={{ JSON.stringify($json.projection_data) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2832,
+        1856
+      ],
+      "id": "store-projection",
+      "name": "Store Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge projection result back with summary text for Discord\nconst projResult = $json;\nconst prepData = $('Prepare Projection').first().json;\n\nreturn [{\n  json: {\n    ctx: prepData.ctx,\n    projection_id: projResult.id,\n    summary_text: prepData.summary_text\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3056,
+        1856
+      ],
+      "id": "merge-for-discord",
+      "name": "Merge for Discord"
     },
     {
       "parameters": {
@@ -199,13 +320,13 @@
           "value": "={{ $env.DISCORD_CHANNEL_OBSIDIAN_BOARD }}",
           "mode": "id"
         },
-        "content": "={{ $json.text }}",
+        "content": "={{ $json.summary_text }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1840,
+        3280,
         1856
       ],
       "id": "2d3ec420-6f75-49e0-8851-af9ba845977d",
@@ -224,15 +345,38 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO config (key, value) VALUES ('last_summary_date', $1) ON CONFLICT (key) DO UPDATE SET value = $1 RETURNING *;",
+        "query": "-- Update projection with Discord message ID for void/regenerate support\nUPDATE projections \nSET data = data || jsonb_build_object(\n  'discord_message_id', $1,\n  'discord_channel_id', $2,\n  'discord_guild_id', $3\n)\nWHERE id = $4::uuid\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ $now.format('yyyy-MM-dd') }}"
+          "queryReplacement": "={{ $json.id }},={{ $env.DISCORD_CHANNEL_OBSIDIAN_BOARD }},={{ $env.DISCORD_GUILD_ID }},={{ $('Merge for Discord').first().json.projection_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2064,
+        3504,
+        1856
+      ],
+      "id": "update-projection-message-id",
+      "name": "Update Projection with Message ID",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO config (key, value) VALUES ('last_summary_date', $1) ON CONFLICT (key) DO UPDATE SET value = $1 RETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $('Initialize ctx').first().json.ctx.event.today }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        3728,
         1856
       ],
       "id": "3a056015-e868-4fbc-b433-cadee441431d",
@@ -252,7 +396,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1496,
+        1944,
         2080
       ],
       "id": "c8b0b429-e702-4351-8fdd-72d096e1898b",
@@ -272,7 +416,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1624,
+        2072,
         2080
       ],
       "id": "e496385a-60a2-4122-a8b3-ede7452fc36d",
@@ -312,6 +456,28 @@
       "main": [
         [
           {
+            "node": "Insert Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Event": {
+      "main": [
+        [
+          {
+            "node": "Initialize ctx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize ctx": {
+      "main": [
+        [
+          {
             "node": "Get North Star",
             "type": "main",
             "index": 0
@@ -330,6 +496,11 @@
             "node": "Get Category Breakdown",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge All Query Results",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -340,7 +511,7 @@
           {
             "node": "Merge All Query Results",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -351,7 +522,7 @@
           {
             "node": "Merge All Query Results",
             "type": "main",
-            "index": 1
+            "index": 2
           }
         ]
       ]
@@ -362,7 +533,7 @@
           {
             "node": "Merge All Query Results",
             "type": "main",
-            "index": 2
+            "index": 3
           }
         ]
       ]
@@ -373,7 +544,7 @@
           {
             "node": "Merge All Query Results",
             "type": "main",
-            "index": 3
+            "index": 4
           }
         ]
       ]
@@ -404,6 +575,61 @@
       "main": [
         [
           {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Store Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Trace": {
+      "main": [
+        [
+          {
+            "node": "Prepare Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Projection": {
+      "main": [
+        [
+          {
+            "node": "Store Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Projection": {
+      "main": [
+        [
+          {
+            "node": "Merge for Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge for Discord": {
+      "main": [
+        [
+          {
             "node": "Post to #obsidian-board",
             "type": "main",
             "index": 0
@@ -412,6 +638,17 @@
       ]
     },
     "Post to #obsidian-board": {
+      "main": [
+        [
+          {
+            "node": "Update Projection with Message ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Projection with Message ID": {
       "main": [
         [
           {

@@ -227,6 +227,30 @@
                 "conditions": [
                   {
                     "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "generate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "generate-cmd-id"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "generate"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
                     "rightValue": "help",
                     "operator": {
                       "type": "string",
@@ -257,7 +281,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle ping command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: '🏓 pong'\n    }\n  }\n};"
+        "jsCode": "// Handle ping command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: '\ud83c\udfd3 pong'\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -386,7 +410,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle help command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nconst helpText = `📚 **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions → !! (activity)\n- Observations/notes → .. (note)\n- Questions/requests → ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent activities [N]\\` - Show last N activities (default 10)\n\\`::recent notes [N]\\` - Show last N notes (default 10)\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM format)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`++ what should I focus on today?\\`\n\\`::set north_star Focus on deep work\\`\n\\`::recent activities 20\\`\n\\`::delete activity 1 3 5\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: helpText\n    }\n  }\n};"
+        "jsCode": "// Handle help command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nconst helpText = `\ud83d\udcda **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions \u2192 !! (activity)\n- Observations/notes \u2192 .. (note)\n- Questions/requests \u2192 ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent activities [N]\\` - Show last N activities (default 10)\n\\`::recent notes [N]\\` - Show last N notes (default 10)\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM format)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`++ what should I focus on today?\\`\n\\`::set north_star Focus on deep work\\`\n\\`::recent activities 20\\`\n\\`::delete activity 1 3 5\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: helpText\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -400,7 +424,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format get command response - merge DB result into ctx\nconst ctx = $('If Valid Get').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if query returned data\nif (!result || !result.key || !result.value) {\n  const key = ctx.validation.normalized_key;\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.\\n\\nAvailable keys: north_star, summary_time`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content: `**${result.key}:** ${result.value}`\n    }\n  }\n};"
+        "jsCode": "// Format get command response - merge DB result into ctx\nconst ctx = $('If Valid Get').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if query returned data\nif (!result || !result.key || !result.value) {\n  const key = ctx.validation.normalized_key;\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.\\n\\nAvailable keys: north_star, summary_time`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content: `**${result.key}:** ${result.value}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -414,7 +438,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format set command response - merge DB result into ctx\nconst ctx = $('If Valid Set').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if database operation succeeded\nif (!result || !result.key) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ Failed to set config value. Please try again.`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content: `✅ Set **${result.key}** = ${result.value}`\n    }\n  }\n};"
+        "jsCode": "// Format set command response - merge DB result into ctx\nconst ctx = $('If Valid Set').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if database operation succeeded\nif (!result || !result.key) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Failed to set config value. Please try again.`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content: `\u2705 Set **${result.key}** = ${result.value}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -428,7 +452,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format stats response - merge DB result into ctx\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst stats = $input.item?.json;\n\nif (!stats) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ Unable to retrieve statistics. Please try again.`\n      }\n    }\n  };\n}\n\nconst lastActivity = stats.last_activity \n  ? new Date(stats.last_activity).toLocaleString()\n  : 'Never';\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { stats },\n    response: {\n      content: `📊 **Statistics**\\n\\n` +\n        `Activities today: ${stats.activities_today || 0}\\n` +\n        `Notes this week: ${stats.notes_this_week || 0}\\n` +\n        `Total events: ${stats.total_events || 0}\\n` +\n        `Last activity: ${lastActivity}`\n    }\n  }\n};"
+        "jsCode": "// Format stats response - merge DB result into ctx\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst stats = $input.item?.json;\n\nif (!stats) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Unable to retrieve statistics. Please try again.`\n      }\n    }\n  };\n}\n\nconst lastActivity = stats.last_activity \n  ? new Date(stats.last_activity).toLocaleString()\n  : 'Never';\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { stats },\n    response: {\n      content: `\ud83d\udcca **Statistics**\\n\\n` +\n        `Activities today: ${stats.activities_today || 0}\\n` +\n        `Notes this week: ${stats.notes_this_week || 0}\\n` +\n        `Total events: ${stats.total_events || 0}\\n` +\n        `Last activity: ${lastActivity}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -441,7 +465,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format recent items response (numbered list for easy deletion)\nconst ctx = $('If Valid Recent').first().json.ctx;\nconst items = $input.all();\nconst itemType = ctx.validation.normalized_type;\n\nif (!items || items.length === 0) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `📭 No recent ${itemType} found`\n      }\n    }\n  };\n}\n\n// Determine icon and title based on type\nconst firstItem = items[0].json;\nconst isActivity = firstItem.type === 'activity';\nconst icon = isActivity ? '📊' : '📝';\nconst title = isActivity ? 'Activities' : 'Notes';\n\nlet responseText = `${icon} **Recent ${title} (${items.length})**\\n\\n`;\n\nitems.forEach((item, i) => {\n  const data = item.json;\n  // Use Luxon (n8n built-in) to convert UTC to local timezone\n  const dt = DateTime.fromISO(data.timestamp, { zone: 'utc' }).setZone('America/Los_Angeles');\n  const dateStr = dt.toFormat('MMM d');  // \"Dec 17\"\n  const timeStr = dt.toFormat('HH:mm');   // \"19:24\" (24-hour)\n  \n  const text = data.text.length > 60 \n    ? data.text.substring(0, 60) + '...' \n    : data.text;\n  \n  // Build Discord message link if we have all the IDs\n  let link = '';\n  if (data.guild_id && data.channel_id && data.message_id) {\n    const url = `https://discord.com/channels/${data.guild_id}/${data.channel_id}/${data.message_id}`;\n    link = ` [↗](${url})`;\n  }\n  \n  responseText += `${i + 1}. ${dateStr} ${timeStr} - **${data.category}** - ${text}${link}\\n`;\n});\n\nresponseText += `\\n💡 Use \\`::delete ${isActivity ? 'activity' : 'note'} <number>\\` to delete items\\nExample: \\`::delete ${isActivity ? 'activity' : 'note'} 1\\` or \\`::delete ${isActivity ? 'activity' : 'note'} 1 3 5\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { recent_items: items.map(i => i.json) },\n    response: {\n      content: responseText\n    }\n  }\n};"
+        "jsCode": "// Format recent items response (numbered list for easy deletion)\nconst ctx = $('If Valid Recent').first().json.ctx;\nconst items = $input.all();\nconst itemType = ctx.validation.normalized_type;\n\nif (!items || items.length === 0) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\ud83d\udced No recent ${itemType} found`\n      }\n    }\n  };\n}\n\n// Determine icon and title based on type\nconst firstItem = items[0].json;\nconst isActivity = firstItem.type === 'activity';\nconst icon = isActivity ? '\ud83d\udcca' : '\ud83d\udcdd';\nconst title = isActivity ? 'Activities' : 'Notes';\n\nlet responseText = `${icon} **Recent ${title} (${items.length})**\\n\\n`;\n\nitems.forEach((item, i) => {\n  const data = item.json;\n  // Use Luxon (n8n built-in) to convert UTC to local timezone\n  const dt = DateTime.fromISO(data.timestamp, { zone: 'utc' }).setZone('America/Los_Angeles');\n  const dateStr = dt.toFormat('MMM d');  // \"Dec 17\"\n  const timeStr = dt.toFormat('HH:mm');   // \"19:24\" (24-hour)\n  \n  const text = data.text.length > 60 \n    ? data.text.substring(0, 60) + '...' \n    : data.text;\n  \n  // Build Discord message link if we have all the IDs\n  let link = '';\n  if (data.guild_id && data.channel_id && data.message_id) {\n    const url = `https://discord.com/channels/${data.guild_id}/${data.channel_id}/${data.message_id}`;\n    link = ` [\u2197](${url})`;\n  }\n  \n  responseText += `${i + 1}. ${dateStr} ${timeStr} - **${data.category}** - ${text}${link}\\n`;\n});\n\nresponseText += `\\n\ud83d\udca1 Use \\`::delete ${isActivity ? 'activity' : 'note'} <number>\\` to delete items\\nExample: \\`::delete ${isActivity ? 'activity' : 'note'} 1\\` or \\`::delete ${isActivity ? 'activity' : 'note'} 1 3 5\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { recent_items: items.map(i => i.json) },\n    response: {\n      content: responseText\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -455,7 +479,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format status response - merge DB result into ctx\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst status = $input.item?.json;\n\nif (!status) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ Unable to retrieve status. Please try again.`\n      }\n    }\n  };\n}\n\nconst isSleeping = status.last_activity_category === 'sleep';\nconst sleepIcon = isSleeping ? '😴' : '👁️';\nconst sleepStatus = isSleeping ? 'Sleeping' : 'Awake';\nconst lastActivity = status.last_observation_at\n  ? new Date(status.last_observation_at).toLocaleString()\n  : 'Never';\nconst minutesAgo = Math.round(status.minutes_since_activity || 0);\nconst lastCategory = status.last_activity_category || 'unknown';\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { user_status: status },\n    response: {\n      content: `${sleepIcon} **Status**\\n\\n` +\n        `State: ${sleepStatus}\\n` +\n        `Last activity: ${lastActivity}\\n` +\n        `Last category: ${lastCategory}\\n` +\n        `Time since: ${minutesAgo} minutes ago`\n    }\n  }\n};"
+        "jsCode": "// Format status response - merge DB result into ctx\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst status = $input.item?.json;\n\nif (!status) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Unable to retrieve status. Please try again.`\n      }\n    }\n  };\n}\n\nconst isSleeping = status.last_activity_category === 'sleep';\nconst sleepIcon = isSleeping ? '\ud83d\ude34' : '\ud83d\udc41\ufe0f';\nconst sleepStatus = isSleeping ? 'Sleeping' : 'Awake';\nconst lastActivity = status.last_observation_at\n  ? new Date(status.last_observation_at).toLocaleString()\n  : 'Never';\nconst minutesAgo = Math.round(status.minutes_since_activity || 0);\nconst lastCategory = status.last_activity_category || 'unknown';\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { user_status: status },\n    response: {\n      content: `${sleepIcon} **Status**\\n\\n` +\n        `State: ${sleepStatus}\\n` +\n        `Last activity: ${lastActivity}\\n` +\n        `Last category: ${lastCategory}\\n` +\n        `Time since: ${minutesAgo} minutes ago`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -469,7 +493,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Unknown command handler\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst command = ctx.command.name;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `❌ Unknown command: \\`${command}\\`\\n\\nUse \\`::help\\` to see available commands.`\n    }\n  }\n};"
+        "jsCode": "// Unknown command handler\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst command = ctx.command.name;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `\u274c Unknown command: \\`${command}\\`\\n\\nUse \\`::help\\` to see available commands.`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -506,7 +530,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format void response (index-based soft-delete)\nconst ctx = $('If Valid Delete').first().json.ctx;\nconst voided = $input.all();\nconst itemType = ctx.validation.normalized_item_type || 'activity';\nconst indices = ctx.validation.indices || [];\n\n// Check if any items were actually voided\nif (!voided || voided.length === 0) {\n  const indexStr = indices.join(', ');\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `❌ No ${itemType}s found at position(s): ${indexStr}\\n\\nUse \\`::recent ${itemType}s\\` to see the current numbered list.`\n      }\n    }\n  };\n}\n\nif (voided.length === 1) {\n  const item = voided[0].json;\n  const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n  return {\n    ctx: {\n      ...ctx,\n      db: { voided_items: [item] },\n      response: {\n        content: `✅ Removed ${item.type} #${indices[0]}: \"${text}\"`\n      }\n    }\n  };\n}\n\nconst typeLabel = voided[0].json.type === 'activity' ? 'activities' : 'notes';\nreturn {\n  ctx: {\n    ...ctx,\n    db: { voided_items: voided.map(d => d.json) },\n    response: {\n      content: `✅ Removed ${voided.length} ${typeLabel} at positions: ${indices.join(', ')}`\n    }\n  }\n};"
+        "jsCode": "// Format void response (index-based soft-delete)\nconst ctx = $('If Valid Delete').first().json.ctx;\nconst voided = $input.all();\nconst itemType = ctx.validation.normalized_item_type || 'activity';\nconst indices = ctx.validation.indices || [];\n\n// Check if any items were actually voided\nif (!voided || voided.length === 0) {\n  const indexStr = indices.join(', ');\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c No ${itemType}s found at position(s): ${indexStr}\\n\\nUse \\`::recent ${itemType}s\\` to see the current numbered list.`\n      }\n    }\n  };\n}\n\nif (voided.length === 1) {\n  const item = voided[0].json;\n  const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n  return {\n    ctx: {\n      ...ctx,\n      db: { voided_items: [item] },\n      response: {\n        content: `\u2705 Removed ${item.type} #${indices[0]}: \"${text}\"`\n      }\n    }\n  };\n}\n\nconst typeLabel = voided[0].json.type === 'activity' ? 'activities' : 'notes';\nreturn {\n  ctx: {\n    ...ctx,\n    db: { voided_items: voided.map(d => d.json) },\n    response: {\n      content: `\u2705 Removed ${voided.length} ${typeLabel} at positions: ${indices.join(', ')}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -519,7 +543,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate GET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\n\n// Join all args into a single key (support \"north star\" -> \"north_star\")\nconst key = args.join('_');\n\n// Validation: check if key provided\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Missing config key. Syntax: \\`::get <key>\\`\\n\\nAvailable keys: north_star, summary_time\\nUse \\`::help\\` for more info.`\n      }\n    }\n  };\n}\n\n// Valid - pass the normalized key\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_key: key\n    }\n  }\n};"
+        "jsCode": "// Validate GET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\n\n// Join all args into a single key (support \"north star\" -> \"north_star\")\nconst key = args.join('_');\n\n// Validation: check if key provided\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing config key. Syntax: \\`::get <key>\\`\\n\\nAvailable keys: north_star, summary_time\\nUse \\`::help\\` for more info.`\n      }\n    }\n  };\n}\n\n// Valid - pass the normalized key\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_key: key\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -532,7 +556,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate SET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\n\n// Validation: need at least 2 args (key and value)\nif (!args || args.length < 2) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Be present and intentional\\`\\n\\nAvailable keys: north_star, summary_time`\n      }\n    }\n  };\n}\n\n// Normalize key: convert spaces to underscores (north_star or summary_time)\nconst key = args[0];\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid config key (empty string).\\n\\nExample: \\`::set north_star <your principle>\\``\n      }\n    }\n  };\n}\n\n// Join remaining args as value\nconst value = args.slice(1).join(' ');\n\n// Valid - pass normalized key and value\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_key: key,\n      normalized_value: value\n    }\n  }\n};"
+        "jsCode": "// Validate SET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\n\n// Validation: need at least 2 args (key and value)\nif (!args || args.length < 2) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Be present and intentional\\`\\n\\nAvailable keys: north_star, summary_time`\n      }\n    }\n  };\n}\n\n// Normalize key: convert spaces to underscores (north_star or summary_time)\nconst key = args[0];\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid config key (empty string).\\n\\nExample: \\`::set north_star <your principle>\\``\n      }\n    }\n  };\n}\n\n// Join remaining args as value\nconst value = args.slice(1).join(' ');\n\n// Valid - pass normalized key and value\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_key: key,\n      normalized_value: value\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -545,7 +569,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate DELETE command (uses indices, not short IDs)\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\nconst itemType = args[0];\n\n// Validation: need item type (activity/note)\nif (!itemType || !['activity', 'note', 'activities', 'notes'].includes(itemType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid item type. Syntax: \\`::delete activity <index>\\` or \\`::delete note <index>\\`\\n\\nUse \\`::recent activities\\` or \\`::recent notes\\` to see numbered list.`\n      }\n    }\n  };\n}\n\n// Validation: need at least one index\nif (args.length < 2 || !args[1]) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Missing index. Syntax: \\`::delete ${itemType} <index>\\`\\n\\nExample: \\`::delete ${itemType} 1\\` (deletes first item)\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`\n      }\n    }\n  };\n}\n\n// Validation: check indices are valid numbers (1-100)\nconst indices = args.slice(1).filter(arg => arg !== null && arg !== undefined);\nconst invalidIndices = [];\nconst validIndices = [];\n\nfor (const idx of indices) {\n  const num = parseInt(idx);\n  if (isNaN(num) || num < 1 || num > 100) {\n    invalidIndices.push(idx);\n  } else {\n    validIndices.push(num);\n  }\n}\n\nif (invalidIndices.length > 0) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid index: ${invalidIndices.join(', ')}\\n\\nIndices must be numbers between 1 and 100.\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`\n      }\n    }\n  };\n}\n\nif (validIndices.length === 0) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ No valid indices provided.\\n\\nExample: \\`::delete ${itemType} 1 2 3\\``\n      }\n    }\n  };\n}\n\n// Normalize type to singular form\nconst normalizedItemType = itemType === 'activities' ? 'activity' : (itemType === 'notes' ? 'note' : itemType);\n\n// Valid - pass normalized values and indices\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_item_type: normalizedItemType,\n      indices: validIndices\n    }\n  }\n};"
+        "jsCode": "// Validate DELETE command (uses indices, not short IDs)\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\nconst itemType = args[0];\n\n// Validation: need item type (activity/note)\nif (!itemType || !['activity', 'note', 'activities', 'notes'].includes(itemType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid item type. Syntax: \\`::delete activity <index>\\` or \\`::delete note <index>\\`\\n\\nUse \\`::recent activities\\` or \\`::recent notes\\` to see numbered list.`\n      }\n    }\n  };\n}\n\n// Validation: need at least one index\nif (args.length < 2 || !args[1]) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing index. Syntax: \\`::delete ${itemType} <index>\\`\\n\\nExample: \\`::delete ${itemType} 1\\` (deletes first item)\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`\n      }\n    }\n  };\n}\n\n// Validation: check indices are valid numbers (1-100)\nconst indices = args.slice(1).filter(arg => arg !== null && arg !== undefined);\nconst invalidIndices = [];\nconst validIndices = [];\n\nfor (const idx of indices) {\n  const num = parseInt(idx);\n  if (isNaN(num) || num < 1 || num > 100) {\n    invalidIndices.push(idx);\n  } else {\n    validIndices.push(num);\n  }\n}\n\nif (invalidIndices.length > 0) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid index: ${invalidIndices.join(', ')}\\n\\nIndices must be numbers between 1 and 100.\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`\n      }\n    }\n  };\n}\n\nif (validIndices.length === 0) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c No valid indices provided.\\n\\nExample: \\`::delete ${itemType} 1 2 3\\``\n      }\n    }\n  };\n}\n\n// Normalize type to singular form\nconst normalizedItemType = itemType === 'activities' ? 'activity' : (itemType === 'notes' ? 'note' : itemType);\n\n// Valid - pass normalized values and indices\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_item_type: normalizedItemType,\n      indices: validIndices\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -558,7 +582,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate RECENT command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\n\n// Default values\nconst itemType = args[0] || 'activities';\nconst limit = args[1] ? parseInt(args[1]) : 10;\n\n// Validation: check item type is valid\nconst validTypes = ['activities', 'activity', 'notes', 'note', ''];\nif (!validTypes.includes(itemType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid item type: \\`${itemType}\\`\\n\\nValid types: activities, notes\\nSyntax: \\`::recent [activities|notes] [limit]\\`\\n\\nExample: \\`::recent activities 20\\``\n      }\n    }\n  };\n}\n\n// Validation: check limit is a valid number (1-100)\nif (isNaN(limit) || limit < 1 || limit > 100) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid limit: \\`${args[1]}\\`\\n\\nLimit must be a number between 1 and 100.\\nExample: \\`::recent activities 20\\``\n      }\n    }\n  };\n}\n\n// Normalize type to plural form for query\nconst normalizedType = itemType === 'activity' ? 'activities' : (itemType === 'note' ? 'notes' : itemType);\n\n// Valid - pass normalized values\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_type: normalizedType || 'activities',\n      normalized_limit: limit\n    }\n  }\n};"
+        "jsCode": "// Validate RECENT command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\n\n// Default values\nconst itemType = args[0] || 'activities';\nconst limit = args[1] ? parseInt(args[1]) : 10;\n\n// Validation: check item type is valid\nconst validTypes = ['activities', 'activity', 'notes', 'note', ''];\nif (!validTypes.includes(itemType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid item type: \\`${itemType}\\`\\n\\nValid types: activities, notes\\nSyntax: \\`::recent [activities|notes] [limit]\\`\\n\\nExample: \\`::recent activities 20\\``\n      }\n    }\n  };\n}\n\n// Validation: check limit is a valid number (1-100)\nif (isNaN(limit) || limit < 1 || limit > 100) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid limit: \\`${args[1]}\\`\\n\\nLimit must be a number between 1 and 100.\\nExample: \\`::recent activities 20\\``\n      }\n    }\n  };\n}\n\n// Normalize type to plural form for query\nconst normalizedType = itemType === 'activity' ? 'activities' : (itemType === 'note' ? 'notes' : itemType);\n\n// Valid - pass normalized values\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_type: normalizedType || 'activities',\n      normalized_limit: limit\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -778,7 +802,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -790,7 +814,7 @@
         9808
       ],
       "id": "remove-blue-reaction-execute-cmd",
-      "name": "Remove 🔵 Reaction",
+      "name": "Remove \ud83d\udd35 Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -817,7 +841,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=🔘"
+        "emoji": "=\ud83d\udd18"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -826,7 +850,7 @@
         9424
       ],
       "id": "e5ebd093-f037-4d4a-94a8-5830869a2dbc",
-      "name": "React with 🔘",
+      "name": "React with \ud83d\udd18",
       "webhookId": "7d6473eb-7f05-4fc7-ba61-8a8ae16deae0",
       "retryOnFail": true,
       "maxTries": 3,
@@ -838,6 +862,102 @@
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate GENERATE command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\nconst generateType = args[0]?.toLowerCase();\n\n// Valid types: summary, reminder\nconst validTypes = ['summary', 'reminder'];\n\nif (!generateType) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing type. Syntax: \\`::generate <type>\\`\\n\\nValid types:\\n- \\`summary\\` - Generate daily summary now\\n- \\`reminder\\` - Send activity reminder now`\n      }\n    }\n  };\n}\n\nif (!validTypes.includes(generateType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid type: \\`${generateType}\\`\\n\\nValid types: summary, reminder`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      generate_type: generateType\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        9536
+      ],
+      "id": "validate-generate",
+      "name": "Validate Generate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check-generate",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -688,
+        9536
+      ],
+      "id": "if-valid-generate",
+      "name": "If Valid Generate"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle generate command - insert event and prepare for workflow execution\nconst ctx = $json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst today = new Date().toISOString().slice(0, 10);\nconst now = new Date().toISOString();\n\n// Build idempotency key with manual trigger marker\nconst idempotencyKey = `scheduled:${generateType === 'summary' ? 'daily_summary' : 'activity_reminder'}:${today}:manual:${now.slice(11, 16)}`;\n\nreturn {\n  ctx: {\n    ...ctx,\n    generate: {\n      type: generateType,\n      idempotency_key: idempotencyKey,\n      today: today,\n      trigger_reason: 'manual'\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        9536
+      ],
+      "id": "handle-generate",
+      "name": "Handle Generate"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert system_scheduled event for manual generation\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system_scheduled',\n  jsonb_build_object(\n    'source_type', 'command',\n    'trigger_type', $2,\n    'trigger_reason', 'manual',\n    'triggered_by_event_id', $3\n  )\n)\nON CONFLICT (idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.generate.idempotency_key }},={{ $json.ctx.generate.type === 'summary' ? 'daily_summary' : 'activity_reminder' }},={{ $json.ctx.event.event_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -240,
+        9536
+      ],
+      "id": "insert-generate-event",
+      "name": "Insert Generate Event",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response for generate command\nconst ctx = $('Handle Generate').first().json.ctx;\nconst eventId = $json.id;\nconst generateType = ctx.generate.type;\n\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'activity reminder';\n\nreturn {\n  ctx: {\n    ...ctx,\n    generate: {\n      ...ctx.generate,\n      event_id: eventId\n    },\n    response: {\n      content: `\u23f3 Generating ${typeLabel}...\\n\\nThis will be posted to the appropriate channel shortly.`\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        9536
+      ],
+      "id": "format-generate-response",
+      "name": "Format Generate Response"
     }
   ],
   "connections": {
@@ -850,12 +970,12 @@
             "index": 0
           },
           {
-            "node": "Remove 🔵 Reaction",
+            "node": "Remove \ud83d\udd35 Reaction",
             "type": "main",
             "index": 0
           },
           {
-            "node": "React with 🔘",
+            "node": "React with \ud83d\udd18",
             "type": "main",
             "index": 0
           }
@@ -926,6 +1046,13 @@
         ],
         [
           {
+            "node": "Validate Generate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Handle help",
             "type": "main",
             "index": 0
@@ -937,7 +1064,8 @@
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     },
     "Handle ping": {
@@ -1229,6 +1357,68 @@
     "Send Error Message": {
       "main": [
         []
+      ]
+    },
+    "Validate Generate": {
+      "main": [
+        [
+          {
+            "node": "If Valid Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid Generate": {
+      "main": [
+        [
+          {
+            "node": "Handle Generate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Generate": {
+      "main": [
+        [
+          {
+            "node": "Insert Generate Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Generate Event": {
+      "main": [
+        [
+          {
+            "node": "Format Generate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Generate Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
