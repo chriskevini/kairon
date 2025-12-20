@@ -185,7 +185,7 @@ def check_postgres_node_pattern(node: dict, result: LintResult):
 
 
 def check_discord_node_pattern(node: dict, result: LintResult):
-    """Check if Discord nodes use ctx.event for IDs"""
+    """Check if Discord nodes use ctx for IDs (any namespace)"""
     name = node.get('name', 'Unknown')
     params = node.get('parameters', {})
     
@@ -193,20 +193,19 @@ def check_discord_node_pattern(node: dict, result: LintResult):
     channel_id = params.get('channelId', {}).get('value', '')
     content = params.get('content', '')
     
-    # Check guild/channel IDs
+    # Check guild/channel IDs - must use ctx.* (any namespace is fine)
     for field, value in [('guildId', guild_id), ('channelId', channel_id)]:
-        if '$json.' in value and 'ctx.event' not in value:
-            result.error(f"'{name}': {field} uses $json.X instead of $json.ctx.event.X")
+        if '$json.' in value and '.ctx.' not in value:
+            result.error(f"'{name}': {field} uses $json.X instead of $json.ctx.*")
     
-    # Check content field
-    if '$json.response' in content and 'ctx' not in content:
-        result.error(f"'{name}': content uses $json.response instead of $json.ctx.response.content")
-    if '$json.error_message' in content and 'ctx' not in content:
-        result.error(f"'{name}': content uses $json.error_message instead of $json.ctx.validation.error_message")
+    # Check content field - must use ctx.* (any namespace is fine)
+    if '$json.' in content and '.ctx.' not in content and '{{' in content:
+        # Only flag if it looks like a dynamic expression, not static content
+        result.warn(f"'{name}': content may use flat $json.X instead of $json.ctx.*")
 
 
-def check_set_node_pattern(node: dict, result: LintResult):
-    """Check if Set nodes preserve ctx with includeOtherFields"""
+def check_set_node_pattern(node: dict, workflow: dict, result: LintResult):
+    """Check if Set nodes preserve ctx with includeOtherFields (unless feeding a Merge)"""
     name = node.get('name', 'Unknown')
     params = node.get('parameters', {})
     
@@ -216,8 +215,21 @@ def check_set_node_pattern(node: dict, result: LintResult):
     # Check if any assignments set ctx fields
     sets_ctx = any('ctx.' in a.get('name', '') for a in assignments)
     
-    if sets_ctx and not include_other:
-        result.warn(f"'{name}': sets ctx.* fields but includeOtherFields is false - may lose ctx data")
+    if not sets_ctx or include_other:
+        return
+    
+    # Check if this node feeds into a Merge node (partial object pattern is OK)
+    connections = workflow.get('connections', {})
+    if name in connections:
+        outputs = connections[name].get('main', [[]])
+        for output_list in outputs:
+            for conn in output_list:
+                target_node = find_node(workflow, conn.get('node'))
+                if target_node and get_node_type(target_node) == 'merge':
+                    # Feeding a merge node - partial object is intentional
+                    return
+    
+    result.warn(f"'{name}': sets ctx.* fields but includeOtherFields is false - may lose ctx data")
 
 
 def check_switch_node_fallback(node: dict, result: LintResult):
@@ -289,7 +301,7 @@ def lint_workflow(filepath: str) -> LintResult:
         elif node_type == 'discord':
             check_discord_node_pattern(node, result)
         elif node_type == 'set':
-            check_set_node_pattern(node, result)
+            check_set_node_pattern(node, workflow, result)
         elif node_type == 'switch':
             check_switch_node_fallback(node, result)
         elif node_type == 'merge':
