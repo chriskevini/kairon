@@ -289,7 +289,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Check if projection can be regenerated\nconst ctx = $('Receive Event').first().json.ctx;\nconst projection = $json;\n\n// Only daily_summary and activity_reminder can be regenerated\nconst regeneratableTypes = ['daily_summary', 'activity_reminder'];\n\nif (!projection || !projection.projection_id) {\n  return {\n    ctx,\n    can_regenerate: false,\n    error_message: 'No projection found for this message'\n  };\n}\n\nif (!regeneratableTypes.includes(projection.projection_type)) {\n  return {\n    ctx,\n    can_regenerate: false,\n    error_message: `Cannot regenerate ${projection.projection_type} projections`\n  };\n}\n\nreturn {\n  ctx,\n  can_regenerate: true,\n  projection: projection,\n  regenerate_type: projection.projection_type === 'daily_summary' ? 'summary' : 'reminder'\n};"
+        "jsCode": "// Check if projection can be regenerated\nconst ctx = $('Receive Event').first().json.ctx;\nconst projection = $json;\n\n// Only daily_summary and nudge can be regenerated\nconst regeneratableTypes = ['daily_summary', 'nudge'];\n\nif (!projection || !projection.projection_id) {\n  return {\n    ctx,\n    can_regenerate: false,\n    error_message: 'No projection found for this message'\n  };\n}\n\nif (!regeneratableTypes.includes(projection.projection_type)) {\n  return {\n    ctx,\n    can_regenerate: false,\n    error_message: `Cannot regenerate ${projection.projection_type} projections`\n  };\n}\n\nreturn {\n  ctx,\n  can_regenerate: true,\n  projection: projection,\n  regenerate_type: projection.projection_type === 'daily_summary' ? 'summary' : 'nudge'\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -337,7 +337,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Insert system_scheduled event for regeneration\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system_scheduled',\n  jsonb_build_object(\n    'source_type', 'reaction',\n    'trigger_type', $2,\n    'trigger_reason', 'regenerate',\n    'supersedes_projection_id', $3,\n    'supersedes_trace_id', $4,\n    'triggered_by_event_id', $5\n  )\n)\nON CONFLICT (idempotency_key) DO NOTHING\nRETURNING id;",
+        "query": "-- Insert system event for regeneration\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'source_type', 'reaction',\n    'trigger_type', $2,\n    'trigger_reason', 'regenerate',\n    'supersedes_projection_id', $3,\n    'supersedes_trace_id', $4,\n    'triggered_by_event_id', $5\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING id;",
         "options": {
           "queryReplacement": "=regenerate:{{ $json.projection.projection_type }}:{{ $json.projection.projection_id }}:{{ Date.now() }},={{ $json.projection.projection_type }},={{ $json.projection.projection_id }},={{ $json.projection.trace_id }},={{ $json.ctx.event.event_id }}"
         }

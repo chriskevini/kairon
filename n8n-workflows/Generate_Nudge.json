@@ -1,0 +1,637 @@
+{
+  "name": "Generate_Nudge",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cron-trigger",
+      "name": "Every 15 Minutes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare for event insertion - runs unconditionally\nconst now = new Date();\nconst idempotencyKey = `scheduled:nudge:${now.toISOString().slice(0, 16)}`; // Per-minute granularity\n\nreturn [{\n  json: {\n    idempotency_key: idempotencyKey,\n    trigger_reason: 'cron',\n    timestamp: now.toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "prepare-event",
+      "name": "Prepare Event"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert system event for nudge\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'source_type', 'scheduler',\n    'trigger_type', 'nudge',\n    'trigger_reason', $2\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.idempotency_key }},={{ $json.trigger_reason }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "insert-event",
+      "name": "Insert Event",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\nconst prepareData = $('Prepare Event').first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'nudge',\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        trace_chain: []\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "init-ctx",
+      "name": "Initialize ctx"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM config WHERE key = 'north_star';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        896,
+        -192
+      ],
+      "id": "get-north-star",
+      "name": "Get North Star",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'description' as description\nFROM projections p\nWHERE p.projection_type = 'activity'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '4 hours'\nORDER BY (p.data->>'timestamp')::timestamptz DESC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        896,
+        0
+      ],
+      "id": "get-recent-activities",
+      "name": "Get Recent Activities (4h)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'text' as text\nFROM projections p\nWHERE p.projection_type = 'note'\n  AND p.status IN ('auto_confirmed', 'confirmed')\nORDER BY (p.data->>'timestamp')::timestamptz DESC\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        896,
+        192
+      ],
+      "id": "get-last-note",
+      "name": "Get Last Note",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "merge-query-results",
+      "name": "Merge Query Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build LLM prompt context\nconst allItems = $input.all();\n\n// Extract ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\n// Extract north star (fallback to introspection prompt)\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = allItems.filter(item => item.json.value !== undefined);\nif (northStarItems.length > 0 && northStarItems[0].json.value) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities (has 'description' field)\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract last note (has 'text' field but not 'description')\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  !item.json.error\n);\n\n// Format activities list\nlet activitiesList = '';\nlet noActivities = true;\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  noActivities = false;\n  activityItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format last note\nlet lastNote = '(None)';\nif (noteItems.length > 0 && noteItems[0].json.text) {\n  const note = noteItems[0].json;\n  const time = new Date(note.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n  lastNote = `${time} [${note.category}] ${note.text}`;\n}\n\n// Current timestamp for prompt\nconst timestamp = ctx.event.timestamp;\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList,\n    no_activities: noActivities,\n    last_note: lastNote,\n    timestamp: timestamp,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "prepare-prompt-data",
+      "name": "Prepare Prompt Data"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a life coach checking in on your client. Current time: {{ $json.timestamp }}\n\n## Client's North Star\n{{ $json.north_star }}\n\n## Recent Activity (last 4 hours)\n{{ $json.recent_activities }}\n\n## Last Note\n{{ $json.last_note }}\n\n## Your Task\nDecide whether to nudge the client right now. You have three options:\n\n**SKIP** - Say nothing. Use when:\n- They're clearly in deep work (recent focused activity)\n- It's late night/early morning (let them sleep)\n- Recent activity shows good momentum\n- A nudge would interrupt more than help\n\n**ENCOURAGE** - Affirm what they're doing. Use when:\n- Current activity aligns with their north star\n- They're on a good streak\n- They might need a small boost to keep going\n\n**REDIRECT** - Gently suggest a shift. Use when:\n- They've been on one thing too long (3+ hours)\n- Time of day suggests a transition (morning focus -> lunch break)\n- They seem stuck or scattered\n- A break or change would serve them\n\n## Output Format\nFirst line: SKIP, ENCOURAGE, or REDIRECT\nIf not SKIP, second line onward: Your message (1-2 sentences, warm but concise)\n\n## Examples\n\nSKIP\n\n---\n\nENCOURAGE\nNice flow on the router work. You're building something meaningful - keep going.\n\n---\n\nREDIRECT\nYou've been heads-down for 3 hours. Quick stretch or refill water before the next push?\n\n---\n\nSKIP\n\n---\n\nENCOURAGE\nMorning deep work paying off. This is exactly the focus your north star calls for.\n\n---\n\nREDIRECT\nIt's 11pm and you're still coding. Tomorrow-you will thank tonight-you for sleeping.",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1568,
+        0
+      ],
+      "id": "generate-nudge-llm",
+      "name": "Generate Nudge with LLM"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1576,
+        224
+      ],
+      "id": "nemotron-nano-9b",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1704,
+        224
+      ],
+      "id": "mimo-v2-flash",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse LLM response - determine SKIP/ENCOURAGE/REDIRECT\nconst prepareData = $('Prepare Prompt Data').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Parse the decision from first line\nconst lines = llmText.split('\\n').filter(l => l.trim());\nconst decision = (lines[0] || '').trim().toUpperCase();\n\n// Extract message (everything after first line)\nconst message = lines.slice(1).join('\\n').trim();\n\n// Determine if we should skip\nconst shouldSkip = decision === 'SKIP' || !['ENCOURAGE', 'REDIRECT'].includes(decision);\n\n// Format trace_chain for PostgreSQL (with null safety)\nconst traceChain = ctx?.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    decision: decision,\n    message: message,\n    should_skip: shouldSkip,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg,\n    llm_response: llmText,\n    llm_input: {\n      north_star: prepareData.north_star,\n      recent_activities: prepareData.recent_activities,\n      last_note: prepareData.last_note,\n      timestamp: prepareData.timestamp,\n      activity_count: prepareData.activity_count\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        0
+      ],
+      "id": "parse-llm-response",
+      "name": "Parse LLM Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'nudge',\n  jsonb_build_object(\n    'input', $2::jsonb,\n    'prompt', 'nudge-prompt',\n    'completion', $3,\n    'result', jsonb_build_object(\n      'decision', $4,\n      'message', $5,\n      'should_skip', $6::boolean\n    ),\n    'duration_ms', $7::integer\n  ),\n  $8::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ JSON.stringify($json.llm_input) }},={{ $json.llm_response }},={{ $json.decision }},={{ $json.message }},={{ $json.should_skip }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2016,
+        0
+      ],
+      "id": "store-trace",
+      "name": "Store Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge trace result with parsed LLM data\nconst traceResult = $json;\nconst parseData = $('Parse LLM Response').first().json;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: parseData.ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    decision: parseData.decision,\n    message: parseData.message,\n    should_skip: parseData.should_skip\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        0
+      ],
+      "id": "merge-trace-result",
+      "name": "Merge Trace Result"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "check-skip",
+              "leftValue": "={{ $json.should_skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2464,
+        0
+      ],
+      "id": "if-should-skip",
+      "name": "If Should Skip"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'nudge',\n  $4::jsonb,\n  'auto_confirmed'\n)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.trace_id }},={{ $json.ctx.event.event_id }},={{ $json.trace_chain_pg }},={{ JSON.stringify({ timestamp: new Date().toISOString(), decision: $json.decision, text: $json.message }) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2688,
+        80
+      ],
+      "id": "store-projection",
+      "name": "Store Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge projection result for Discord\nconst projResult = $json;\nconst mergeData = $('Merge Trace Result').first().json;\n\nreturn [{\n  json: {\n    ctx: mergeData.ctx,\n    projection_id: projResult.id,\n    message: mergeData.message,\n    decision: mergeData.decision\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2912,
+        80
+      ],
+      "id": "merge-for-discord",
+      "name": "Merge for Discord"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_GUILD_ID }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_ARCANE_SHELL }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        80
+      ],
+      "id": "send-nudge",
+      "name": "Send Nudge",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Update projection with Discord message ID for void support\nUPDATE projections \nSET data = data || jsonb_build_object(\n  'discord_message_id', $1,\n  'discord_channel_id', $2,\n  'discord_guild_id', $3\n)\nWHERE id = $4::uuid\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.id }},={{ $env.DISCORD_CHANNEL_ARCANE_SHELL }},={{ $env.DISCORD_GUILD_ID }},={{ $('Merge for Discord').first().json.projection_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        3360,
+        80
+      ],
+      "id": "update-projection-message-id",
+      "name": "Update Projection with Message ID",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Prepare Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Event": {
+      "main": [
+        [
+          {
+            "node": "Insert Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Event": {
+      "main": [
+        [
+          {
+            "node": "Initialize ctx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize ctx": {
+      "main": [
+        [
+          {
+            "node": "Get North Star",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Activities (4h)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Last Note",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get North Star": {
+      "main": [
+        [
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Recent Activities (4h)": {
+      "main": [
+        [
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Get Last Note": {
+      "main": [
+        [
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge Query Results": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prompt Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Prompt Data": {
+      "main": [
+        [
+          {
+            "node": "Generate Nudge with LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Nudge with LLM": {
+      "main": [
+        [
+          {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Store Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Trace": {
+      "main": [
+        [
+          {
+            "node": "Merge Trace Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Trace Result": {
+      "main": [
+        [
+          {
+            "node": "If Should Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Should Skip": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Store Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Projection": {
+      "main": [
+        [
+          {
+            "node": "Merge for Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge for Discord": {
+      "main": [
+        [
+          {
+            "node": "Send Nudge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Nudge": {
+      "main": [
+        [
+          {
+            "node": "Update Projection with Message ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Nudge with LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Nudge with LLM",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+  },
+  "staticData": {
+    "node:Every 15 Minutes": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "active": false
+}

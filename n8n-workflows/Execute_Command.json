@@ -410,7 +410,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle help command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nconst helpText = `\ud83d\udcda **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions \u2192 !! (activity)\n- Observations/notes \u2192 .. (note)\n- Questions/requests \u2192 ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent activities [N]\\` - Show last N activities (default 10)\n\\`::recent notes [N]\\` - Show last N notes (default 10)\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM format)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`++ what should I focus on today?\\`\n\\`::set north_star Focus on deep work\\`\n\\`::recent activities 20\\`\n\\`::delete activity 1 3 5\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: helpText\n    }\n  }\n};"
+        "jsCode": "// Handle help command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nconst helpText = `\ud83d\udcda **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions \u2192 !! (activity)\n- Observations/notes \u2192 .. (note)\n- Questions/requests \u2192 ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent activities [N]\\` - Show last N activities (default 10)\n\\`::recent notes [N]\\` - Show last N notes (default 10)\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**Generation:**\n\\`::generate summary\\` - Generate daily summary now\n\\`::generate nudge\\` - Send a nudge now\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM format)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`++ what should I focus on today?\\`\n\\`::set north_star Focus on deep work\\`\n\\`::recent activities 20\\`\n\\`::delete activity 1 3 5\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: helpText\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -865,7 +865,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate GENERATE command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\nconst generateType = args[0]?.toLowerCase();\n\n// Valid types: summary, reminder\nconst validTypes = ['summary', 'reminder'];\n\nif (!generateType) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing type. Syntax: \\`::generate <type>\\`\\n\\nValid types:\\n- \\`summary\\` - Generate daily summary now\\n- \\`reminder\\` - Send activity reminder now`\n      }\n    }\n  };\n}\n\nif (!validTypes.includes(generateType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid type: \\`${generateType}\\`\\n\\nValid types: summary, reminder`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      generate_type: generateType\n    }\n  }\n};"
+        "jsCode": "// Validate GENERATE command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').item?.json?.ctx?.command?.args || [];\nconst generateType = args[0]?.toLowerCase();\n\n// Valid types: summary, nudge\nconst validTypes = ['summary', 'nudge'];\n\nif (!generateType) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing type. Syntax: \\`::generate <type>\\`\\n\\nValid types:\\n- \\`summary\\` - Generate daily summary now\\n- \\`nudge\\` - Send nudge now`\n      }\n    }\n  };\n}\n\nif (!validTypes.includes(generateType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid type: \\`${generateType}\\`\\n\\nValid types: summary, nudge`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      generate_type: generateType\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -912,7 +912,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle generate command - insert event and prepare for workflow execution\nconst ctx = $json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst today = new Date().toISOString().slice(0, 10);\nconst now = new Date().toISOString();\n\n// Build idempotency key with manual trigger marker\nconst idempotencyKey = `scheduled:${generateType === 'summary' ? 'daily_summary' : 'activity_reminder'}:${today}:manual:${now.slice(11, 16)}`;\n\nreturn {\n  ctx: {\n    ...ctx,\n    generate: {\n      type: generateType,\n      idempotency_key: idempotencyKey,\n      today: today,\n      trigger_reason: 'manual'\n    }\n  }\n};"
+        "jsCode": "// Handle generate command - insert event and prepare for workflow execution\nconst ctx = $json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst today = new Date().toISOString().slice(0, 10);\nconst now = new Date().toISOString();\n\n// Build idempotency key with manual trigger marker\nconst idempotencyKey = `scheduled:${generateType === 'summary' ? 'daily_summary' : 'nudge'}:${today}:manual:${now.slice(11, 16)}`;\n\nreturn {\n  ctx: {\n    ...ctx,\n    generate: {\n      type: generateType,\n      idempotency_key: idempotencyKey,\n      today: today,\n      trigger_reason: 'manual'\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -926,9 +926,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Insert system_scheduled event for manual generation\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system_scheduled',\n  jsonb_build_object(\n    'source_type', 'command',\n    'trigger_type', $2,\n    'trigger_reason', 'manual',\n    'triggered_by_event_id', $3\n  )\n)\nON CONFLICT (idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
+        "query": "-- Insert system event for manual generation\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'source_type', 'command',\n    'trigger_type', $2,\n    'trigger_reason', 'manual',\n    'triggered_by_event_id', $3\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.generate.idempotency_key }},={{ $json.ctx.generate.type === 'summary' ? 'daily_summary' : 'activity_reminder' }},={{ $json.ctx.event.event_id }}"
+          "queryReplacement": "={{ $json.ctx.generate.idempotency_key }},={{ $json.ctx.generate.type === 'summary' ? 'daily_summary' : 'nudge' }},={{ $json.ctx.event.event_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -948,7 +948,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format response for generate command\nconst ctx = $('Handle Generate').first().json.ctx;\nconst eventId = $json.id;\nconst generateType = ctx.generate.type;\n\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'activity reminder';\n\nreturn {\n  ctx: {\n    ...ctx,\n    generate: {\n      ...ctx.generate,\n      event_id: eventId\n    },\n    response: {\n      content: `\u23f3 Generating ${typeLabel}...\\n\\nThis will be posted to the appropriate channel shortly.`\n    }\n  }\n};"
+        "jsCode": "// Format response for generate command\nconst ctx = $('Handle Generate').first().json.ctx;\nconst eventId = $json.id;\nconst generateType = ctx.generate.type;\n\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'nudge';\n\nreturn {\n  ctx: {\n    ...ctx,\n    generate: {\n      ...ctx.generate,\n      event_id: eventId\n    },\n    response: {\n      content: `\u23f3 Generating ${typeLabel}...\\n\\nThis will be posted to the appropriate channel shortly.`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1425,8 +1425,6 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false,
-    "timeSavedMode": "fixed",
     "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
   "staticData": null,
