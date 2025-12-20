@@ -1,7 +1,10 @@
 #!/bin/bash
 # n8n-sync.sh - Sync n8n workflows from GitHub to remote server
 #
-# Usage: ./scripts/workflows/n8n-sync.sh
+# Usage: 
+#   ./scripts/workflows/n8n-sync.sh                    # Sync from main branch
+#   ./scripts/workflows/n8n-sync.sh <branch>           # Sync from specific branch
+#   ./scripts/workflows/n8n-sync.sh flat-data-shape-refactor
 #
 # Prerequisites:
 #   - SSH access configured (e.g., ~/.ssh/config with Host alias)
@@ -36,8 +39,14 @@ if [ -z "$CONTAINER_N8N" ]; then
     exit 1
 fi
 
-# --- 4. EXECUTION ---
-echo "🚀 Connecting to $REMOTE_HOST..."
+# --- 4. PARSE BRANCH ARGUMENT ---
+BRANCH="${1:-main}"
+
+# --- 5. EXECUTION ---
+echo "🚀 Syncing workflows from branch: $BRANCH"
+echo "   Repository: $GITHUB_REPO"
+echo "   Server: $REMOTE_HOST"
+echo ""
 
 ssh -t "$REMOTE_HOST" << EOF
   set -e
@@ -45,9 +54,9 @@ ssh -t "$REMOTE_HOST" << EOF
   TEMP_DIR="/tmp/n8n_sync_\$(date +%s)"
   IMPORT_PATH="/home/node/import"
 
-  # 1. Clone repo on remote host
-  echo "📥 Cloning repository..."
-  git clone --depth 1 "$GITHUB_REPO" "\$TEMP_DIR"
+  # 1. Clone repo on remote host (specific branch)
+  echo "📥 Cloning repository (branch: $BRANCH)..."
+  git clone --depth 1 --branch "$BRANCH" "$GITHUB_REPO" "\$TEMP_DIR"
 
   # 2. Prepare import directory in container
   echo "📦 Preparing container: $CONTAINER_N8N"
@@ -73,4 +82,5 @@ ssh -t "$REMOTE_HOST" << EOF
   docker restart "$CONTAINER_N8N"
 EOF
 
-echo "✅ Sync complete!"
+echo ""
+echo "✅ Sync complete! (branch: $BRANCH)"
