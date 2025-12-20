@@ -1,0 +1,596 @@
+{
+  "name": "Start_Thread",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        18496,
+        -2320
+      ],
+      "id": "a929c09f-94de-42dc-a2ff-923accc5e9ab",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/threads",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"name\": $json.ctx.event.clean_text.slice(0, 100) } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        18720,
+        -2464
+      ],
+      "id": "85fce562-824f-47c1-83cf-ea4d7e807ea4",
+      "name": "Create Discord Thread",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM config WHERE key = 'north_star';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        18720,
+        -2176
+      ],
+      "id": "14297959-30b4-415d-b84e-c44604749da7",
+      "name": "Get North Star",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.db.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $json.ctx.event.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) → Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) → Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that's conversational and specific, not generic\n\nRespond to their initial message now.",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        19392,
+        -2196
+      ],
+      "id": "f6f390a8-c453-4cee-8d6d-2b9a415e3a29",
+      "name": "Generate Initial Response"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        19400,
+        -1972
+      ],
+      "id": "0c6a309d-86ff-4aa3-b02f-33230ae4f092",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        19528,
+        -1972
+      ],
+      "id": "60963dec-c78a-4918-8b32-12e1a0f25d8b",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        19968,
+        -2320
+      ],
+      "id": "merge-llm-result",
+      "name": "Merge LLM Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for trace and projection storage\nconst ctx = $json.ctx || {};\n\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst northStar = ctx.llm?.north_star || '(not set)';\nconst cleanText = ctx.event?.clean_text || '';\nconst promptText = `You are an AI life coach...\\n\\nUser's Guiding Principle: ${northStar}\\n\\nThe user started with: ${cleanText}`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: ctx,\n    // Data for trace insert\n    event_id: ctx.event?.event_id,\n    event_timestamp: ctx.event?.timestamp,\n    input_text: cleanText,\n    input_thread_id: ctx.thread?.id,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20192,
+        -2224
+      ],
+      "id": "fbff38ac-ebf5-48aa-8666-8117b8d13d0e",
+      "name": "Prepare Trace Data"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.thread.id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.ctx.llm.completion_text.trim().replace(/^[\"']|[\"']$/g, '') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        20192,
+        -2416
+      ],
+      "id": "a5785f29-feef-42f4-8da5-d5eaeb9fd055",
+      "name": "Send Response to Thread",
+      "webhookId": "b265fcc0-4670-437b-9913-59b5d32bc95b",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "react",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $json.ctx.event.message_id }}",
+        "emoji": "=🗨️"
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        18720,
+        -2656
+      ],
+      "id": "1e7b0d2a-54ee-4607-bcd9-7872585cb7c1",
+      "name": "React with 🗨️",
+      "webhookId": "d9babcdf-8243-4adb-83c8-bbaf038fbfc7",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        18720,
+        -1984
+      ],
+      "id": "remove-blue-reaction-start-chat",
+      "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_initial_response',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'thread_id', $3::text\n      ),\n      'prompt', $4,\n      'completion', $5,\n      'result', jsonb_build_object(\n        'response_length', $6::integer\n      ),\n      'model', 'nvidia/nemotron-nano-9b-v2:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $8::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
+        "options": {
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_thread_id }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        20416,
+        -2296
+      ],
+      "id": "b1b95f53-19af-4782-a1d7-6204f58efaca",
+      "name": "Write Thread Initial Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        20640,
+        -2224
+      ],
+      "id": "merge-trace-result",
+      "name": "Merge Trace Result"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  status,\n  data\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'thread_response',\n  'auto_confirmed',\n  jsonb_build_object(\n    'thread_id', $4,\n    'response_text', $5,\n    'role', 'assistant',\n    'timestamp', $6::timestamptz\n  )\n)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.event_id }},={{ $json.trace_id }},={{ $json.updated_trace_chain }},={{ $json.ctx.thread.id }},={{ $json.ctx.llm.completion_text }},={{ $json.ctx.event.timestamp }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        20864,
+        -2224
+      ],
+      "id": "store-response-projection",
+      "name": "Store Response Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5e8ab96e-bc97-4681-91fd-51e42f74cb1e",
+              "name": "ctx.llm.completion_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        19744,
+        -2196
+      ],
+      "id": "dde6b5fe-f9d0-48e0-87c9-9e7160c142e3",
+      "name": "Set llm ctx"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        18944,
+        -2336
+      ],
+      "id": "54301339-2cc0-447e-92ff-0c0fc46ccb87",
+      "name": "Merge Thread + North Star"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b3356692-b0a6-4416-9d7a-3d49fcfbe6d1",
+              "name": "ctx.event",
+              "value": "={{ $json.ctx.event }}",
+              "type": "object"
+            },
+            {
+              "id": "start-time",
+              "name": "ctx.llm.inference_start",
+              "value": "={{ Date.now() }}",
+              "type": "number"
+            },
+            {
+              "id": "7d2f06f3-82d2-47cb-94ac-2d8929e2879c",
+              "name": "ctx.db.north_star",
+              "value": "={{ $json.value }}",
+              "type": "string"
+            },
+            {
+              "id": "eade12b1-869a-4656-8b5d-10a53e69cff9",
+              "name": "ctx.thread.id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        19168,
+        -2320
+      ],
+      "id": "0abfd7cc-9559-48da-a48b-c8b6c1d5d853",
+      "name": "Rebuild Context and Set Inference Start"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Discord Thread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get North Star",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "React with 🗨️",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Thread + North Star",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Create Discord Thread": {
+      "main": [
+        [
+          {
+            "node": "Merge Thread + North Star",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get North Star": {
+      "main": [
+        [
+          {
+            "node": "Merge Thread + North Star",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Generate Initial Response": {
+      "main": [
+        [
+          {
+            "node": "Set llm ctx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Initial Response",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Initial Response",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge LLM Result": {
+      "main": [
+        [
+          {
+            "node": "Send Response to Thread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Trace Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Trace Data": {
+      "main": [
+        [
+          {
+            "node": "Write Thread Initial Trace",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Trace Result",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Write Thread Initial Trace": {
+      "main": [
+        [
+          {
+            "node": "Merge Trace Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Trace Result": {
+      "main": [
+        [
+          {
+            "node": "Store Response Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Response to Thread": {
+      "main": [
+        []
+      ]
+    },
+    "React with 🗨️": {
+      "main": [
+        []
+      ]
+    },
+    "Set llm ctx": {
+      "main": [
+        [
+          {
+            "node": "Merge LLM Result",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Thread + North Star": {
+      "main": [
+        [
+          {
+            "node": "Rebuild Context and Set Inference Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rebuild Context and Set Inference Start": {
+      "main": [
+        [
+          {
+            "node": "Generate Initial Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge LLM Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
+}

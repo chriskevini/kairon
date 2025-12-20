@@ -7,23 +7,145 @@
       "typeVersion": 1,
       "position": [
         -400,
-        240
+        216
       ],
       "id": "error-trigger-handle-error",
       "name": "Error Trigger"
     },
     {
       "parameters": {
-        "jsCode": "// Extract error details from n8n error trigger\nconst errorData = $input.first().json;\n\n// n8n provides: execution, workflow, error\nconst execution = errorData.execution || {};\nconst workflow = errorData.workflow || {};\nconst error = execution.error || {};\n\n// Get the node that failed\nconst failedNode = error.node?.name || 'Unknown Node';\nconst errorMessage = error.message || 'No error message';\nconst errorStack = error.stack || '';\n\n// Get workflow info\nconst workflowName = workflow.name || 'Unknown Workflow';\nconst workflowId = workflow.id || 'N/A';\n\n// Get execution info\nconst executionId = execution.id || 'N/A';\nconst executionMode = execution.mode || 'N/A';\n\n// Try to extract channel_id from the execution data for context\nlet channelId = null;\nlet messagePreview = '';\n\ntry {\n  // Look through execution data to find channel_id\n  const executionData = execution.data?.resultData?.runData || {};\n  for (const nodeName of Object.keys(executionData)) {\n    const nodeRuns = executionData[nodeName];\n    if (nodeRuns && nodeRuns[0]?.data?.main?.[0]?.[0]?.json) {\n      const json = nodeRuns[0].data.main[0][0].json;\n      // Check various places where channel_id might be\n      channelId = json.ctx?.event?.channel_id || json.channel_id || json.body?.channel_id;\n      if (json.ctx?.event?.clean_text) {\n        messagePreview = json.ctx.event.clean_text.substring(0, 100);\n      }\n      if (channelId) break;\n    }\n  }\n} catch (e) {\n  // Ignore errors in extraction\n}\n\n// Build Discord message\nlet content = `🚨 **Workflow Error**\\n\\n`;\ncontent += `**Workflow:** ${workflowName}\\n`;\ncontent += `**Failed Node:** ${failedNode}\\n`;\ncontent += `**Error:** ${errorMessage}\\n`;\n\nif (messagePreview) {\n  content += `**Message:** \"${messagePreview}\"\\n`;\n}\n\ncontent += `\\n**Execution ID:** \\`${executionId}\\`\\n`;\ncontent += `**Mode:** ${executionMode}`;\n\n// Truncate if too long for Discord (2000 char limit)\nif (content.length > 1900) {\n  content = content.substring(0, 1900) + '\\n... (truncated)';\n}\n\nreturn [{\n  json: {\n    content: content,\n    workflow_name: workflowName,\n    workflow_id: workflowId,\n    failed_node: failedNode,\n    error_message: errorMessage,\n    execution_id: executionId,\n    channel_id: channelId\n  }\n}];"
+        "jsCode": "// Filter: Skip if this is a parent workflow wrapping a child error\n// Parent errors have errorResponse (the wrapped child error)\nconst errorData = $input.first().json;\nconst error = errorData.execution?.error || {};\n\n// If this error is just wrapping a sub-workflow error, skip it\nif (error.errorResponse) {\n  return []; // Return empty to stop flow\n}\n\n// Continue processing - this is the root cause error\nreturn [$input.first()];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -176,
-        240
+        216
+      ],
+      "id": "filter-duplicates-handle-error",
+      "name": "Filter Duplicate Errors"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  id,\n  payload->>'discord_guild_id' as guild_id,\n  payload->>'discord_channel_id' as channel_id,\n  payload->>'discord_message_id' as message_id,\n  payload->>'clean_text' as clean_text\nFROM events \nWHERE received_at > NOW() - interval '30 seconds'\n  AND event_type = 'discord_message'\nORDER BY received_at DESC \nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        48,
+        216
+      ],
+      "id": "get-recent-event-handle-error",
+      "name": "Get Recent Event",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract error details and merge with event context\nconst errorData = $('Filter Duplicate Errors').first().json;\nconst eventData = $input.first().json || {};\n\nconst execution = errorData.execution || {};\nconst workflow = errorData.workflow || {};\nconst error = execution.error || {};\n\n// Get the node that failed\nconst failedNode = error.node?.name || execution.lastNodeExecuted || 'Unknown';\nconst errorMessage = error.message || 'No error message';\n\n// Get workflow info\nconst workflowName = workflow.name || 'Unknown';\nconst executionId = execution.id || 'N/A';\n\n// Get Discord context from recent event\nconst guildId = eventData.guild_id || null;\nconst channelId = eventData.channel_id || null;\nconst messageId = eventData.message_id || null;\nconst cleanText = eventData.clean_text || '';\n\n// Try to extract from error URL if available\nlet extractedChannelId = channelId;\nlet extractedMessageId = messageId;\n\nif (!channelId && error.context?.request?.uri) {\n  const uri = error.context.request.uri;\n  // Parse: https://discord.com/api/v10/channels/{channel_id}/messages/{message_id}/...\n  const match = uri.match(/channels\\/([0-9]+)\\/messages\\/([0-9]+)/);\n  if (match) {\n    extractedChannelId = match[1];\n    extractedMessageId = match[2];\n  }\n}\n\n// Build condensed Discord message\nlet content = `❌ **${workflowName}** → ${failedNode}\\n`;\ncontent += `${errorMessage}`;\n\nif (cleanText) {\n  const preview = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;\n  content += `\\n📝 \"${preview}\"`;\n}\n\ncontent += `\\n\\`exec:${executionId}\\``;\n\n// Truncate if needed (Discord 2000 char limit)\nif (content.length > 1900) {\n  content = content.substring(0, 1900) + '...';\n}\n\nreturn [{\n  json: {\n    content: content,\n    guild_id: guildId || process.env.DISCORD_GUILD_ID,\n    channel_id: extractedChannelId,\n    message_id: extractedMessageId,\n    can_react: !!(extractedChannelId && extractedMessageId)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        216
       ],
       "id": "format-error-handle-error",
       "name": "Format Error Message"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "can-react-condition",
+              "leftValue": "={{ $json.can_react }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        496,
+        216
+      ],
+      "id": "check-can-react-handle-error",
+      "name": "Can React?"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages/{{ $json.message_id }}/reactions/%E2%9D%8C/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        144
+      ],
+      "id": "add-error-reaction-handle-error",
+      "name": "Add ❌ Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages/{{ $json.message_id }}/reactions/%F0%9F%94%B5/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        144
+      ],
+      "id": "remove-blue-reaction-handle-error",
+      "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -38,28 +160,64 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "={{ $json.content }}",
+        "content": "={{ $('Format Error Message').item.json.content }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        48,
-        240
+        1392,
+        216
       ],
       "id": "send-error-discord-handle-error",
-      "name": "Send Error to Discord",
+      "name": "Send Error to Logs",
       "webhookId": "error-notification-webhook",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1168,
+        216
+      ],
+      "id": "merge-paths-handle-error",
+      "name": "Merge Paths"
     }
   ],
   "connections": {
     "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter Duplicate Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Duplicate Errors": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Event": {
       "main": [
         [
           {
@@ -74,7 +232,58 @@
       "main": [
         [
           {
-            "node": "Send Error to Discord",
+            "node": "Can React?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can React?": {
+      "main": [
+        [
+          {
+            "node": "Add ❌ Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Add ❌ Reaction": {
+      "main": [
+        [
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove 🔵 Reaction": {
+      "main": [
+        [
+          {
+            "node": "Merge Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Paths": {
+      "main": [
+        [
+          {
+            "node": "Send Error to Logs",
             "type": "main",
             "index": 0
           }
