@@ -1,0 +1,1149 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1584,
+        9088
+      ],
+      "id": "de6befd4-4882-4e2c-97b1-62f920df6d66",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "command",
+              "name": "command",
+              "value": "={{ $json.clean_text.trim().split(/\\s+/)[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "args",
+              "name": "args",
+              "value": "={{ $json.clean_text.trim().split(/\\s+/).slice(1) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1360,
+        9088
+      ],
+      "id": "c204a8a7-abe4-45a8-ac75-2d842f69bbd3",
+      "name": "Parse Command and Args"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "get",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "33cb86c7-ccaf-4e61-bc6a-e8ed32676451"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "get"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "set",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "2150078e-a4bb-4872-bfdb-36245afa5701"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "set"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "recent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a807c42d-404f-419d-8129-d7c71ed6051c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "recent"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "d8a3f1e9-2c4b-4d7e-9a1f-3e5c7b9d1a2b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delete"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "stats",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "fe31fc91-b7dc-4554-97bf-8024d8f6af25"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "stats"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "5094be05-8bc0-4702-a6da-ecbd5913c93f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "status"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "ping",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9e2a0d1b-6254-4b67-a743-3e5b2367a01c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ping"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c42b06ed-ca87-489d-a4d8-d2e861db2239"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1136,
+        8976
+      ],
+      "id": "82eda145-e9cb-43da-a242-e7bf654ca38e",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle ping command\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nreturn {\n  response: '🏓 pong',\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        9584
+      ],
+      "id": "a07e31ae-ae03-4838-b91e-13e3c2f52c86",
+      "name": "Handle ping"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT key, value FROM config WHERE key = COALESCE($1, '')",
+        "options": {
+          "queryReplacement": "={{ $('Validate Get').item.json.normalized_key }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -320,
+        8448
+      ],
+      "id": "c04cc95d-922c-48fb-9004-faf36ff52204",
+      "name": "Query Get Config",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO config (key, value, updated_at)\nVALUES ($1, $2, NOW())\nON CONFLICT (key) DO UPDATE\nSET value = EXCLUDED.value, updated_at = NOW()\nRETURNING key, value",
+        "options": {
+          "queryReplacement": "={{ $('Validate Set').item.json.normalized_key }},={{ $('Validate Set').item.json.normalized_value }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -320,
+        8624
+      ],
+      "id": "2296ca6d-1789-4986-a245-f2f16e88a92f",
+      "name": "Query Set Config",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  (SELECT COUNT(*) FROM activity_log WHERE timestamp >= CURRENT_DATE) as activities_today,\n  (SELECT COUNT(*) FROM notes WHERE timestamp >= DATE_TRUNC('week', CURRENT_DATE)) as notes_this_week,\n  (SELECT COUNT(*) FROM raw_events WHERE source_type = 'discord') as total_events,\n  (SELECT MAX(received_at) FROM events) as last_activity",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -320,
+        9200
+      ],
+      "id": "c1663df9-a24b-4805-aed0-9946a2e5a9cc",
+      "name": "Query Stats",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH activities_data AS (\n  SELECT \n    'activity' as type,\n    a.id,\n    a.timestamp,\n    a.category::text as category,\n    a.description as text\n  FROM activity_log a\n  WHERE $1::text IN ('activities', 'activity', '')\n  ORDER BY a.timestamp DESC\n  LIMIT $2::int\n),\nnotes_data AS (\n  SELECT \n    'note' as type,\n    n.id,\n    n.timestamp,\n    n.category::text as category,\n    n.text as text\n  FROM notes n\n  WHERE $1::text IN ('notes', 'note')\n  ORDER BY n.timestamp DESC\n  LIMIT $2::int\n)\nSELECT * FROM activities_data\nUNION ALL\nSELECT * FROM notes_data\nORDER BY timestamp DESC;",
+        "options": {
+          "queryReplacement": "={{ $('Validate Recent').item.json.normalized_type }},={{ $('Validate Recent').item.json.normalized_limit }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -320,
+        8816
+      ],
+      "id": "cdd4aab7-7649-4dd9-9574-3003796f3d3b",
+      "name": "Query Recent Events",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH user_events AS (\n  SELECT \n    payload->>'author_login' as user_login,\n    MAX(received_at) as last_observation_at\n  FROM events\n  WHERE payload->>'author_login' IS NOT NULL\n  GROUP BY payload->>'author_login'\n  LIMIT 1\n)\nSELECT \n  ue.user_login,\n  ue.last_observation_at,\n  p.data->>'category' as last_activity_category,\n  EXTRACT(EPOCH FROM (NOW() - ue.last_observation_at))/60 as minutes_since_activity\nFROM user_events ue\nLEFT JOIN projections p ON p.projection_type = 'activity' \n  AND p.data->>'timestamp' = (\n    SELECT MAX(data->>'timestamp') \n    FROM projections \n    WHERE projection_type = 'activity'\n  )",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -320,
+        9392
+      ],
+      "id": "ace9000d-af6f-4eb7-90ac-6169a08148e9",
+      "name": "Query User Status",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle help command\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nconst helpText = `📚 **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions → !! (activity)\n- Observations/notes → .. (note)\n- Questions/requests → ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent activities [N]\\` - Show last N activities (default 10)\n\\`::recent notes [N]\\` - Show last N notes (default 10)\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM format)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`++ what should I focus on today?\\`\n\\`::set north_star Focus on deep work\\`\n\\`::recent activities 20\\`\n\\`::delete activity 1 3 5\\``;\n\nreturn {\n  response: helpText,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        9776
+      ],
+      "id": "08ba42dd-9ee4-40fe-bb1a-3f6bf264f200",
+      "name": "Handle help"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format get command response\ntry {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  const key = $('Validate Get').item.json.normalized_key;\n  const result = $input.item?.json;\n\n  // Check if query returned data\n  if (!result || !result.key || !result.value) {\n    return {\n      response: `❌ Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.\\n\\nAvailable keys: north_star, summary_time`,\n      ...event\n    };\n  }\n\n  return {\n    response: `**${result.key}:** ${result.value}`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting get response: ${error.message}`,\n    ...event\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        8448
+      ],
+      "id": "ed79c164-c1c3-40b9-adfb-6cb9d3ca307d",
+      "name": "Format Get Response"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format set command response\ntry {\n  const result = $input.item?.json;\n  const event = $('When Executed by Another Workflow').first().json.event;\n\n  // Check if database operation succeeded\n  if (!result || !result.key) {\n    return {\n      response: `❌ Failed to set config value. Please try again.`,\n      ...event\n    };\n  }\n\n  return {\n    response: `✅ Set **${result.key}** = ${result.value}`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting set response: ${error.message}`,\n    ...event\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        8624
+      ],
+      "id": "8e523999-62d1-4f38-8fd3-22e5708e9325",
+      "name": "Format Set Response"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format stats response\ntry {\n  const stats = $input.item?.json;\n  const event = $('When Executed by Another Workflow').first().json.event;\n\n  if (!stats) {\n    return {\n      response: `❌ Unable to retrieve statistics. Please try again.`,\n      ...event\n    };\n  }\n\n  const lastActivity = stats.last_activity \n    ? new Date(stats.last_activity).toLocaleString()\n    : 'Never';\n\n  return {\n    response: `📊 **Statistics**\\n\\n` +\n      `Activities today: ${stats.activities_today || 0}\\n` +\n      `Notes this week: ${stats.notes_this_week || 0}\\n` +\n      `Total events: ${stats.total_events || 0}\\n` +\n      `Last activity: ${lastActivity}`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting stats: ${error.message}`,\n    ...event\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        9200
+      ],
+      "id": "fba83474-329f-4db6-9939-11cfe17a7a3d",
+      "name": "Format Stats Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format recent items response (numbered list for easy deletion)\ntry {\n  const items = $input.all();\n  const event = $('When Executed by Another Workflow').first().json.event;\n  const itemType = $('Validate Recent').item.json.normalized_type;\n\n  if (!items || items.length === 0) {\n    return { \n      response: `📭 No recent ${itemType} found`,\n      ...event\n    };\n  }\n\n  // Determine icon and title based on type\n  const firstItem = items[0].json;\n  const isActivity = firstItem.type === 'activity';\n  const icon = isActivity ? '📊' : '📝';\n  const title = isActivity ? 'Activities' : 'Notes';\n\n  let response = `${icon} **Recent ${title} (${items.length})**\\n\\n`;\n\n  items.forEach((item, i) => {\n    const data = item.json;\n    // Use Luxon (n8n built-in) to convert UTC to local timezone\n    const dt = DateTime.fromISO(data.timestamp, { zone: 'utc' }).setZone('America/Los_Angeles');\n    const dateStr = dt.toFormat('MMM d');  // \"Dec 17\"\n    const timeStr = dt.toFormat('HH:mm');   // \"19:24\" (24-hour)\n    \n    const text = data.text.length > 60 \n      ? data.text.substring(0, 60) + '...' \n      : data.text;\n    \n    response += `${i + 1}. ${dateStr} ${timeStr} - **${data.category}** - ${text}\\n`;\n  });\n\n  response += `\\n💡 Use \\`::delete ${isActivity ? 'activity' : 'note'} <number>\\` to delete items\\nExample: \\`::delete ${isActivity ? 'activity' : 'note'} 1\\` or \\`::delete ${isActivity ? 'activity' : 'note'} 1 3 5\\``;\n\n  return { response, ...event };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting recent response: ${error.message}`,\n    ...event\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        8816
+      ],
+      "id": "a38c0645-066f-4591-b097-de21fb82b1c1",
+      "name": "Format Recent Response"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format status response\ntry {\n  const status = $input.item?.json;\n  const event = $('When Executed by Another Workflow').first().json.event;\n\n  if (!status) {\n    return {\n      response: `❌ Unable to retrieve status. Please try again.`,\n      ...event\n    };\n  }\n\n  const isSleeping = status.last_activity_category === 'sleep';\n  const sleepIcon = isSleeping ? '😴' : '👁️';\n  const sleepStatus = isSleeping ? 'Sleeping' : 'Awake';\n  const lastActivity = status.last_observation_at\n    ? new Date(status.last_observation_at).toLocaleString()\n    : 'Never';\n  const minutesAgo = Math.round(status.minutes_since_activity || 0);\n  const lastCategory = status.last_activity_category || 'unknown';\n\n  return {\n    response: `${sleepIcon} **Status**\\n\\n` +\n      `State: ${sleepStatus}\\n` +\n      `Last activity: ${lastActivity}\\n` +\n      `Last category: ${lastCategory}\\n` +\n      `Time since: ${minutesAgo} minutes ago`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting status: ${error.message}`,\n    ...event\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        9392
+      ],
+      "id": "6e1f0ee3-6930-49e6-a76a-3a5b85d942f3",
+      "name": "Format Status Response"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Unknown command handler\nconst command = $('Parse Command and Args').item.json.command;\nconst event = $('When Executed by Another Workflow').first().json.event;\n\nreturn {\n  response: `❌ Unknown command: \\`${command}\\`\\n\\nUse \\`::help\\` to see available commands.`,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        9968
+      ],
+      "id": "f76de764-c075-42cc-95e3-538852ab8b22",
+      "name": "Handle Unknown Command"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Delete activity or note by index (1-based position in recent list)\nWITH input_array AS (\n  SELECT ARRAY[\n    NULLIF($2, '')::int,\n    NULLIF($3, '')::int,\n    NULLIF($4, '')::int,\n    NULLIF($5, '')::int,\n    NULLIF($6, '')::int,\n    NULLIF($7, '')::int,\n    NULLIF($8, '')::int,\n    NULLIF($9, '')::int,\n    NULLIF($10, '')::int\n  ] as indices\n),\ntarget_indices AS (\n  SELECT (unnest(indices) - 1) AS idx\n  FROM input_array\n),\nrecent_activities AS (\n  SELECT \n    a.id,\n    a.timestamp,\n    a.description as text,\n    'activity' as type,\n    (ROW_NUMBER() OVER (ORDER BY a.timestamp DESC) - 1) as idx\n  FROM activity_log a\n  WHERE $1::text = 'activity'\n  ORDER BY a.timestamp DESC\n  LIMIT 100\n),\nrecent_notes AS (\n  SELECT \n    n.id,\n    n.timestamp,\n    n.text as text,\n    'note' as type,\n    (ROW_NUMBER() OVER (ORDER BY n.timestamp DESC) - 1) as idx\n  FROM notes n\n  WHERE $1::text = 'note'\n  ORDER BY n.timestamp DESC\n  LIMIT 100\n),\ndeleted_activities AS (\n  DELETE FROM activity_log\n  WHERE id IN (\n    SELECT ra.id FROM recent_activities ra\n    INNER JOIN target_indices ti ON ra.idx = ti.idx\n  )\n  RETURNING id, timestamp, description as text, 'activity' as type\n),\ndeleted_notes AS (\n  DELETE FROM notes\n  WHERE id IN (\n    SELECT rn.id FROM recent_notes rn\n    INNER JOIN target_indices ti ON rn.idx = ti.idx\n  )\n  RETURNING id, timestamp, text, 'note' as type\n)\nSELECT * FROM deleted_activities\nUNION ALL\nSELECT * FROM deleted_notes;",
+        "options": {
+          "queryReplacement": "={{ $('Validate Delete').item.json.normalized_item_type }},={{ $('Parse Command and Args').item.json.args[1] || '' }},={{ $('Parse Command and Args').item.json.args[2] || '' }},={{ $('Parse Command and Args').item.json.args[3] || '' }},={{ $('Parse Command and Args').item.json.args[4] || '' }},={{ $('Parse Command and Args').item.json.args[5] || '' }},={{ $('Parse Command and Args').item.json.args[6] || '' }},={{ $('Parse Command and Args').item.json.args[7] || '' }},={{ $('Parse Command and Args').item.json.args[8] || '' }},={{ $('Parse Command and Args').item.json.args[9] || '' }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -320,
+        9008
+      ],
+      "id": "9eca4f90-6b61-48e7-8fd6-295adcdca359",
+      "name": "Query Delete Items",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format delete response (index-based deletion)\ntry {\n  const deleted = $input.all();\n  const event = $('When Executed by Another Workflow').first().json.event;\n  const itemType = $('Validate Delete').item.json.normalized_item_type || 'activity';\n  const indices = $('Validate Delete').item.json.indices || [];\n\n  // Check if any items were actually deleted\n  if (!deleted || deleted.length === 0) {\n    const indexStr = indices.join(', ');\n    return {\n      response: `❌ No ${itemType}s found at position(s): ${indexStr}\\n\\nUse \\`::recent ${itemType}s\\` to see the current numbered list.`,\n      ...event\n    };\n  }\n\n  if (deleted.length === 1) {\n    const item = deleted[0].json;\n    const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n    return {\n      response: `✅ Deleted ${item.type} #${indices[0]}: \"${text}\"`,\n      ...event\n    };\n  }\n\n  const typeLabel = deleted[0].json.type === 'activity' ? 'activities' : 'notes';\n  return {\n    response: `✅ Deleted ${deleted.length} ${typeLabel} at positions: ${indices.join(', ')}`,\n    ...event\n  };\n} catch (error) {\n  const event = $('When Executed by Another Workflow').first().json.event;\n  return {\n    response: `❌ Error formatting delete response: ${error.message}`,\n    ...event\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        9008
+      ],
+      "id": "1bc87344-c616-42bd-8fe4-8882e2174430",
+      "name": "Format Delete Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate GET command\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\n\n// Join all args into a single key (support \"north star\" -> \"north_star\")\nconst key = args.join('_');\n\n// Validation: check if key provided\nif (!key || key.trim() === '') {\n  return {\n    valid: false,\n    error_message: `❌ Missing config key. Syntax: \\`::get <key>\\`\\n\\nAvailable keys: north_star, summary_time\\nUse \\`::help\\` for more info.`,\n    ...event\n  };\n}\n\n// Valid - pass the normalized key\nreturn {\n  valid: true,\n  normalized_key: key,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        8448
+      ],
+      "id": "b665e2c9-44f1-48ed-a0dc-5ab2cae4e2ed",
+      "name": "Validate Get"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate SET command\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\n\n// Validation: need at least 2 args (key and value)\nif (!args || args.length < 2) {\n  return {\n    valid: false,\n    error_message: `❌ Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Be present and intentional\\`\\n\\nAvailable keys: north_star, summary_time`,\n    ...event\n  };\n}\n\n// Normalize key: convert spaces to underscores (north_star or summary_time)\nconst key = args[0];\nif (!key || key.trim() === '') {\n  return {\n    valid: false,\n    error_message: `❌ Invalid config key (empty string).\\n\\nExample: \\`::set north_star <your principle>\\``,\n    ...event\n  };\n}\n\n// Join remaining args as value\nconst value = args.slice(1).join(' ');\n\n// Valid - pass normalized key and value\nreturn {\n  valid: true,\n  normalized_key: key,\n  normalized_value: value,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        8624
+      ],
+      "id": "14603be3-d751-4be9-a5a1-46ad5f7249a7",
+      "name": "Validate Set"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate DELETE command (now uses indices, not short IDs)\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\nconst itemType = args[0];\n\n// Validation: need item type (activity/note)\nif (!itemType || !['activity', 'note', 'activities', 'notes'].includes(itemType)) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid item type. Syntax: \\`::delete activity <index>\\` or \\`::delete note <index>\\`\\n\\nUse \\`::recent activities\\` or \\`::recent notes\\` to see numbered list.`,\n    ...event\n  };\n}\n\n// Validation: need at least one index\nif (args.length < 2 || !args[1]) {\n  return {\n    valid: false,\n    error_message: `❌ Missing index. Syntax: \\`::delete ${itemType} <index>\\`\\n\\nExample: \\`::delete ${itemType} 1\\` (deletes first item)\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`,\n    ...event\n  };\n}\n\n// Validation: check indices are valid numbers (1-100)\nconst indices = args.slice(1).filter(arg => arg !== null && arg !== undefined);\nconst invalidIndices = [];\nconst validIndices = [];\n\nfor (const idx of indices) {\n  const num = parseInt(idx);\n  if (isNaN(num) || num < 1 || num > 100) {\n    invalidIndices.push(idx);\n  } else {\n    validIndices.push(num);\n  }\n}\n\nif (invalidIndices.length > 0) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid index: ${invalidIndices.join(', ')}\\n\\nIndices must be numbers between 1 and 100.\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`,\n    ...event\n  };\n}\n\nif (validIndices.length === 0) {\n  return {\n    valid: false,\n    error_message: `❌ No valid indices provided.\\n\\nExample: \\`::delete ${itemType} 1 2 3\\``,\n    ...event\n  };\n}\n\n// Normalize type to singular form\nconst normalizedItemType = (itemType === 'activities' ? 'activity' : (itemType === 'notes' ? 'note' : itemType));\n\n// Valid\nreturn {\n  valid: true,\n  normalized_item_type: normalizedItemType,\n  indices: validIndices,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        8992
+      ],
+      "id": "99805555-a99c-4559-b170-f18f40233457",
+      "name": "Validate Delete"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate RECENT command\nconst event = $('When Executed by Another Workflow').first().json.event;\nconst args = $('Parse Command and Args').item?.json?.args || [];\n\n// Default values\nconst itemType = args[0] || 'activities';\nconst limit = args[1] ? parseInt(args[1]) : 10;\n\n// Validation: check item type is valid\nconst validTypes = ['activities', 'activity', 'notes', 'note', ''];\nif (!validTypes.includes(itemType)) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid item type: \\`${itemType}\\`\\n\\nValid types: activities, notes\\nSyntax: \\`::recent [activities|notes] [limit]\\`\\n\\nExample: \\`::recent activities 20\\``,\n    ...event\n  };\n}\n\n// Validation: check limit is a valid number (1-100)\nif (isNaN(limit) || limit < 1 || limit > 100) {\n  return {\n    valid: false,\n    error_message: `❌ Invalid limit: \\`${args[1]}\\`\\n\\nLimit must be a number between 1 and 100.\\nExample: \\`::recent activities 20\\``,\n    ...event\n  };\n}\n\n// Normalize type to plural form for query\nconst normalizedType = itemType === 'activity' ? 'activities' : (itemType === 'note' ? 'notes' : itemType);\n\n// Valid - pass normalized values\nreturn {\n  valid: true,\n  normalized_type: normalizedType || 'activities',\n  normalized_limit: limit,\n  ...event\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        8816
+      ],
+      "id": "4bf45858-8e0b-4aca-8713-44bf3f9627ab",
+      "name": "Validate Recent"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check-recent",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -576,
+        8816
+      ],
+      "id": "db6e02d4-93be-4ebf-b85a-96aade6217dd",
+      "name": "If Valid Recent"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -576,
+        8448
+      ],
+      "id": "0cb57d2d-bb81-4fd9-a1c8-6d4b3d2f8868",
+      "name": "If Valid Get"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -576,
+        8624
+      ],
+      "id": "dbbb373a-e421-44cb-acdf-9ddd121a659d",
+      "name": "If Valid Set"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -576,
+        8992
+      ],
+      "id": "f2b3226c-7f08-4e93-9684-8467d9fd3458",
+      "name": "If Valid Delete"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel_id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.error_message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        8288
+      ],
+      "id": "3620a516-8d38-4660-9d35-e615e8a611ec",
+      "name": "Send Error Message",
+      "webhookId": "error-webhook-001",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel_id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.response }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        128,
+        9200
+      ],
+      "id": "4ed54e00-c7e3-4db6-94c0-c525d95534e3",
+      "name": "Send Response",
+      "webhookId": "26f551ce-e3bd-40ae-953b-33588a9edcd8",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Parse Command and Args",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command and Args": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Validate Get",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Set",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Recent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Delete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query User Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle ping",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle help",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Unknown Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle ping": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Get Config": {
+      "main": [
+        [
+          {
+            "node": "Format Get Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Set Config": {
+      "main": [
+        [
+          {
+            "node": "Format Set Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Stats": {
+      "main": [
+        [
+          {
+            "node": "Format Stats Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Recent Events": {
+      "main": [
+        [
+          {
+            "node": "Format Recent Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query User Status": {
+      "main": [
+        [
+          {
+            "node": "Format Status Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle help": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Get Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Set Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Stats Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Recent Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Status Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Unknown Command": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Delete Items": {
+      "main": [
+        [
+          {
+            "node": "Format Delete Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Delete Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Get": {
+      "main": [
+        [
+          {
+            "node": "If Valid Get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Set": {
+      "main": [
+        [
+          {
+            "node": "If Valid Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Delete": {
+      "main": [
+        [
+          {
+            "node": "If Valid Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Recent": {
+      "main": [
+        [
+          {
+            "node": "If Valid Recent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid Recent": {
+      "main": [
+        [
+          {
+            "node": "Query Recent Events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid Get": {
+      "main": [
+        [
+          {
+            "node": "Query Get Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid Set": {
+      "main": [
+        [
+          {
+            "node": "Query Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid Delete": {
+      "main": [
+        [
+          {
+            "node": "Query Delete Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  },
+  "name": "Execute_Command"
+}

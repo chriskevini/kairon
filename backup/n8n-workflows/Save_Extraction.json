@@ -1,0 +1,661 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1792,
+        480
+      ],
+      "id": "c14595cb-2101-462a-a7f3-8179adcb9a48",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse emoji to determine action type and extract snippet\nconst event = $input.first().json;\nconst emoji = event.emoji;\nconst messageContent = event.message_content || '';\n\n// Number emoji map\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3, '4️⃣': 4, '5️⃣': 5,\n  '6️⃣': 6, '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\nlet extractedSnippet = null;\n\nif (displayOrder) {\n  actionType = 'save_item';\n  \n  // Extract the snippet using regex\n  // Pattern: number emoji followed by text until next emoji or end\n  const snippetRegex = new RegExp(`${emoji}\\\\s*([^\\\\n🔟1️⃣2️⃣3️⃣4️⃣5️⃣6️⃣7️⃣8️⃣9️⃣]+)`, 's');\n  const match = messageContent.match(snippetRegex);\n  \n  if (match && match[1]) {\n    extractedSnippet = match[1].trim();\n  }\n} else if (emoji === '❌') {\n  actionType = 'dismiss';\n} else if (emoji === '🗑️') {\n  actionType = 'delete_thread';\n}\n\nreturn [{\n  json: {\n    ...event,\n    action_type: actionType,\n    display_order: displayOrder,\n    extracted_snippet: extractedSnippet\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1568,
+        480
+      ],
+      "id": "cf81fc06-c1a9-4b0b-9ad6-4b11f4db7f78",
+      "name": "Parse Emoji Type"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM thread_extractions WHERE summary_message_id = $1 AND display_order = $2 AND saved_as IS NULL LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.message_id }},={{ $json.display_order }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -1120,
+        288
+      ],
+      "id": "b35330b9-f750-4616-9b84-ce6d19b84ab6",
+      "name": "Get Extraction Item",
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserted AS (\n  INSERT INTO notes (raw_event_id, timestamp, category, text, metadata)\n  VALUES ($1::uuid, NOW(), $2::note_category, $3, jsonb_build_object('from_thread', true, 'conversation_id', $4::uuid, 'thread_extraction_id', $5::uuid, 'summary_message_id', $6, 'extraction_index', $7))\n  RETURNING id\n)\nUPDATE thread_extractions \nSET saved_as = 'note', saved_id = (SELECT id FROM inserted)\nWHERE id = $5::uuid\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.raw_event_id }},={{ $json.item_type }},={{ $json.text }},={{ $json.conversation_id }},={{ $json.id }},={{ $('Execute Workflow Trigger').item.json.message_id }},={{ $('Parse Emoji Type').item.json.display_order }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -672,
+        192
+      ],
+      "id": "81de3319-4c05-48cc-9cb8-f4e8278bfad9",
+      "name": "Save as Note",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserted AS (\n  INSERT INTO todos (description, status, metadata)\n  VALUES ($1, 'pending', jsonb_build_object('from_thread', true, 'conversation_id', $2::uuid, 'thread_extraction_id', $3::uuid, 'summary_message_id', $4, 'extraction_index', $5))\n  RETURNING id\n)\nUPDATE thread_extractions \nSET saved_as = 'todo', saved_id = (SELECT id FROM inserted)\nWHERE id = $3::uuid\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.text }},={{ $json.conversation_id }},={{ $json.id }},={{ $('Execute Workflow Trigger').item.json.message_id }},={{ $('Parse Emoji Type').item.json.display_order }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -672,
+        384
+      ],
+      "id": "87dbb168-a1c3-4e8c-8547-dbcc69a33849",
+      "name": "Save as Todo",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -448,
+        288
+      ],
+      "id": "d87f449e-a026-4d48-aa08-e9489c352b51",
+      "name": "Merge Saved Results"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Parse Emoji Type').item.json.channel_id }}/messages/{{ $('Parse Emoji Type').item.json.message_id }}/reactions/{{ encodeURIComponent($('Parse Emoji Type').item.json.emoji) }}/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -224,
+        288
+      ],
+      "id": "51af8a9d-7ace-4b47-a579-4efa1886e799",
+      "name": "Remove Number Emoji",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as unsaved FROM thread_extractions WHERE summary_message_id = $1 AND saved_as IS NULL HAVING COUNT(*) = 0;",
+        "options": {
+          "queryReplacement": "={{ $('Parse Emoji Type').item.json.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        0,
+        288
+      ],
+      "id": "6c50df92-a223-416d-87c6-7f7aa5841f48",
+      "name": "Check Unsaved Count",
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Parse Emoji Type').item.json.channel_id }}/messages/{{ $('Parse Emoji Type').item.json.message_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"content\": \"✅ All items saved!\\n\\n🗑️ Delete thread • ❌ Dismiss\" } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        288
+      ],
+      "id": "90af10c8-1c74-467e-ae4e-dbd793ddd892",
+      "name": "Update Summary (All Saved)",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages/{{ $json.message_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        480
+      ],
+      "id": "8e521696-abc7-42b6-b5fd-74c679809412",
+      "name": "Delete Summary (Dismiss)",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT conversation_id, thread_id FROM thread_extractions te JOIN conversations c ON te.conversation_id = c.id WHERE te.summary_message_id = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -1120,
+        672
+      ],
+      "id": "f0bf81d2-b00c-4009-a86b-a7f48ae744fc",
+      "name": "Get Thread Info",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.thread_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -896,
+        672
+      ],
+      "id": "1b798d04-8f99-4a90-b37d-81b891a35c8b",
+      "name": "Delete Discord Thread",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE conversations SET status = 'deleted' WHERE id = $1::uuid;",
+        "options": {
+          "queryReplacement": "={{ $('Get Thread Info').item.json.conversation_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -672,
+        672
+      ],
+      "id": "04bff527-e44d-418e-b931-e149aa330b7b",
+      "name": "Update Conversation Status",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Parse Emoji Type').item.json.channel_id }}/messages/{{ $('Parse Emoji Type').item.json.message_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -448,
+        672
+      ],
+      "id": "45c43642-ffd9-45a0-9c83-f10fdc226336",
+      "name": "Delete Summary Message",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.item_type }}",
+                    "rightValue": "reflection",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "2973db3b-7c6d-4543-b901-0a5519bc1429"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reflection"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0e482c04-0976-42c7-86e3-4264aece5945",
+                    "leftValue": "={{ $json.item_type }}",
+                    "rightValue": "fact",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Fact"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "48f9c855-7fc2-4d7f-a3f9-05dccd862205",
+                    "leftValue": "={{ $json.item_type }}",
+                    "rightValue": "todo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Todo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -896,
+        288
+      ],
+      "id": "70fe2723-8181-4e57-98e7-d3fc4484f4c7",
+      "name": "Save As"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "save_item",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "54e06574-e0c8-4af0-a9eb-087988e52cbe"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Save"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f6c15010-c1d3-4a8c-89eb-46ef5a2eb3a6",
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "dismiss",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Delete Summary"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "2f9ef712-182c-40b7-b550-b66951bdecd2",
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "delete_thread",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Delete Thread"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1344,
+        464
+      ],
+      "id": "17c95810-f72f-46ff-8f0e-c84eed006985",
+      "name": "What Action"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Emoji Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Emoji Type": {
+      "main": [
+        [
+          {
+            "node": "What Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Extraction Item": {
+      "main": [
+        [
+          {
+            "node": "Save As",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save as Note": {
+      "main": [
+        [
+          {
+            "node": "Merge Saved Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save as Todo": {
+      "main": [
+        [
+          {
+            "node": "Merge Saved Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Saved Results": {
+      "main": [
+        [
+          {
+            "node": "Remove Number Emoji",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Number Emoji": {
+      "main": [
+        [
+          {
+            "node": "Check Unsaved Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Unsaved Count": {
+      "main": [
+        [
+          {
+            "node": "Update Summary (All Saved)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Thread Info": {
+      "main": [
+        [
+          {
+            "node": "Delete Discord Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Discord Thread": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation Status": {
+      "main": [
+        [
+          {
+            "node": "Delete Summary Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save As": {
+      "main": [
+        [
+          {
+            "node": "Save as Note",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save as Note",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save as Todo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What Action": {
+      "main": [
+        [
+          {
+            "node": "Get Extraction Item",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Summary (Dismiss)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Thread Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  },
+  "name": "Save_Extraction"
+}
