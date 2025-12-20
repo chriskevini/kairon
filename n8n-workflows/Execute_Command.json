@@ -912,43 +912,132 @@
     },
     {
       "parameters": {
-        "jsCode": "// Handle generate command - insert event and prepare for workflow execution\nconst ctx = $json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst today = new Date().toISOString().slice(0, 10);\nconst now = new Date().toISOString();\n\n// Build idempotency key with manual trigger marker\nconst idempotencyKey = `scheduled:${generateType === 'summary' ? 'daily_summary' : 'nudge'}:${today}:manual:${now.slice(11, 16)}`;\n\nreturn {\n  ctx: {\n    ...ctx,\n    generate: {\n      type: generateType,\n      idempotency_key: idempotencyKey,\n      today: today,\n      trigger_reason: 'manual'\n    }\n  }\n};"
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-nudge",
+                    "leftValue": "={{ $json.ctx.validation.generate_type }}",
+                    "rightValue": "nudge",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "nudge"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-summary",
+                    "leftValue": "={{ $json.ctx.validation.generate_type }}",
+                    "rightValue": "summary",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "summary"
+            }
+          ]
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
       "position": [
         -464,
         9536
       ],
-      "id": "handle-generate",
-      "name": "Handle Generate"
+      "id": "switch-generate-type",
+      "name": "Switch Generate Type"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "-- Insert system event for manual generation\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', $2,\n    'trigger_reason', 'manual',\n    'triggered_by_event_id', $3\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
+        "workflowId": {
+          "__rl": true,
+          "value": "59PoRBQyv8eCroDh",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "trigger_reason": "manual"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
         "options": {
-          "queryReplacement": "={{ $json.ctx.generate.idempotency_key }},={{ $json.ctx.generate.type === 'summary' ? 'daily_summary' : 'nudge' }},={{ $json.ctx.event.event_id }}"
+          "waitForSubWorkflow": false
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
         -240,
-        9536
+        9472
       ],
-      "id": "insert-generate-event",
-      "name": "Insert Generate Event",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "execute-nudge",
+      "name": "Execute Generate_Nudge"
     },
     {
       "parameters": {
-        "jsCode": "// Format response for generate command\nconst ctx = $('Handle Generate').first().json.ctx;\nconst eventId = $json.id;\nconst generateType = ctx.generate.type;\n\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'nudge';\n\nreturn {\n  ctx: {\n    ...ctx,\n    generate: {\n      ...ctx.generate,\n      event_id: eventId\n    },\n    response: {\n      content: `\u23f3 Generating ${typeLabel}...\\n\\nThis will be posted to the appropriate channel shortly.`\n    }\n  }\n};"
+        "workflowId": {
+          "__rl": true,
+          "value": "cIROQISrYEAKML84",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "trigger_reason": "manual"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -240,
+        9600
+      ],
+      "id": "execute-summary",
+      "name": "Execute Generate_Daily_Summary"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response for generate command\nconst ctx = $('If Valid Generate').first().json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'nudge';\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `✅ Generating ${typeLabel}...\\n\\nThis will be posted to the appropriate channel shortly.`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1374,7 +1463,7 @@
       "main": [
         [
           {
-            "node": "Handle Generate",
+            "node": "Switch Generate Type",
             "type": "main",
             "index": 0
           }
@@ -1388,18 +1477,36 @@
         ]
       ]
     },
-    "Handle Generate": {
+    "Switch Generate Type": {
       "main": [
         [
           {
-            "node": "Insert Generate Event",
+            "node": "Execute Generate_Nudge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Generate_Daily_Summary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Insert Generate Event": {
+    "Execute Generate_Nudge": {
+      "main": [
+        [
+          {
+            "node": "Format Generate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Generate_Daily_Summary": {
       "main": [
         [
           {

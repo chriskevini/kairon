@@ -3,27 +3,20 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 15
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
       "position": [
         0,
         0
       ],
-      "id": "cron-trigger",
-      "name": "Every 15 Minutes"
+      "id": "workflow-trigger",
+      "name": "When Called by Another Workflow"
     },
     {
       "parameters": {
-        "jsCode": "// Prepare for event insertion - runs unconditionally\nconst now = new Date();\nconst idempotencyKey = `scheduled:nudge:${now.toISOString().slice(0, 16)}`; // Per-minute granularity\n\nreturn [{\n  json: {\n    idempotency_key: idempotencyKey,\n    trigger_reason: 'cron',\n    timestamp: now.toISOString()\n  }\n}];"
+        "jsCode": "// Extract trigger_reason from caller, default to 'cron'\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst now = new Date();\nconst idempotencyKey = `scheduled:nudge:${now.toISOString().slice(0, 16)}:${triggerReason}`;\n\nreturn [{\n  json: {\n    idempotency_key: idempotencyKey,\n    trigger_reason: triggerReason,\n    timestamp: now.toISOString()\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -396,7 +389,7 @@
     }
   ],
   "connections": {
-    "Every 15 Minutes": {
+    "When Called by Another Workflow": {
       "main": [
         [
           {
@@ -627,11 +620,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
-  "staticData": {
-    "node:Every 15 Minutes": {
-      "recurrenceRules": []
-    }
-  },
+  "staticData": null,
   "meta": null,
-  "active": false
+  "active": true
 }
