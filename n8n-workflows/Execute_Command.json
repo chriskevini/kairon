@@ -343,7 +343,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  (SELECT COUNT(*) FROM projections WHERE projection_type = 'activity' AND status IN ('auto_confirmed', 'confirmed') AND (data->>'timestamp')::timestamptz >= CURRENT_DATE) as activities_today,\n  (SELECT COUNT(*) FROM projections WHERE projection_type = 'note' AND status IN ('auto_confirmed', 'confirmed') AND (data->>'timestamp')::timestamptz >= DATE_TRUNC('week', CURRENT_DATE)) as notes_this_week,\n  (SELECT COUNT(*) FROM events WHERE payload->>'source_type' = 'discord') as total_events,\n  (SELECT MAX(received_at) FROM events) as last_activity",
+        "query": "SELECT \n  (SELECT COUNT(*) FROM projections WHERE projection_type = 'activity' AND status IN ('auto_confirmed', 'confirmed') AND (data->>'timestamp')::timestamptz >= CURRENT_DATE) as activities_today,\n  (SELECT COUNT(*) FROM projections WHERE projection_type = 'note' AND status IN ('auto_confirmed', 'confirmed') AND (data->>'timestamp')::timestamptz >= DATE_TRUNC('week', CURRENT_DATE)) as notes_this_week,\n  (SELECT COUNT(*) FROM events WHERE event_type = 'discord_message') as total_events,\n  (SELECT MAX(received_at) FROM events) as last_activity",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
