@@ -9,7 +9,7 @@
       "typeVersion": 1.1,
       "position": [
         -2096,
-        448
+        640
       ],
       "id": "eab3a9d4-6d3a-4560-8e60-612e6f5c9df3",
       "name": "Execute Workflow Trigger"
@@ -17,7 +17,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id FROM conversations WHERE thread_id = $1;",
+        "query": "SELECT id FROM threads WHERE thread_id = $1;",
         "options": {
           "queryReplacement": "={{ $json.ctx.event.thread_id }}"
         }
@@ -41,7 +41,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  role,\n  text,\n  timestamp\nFROM conversation_messages\nWHERE conversation_id = $1::uuid\nORDER BY timestamp DESC;",
+        "query": "SELECT \n  role,\n  text,\n  timestamp\nFROM conversation_messages\nWHERE thread_id = $1::uuid\nORDER BY timestamp DESC;",
         "options": {
           "queryReplacement": "={{ $('Get Conversation ID').item.json.id }}"
         }
@@ -64,7 +64,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Merge DB results into ctx pattern\n// Get conversation ID from previous query\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $input.all().toReversed();\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get ctx from trigger (already initialized by Route_Message)\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        conversation_id: conversationId,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
+        "jsCode": "// Merge DB results into ctx pattern\n// Get conversation ID from previous query\nconst conversationId = $('Get Conversation ID').first().json.id;\n\n// Get all thread messages\nconst messages = $input.all().toReversed();\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get ctx from trigger (already initialized by Route_Message)\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        thread_id: conversationId,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -85,7 +85,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        -1200,
+        -976,
         544
       ],
       "id": "f10c50b2-ae2f-463b-8378-6b36c12d2b21",
@@ -93,12 +93,12 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output in pipe format: \"type|text\"\nlet llmOutput = $input.first().json.text.trim();\nconst ctx = $('Prepare Context').first().json.ctx;\n\ntry {\n  const lines = llmOutput.split('\\n').filter(line => line.includes('|'));\n  const extractions = [];\n  let displayOrder = 1;\n  \n  lines.forEach(line => {\n    const parts = line.split('|');\n    if (parts.length < 2) return;\n    \n    const itemType = parts[0].trim();\n    const text = parts.slice(1).join('|').trim(); // Handle pipes in text\n    \n    // Validate item_type\n    if (!['reflection', 'fact', 'todo'].includes(itemType)) {\n      console.error(`Invalid item_type: ${itemType}`);\n      return;\n    }\n    \n    extractions.push({\n      conversation_id: ctx.db.conversation_id,\n      item_type: itemType,\n      text: text,\n      display_order: displayOrder++\n    });\n  });\n  \n  // Return ctx with llm namespace added\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: extractions,\n          has_extractions: extractions.length > 0\n        }\n      }\n    }\n  }];\n} catch (error) {\n  // On error, return empty extractions\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: [],\n          has_extractions: false,\n          parse_error: error.message\n        }\n      }\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output in pipe format: \"type|text\"\nlet llmOutput = $input.first().json.text.trim();\nconst ctx = $('Prepare Context').first().json.ctx;\n\ntry {\n  const lines = llmOutput.split('\\n').filter(line => line.includes('|'));\n  const extractions = [];\n  let displayOrder = 1;\n  \n  lines.forEach(line => {\n    const parts = line.split('|');\n    if (parts.length < 2) return;\n    \n    const itemType = parts[0].trim();\n    const text = parts.slice(1).join('|').trim(); // Handle pipes in text\n    \n    // Validate item_type\n    if (!['reflection', 'fact', 'todo'].includes(itemType)) {\n      console.error(`Invalid item_type: ${itemType}`);\n      return;\n    }\n    \n    extractions.push({\n      thread_id: ctx.db.thread_id,\n      item_type: itemType,\n      text: text,\n      display_order: displayOrder++\n    });\n  });\n  \n  // Return ctx with llm namespace added\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: extractions,\n          has_extractions: extractions.length > 0\n        }\n      }\n    }\n  }];\n} catch (error) {\n  // On error, return empty extractions\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: [],\n          has_extractions: false,\n          parse_error: error.message\n        }\n      }\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -848,
+        -624,
         544
       ],
       "id": "93bcf029-9040-466f-957c-2a9c8d87a451",
@@ -132,7 +132,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -624,
+        -176,
         544
       ],
       "id": "3a3d0695-4532-4b46-bbd1-6fc531e8ad12",
@@ -141,15 +141,15 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM thread_extractions WHERE conversation_id = $1::uuid;",
+        "query": "DELETE FROM thread_extractions WHERE thread_id = $1::uuid;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.db.conversation_id }}"
+          "queryReplacement": "={{ $json.ctx.db.thread_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -400,
+        272,
         448
       ],
       "id": "a3a014f0-33c5-4103-80aa-6b645163d8b2",
@@ -164,12 +164,12 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build SQL query to insert all extractions\nconst ctx = $('Has Extractions?').first().json.ctx;\nconst traceResult = $('Write Thread Extraction Trace').first().json;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = traceResult.trace_id;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// 5 parameters per row: conversation_id, item_type, text, display_order, extraction_trace_id\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 5; \n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, $${offset + 5}::uuid)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  conversation_id,\n  item_type,\n  text,\n  display_order,\n  extraction_trace_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5... sequence (5 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.conversation_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n  params.push(extractionTraceId);\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      }\n    },\n    sql_query: query,\n    sql_params: params\n  }\n}];"
+        "jsCode": "// Build SQL query to insert all extractions\nconst ctx = $('Has Extractions?').first().json.ctx;\nconst traceResult = $('Write Thread Extraction Trace').first().json;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = traceResult.trace_id;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// 5 parameters per row: thread_id, item_type, text, display_order, extraction_trace_id\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 5; \n  return `($${offset + 1}::uuid, $${offset + 2}, $${offset + 3}, $${offset + 4}::int, $${offset + 5}::uuid)`;\n}).join(', ');\n\nconst query = `\nINSERT INTO thread_extractions (\n  thread_id,\n  item_type,\n  text,\n  display_order,\n  extraction_trace_id\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5... sequence (5 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ext.thread_id);\n  params.push(ext.item_type);\n  params.push(ext.text);\n  params.push(ext.display_order);\n  params.push(extractionTraceId);\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      }\n    },\n    sql_query: query,\n    sql_params: params\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -176,
+        496,
         448
       ],
       "id": "6f856663-e8d6-4f8c-9c9c-41a6eab0d27b",
@@ -186,7 +186,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        48,
+        720,
         448
       ],
       "id": "48cebe42-d9c8-4de1-a10a-d1e09935ad25",
@@ -206,7 +206,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        272,
+        944,
         448
       ],
       "id": "8cfff2da-39dd-4c84-abab-f5a723655499",
@@ -219,7 +219,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
+        1392,
         448
       ],
       "id": "d7ff0aa4-b3d1-42f5-a10d-37aad4ec2f56",
@@ -236,7 +236,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1168,
+        1840,
         448
       ],
       "id": "124efe0a-5911-42ba-bd1f-4478da67fdff",
@@ -246,20 +246,24 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE thread_extractions SET summary_message_id = $1 WHERE conversation_id = $2;",
+        "query": "UPDATE thread_extractions SET summary_message_id = $1 WHERE thread_id = $2;",
         "options": {
-          "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.ctx.db.conversation_id }}"
+          "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.ctx.db.thread_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1168,
+        1840,
         256
       ],
       "id": "cc84e221-84fb-49bb-b72b-e0589a531893",
@@ -283,8 +287,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1392,
-        256
+        -1872,
+        928
       ],
       "id": "3a889796-3250-4fef-af78-7b779e545595",
       "name": "Remove 💭 Reaction",
@@ -293,30 +297,11 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
-    },
-    {
-      "parameters": {
-        "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Build Summary Message').first().json.ctx.event.channel_id }}/messages/{{ $('Build Summary Message').first().json.ctx.event.message_id }}/reactions/🔵/@me",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "discordBotApi",
-        "options": {}
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1616,
-        256
-      ],
-      "id": "remove-blue-reaction-save-chat",
-      "name": "Remove 🔵 Reaction",
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
-        }
-      }
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -337,7 +322,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -400,
+        48,
         640
       ],
       "id": "db0c5fb7-27f3-460d-b931-d0610a934431",
@@ -348,7 +333,11 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -361,8 +350,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -176,
-        640
+        -1872,
+        736
       ],
       "id": "remove-blue-reaction-save-chat-no-extract",
       "name": "Remove 🔵 Reaction (No Extract)",
@@ -371,7 +360,11 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -383,7 +376,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -1072,
+        -840,
         768
       ],
       "id": "1021e602-7ef3-4c22-bc16-74a99d6e8c30",
@@ -405,7 +398,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -1200,
+        -968,
         768
       ],
       "id": "aff3ef03-d804-40a6-98d9-b498298f4b69",
@@ -448,7 +441,11 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -469,7 +466,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        496,
+        1168,
         448
       ],
       "id": "59068362-0e97-4e90-90c3-98373b60e25f",
@@ -480,7 +477,10 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -489,7 +489,7 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        944,
+        1616,
         448
       ],
       "id": "ebfeb17a-a211-4a67-adf9-ec9c26e418cc",
@@ -502,8 +502,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        1392,
-        528
+        2064,
+        520
       ],
       "id": "9a504ad1-2ee7-435b-9c81-ff106ef75821",
       "name": "Wait 1 s",
@@ -527,7 +527,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1312,
+        -1200,
         544
       ],
       "id": "set-inference-start-save-chat",
@@ -535,12 +535,12 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data for thread extraction (using ctx pattern)\nconst ctx = $('Set Inference Start').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedCtx = $input.first().json.ctx;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${ctx.db.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: parsedCtx,\n    // Trace data for query\n    input_thread_history: ctx.db.thread_history,\n    input_conversation_id: ctx.db.conversation_id,\n    prompt_text: promptText,\n    completion_text: llmOutput,\n    result_extraction_count: parsedCtx.llm.extractions?.length || 0,\n    result_has_extractions: parsedCtx.llm.has_extractions,\n    duration_ms: durationMs,\n    event_id: ctx.event.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+        "jsCode": "// Prepare trace data for thread extraction (using ctx pattern)\nconst ctx = $('Set Inference Start').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedCtx = $input.first().json.ctx;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${ctx.db.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: parsedCtx,\n    // Trace data for query\n    input_thread_history: ctx.db.thread_history,\n    input_thread_id: ctx.db.thread_id,\n    prompt_text: promptText,\n    completion_text: llmOutput,\n    result_extraction_count: parsedCtx.llm.extractions?.length || 0,\n    result_has_extractions: parsedCtx.llm.has_extractions,\n    duration_ms: durationMs,\n    event_id: ctx.event.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -736,
+        -400,
         544
       ],
       "id": "prepare-trace-data-save-chat",
@@ -551,14 +551,14 @@
         "operation": "executeQuery",
         "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_extraction',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'thread_history', $2,\n        'conversation_id', $3::text\n      ),\n      'prompt', $4,\n      'completion', $5,\n      'result', jsonb_build_object(\n        'extraction_count', $6::integer,\n        'has_extractions', true\n      ),\n      'model', 'nvidia/nemotron-nano-9b-v2:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $8::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
         "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_thread_history }},={{ $json.input_conversation_id }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_extraction_count }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_thread_history }},={{ $json.input_thread_id }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_extraction_count }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -512,
-        544
+        48,
+        448
       ],
       "id": "write-thread-extraction-trace",
       "name": "Write Thread Extraction Trace",
@@ -581,6 +581,16 @@
           },
           {
             "node": "React with 💭",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove 💭 Reaction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove 🔵 Reaction (No Extract)",
             "type": "main",
             "index": 0
           }
@@ -750,24 +760,12 @@
     },
     "Update Summary Message ID": {
       "main": [
-        [
-          {
-            "node": "Remove 💭 Reaction",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Remove 💭 Reaction": {
       "main": [
-        [
-          {
-            "node": "Remove 🔵 Reaction",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "nemotron-nano-9b": {
@@ -850,13 +848,7 @@
     },
     "Post No Extractions Message": {
       "main": [
-        [
-          {
-            "node": "Remove 🔵 Reaction (No Extract)",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },

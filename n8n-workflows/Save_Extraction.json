@@ -56,7 +56,7 @@
         "operation": "executeQuery",
         "query": "WITH inserted AS (\n  INSERT INTO notes (raw_event_id, timestamp, category, text, metadata)\n  VALUES ($1::uuid, NOW(), $2::note_category, $3, jsonb_build_object('from_thread', true, 'conversation_id', $4::uuid, 'thread_extraction_id', $5::uuid, 'summary_message_id', $6, 'extraction_index', $7))\n  RETURNING id\n)\nUPDATE thread_extractions \nSET saved_as = 'note', saved_id = (SELECT id FROM inserted)\nWHERE id = $5::uuid\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.raw_event_id }},={{ $json.item_type }},={{ $json.text }},={{ $json.conversation_id }},={{ $json.id }},={{ $('Execute Workflow Trigger').item.json.message_id }},={{ $('Parse Emoji Type').item.json.display_order }}"
+          "queryReplacement": "={{ $('Execute Workflow Trigger').item.json.raw_event_id }},={{ $json.item_type }},={{ $json.text }},={{ $json.thread_id }},={{ $json.id }},={{ $('Execute Workflow Trigger').item.json.message_id }},={{ $('Parse Emoji Type').item.json.display_order }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -80,7 +80,7 @@
         "operation": "executeQuery",
         "query": "WITH inserted AS (\n  INSERT INTO todos (description, status, metadata)\n  VALUES ($1, 'pending', jsonb_build_object('from_thread', true, 'conversation_id', $2::uuid, 'thread_extraction_id', $3::uuid, 'summary_message_id', $4, 'extraction_index', $5))\n  RETURNING id\n)\nUPDATE thread_extractions \nSET saved_as = 'todo', saved_id = (SELECT id FROM inserted)\nWHERE id = $3::uuid\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.text }},={{ $json.conversation_id }},={{ $json.id }},={{ $('Execute Workflow Trigger').item.json.message_id }},={{ $('Parse Emoji Type').item.json.display_order }}"
+          "queryReplacement": "={{ $json.text }},={{ $json.thread_id }},={{ $json.id }},={{ $('Execute Workflow Trigger').item.json.message_id }},={{ $('Parse Emoji Type').item.json.display_order }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -209,7 +209,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT conversation_id, thread_id FROM thread_extractions te JOIN conversations c ON te.conversation_id = c.id WHERE te.summary_message_id = $1 LIMIT 1;",
+        "query": "SELECT thread_id FROM thread_extractions te JOIN threads c ON te.thread_id = c.id WHERE te.summary_message_id = $1 LIMIT 1;",
         "options": {
           "queryReplacement": "={{ $json.message_id }}"
         }
@@ -256,9 +256,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE conversations SET status = 'deleted' WHERE id = $1::uuid;",
+        "query": "UPDATE threads SET status = 'deleted' WHERE id = $1::uuid;",
         "options": {
-          "queryReplacement": "={{ $('Get Thread Info').item.json.conversation_id }}"
+          "queryReplacement": "={{ $('Get Thread Info').item.json.thread_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",

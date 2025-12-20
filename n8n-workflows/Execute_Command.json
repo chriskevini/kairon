@@ -9,7 +9,7 @@
       "typeVersion": 1.1,
       "position": [
         -1584,
-        9088
+        9608
       ],
       "id": "de6befd4-4882-4e2c-97b1-62f920df6d66",
       "name": "When Executed by Another Workflow"
@@ -39,7 +39,7 @@
       "typeVersion": 3.4,
       "position": [
         -1360,
-        9088
+        9608
       ],
       "id": "c204a8a7-abe4-45a8-ac75-2d842f69bbd3",
       "name": "Parse Command and Args"
@@ -250,7 +250,7 @@
       "typeVersion": 3.4,
       "position": [
         -1136,
-        8976
+        9496
       ],
       "id": "82eda145-e9cb-43da-a242-e7bf654ca38e",
       "name": "Switch"
@@ -262,8 +262,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        9584
+        -240,
+        9992
       ],
       "id": "a07e31ae-ae03-4838-b91e-13e3c2f52c86",
       "name": "Handle ping"
@@ -279,8 +279,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -320,
-        8448
+        -464,
+        8720
       ],
       "id": "c04cc95d-922c-48fb-9004-faf36ff52204",
       "name": "Query Get Config",
@@ -303,8 +303,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -320,
-        8624
+        -464,
+        9032
       ],
       "id": "2296ca6d-1789-4986-a245-f2f16e88a92f",
       "name": "Query Set Config",
@@ -325,8 +325,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -320,
-        9200
+        -464,
+        9608
       ],
       "id": "c1663df9-a24b-4805-aed0-9946a2e5a9cc",
       "name": "Query Stats",
@@ -349,8 +349,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -320,
-        8816
+        -464,
+        9224
       ],
       "id": "cdd4aab7-7649-4dd9-9574-3003796f3d3b",
       "name": "Query Recent Events",
@@ -371,8 +371,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -320,
-        9392
+        -464,
+        9800
       ],
       "id": "ace9000d-af6f-4eb7-90ac-6169a08148e9",
       "name": "Query User Status",
@@ -391,8 +391,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        9776
+        -240,
+        10184
       ],
       "id": "08ba42dd-9ee4-40fe-bb1a-3f6bf264f200",
       "name": "Handle help"
@@ -405,8 +405,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        8448
+        -240,
+        8720
       ],
       "id": "ed79c164-c1c3-40b9-adfb-6cb9d3ca307d",
       "name": "Format Get Response"
@@ -419,8 +419,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        8624
+        -240,
+        9032
       ],
       "id": "8e523999-62d1-4f38-8fd3-22e5708e9325",
       "name": "Format Set Response"
@@ -433,8 +433,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        9200
+        -240,
+        9608
       ],
       "id": "fba83474-329f-4db6-9939-11cfe17a7a3d",
       "name": "Format Stats Response"
@@ -446,8 +446,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        8816
+        -240,
+        9224
       ],
       "id": "a38c0645-066f-4591-b097-de21fb82b1c1",
       "name": "Format Recent Response"
@@ -460,8 +460,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        9392
+        -240,
+        9800
       ],
       "id": "6e1f0ee3-6930-49e6-a76a-3a5b85d942f3",
       "name": "Format Status Response"
@@ -474,8 +474,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        9968
+        -240,
+        10376
       ],
       "id": "f76de764-c075-42cc-95e3-538852ab8b22",
       "name": "Handle Unknown Command"
@@ -491,8 +491,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -320,
-        9008
+        -464,
+        9416
       ],
       "id": "9eca4f90-6b61-48e7-8fd6-295adcdca359",
       "name": "Query Delete Items",
@@ -511,8 +511,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        9008
+        -240,
+        9416
       ],
       "id": "1bc87344-c616-42bd-8fe4-8882e2174430",
       "name": "Format Delete Response"
@@ -524,8 +524,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -800,
-        8448
+        -912,
+        8768
       ],
       "id": "b665e2c9-44f1-48ed-a0dc-5ab2cae4e2ed",
       "name": "Validate Get"
@@ -537,8 +537,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -800,
-        8624
+        -912,
+        8960
       ],
       "id": "14603be3-d751-4be9-a5a1-46ad5f7249a7",
       "name": "Validate Set"
@@ -550,8 +550,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -800,
-        8992
+        -912,
+        9344
       ],
       "id": "99805555-a99c-4559-b170-f18f40233457",
       "name": "Validate Delete"
@@ -563,8 +563,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -800,
-        8816
+        -912,
+        9152
       ],
       "id": "4bf45858-8e0b-4aca-8713-44bf3f9627ab",
       "name": "Validate Recent"
@@ -597,8 +597,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -576,
-        8816
+        -688,
+        9152
       ],
       "id": "db6e02d4-93be-4ebf-b85a-96aade6217dd",
       "name": "If Valid Recent"
@@ -631,8 +631,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -576,
-        8448
+        -688,
+        8768
       ],
       "id": "0cb57d2d-bb81-4fd9-a1c8-6d4b3d2f8868",
       "name": "If Valid Get"
@@ -665,8 +665,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -576,
-        8624
+        -688,
+        8960
       ],
       "id": "dbbb373a-e421-44cb-acdf-9ddd121a659d",
       "name": "If Valid Set"
@@ -699,8 +699,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -576,
-        8992
+        -688,
+        9344
       ],
       "id": "f2b3226c-7f08-4e93-9684-8467d9fd3458",
       "name": "If Valid Delete"
@@ -724,8 +724,8 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        -320,
-        8288
+        -464,
+        10048
       ],
       "id": "3620a516-8d38-4660-9d35-e615e8a611ec",
       "name": "Send Error Message",
@@ -735,7 +735,10 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -756,8 +759,8 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        128,
-        9200
+        -16,
+        9656
       ],
       "id": "4ed54e00-c7e3-4db6-94c0-c525d95534e3",
       "name": "Send Response",
@@ -767,7 +770,10 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -780,8 +786,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        352,
-        9200
+        -1360,
+        9800
       ],
       "id": "remove-blue-reaction-execute-cmd",
       "name": "Remove 🔵 Reaction",
@@ -790,30 +796,48 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "discordBotApi",
-        "options": {}
+        "resource": "message",
+        "operation": "react",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.channel_id }}",
+          "mode": "id"
+        },
+        "messageId": "={{ $json.ctx.event.message_id }}",
+        "emoji": "=🔘"
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
       "position": [
-        -96,
-        8288
+        -1360,
+        9416
       ],
-      "id": "remove-blue-reaction-execute-cmd-error",
-      "name": "Remove 🔵 Reaction (Error)",
+      "id": "e5ebd093-f037-4d4a-94a8-5830869a2dbc",
+      "name": "React with 🔘",
+      "webhookId": "7d6473eb-7f05-4fc7-ba61-8a8ae16deae0",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -822,6 +846,16 @@
         [
           {
             "node": "Parse Command and Args",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "React with 🔘",
             "type": "main",
             "index": 0
           }
@@ -1189,24 +1223,12 @@
     },
     "Send Response": {
       "main": [
-        [
-          {
-            "node": "Remove 🔵 Reaction",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Send Error Message": {
       "main": [
-        [
-          {
-            "node": "Remove 🔵 Reaction (Error)",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },
