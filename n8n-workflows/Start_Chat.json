@@ -111,9 +111,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'user',\n  $3\n)\nRETURNING *;",
+        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  'user',\n  $2\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Prepare Context').item.json.event_id }},={{ $('Prepare Context').item.json.clean_text }}"
+          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Prepare Context').item.json.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",

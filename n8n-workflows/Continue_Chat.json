@@ -361,15 +361,15 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'user',\n  $3\n)\nRETURNING *;",
+        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  'user',\n  $2\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.conversation_id }},={{ $json.event_id }},={{ $json.clean_text }}"
+          "queryReplacement": "={{ $('Build Context').item.json.conversation_id }},={{ $('Build Context').item.json.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        7664,
+        8576,
         544
       ],
       "id": "store-user-message-continue",
@@ -484,17 +484,6 @@
       "main": [
         [
           {
-            "node": "Store User Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Store User Message": {
-      "main": [
-        [
-          {
             "node": "Generate Response",
             "type": "main",
             "index": 0
@@ -538,6 +527,11 @@
     "Post to Thread": {
       "main": [
         [
+          {
+            "node": "Store User Message",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "Store Assistant Message",
             "type": "main",
