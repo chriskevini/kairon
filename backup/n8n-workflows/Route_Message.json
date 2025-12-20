@@ -9,7 +9,7 @@
       "typeVersion": 1.1,
       "position": [
         -12848,
-        8008
+        8016
       ],
       "id": "91f732dd-8250-4342-ae01-365e0b336809",
       "name": "Receive Event"
@@ -35,21 +35,17 @@
       "typeVersion": 2,
       "position": [
         -12624,
-        7912
+        7920
       ],
       "id": "476cc1ef-8e72-4df6-ab57-42bda8f06403",
       "name": "React with 🔵",
       "webhookId": "react-processing",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      },
-      "onError": "continueRegularOutput"
+      }
     },
     {
       "parameters": {
@@ -188,7 +184,7 @@
       "typeVersion": 2.3,
       "position": [
         -12624,
-        8104
+        8112
       ],
       "id": "6f431c36-8c0b-4d84-9d44-a78ab41eadd1",
       "name": "In Thread?"
@@ -233,7 +229,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -11944,
+        -11952,
         8880
       ],
       "id": "4001511d-daf5-4ead-bebe-5a1b407b776a",
@@ -255,7 +251,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -11816,
+        -11824,
         8880
       ],
       "id": "eb30bac3-5291-4714-9143-d3b834b73d4f",
@@ -292,16 +288,12 @@
       "id": "575a7cc8-6f9b-4b97-b863-52925a82c0a0",
       "name": "Log to #kairon-logs",
       "webhookId": "log-classification",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      },
-      "onError": "continueRegularOutput"
+      }
     },
     {
       "parameters": {
@@ -510,6 +502,7 @@
           "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
           "cachedResultName": "Note_Handler"
         },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -530,6 +523,7 @@
           "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
           "cachedResultName": "Thread_Handler"
         },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -550,6 +544,7 @@
           "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
           "cachedResultName": "Command_Handler"
         },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -570,6 +565,7 @@
           "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
           "cachedResultName": "Save_Chat"
         },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -590,6 +586,7 @@
           "cachedResultUrl": "/workflow/e78T3OMl6pDxTb13",
           "cachedResultName": "Continue_Chat"
         },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -610,6 +607,7 @@
           "cachedResultUrl": "/workflow/ZQCULmYAVMN7I6ww",
           "cachedResultName": "Save_Activity"
         },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -630,6 +628,7 @@
           "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
           "cachedResultName": "Save_Chat"
         },
+        "inputSource": "passthrough",
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -913,6 +912,8 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
     "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
   "staticData": null,

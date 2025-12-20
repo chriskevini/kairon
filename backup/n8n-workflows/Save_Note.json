@@ -9,7 +9,7 @@
       "typeVersion": 1.1,
       "position": [
         12448,
-        -2944
+        -3136
       ],
       "id": "fc2dd180-4dfd-4505-b445-49a034d25ff8",
       "name": "Execute Workflow Trigger"
@@ -33,7 +33,7 @@
       "typeVersion": 3.4,
       "position": [
         12672,
-        -2944
+        -3136
       ],
       "id": "6f6314f8-bce5-4c3e-ab3b-51e175c53d33",
       "name": "Set Inference Start"
@@ -46,7 +46,7 @@
       "typeVersion": 2,
       "position": [
         12896,
-        -2944
+        -3136
       ],
       "id": "798ea233-ac7f-485a-ab19-4e02afaa3014",
       "name": "Prepare LLM Context"
@@ -62,7 +62,7 @@
       "typeVersion": 1.7,
       "position": [
         13120,
-        -2944
+        -3136
       ],
       "id": "780afe11-08a5-4943-85bd-24df32111ffd",
       "name": "Note Classifier"
@@ -75,7 +75,7 @@
       "typeVersion": 2,
       "position": [
         13472,
-        -2944
+        -3136
       ],
       "id": "3601a4aa-85c3-4ad4-9c0c-51790154a2f6",
       "name": "Parse LLM Response"
@@ -91,8 +91,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        13696,
-        -2848
+        13920,
+        -3136
       ],
       "id": "634c8d6f-a2c5-4ba8-9488-2d45e53d204e",
       "name": "Store Note",
@@ -123,22 +123,18 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        12672,
+        14144,
         -3136
       ],
       "id": "66a7ff8c-f7bc-463a-92f8-7ddc0740da47",
       "name": "React with 📝",
       "webhookId": "60c18aeb-3403-429d-8436-05ab229456b7",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      },
-      "onError": "continueRegularOutput"
+      }
     },
     {
       "parameters": {
@@ -151,21 +147,17 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        12672,
-        -2752
+        14368,
+        -3136
       ],
       "id": "remove-blue-reaction-save-note",
       "name": "Remove 🔵 Reaction",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      },
-      "onError": "continueRegularOutput"
+      }
     },
     {
       "parameters": {
@@ -176,7 +168,7 @@
       "typeVersion": 1,
       "position": [
         13256,
-        -2720
+        -2912
       ],
       "id": "4ae98681-44e0-426b-8456-e0ab3b78b9b4",
       "name": "nemotron-nano-9b",
@@ -198,7 +190,7 @@
       "typeVersion": 1,
       "position": [
         13128,
-        -2720
+        -2912
       ],
       "id": "cb897f95-0272-460f-af65-5168ab0a96b4",
       "name": "mimo-v2-flash",
@@ -229,21 +221,17 @@
       "typeVersion": 2,
       "position": [
         13696,
-        -3040
+        -3136
       ],
       "id": "bcba5c37-b968-4bb6-aa54-c75f7e073029",
       "name": "Log to Kairon Logs",
       "webhookId": "dcf1cf1a-eda6-4488-8142-af689fbc76c3",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      },
-      "onError": "continueRegularOutput"
+      }
     }
   ],
   "connections": {
@@ -252,16 +240,6 @@
         [
           {
             "node": "Set Inference Start",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "React with 📝",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Remove 🔵 Reaction",
             "type": "main",
             "index": 0
           }
@@ -313,6 +291,11 @@
             "node": "Store Note",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "React with 📝",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -324,7 +307,13 @@
     },
     "React with 📝": {
       "main": [
-        []
+        [
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "nemotron-nano-9b": {
@@ -358,8 +347,7 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false,
-    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+    "availableInMCP": false
   },
   "staticData": null,
   "meta": null,

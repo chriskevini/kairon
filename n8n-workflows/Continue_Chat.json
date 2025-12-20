@@ -1,63 +1,34 @@
 {
+  "name": "Continue_Chat",
   "nodes": [
     {
       "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "event",
-              "type": "object"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        480,
-        -160
+        6656,
+        624
       ],
-      "id": "eaaa37b1-eab9-48d0-b6d2-165639617126",
+      "id": "cf49146a-7b65-4fe1-8882-9190f8ac80f3",
       "name": "Execute Workflow Trigger"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, created_from_raw_event_id, topic, metadata\nFROM conversations\nWHERE thread_id = $1\n  AND status = 'active'\nLIMIT 1;",
+        "query": "SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 AND NOT (role = 'user' AND text = $2) ORDER BY timestamp ASC LIMIT 20;",
         "options": {
-          "queryReplacement": "={{ $json.event.thread_id }}"
+          "queryReplacement": "={{ $json.ctx.event.thread_id }},={{ $json.ctx.event.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        704,
-        -64
+        6880,
+        288
       ],
-      "id": "0074228d-b9f5-4b65-890e-3233cd594db0",
-      "name": "Get Conversation",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  role,\n  text,\n  timestamp\nFROM conversation_messages\nWHERE conversation_id = $1::uuid\nORDER BY timestamp DESC\nLIMIT 10;",
-        "options": {
-          "queryReplacement": "={{ $('Get Conversation').item.json.id }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        928,
-        -352
-      ],
-      "id": "1f896d01-509b-446b-96a2-f7a93f07abee",
+      "id": "862be3f8-3ec4-4873-9601-51c0412b5953",
       "name": "Get Conversation History",
       "credentials": {
         "postgres": {
@@ -75,10 +46,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        928,
-        -160
+        6880,
+        480
       ],
-      "id": "4c61d646-d7be-4a90-85ce-97d098b6a2e8",
+      "id": "466482ef-e173-4639-920d-4a7d4a809c9d",
       "name": "Get North Star",
       "alwaysOutputData": true,
       "credentials": {
@@ -91,16 +62,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  timestamp,\n  category::text as category,\n  description\nFROM recent_activities\nORDER BY timestamp DESC\nLIMIT 20;",
+        "query": "SELECT \n  (data->>'timestamp')::timestamptz as timestamp,\n  data->>'category' as category,\n  data->>'description' as description\nFROM projections\nWHERE projection_type = 'activity'\n  AND status IN ('auto_confirmed', 'confirmed')\nORDER BY (data->>'timestamp')::timestamptz DESC\nLIMIT 20;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        928,
-        32
+        6880,
+        768
       ],
-      "id": "d4ca804a-4906-4b9e-8c8f-d7e9f01d9f2c",
+      "id": "583b8b02-bf8c-4dd6-ab42-1f0e4df1d3e6",
       "name": "Get Recent Activities",
       "alwaysOutputData": true,
       "credentials": {
@@ -113,16 +84,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  timestamp,\n  category::text as category,\n  text\nFROM recent_notes\nORDER BY timestamp DESC\nLIMIT 10;",
+        "query": "SELECT \n  (data->>'timestamp')::timestamptz as timestamp,\n  data->>'category' as category,\n  data->>'text' as text\nFROM projections\nWHERE projection_type = 'note'\n  AND status IN ('auto_confirmed', 'confirmed')\nORDER BY (data->>'timestamp')::timestamptz DESC\nLIMIT 10;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        928,
-        224
+        6880,
+        960
       ],
-      "id": "82dbdd87-4f7d-4dc8-800b-da2a83d2e481",
+      "id": "7a6cb0ab-38bd-449e-89f4-302bcab90d06",
       "name": "Get Recent Notes",
       "alwaysOutputData": true,
       "credentials": {
@@ -134,44 +105,44 @@
     },
     {
       "parameters": {
-        "numberInputs": 4
+        "numberInputs": 5
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        1152,
-        0
+        7104,
+        576
       ],
-      "id": "0dcc90f4-05d5-44bd-8af4-9a83f18d92e3",
+      "id": "3e910a00-1800-474d-aba6-8f67169d3a9b",
       "name": "Wait for Context"
     },
     {
       "parameters": {
-        "jsCode": "// Get event and conversation from previous nodes\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst conversation = $('Get Conversation').first().json;\n\n// Get all merged inputs\nconst allInputs = $input.all();\n\n// Extract conversation history\nconst historyItems = allInputs.filter(item => item.json.role !== undefined && item.json.text !== undefined);\nconst history = historyItems.reverse().map(item => ({\n  role: item.json.role,\n  text: item.json.text\n}));\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItem = allInputs.find(item => item.json.value !== undefined && item.json.key === undefined);\nif (northStarItem) {\n  northStar = northStarItem.json.value;\n}\n\n// Extract activities\nconst activities = allInputs\n  .filter(item => item.json.category && item.json.description)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    description: item.json.description\n  }));\n\n// Extract notes\nconst notes = allInputs\n  .filter(item => item.json.category && item.json.text)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    text: item.json.text\n  }));\n\nreturn [{\n  json: {\n    ...event,\n    conversation_id: conversation.id,\n    north_star: northStar,\n    history: history,\n    activities: activities,\n    notes: notes\n  }\n}];"
+        "jsCode": "// Merge all context data into ctx pattern\n// Input 0 has ctx from Merge Conversation ctx\nconst ctxInput = $input.all().find(item => item.json.ctx);\nconst ctx = ctxInput?.json?.ctx || {};\n\n// Get all merged inputs\nconst allInputs = $input.all();\n\n// Extract conversation history and sort by timestamp ascending\nconst historyItems = allInputs.filter(item => item.json.role !== undefined && item.json.text !== undefined);\nconst history = historyItems\n  .sort((a, b) => new Date(a.json.timestamp) - new Date(b.json.timestamp))\n  .map(item => ({\n    role: item.json.role,\n    text: item.json.text\n  }));\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItem = allInputs.find(item => item.json.value !== undefined && item.json.key === undefined);\nif (northStarItem) {\n  northStar = northStarItem.json.value;\n}\n\n// Extract activities\nconst activities = allInputs\n  .filter(item => item.json.category && item.json.description)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    description: item.json.description\n  }));\n\n// Extract notes\nconst notes = allInputs\n  .filter(item => item.json.category && item.json.text && !item.json.role)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    text: item.json.text\n  }));\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        north_star: northStar,\n        inference_start: Date.now(),\n        history: history,\n        activities: activities,\n        notes: notes\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1376,
-        32
+        7328,
+        624
       ],
-      "id": "2cec9396-6656-410b-93c6-6d8d4aaf708f",
+      "id": "66722f6e-f428-4136-bc15-f60097699a36",
       "name": "Build Context"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n{{ $json.activities.map(act => `${DateTime.fromISO(act.timestamp).format(\"yyyy-MM-dd hh:mm\")} - ${act.description}`).join('\\n') }}\n\n**Recent Notes (Last 10)**\n{{ $json.notes.map(n => `[${n.category}] ${n.text}`).join('\\n') }}\n\n## Instructions\n\n1. **Consider the full context**: conversation history, activities, and notes\n2. **Provide grounded insights**: Reference specific activities or notes when relevant\n3. **Be conversational**: This is an ongoing dialogue, not a new conversation\n4. **Ask clarifying questions**: Help them think deeper when appropriate\n5. **Be concise**: 3-5 sentences, respect their time\n6. **Don't force connections**: Only mention the guiding principle if it's naturally relevant to what they're asking about\n\n## Style\n- Warm and supportive\n- Natural and conversational\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Conversation History\n{{ $json.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n') }}\n\n## Current Message\nThe user just said: \"{{ $json.clean_text }}\"\n\nRespond to their message now.",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.llm.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n{{ $json.ctx.llm.activities.map(act => `${DateTime.fromISO(act.timestamp).format(\"yyyy-MM-dd hh:mm\")} - ${act.description}`).join('\\n') }}\n\n**Recent Notes (Last 10)**\n{{ $json.ctx.llm.notes.map(n => `[${n.category}] ${n.text}`).join('\\n') }}\n\n## Instructions\n\n1. **Consider the full context**: conversation history, activities, and notes\n2. **Provide grounded insights**: Reference specific activities or notes when relevant\n3. **Be conversational**: This is an ongoing dialogue, not a new conversation\n4. **Ask clarifying questions**: Help them think deeper when appropriate\n5. **Be concise**: 3-5 sentences, respect their time\n6. **Don't force connections**: Only mention the guiding principle if it's naturally relevant to what they're asking about\n\n## Style\n- Warm and supportive\n- Natural and conversational\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Conversation History\n{{ $json.ctx.llm.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n') }}\n\nUSER: {{ $json.ctx.event.clean_text }}\n\nASSISTANT:",
         "needsFallback": true,
         "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        1600,
-        32
+        7552,
+        748
       ],
-      "id": "92a122e6-dc29-4911-92c0-74d9a53dcc08",
+      "id": "4119f733-a0a8-4c97-bcf3-a67ab535c4b5",
       "name": "Generate Response"
     },
     {
@@ -184,10 +155,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1616,
-        256
+        7560,
+        972
       ],
-      "id": "1fc46165-918a-407a-9172-fded2ee1ee95",
+      "id": "120ceee9-00cb-4175-8df8-57f862e218fd",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -206,10 +177,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1744,
-        256
+        7688,
+        972
       ],
-      "id": "5fa21be3-0e34-4ec7-b2e9-984f708b4b6f",
+      "id": "9c28edb3-a048-474e-8217-915ddee94e23",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -223,26 +194,29 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Build Context').item.json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Build Context').item.json.thread_id }}",
+          "value": "={{ $json.ctx.event.thread_id }}",
           "mode": "id"
         },
-        "content": "={{ $json.text }}",
+        "content": "={{ $json.ctx.llm.completion_text }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1952,
-        32
+        8352,
+        528
       ],
-      "id": "6e57d49d-ec2e-4dd8-8ac7-73201e5448fa",
+      "id": "742d2510-b9ca-4252-9f4e-4d2c485050a9",
       "name": "Post to Thread",
       "webhookId": "a65d6a4d-1d64-4ef4-b3b6-a4fe185b4957",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -252,20 +226,35 @@
     },
     {
       "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        8800,
+        720
+      ],
+      "id": "merge-trace-result-continue",
+      "name": "Merge Trace Result"
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'assistant',\n  $3\n)\nRETURNING *;",
+        "query": "INSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  status,\n  data\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'thread_response',\n  'auto_confirmed',\n  jsonb_build_object(\n    'thread_id', $4,\n    'response_text', $5,\n    'role', 'assistant',\n    'timestamp', $6::timestamptz\n  )\n)\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ $('Build Context').item.json.conversation_id }},={{ $('Build Context').item.json.raw_event_id }},={{ $('Generate Response').item.json.text }}"
+          "queryReplacement": "={{ $json.event_id }},={{ $json.trace_id }},={{ $json.updated_trace_chain }},={{ $json.ctx.event.thread_id }},={{ $json.ctx.llm.completion_text }},={{ $json.ctx.event.timestamp }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2176,
-        128
+        9024,
+        720
       ],
-      "id": "5b2a3140-3030-435b-9642-57a30e4179ef",
-      "name": "Store Assistant Message",
+      "id": "store-response-projection-continue",
+      "name": "Store Response Projection",
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -279,75 +268,141 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.event.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $json.event.channel_id }}",
+          "value": "={{ $json.ctx.event.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $json.event.message_id }}",
+        "messageId": "={{ $json.ctx.event.message_id }}",
         "emoji": "=💭"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        704,
-        -256
+        6880,
+        96
       ],
-      "id": "f901774c-f18a-40b7-87e1-5eafb0bf81ff",
+      "id": "3d6f0aee-f86f-437e-aa57-0683b80c2ced",
       "name": "React with 💭",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Build Context').item.json.thread_id }}/messages/{{ $('Build Context').item.json.message_id }}/reactions/💭/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
+      "typeVersion": 4.2,
       "position": [
-        2176,
-        -64
+        6880,
+        1152
       ],
-      "id": "8b88c815-9524-4770-9f39-93a22d080274",
-      "name": "Remove 💭  Reaction",
+      "id": "remove-blue-reaction-continue-chat",
+      "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare trace data after LLM inference\n// ctx comes from Merge LLM Result\nconst ctx = $json.ctx || {};\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${ctx.llm?.north_star || '(not set)'}\n\n**Recent Activities (Last 20)**\n${(ctx.llm?.activities || []).map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${(ctx.llm?.notes || []).map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${(ctx.llm?.history || []).map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${ctx.event?.clean_text || ''}\"\n\nRespond to their message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: ctx,\n    // Trace data for query\n    input_text: ctx.event?.clean_text || '',\n    input_thread_id: ctx.event?.thread_id,\n    input_history_length: (ctx.llm?.history || []).length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: (ctx.llm?.activities || []).length,\n    result_referenced_notes: (ctx.llm?.notes || []).length,\n    duration_ms: durationMs,\n    event_id: ctx.event?.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8352,
+        720
+      ],
+      "id": "02a979dc-1ba9-49d2-a9cd-7eff23c82510",
+      "name": "Prepare Trace Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_response',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'thread_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $9::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $10::integer\n    ),\n    $11::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $11::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
+        "options": {
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_thread_id }},={{ $json.input_history_length }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.result_referenced_activities }},={{ $json.result_referenced_notes }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        8576,
+        648
+      ],
+      "id": "2e8e0334-a3c1-496e-81f2-6ae0d19f3425",
+      "name": "Write Thread Response Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
       }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "llm-completion",
+              "name": "ctx.llm.completion_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7904,
+        748
+      ],
+      "id": "set-llm-completion",
+      "name": "Set LLM Completion"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        8128,
+        624
+      ],
+      "id": "merge-llm-result",
+      "name": "Merge LLM Result"
     }
   ],
   "connections": {
     "Execute Workflow Trigger": {
-      "main": [
-        [
-          {
-            "node": "Get Conversation",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "React with 💭",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Conversation": {
       "main": [
         [
           {
@@ -369,6 +424,21 @@
             "node": "Get Recent Notes",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "React with 💭",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait for Context",
+            "type": "main",
+            "index": 2
           }
         ]
       ]
@@ -401,7 +471,7 @@
           {
             "node": "Wait for Context",
             "type": "main",
-            "index": 2
+            "index": 3
           }
         ]
       ]
@@ -412,7 +482,7 @@
           {
             "node": "Wait for Context",
             "type": "main",
-            "index": 3
+            "index": 4
           }
         ]
       ]
@@ -435,6 +505,11 @@
             "node": "Generate Response",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge LLM Result",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -443,7 +518,7 @@
       "main": [
         [
           {
-            "node": "Post to Thread",
+            "node": "Set LLM Completion",
             "type": "main",
             "index": 0
           }
@@ -474,14 +549,68 @@
     },
     "Post to Thread": {
       "main": [
+        []
+      ]
+    },
+    "Merge Trace Result": {
+      "main": [
         [
           {
-            "node": "Store Assistant Message",
+            "node": "Store Response Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Trace Data": {
+      "main": [
+        [
+          {
+            "node": "Write Thread Response Trace",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove 💭  Reaction",
+            "node": "Merge Trace Result",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Write Thread Response Trace": {
+      "main": [
+        [
+          {
+            "node": "Merge Trace Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set LLM Completion": {
+      "main": [
+        [
+          {
+            "node": "Merge LLM Result",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge LLM Result": {
+      "main": [
+        [
+          {
+            "node": "Prepare Trace Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post to Thread",
             "type": "main",
             "index": 0
           }
@@ -489,8 +618,13 @@
       ]
     }
   },
-  "meta": {
-    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
-  "name": "Continue_Chat"
+  "staticData": null,
+  "meta": null,
+  "active": false
 }

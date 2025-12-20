@@ -49,46 +49,74 @@
     },
     {
       "parameters": {
-        "rules": {
-          "values": [
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "is-number-emoji",
-                    "leftValue": "={{ $json.ctx.event.emoji }}",
-                    "rightValue": "1️⃣,2️⃣,3️⃣,4️⃣,5️⃣,6️⃣,7️⃣,8️⃣,9️⃣,🔟,❌,🗑️",
-                    "operator": {
-                      "type": "string",
-                      "operation": "containedIn"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "Extraction"
-            }
-          ]
-        },
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT conversation_id FROM thread_extractions WHERE summary_message_id = $1;",
         "options": {
-          "fallbackOutput": "none"
+          "queryReplacement": "={{ $json.ctx.event.message_id }}"
         }
       },
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
       "position": [
         80,
         512
       ],
-      "id": "route-by-emoji",
-      "name": "Route by Emoji"
+      "id": "check-summary",
+      "name": "Check if Summary Message",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has-conversation-id",
+              "leftValue": "={{$json}}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        304,
+        512
+      ],
+      "id": "check-result",
+      "name": "Is Summary Message?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge conversation_id from DB query into ctx.db\nconst originalCtx = $('Receive Event').item.json.ctx;\nconst conversationId = $json.conversation_id;\n\nreturn [{\n  json: {\n    ctx: {\n      ...originalCtx,\n      db: {\n        conversation_id: conversationId\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        512
+      ],
+      "id": "add-conversation",
+      "name": "Add Conversation ID"
     },
     {
       "parameters": {
@@ -105,7 +133,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        304,
+        752,
         512
       ],
       "id": "save-extraction",
@@ -128,14 +156,36 @@
       "main": [
         [
           {
-            "node": "Route by Emoji",
+            "node": "Check if Summary Message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Route by Emoji": {
+    "Check if Summary Message": {
+      "main": [
+        [
+          {
+            "node": "Is Summary Message?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Summary Message?": {
+      "main": [
+        [
+          {
+            "node": "Add Conversation ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Conversation ID": {
       "main": [
         [
           {
@@ -150,8 +200,7 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false,
-    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+    "availableInMCP": false
   },
   "staticData": null,
   "meta": null,

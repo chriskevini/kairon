@@ -72,10 +72,7 @@
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
-      },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000
+      }
     }
   ],
   "connections": {
@@ -105,6 +102,8 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
     "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
   "staticData": {

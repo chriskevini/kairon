@@ -1,0 +1,64 @@
+#!/bin/bash
+# Pre-commit hook for Kairon
+# Validates and sanitizes n8n workflow files before commit
+
+set -e
+
+# Find repo root
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Check if any workflow files are staged
+STAGED_WORKFLOWS=$(git diff --cached --name-only --diff-filter=ACM | grep "n8n-workflows/.*\.json$" || true)
+
+if [ -z "$STAGED_WORKFLOWS" ]; then
+    # No workflow files staged, nothing to do
+    exit 0
+fi
+
+echo "🔍 Checking staged workflow files..."
+echo ""
+
+# Validate JSON syntax
+echo "Validating JSON syntax..."
+has_errors=0
+for file in $STAGED_WORKFLOWS; do
+    if ! python3 -c "import json; json.load(open('$REPO_ROOT/$file'))" 2>/dev/null; then
+        echo "  ❌ Invalid JSON: $file"
+        python3 -c "import json; json.load(open('$REPO_ROOT/$file'))" 2>&1 | head -3
+        has_errors=1
+    else
+        echo "  ✓ $file"
+    fi
+done
+
+if [ $has_errors -eq 1 ]; then
+    echo ""
+    echo "❌ Commit aborted: Invalid JSON in workflow files"
+    exit 1
+fi
+
+# Check for pinData (sensitive test data)
+echo ""
+echo "Checking for sensitive data (pinData)..."
+has_pindata=0
+for file in $STAGED_WORKFLOWS; do
+    if grep -q '"pinData"' "$REPO_ROOT/$file" 2>/dev/null; then
+        echo "  ⚠️  Has pinData: $file"
+        has_pindata=1
+    fi
+done
+
+if [ $has_pindata -eq 1 ]; then
+    echo ""
+    echo "❌ Commit aborted: Workflow files contain pinData (test data with sensitive IDs)"
+    echo ""
+    echo "Run this command to sanitize:"
+    echo "  ./scripts/workflows/sanitize_workflows.sh"
+    echo ""
+    echo "Then re-stage the files:"
+    echo "  git add n8n-workflows/*.json"
+    exit 1
+fi
+
+echo ""
+echo "✅ All workflow checks passed!"

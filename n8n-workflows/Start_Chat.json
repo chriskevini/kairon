@@ -1,44 +1,41 @@
 {
+  "name": "Start_Chat",
   "nodes": [
     {
       "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "event",
-              "type": "object"
-            }
-          ]
-        }
+        "inputSource": "passthrough"
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        5216,
-        -1008
+        18496,
+        -2320
       ],
-      "id": "ea67b05a-13cb-49e9-98eb-43a7b93efc9b",
+      "id": "a929c09f-94de-42dc-a2ff-923accc5e9ab",
       "name": "Execute Workflow Trigger"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.event.channel_id }}/messages/{{ $json.event.message_id }}/threads",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/threads",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"name\": $json.event.clean_text.slice(0, 100) } }}",
+        "jsonBody": "={{ { \"name\": $json.ctx.event.clean_text.slice(0, 100) } }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        5440,
-        -1104
+        18720,
+        -2464
       ],
-      "id": "01899cad-56b1-48dc-a003-e5f0adf60713",
+      "id": "85fce562-824f-47c1-83cf-ea4d7e807ea4",
       "name": "Create Discord Thread",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -55,10 +52,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        5440,
-        -912
+        18720,
+        -2176
       ],
-      "id": "59555e64-4af7-4120-9ae3-8b45d1679831",
+      "id": "14297959-30b4-415d-b84e-c44604749da7",
       "name": "Get North Star",
       "alwaysOutputData": true,
       "credentials": {
@@ -70,91 +67,18 @@
     },
     {
       "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        5664,
-        -1008
-      ],
-      "id": "1b4e2de0-a091-485f-9780-425010fca9b4",
-      "name": "Wait for Both"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Get event from trigger\nconst event = $('Execute Workflow Trigger').first().json.event;\n\n// Access thread creation result (first input to merge)\nconst threadResult = $input.first().json;\nconst threadId = threadResult.id;\n\n// Access north star result (second input to merge)\nconst northStarItems = $input.all();\nlet northStar = 'Not set';\nconst northStarResult = northStarItems.find(item => item.json.value !== undefined);\nif (northStarResult) {\n  northStar = northStarResult.json.value;\n}\n\nreturn [{\n  json: {\n    ...event,\n    north_star: northStar,\n    thread_id: threadId,\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        5888,
-        -1008
-      ],
-      "id": "40b61d55-d475-4e00-bf05-caf8c63a86a3",
-      "name": "Prepare Context"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO conversations (\n  thread_id,\n  created_from_raw_event_id,\n  status,\n  topic,\n  metadata\n)\nVALUES (\n  $1,\n  $2::uuid,\n  'active',\n  $3,\n  '{\"initial_message\": true}'::jsonb\n)\nRETURNING *;",
-        "options": {
-          "queryReplacement": "={{ $json.thread_id }},={{ $json.raw_event_id }},={{ $json.clean_text }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        6112,
-        -1008
-      ],
-      "id": "58f151b8-100c-47c3-a9b7-485d5f3564ee",
-      "name": "Store Conversation",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'user',\n  $3\n)\nRETURNING *;",
-        "options": {
-          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Prepare Context').item.json.raw_event_id }},={{ $('Prepare Context').item.json.clean_text }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        6336,
-        -1008
-      ],
-      "id": "3db5c532-888f-48cc-aeee-0e32b7d62426",
-      "name": "Store User Message",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "promptType": "define",
-        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $('Prepare Context').item.json.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $('Prepare Context').item.json.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) → Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) → Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that shows you're listening\n3. Uses different phrasing each time (not robotic)\n4. Matches the user's tone and energy\n\nRespond now to the user's message.",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.db.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $json.ctx.event.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) → Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) → Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that's conversational and specific, not generic\n\nRespond to their initial message now.",
         "needsFallback": true,
         "batching": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        6560,
-        -1008
+        19392,
+        -2196
       ],
-      "id": "cc4cf1a6-5ddb-4653-ab5e-d212f5982ecf",
+      "id": "f6f390a8-c453-4cee-8d6d-2b9a415e3a29",
       "name": "Generate Initial Response"
     },
     {
@@ -167,10 +91,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        6576,
-        -784
+        19400,
+        -1972
       ],
-      "id": "642fbb2b-d5f7-42fc-8f79-55a2b5754f45",
+      "id": "0c6a309d-86ff-4aa3-b02f-33230ae4f092",
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
@@ -189,10 +113,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        6704,
-        -784
+        19528,
+        -1972
       ],
-      "id": "ae744853-9d6f-4842-a9d4-e8387530c090",
+      "id": "60963dec-c78a-4918-8b32-12e1a0f25d8b",
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
@@ -203,56 +127,64 @@
     },
     {
       "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        19968,
+        -2320
+      ],
+      "id": "merge-llm-result",
+      "name": "Merge LLM Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for trace and projection storage\nconst ctx = $json.ctx || {};\n\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst northStar = ctx.llm?.north_star || '(not set)';\nconst cleanText = ctx.event?.clean_text || '';\nconst promptText = `You are an AI life coach...\\n\\nUser's Guiding Principle: ${northStar}\\n\\nThe user started with: ${cleanText}`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: ctx,\n    // Data for trace insert\n    event_id: ctx.event?.event_id,\n    event_timestamp: ctx.event?.timestamp,\n    input_text: cleanText,\n    input_thread_id: ctx.thread?.id,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20192,
+        -2224
+      ],
+      "id": "fbff38ac-ebf5-48aa-8666-8117b8d13d0e",
+      "name": "Prepare Trace Data"
+    },
+    {
+      "parameters": {
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Prepare Context').item.json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Prepare Context').item.json.thread_id }}",
+          "value": "={{ $json.ctx.thread.id }}",
           "mode": "id"
         },
-        "content": "={{ $json.text.trim().replace(/^[\"']|[\"']$/g, '') }}",
+        "content": "={{ $json.ctx.llm.completion_text.trim().replace(/^[\"']|[\"']$/g, '') }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        6912,
-        -1008
+        20192,
+        -2416
       ],
-      "id": "176ca2df-5bcb-414e-9445-979810318abe",
+      "id": "a5785f29-feef-42f4-8da5-d5eaeb9fd055",
       "name": "Send Response to Thread",
       "webhookId": "b265fcc0-4670-437b-9913-59b5d32bc95b",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  'assistant',\n  $2\n)\nRETURNING *;",
-        "options": {
-          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Generate Initial Response').item.json.text.trim().replace(/^[\"']|[\"']$/g, '') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        7136,
-        -1008
-      ],
-      "id": "56fe3237-412a-4ac4-af29-4e146d5bcdf6",
-      "name": "Store Assistant Response",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
         }
       }
     },
@@ -262,32 +194,204 @@
         "operation": "react",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Prepare Context').item.json.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
           "__rl": true,
-          "value": "={{ $('Prepare Context').item.json.channel_id }}",
+          "value": "={{ $json.ctx.event.channel_id }}",
           "mode": "id"
         },
-        "messageId": "={{ $('Prepare Context').item.json.message_id }}",
+        "messageId": "={{ $json.ctx.event.message_id }}",
         "emoji": "=🗨️"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        7360,
-        -1008
+        18720,
+        -2656
       ],
-      "id": "1c119a24-8b4b-4ce3-ba74-edbe7142c75d",
+      "id": "1e7b0d2a-54ee-4607-bcd9-7872585cb7c1",
       "name": "React with 🗨️",
       "webhookId": "d9babcdf-8243-4adb-83c8-bbaf038fbfc7",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        18720,
+        -1984
+      ],
+      "id": "remove-blue-reaction-start-chat",
+      "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_initial_response',\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'thread_id', $3::text\n      ),\n      'prompt', $4,\n      'completion', $5,\n      'result', jsonb_build_object(\n        'response_length', $6::integer\n      ),\n      'model', 'nvidia/nemotron-nano-9b-v2:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $8::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
+        "options": {
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_thread_id }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        20416,
+        -2296
+      ],
+      "id": "b1b95f53-19af-4782-a1d7-6204f58efaca",
+      "name": "Write Thread Initial Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
       }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        20640,
+        -2224
+      ],
+      "id": "merge-trace-result",
+      "name": "Merge Trace Result"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  status,\n  data\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'thread_response',\n  'auto_confirmed',\n  jsonb_build_object(\n    'thread_id', $4,\n    'response_text', $5,\n    'role', 'assistant',\n    'timestamp', $6::timestamptz\n  )\n)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.event_id }},={{ $json.trace_id }},={{ $json.updated_trace_chain }},={{ $json.ctx.thread.id }},={{ $json.ctx.llm.completion_text }},={{ $json.ctx.event.timestamp }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        20864,
+        -2224
+      ],
+      "id": "store-response-projection",
+      "name": "Store Response Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5e8ab96e-bc97-4681-91fd-51e42f74cb1e",
+              "name": "ctx.llm.completion_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        19744,
+        -2196
+      ],
+      "id": "dde6b5fe-f9d0-48e0-87c9-9e7160c142e3",
+      "name": "Set llm ctx"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        18944,
+        -2336
+      ],
+      "id": "54301339-2cc0-447e-92ff-0c0fc46ccb87",
+      "name": "Merge Thread + North Star"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b3356692-b0a6-4416-9d7a-3d49fcfbe6d1",
+              "name": "ctx.event",
+              "value": "={{ $json.ctx.event }}",
+              "type": "object"
+            },
+            {
+              "id": "start-time",
+              "name": "ctx.llm.inference_start",
+              "value": "={{ Date.now() }}",
+              "type": "number"
+            },
+            {
+              "id": "7d2f06f3-82d2-47cb-94ac-2d8929e2879c",
+              "name": "ctx.db.north_star",
+              "value": "={{ $json.value }}",
+              "type": "string"
+            },
+            {
+              "id": "eade12b1-869a-4656-8b5d-10a53e69cff9",
+              "name": "ctx.thread.id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        19168,
+        -2320
+      ],
+      "id": "0abfd7cc-9559-48da-a48b-c8b6c1d5d853",
+      "name": "Rebuild Context and Set Inference Start"
     }
   ],
   "connections": {
@@ -303,6 +407,21 @@
             "node": "Get North Star",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "React with 🗨️",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Thread + North Star",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
@@ -311,7 +430,7 @@
       "main": [
         [
           {
-            "node": "Wait for Both",
+            "node": "Merge Thread + North Star",
             "type": "main",
             "index": 0
           }
@@ -322,53 +441,9 @@
       "main": [
         [
           {
-            "node": "Wait for Both",
+            "node": "Merge Thread + North Star",
             "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Wait for Both": {
-      "main": [
-        [
-          {
-            "node": "Prepare Context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Context": {
-      "main": [
-        [
-          {
-            "node": "Store Conversation",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Store Conversation": {
-      "main": [
-        [
-          {
-            "node": "Store User Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Store User Message": {
-      "main": [
-        [
-          {
-            "node": "Generate Initial Response",
-            "type": "main",
-            "index": 0
+            "index": 2
           }
         ]
       ]
@@ -377,7 +452,7 @@
       "main": [
         [
           {
-            "node": "Send Response to Thread",
+            "node": "Set llm ctx",
             "type": "main",
             "index": 0
           }
@@ -406,22 +481,102 @@
         ]
       ]
     },
-    "Send Response to Thread": {
+    "Merge LLM Result": {
       "main": [
         [
           {
-            "node": "Store Assistant Response",
+            "node": "Send Response to Thread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Trace Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Assistant Response": {
+    "Prepare Trace Data": {
       "main": [
         [
           {
-            "node": "React with 🗨️",
+            "node": "Write Thread Initial Trace",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Trace Result",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Write Thread Initial Trace": {
+      "main": [
+        [
+          {
+            "node": "Merge Trace Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Trace Result": {
+      "main": [
+        [
+          {
+            "node": "Store Response Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Response to Thread": {
+      "main": [
+        []
+      ]
+    },
+    "React with 🗨️": {
+      "main": [
+        []
+      ]
+    },
+    "Set llm ctx": {
+      "main": [
+        [
+          {
+            "node": "Merge LLM Result",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Thread + North Star": {
+      "main": [
+        [
+          {
+            "node": "Rebuild Context and Set Inference Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rebuild Context and Set Inference Start": {
+      "main": [
+        [
+          {
+            "node": "Generate Initial Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge LLM Result",
             "type": "main",
             "index": 0
           }
@@ -429,8 +584,13 @@
       ]
     }
   },
-  "meta": {
-    "instanceId": "71ef632b3ea0984c927b7776c61fb9a372c4b6670ebd74c359a3b7c4a8989adc"
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
-  "name": "Start_Chat"
+  "staticData": null,
+  "meta": null,
+  "active": false
 }
