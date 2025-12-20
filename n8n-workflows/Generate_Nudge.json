@@ -32,7 +32,7 @@
         "operation": "executeQuery",
         "query": "-- Insert system event for nudge\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'nudge',\n    'trigger_reason', $2\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ $json.idempotency_key }},={{ $json.trigger_reason }}"
+          "queryReplacement": "{{ $json.idempotency_key }},{{ $json.trigger_reason }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -229,7 +229,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'nudge',\n  jsonb_build_object(\n    'input', $2::jsonb,\n    'prompt', 'nudge-prompt',\n    'completion', $3,\n    'result', jsonb_build_object(\n      'decision', $4,\n      'message', $5,\n      'should_skip', $6::boolean\n    ),\n    'duration_ms', $7::integer\n  ),\n  $8::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ JSON.stringify($json.llm_input) }},={{ $json.llm_response }},={{ $json.decision }},={{ $json.message }},={{ $json.should_skip }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+          "queryReplacement": "{{ $json.ctx.event.event_id }},{{ JSON.stringify($json.llm_input) }},{{ $json.llm_response }},{{ $json.decision }},{{ $json.message }},{{ $json.should_skip }},{{ $json.duration_ms }},{{ $json.trace_chain_pg }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -299,7 +299,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'nudge',\n  $4::jsonb,\n  'auto_confirmed'\n)\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ $json.trace_id }},={{ $json.ctx.event.event_id }},={{ $json.trace_chain_pg }},={{ JSON.stringify({ timestamp: new Date().toISOString(), decision: $json.decision, text: $json.message }) }}"
+          "queryReplacement": "{{ $json.trace_id }},{{ $json.ctx.event.event_id }},{{ $json.trace_chain_pg }},{{ JSON.stringify({ timestamp: new Date().toISOString(), decision: $json.decision, text: $json.message }) }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -369,7 +369,7 @@
         "operation": "executeQuery",
         "query": "-- Update projection with Discord message ID for void support\nUPDATE projections \nSET data = data || jsonb_build_object(\n  'discord_message_id', $1,\n  'discord_channel_id', $2,\n  'discord_guild_id', $3\n)\nWHERE id = $4::uuid\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ $json.id }},={{ $env.DISCORD_CHANNEL_ARCANE_SHELL }},={{ $env.DISCORD_GUILD_ID }},={{ $('Merge for Discord').first().json.projection_id }}"
+          "queryReplacement": "{{ $json.id }},{{ $env.DISCORD_CHANNEL_ARCANE_SHELL }},{{ $env.DISCORD_GUILD_ID }},{{ $('Merge for Discord').first().json.projection_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
