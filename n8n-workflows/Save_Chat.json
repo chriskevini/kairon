@@ -143,7 +143,7 @@
         "operation": "executeQuery",
         "query": "DELETE FROM thread_extractions WHERE thread_id = $1::uuid;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.db.thread_id }}"
+          "queryReplacement": "={{ $('Has Extractions?').first().json.ctx.db.thread_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
