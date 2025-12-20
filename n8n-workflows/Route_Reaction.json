@@ -9,7 +9,7 @@
       "typeVersion": 1.1,
       "position": [
         -368,
-        512
+        576
       ],
       "id": "trigger-node",
       "name": "Receive Event"
@@ -42,7 +42,7 @@
       "typeVersion": 2,
       "position": [
         -144,
-        512
+        576
       ],
       "id": "check-action",
       "name": "Is Add Reaction?"
@@ -109,7 +109,7 @@
       "typeVersion": 3.4,
       "position": [
         80,
-        512
+        576
       ],
       "id": "route-by-emoji",
       "name": "Route by Emoji"
@@ -123,7 +123,10 @@
           "cachedResultUrl": "/workflow/po34MNNwDBJKdf4N",
           "cachedResultName": "Save_Extraction"
         },
-        "inputSource": "passthrough",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
         "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -147,7 +150,7 @@
       "typeVersion": 2.4,
       "position": [
         304,
-        592
+        720
       ],
       "id": "void-projection",
       "name": "Void Projection",
@@ -169,8 +172,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        528,
-        592
+        752,
+        656
       ],
       "id": "confirm-void",
       "name": "Confirm Void ✅",
@@ -198,14 +201,14 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Void]** {{ $json.length > 0 ? 'Voided ' + $json.length + ' projection(s)' : 'No projections found to void' }} for message `{{ $('Receive Event').item.json.ctx.event.message_id }}`",
+        "content": "=**[Void]** {{ $('Void Projection').all().length > 0 ? 'Voided ' + $('Void Projection').all().length + ' projection(s)' : 'No projections found to void' }} for message `{{ $('Receive Event').item.json.ctx.event.message_id }}`",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        752,
-        592
+        976,
+        656
       ],
       "id": "log-void",
       "name": "Log to Kairon Logs",
@@ -220,6 +223,21 @@
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        528,
+        656
+      ],
+      "id": "0f4b8d45-71e3-4a08-82f4-b1d3241323ba",
+      "name": "Merge Void Result"
     }
   ],
   "connections": {
@@ -259,6 +277,11 @@
             "node": "Void Projection",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge Void Result",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -267,9 +290,9 @@
       "main": [
         [
           {
-            "node": "Confirm Void ✅",
+            "node": "Merge Void Result",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -279,6 +302,17 @@
         [
           {
             "node": "Log to Kairon Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Void Result": {
+      "main": [
+        [
+          {
+            "node": "Confirm Void ✅",
             "type": "main",
             "index": 0
           }
