@@ -9,7 +9,7 @@
       "typeVersion": 1.1,
       "position": [
         -12848,
-        8008
+        8016
       ],
       "id": "91f732dd-8250-4342-ae01-365e0b336809",
       "name": "Receive Event"
@@ -35,7 +35,7 @@
       "typeVersion": 2,
       "position": [
         -12624,
-        7912
+        7920
       ],
       "id": "476cc1ef-8e72-4df6-ab57-42bda8f06403",
       "name": "React with 🔵",
@@ -188,7 +188,7 @@
       "typeVersion": 2.3,
       "position": [
         -12624,
-        8104
+        8112
       ],
       "id": "6f431c36-8c0b-4d84-9d44-a78ab41eadd1",
       "name": "In Thread?"
@@ -233,7 +233,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -11944,
+        -11952,
         8880
       ],
       "id": "4001511d-daf5-4ead-bebe-5a1b407b776a",
@@ -255,7 +255,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -11816,
+        -11824,
         8880
       ],
       "id": "eb30bac3-5291-4714-9143-d3b834b73d4f",
@@ -426,6 +426,30 @@
                 },
                 "conditions": [
                   {
+                    "id": "intent-todo",
+                    "leftValue": "={{ $json.ctx.routing.intent }}",
+                    "rightValue": "todo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "todo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
                     "id": "intent-chat",
                     "leftValue": "={{ $json.ctx.routing.intent }}",
                     "rightValue": "chat",
@@ -463,30 +487,6 @@
               },
               "renameOutput": true,
               "outputKey": "command"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "id": "intent-todo",
-                    "leftValue": "={{ $json.ctx.routing.intent }}",
-                    "rightValue": "todo",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "todo"
             }
           ]
         },
@@ -503,32 +503,61 @@
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "7Qq2qMUBmnyAhLxg",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/7Qq2qMUBmnyAhLxg",
-          "cachedResultName": "Note_Handler"
-        },
-        "options": {}
+        "jsCode": "// Add projection type to ctx for Capture_Projection workflow\nconst projectionType = $json.ctx.routing.intent; // 'activity', 'note', or 'todo'\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      projection: {\n        type: projectionType\n      }\n    }\n  }\n}];"
       },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -10928,
-        8368
+        8272
       ],
-      "id": "376c8c1a-01a8-431d-8697-19e26a8b244d",
-      "name": "Save Note"
+      "id": "a1b2c3d4-prep-proj-type-node",
+      "name": "Prepare Projection"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "nsLfmVGA6NeCJJRu",
+          "value": "fCzIE4pwbotbDlD6",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nsLfmVGA6NeCJJRu",
-          "cachedResultName": "Thread_Handler"
+          "cachedResultUrl": "/workflow/fCzIE4pwbotbDlD6",
+          "cachedResultName": "Capture_Projection"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -10704,
+        8272
+      ],
+      "id": "e5f6g7h8-capture-projection-node",
+      "name": "Capture Projection"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "LNzKP4CSjrY7FW5v",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/LNzKP4CSjrY7FW5v",
+          "cachedResultName": "Start_Thread"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {}
       },
@@ -536,10 +565,10 @@
       "typeVersion": 1.3,
       "position": [
         -10928,
-        8560
+        8464
       ],
       "id": "4f5dbc85-1925-42ca-9d48-7cfdb8bc862f",
-      "name": "Start Chat"
+      "name": "Start Thread"
     },
     {
       "parameters": {
@@ -548,7 +577,15 @@
           "value": "v6t7HCxr2OOXvb2z",
           "mode": "list",
           "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
-          "cachedResultName": "Command_Handler"
+          "cachedResultName": "Execute_Command"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {}
       },
@@ -556,7 +593,7 @@
       "typeVersion": 1.3,
       "position": [
         -10928,
-        8752
+        8656
       ],
       "id": "be0f00ad-4e2f-4338-bfef-8816cee4777f",
       "name": "Execute Command"
@@ -565,10 +602,18 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "E4pamfDCwW3ZxHzH",
+          "value": "CAQ4IaApsD2QpLiz",
           "mode": "list",
-          "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
-          "cachedResultName": "Save_Chat"
+          "cachedResultUrl": "/workflow/CAQ4IaApsD2QpLiz",
+          "cachedResultName": "Capture_Thread"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {}
       },
@@ -579,16 +624,24 @@
         7840
       ],
       "id": "15a4061b-cde3-4fce-89b9-8d2864c1ad53",
-      "name": "Save Chat"
+      "name": "Capture Thread"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "e78T3OMl6pDxTb13",
+          "value": "IAjqXOmWzGUHp9Ea",
           "mode": "list",
-          "cachedResultUrl": "/workflow/e78T3OMl6pDxTb13",
-          "cachedResultName": "Continue_Chat"
+          "cachedResultUrl": "/workflow/IAjqXOmWzGUHp9Ea",
+          "cachedResultName": "Continue_Thread"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {}
       },
@@ -599,47 +652,7 @@
         8032
       ],
       "id": "c2a931b5-275e-4fbc-bd3c-4ad40bfcca18",
-      "name": "Continue Chat"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "ZQCULmYAVMN7I6ww",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/ZQCULmYAVMN7I6ww",
-          "cachedResultName": "Save_Activity"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -10928,
-        8176
-      ],
-      "id": "331f40a5-4b02-4eb1-a7f2-4d1f24ed3489",
-      "name": "Save Activity"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "E4pamfDCwW3ZxHzH",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/E4pamfDCwW3ZxHzH",
-          "cachedResultName": "Save_Chat"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -12176,
-        7840
-      ],
-      "id": "15a4061b-cde3-4fce-89b9-8d2864c1ad53",
-      "name": "Save Chat"
+      "name": "Continue Thread"
     },
     {
       "parameters": {
@@ -852,21 +865,28 @@
       "main": [
         [
           {
-            "node": "Save Activity",
+            "node": "Prepare Projection",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Save Note",
+            "node": "Prepare Projection",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Start Chat",
+            "node": "Prepare Projection",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Start Thread",
             "type": "main",
             "index": 0
           }
@@ -874,6 +894,17 @@
         [
           {
             "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Projection": {
+      "main": [
+        [
+          {
+            "node": "Capture Projection",
             "type": "main",
             "index": 0
           }
@@ -895,14 +926,14 @@
       "main": [
         [
           {
-            "node": "Save Chat",
+            "node": "Capture Thread",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Continue Chat",
+            "node": "Continue Thread",
             "type": "main",
             "index": 0
           }
@@ -913,6 +944,8 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
     "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
   "staticData": null,

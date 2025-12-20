@@ -1,5 +1,5 @@
 {
-  "name": "Save_Chat",
+  "name": "Capture_Thread",
   "nodes": [
     {
       "parameters": {
@@ -848,8 +848,6 @@
     "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
   "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
+  "meta": null,
   "active": false
 }
