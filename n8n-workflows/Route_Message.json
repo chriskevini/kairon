@@ -658,8 +658,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "multi-extract-workflow-id",
-          "mode": "id"
+          "value": "ANh6UyX73j6pePQi",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ANh6UyX73j6pePQi",
+          "cachedResultName": "Multi_Extract"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
