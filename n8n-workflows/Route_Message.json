@@ -656,6 +656,32 @@
     },
     {
       "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "multi-extract-workflow-id",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -12176,
+        8464
+      ],
+      "id": "multi-extract-node",
+      "name": "Multi Extract"
+    },
+    {
+      "parameters": {
         "promptType": "define",
         "text": "=You are an intent classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each intent. Scores must add up to exactly 100.\n\n# Intents\n\n!! → Logging an activity  \nDescribes what **I am personally doing right now** or **just did** (present/recent past tense from first-person perspective).  \nStrong indicators: \"I am\", \"I'm\", \"-ing verbs\" describing my action, \"just [did something]\".\n\n.. → Jotting a note  \nObservations, realizations, facts, ideas, or reflections **not tied to a current action**.  \nStrong indicators: statements about others/things (\"X is Y\", \"A can B\"), general observations, future ideas.\n\n++ → Starting conversation / seeking response  \nExplicit questions or requests for help/advice.  \nStrong indicators: \"?\", \"why\", \"how\", \"should I\", \"what if\".\n\n# Key Distinction\n\n**Activity vs Note - The Person Test:**\n- About ME doing something NOW → !!\n- About ANYTHING ELSE (people, tools, ideas, observations) → ..\n\n# Output EXACTLY these three lines, nothing else:\n!!|X\n..|Y\n++|Z\n\n(X+Y+Z=100, integers only)\n\n# Message to classify:\n{{ $json.ctx.event.clean_text }}",
         "needsFallback": true,
@@ -733,7 +759,7 @@
         ],
         [
           {
-            "node": "Set Inference Start",
+            "node": "Multi Extract",
             "type": "main",
             "index": 0
           }

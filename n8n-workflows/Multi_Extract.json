@@ -1,0 +1,417 @@
+{
+  "name": "Multi_Extract",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1600,
+        700
+      ],
+      "id": "trigger-multi-extract",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare for multi-extraction\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: ctx,\n    inference_start: Date.now()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1376,
+        700
+      ],
+      "id": "prepare-extraction",
+      "name": "Prepare Extraction"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1376,
+        900
+      ],
+      "id": "remove-blue-reaction",
+      "name": "Remove 🔵 Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an extraction agent for a life-tracking system. Analyze the message and extract all relevant items.\n\n## Message to Analyze\n\n\"{{ $json.ctx.event.clean_text }}\"\n\n## Extraction Types\n\n### Activity (what the user is doing NOW)\nExtract if the message describes a CURRENT or RECENT action by the user.\n- **Categories:** work, leisure, study, health, sleep, relationships, admin\n- **Indicators:** \"I am\", \"I'm\", \"-ing verbs\", \"just did\", present/recent past tense\n\n### Note (observation, insight, or fact worth remembering)\nExtract if the message contains knowledge, observations, or reflections.\n- **Categories:** reflection (about self), fact (about world/others)\n- **Indicators:** observations about things/people, realizations, ideas, decisions\n\n### Todo (actionable task to complete)\nExtract if the message contains a clear task to do later.\n- **Priority:** high, medium, low\n- **Indicators:** \"need to\", \"should\", \"have to\", \"TODO\", future tasks\n\n## Key Rules\n\n1. A message can have 0, 1, 2, or 3 extractions\n2. Set confidence 0.0-1.0 based on how clearly the message indicates each type\n3. Only include extractions with confidence >= 0.5\n4. Prefer fewer high-confidence extractions over many low-confidence ones\n5. Activity describes what I'M doing; Note describes observations about anything else\n\n## Output Format\n\nOutput ONLY valid JSON, no explanation:\n\n{\"activity\": {\"category\": \"work\", \"description\": \"debugging auth\", \"confidence\": 0.92}, \"note\": {\"category\": \"reflection\", \"text\": \"noticed pattern in logs\", \"confidence\": 0.78}, \"todo\": null}",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -1152,
+        700
+      ],
+      "id": "multi-extractor",
+      "name": "Multi Extractor"
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1152,
+        1100
+      ],
+      "id": "mimo-v2-flash",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1008,
+        1100
+      ],
+      "id": "nemotron-nano-9b",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse multi-extraction JSON response\nconst llmText = $json.text?.trim() || '';\nconst prepareItem = $('Prepare Extraction').first().json;\nconst ctx = prepareItem.ctx;\nconst inferenceStart = prepareItem.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Parse JSON from LLM output\nlet extractions = { activity: null, note: null, todo: null };\nlet parseError = null;\n\ntry {\n  // Try to extract JSON from the response\n  let jsonStr = llmText;\n  \n  // Handle markdown code blocks\n  const jsonMatch = llmText.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (jsonMatch) {\n    jsonStr = jsonMatch[1].trim();\n  }\n  \n  // Find JSON object in response\n  const objMatch = jsonStr.match(/\\{[\\s\\S]*\\}/);\n  if (objMatch) {\n    jsonStr = objMatch[0];\n  }\n  \n  extractions = JSON.parse(jsonStr);\n} catch (e) {\n  parseError = e.message;\n  // Default to empty extractions on parse error\n}\n\n// Filter by confidence threshold (0.5)\nconst CONFIDENCE_THRESHOLD = 0.5;\nconst validExtractions = [];\nconst emojis = [];\n\nif (extractions.activity && extractions.activity.confidence >= CONFIDENCE_THRESHOLD) {\n  validExtractions.push({\n    type: 'activity',\n    data: {\n      timestamp: new Date().toISOString(),\n      category: extractions.activity.category || 'work',\n      description: extractions.activity.description || ctx.event.clean_text,\n      confidence: extractions.activity.confidence\n    }\n  });\n  emojis.push('🔘');\n}\n\nif (extractions.note && extractions.note.confidence >= CONFIDENCE_THRESHOLD) {\n  validExtractions.push({\n    type: 'note',\n    data: {\n      timestamp: new Date().toISOString(),\n      category: extractions.note.category || 'reflection',\n      text: extractions.note.text || ctx.event.clean_text,\n      confidence: extractions.note.confidence\n    }\n  });\n  emojis.push('📝');\n}\n\nif (extractions.todo && extractions.todo.confidence >= CONFIDENCE_THRESHOLD) {\n  validExtractions.push({\n    type: 'todo',\n    data: {\n      timestamp: new Date().toISOString(),\n      priority: extractions.todo.priority || 'medium',\n      description: extractions.todo.description || ctx.event.clean_text,\n      confidence: extractions.todo.confidence\n    }\n  });\n  emojis.push('✅');\n}\n\n// If no valid extractions, fall back to note with low confidence\nif (validExtractions.length === 0) {\n  validExtractions.push({\n    type: 'note',\n    data: {\n      timestamp: new Date().toISOString(),\n      category: 'reflection',\n      text: ctx.event.clean_text,\n      confidence: 0.3\n    }\n  });\n  emojis.push('📝');\n}\n\nreturn [{\n  json: {\n    ctx: ctx,\n    extractions: validExtractions,\n    emojis: emojis,\n    raw_response: llmText,\n    parse_error: parseError,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -928,
+        700
+      ],
+      "id": "parse-extractions",
+      "name": "Parse Extractions"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split extractions into separate items for parallel processing\nconst input = $json;\nconst extractions = input.extractions || [];\n\nreturn extractions.map((extraction, index) => ({\n  json: {\n    ctx: input.ctx,\n    extraction: extraction,\n    extraction_index: index,\n    total_extractions: extractions.length,\n    emojis: input.emojis,\n    raw_response: input.raw_response,\n    duration_ms: input.duration_ms,\n    trace_chain_pg: input.trace_chain_pg\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        700
+      ],
+      "id": "split-extractions",
+      "name": "Split Extractions"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'multi_extract_' || $2,\n    2,\n    jsonb_build_object(\n      'input', jsonb_build_object('text', $3),\n      'completion', $4,\n      'result', $5::jsonb,\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $6::integer\n    ),\n    $7::uuid[]\n  )\n  RETURNING id, event_id\n)\nINSERT INTO projections (\n  trace_id,\n  event_id,\n  trace_chain,\n  projection_type,\n  data,\n  status\n)\nSELECT\n  new_trace.id,\n  new_trace.event_id,\n  $7::uuid[] || new_trace.id,\n  $2,\n  $5::jsonb,\n  'auto_confirmed'\nFROM new_trace\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.extraction.type }},={{ $json.ctx.event.clean_text }},={{ $json.raw_response }},={{ JSON.stringify($json.extraction.data) }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -480,
+        700
+      ],
+      "id": "store-projection",
+      "name": "Store Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -256,
+        700
+      ],
+      "id": "merge-results",
+      "name": "Merge Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all stored projections and prepare for reactions\nconst items = $input.all();\nconst firstItem = items[0]?.json || {};\n\n// Get emojis from the first item (they're all the same)\nconst emojis = firstItem.emojis || ['📝'];\nconst ctx = firstItem.ctx;\n\nreturn [{\n  json: {\n    ctx: ctx,\n    emojis: emojis,\n    projection_count: items.length,\n    projections: items.map(i => i.json)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32,
+        700
+      ],
+      "id": "collect-results",
+      "name": "Collect Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate items for each emoji reaction\nconst emojis = $json.emojis || ['📝'];\nconst ctx = $json.ctx;\n\nreturn emojis.map(emoji => ({\n  json: {\n    ctx: ctx,\n    emoji: emoji\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        700
+      ],
+      "id": "split-emojis",
+      "name": "Split Emojis"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/{{ encodeURIComponent($json.emoji) }}/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        700
+      ],
+      "id": "add-emoji-reactions",
+      "name": "Add Emoji Reactions",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Collect Results').item.json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
+          "mode": "id"
+        },
+        "content": "=**[Multi-Extract]**\n**Message:** {{ $('Collect Results').item.json.ctx.event.clean_text }}\n**Extractions:** {{ $('Collect Results').item.json.emojis.join(' ') }} ({{ $('Collect Results').item.json.projection_count }} items)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        640,
+        700
+      ],
+      "id": "log-to-kairon-logs",
+      "name": "Log to Kairon Logs",
+      "webhookId": "multi-extract-log",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Extraction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove 🔵 Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Extraction": {
+      "main": [
+        [
+          {
+            "node": "Multi Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Multi Extractor": {
+      "main": [
+        [
+          {
+            "node": "Parse Extractions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Extractions": {
+      "main": [
+        [
+          {
+            "node": "Split Extractions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Extractions": {
+      "main": [
+        [
+          {
+            "node": "Store Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Projection": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Results": {
+      "main": [
+        [
+          {
+            "node": "Split Emojis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Emojis": {
+      "main": [
+        [
+          {
+            "node": "Add Emoji Reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Emoji Reactions": {
+      "main": [
+        [
+          {
+            "node": "Log to Kairon Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Multi Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Multi Extractor",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
+}
