@@ -6,17 +6,25 @@
 
 set -e
 
-ENV_LOCAL=".env.local"
+# Find repo root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-if [ ! -f "$ENV_LOCAL" ]; then
-    echo "No .env.local file found."
-    echo ""
-    echo "Create one with your local development setup:"
-    echo "  - SSH connection strings"
-    echo "  - Docker container names"
-    echo "  - Local port mappings"
-    echo "  - Any environment-specific notes"
-    exit 0
+echo "=========================================="
+echo "Environment Configuration (.env)"
+echo "=========================================="
+if [ -f "$REPO_ROOT/.env" ]; then
+    cat "$REPO_ROOT/.env"
+else
+    echo "(no .env file found)"
 fi
 
-cat "$ENV_LOCAL"
+echo ""
+echo "=========================================="
+echo "Local Notes (.env.local)"
+echo "=========================================="
+if [ -f "$REPO_ROOT/.env.local" ]; then
+    cat "$REPO_ROOT/.env.local"
+else
+    echo "(no .env.local file found)"
+fi

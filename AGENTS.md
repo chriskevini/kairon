@@ -1502,12 +1502,14 @@ kairon/
 │   │   ├── validate_workflows.sh   # JSON syntax validation
 │   │   ├── lint_workflows.py       # ctx pattern linter
 │   │   ├── inspect_workflow.py     # Workflow inspector/search
-│   │   └── sanitize_workflows.sh   # Remove sensitive data
+│   │   ├── sanitize_workflows.sh   # Remove sensitive data
+│   │   └── n8n-sync.sh             # Sync workflows to remote server
 │   ├── db/                      # Database scripts
+│   │   ├── run-migration.sh        # Run migrations with backup
+│   │   ├── db-query.sh             # Run SQL queries remotely
 │   │   ├── setup_db.sh             # Initial DB setup
-│   │   ├── run_migration_*.sh      # Migration runners
 │   │   └── find_postgres_*.sh      # Postgres discovery
-│   └── show-local-config.sh     # Show .env.local (for AI agents)
+│   └── show-local-config.sh     # Show .env and .env.local (for AI agents)
 ├── .githooks/
 │   └── pre-commit               # Workflow validation hook
 ├── n8n-workflows/               # n8n workflow exports (sanitized)
@@ -1521,6 +1523,7 @@ kairon/
 ├── docs/                        # Detailed documentation
 ├── prompts/                     # LLM prompts
 ├── discord_relay.py             # Discord bot
+├── .env                         # Environment config (not committed)
 ├── .env.example                 # Environment variable template
 ├── README.md                    # Main documentation
 └── AGENTS.md                    # This file
