@@ -193,7 +193,7 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $('Receive Event').item.json.ctx.event.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
@@ -201,7 +201,7 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Void]** {{ $('Void Projection').all().length > 0 ? 'Voided ' + $('Void Projection').all().length + ' projection(s)' : 'No projections found to void' }} for message `{{ $('Receive Event').item.json.ctx.event.message_id }}`",
+        "content": "=**[Void]** {{ $json.id ? 'Voided projection' : 'No projection found' }} for message `{{ $json.ctx.event.message_id }}`",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
