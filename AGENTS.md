@@ -1351,20 +1351,147 @@ openssl rand -hex 16
 curl -X POST $N8N_WEBHOOK_URL -H "Content-Type: application/json" -d '{"content": "test"}'
 ```
 
+### Development Scripts
+
+The following scripts help with workflow development and maintenance:
+
+#### validate_workflows.sh - JSON Validation
+
+Validates that all workflow JSON files are syntactically correct.
+
+```bash
+# Validate all workflows
+./validate_workflows.sh
+
+# Validate specific file
+./validate_workflows.sh n8n-workflows/Execute_Command.json
+```
+
+**Exit codes:**
+- `0` - All files valid
+- `1` - One or more files invalid
+
+**When to use:** Before committing, after editing JSON directly, after exports from n8n.
+
+---
+
+#### lint_workflows.py - Context Pattern Linter
+
+Checks workflows for compliance with the `ctx` object pattern and n8n best practices.
+
+```bash
+# Lint all workflows
+./lint_workflows.py
+
+# Lint specific workflow
+./lint_workflows.py n8n-workflows/Execute_Command.json
+```
+
+**Exit codes:**
+- `0` - All checks passed
+- `1` - Errors found (must fix)
+- `2` - Warnings only (should review)
+
+**What it checks:**
+- ✅ `ctx` object initialization after trigger
+- ✅ Code nodes return `{ ctx: { ...ctx, namespace: {...} } }`
+- ✅ If nodes check `$json.ctx.validation.valid`
+- ✅ Postgres nodes use `$json.ctx.*` for parameters
+- ✅ Discord nodes use `$json.ctx.event.*` for IDs
+- ✅ Set nodes have `includeOtherFields: true` when setting ctx
+- ✅ Switch nodes have fallback outputs
+- ✅ Merge nodes have proper configuration
+- ⚠️ Scattered node references (should use ctx instead)
+
+**Example output:**
+```
+Execute_Command.json - PASS
+✓ ctx initialized in 'Parse Command and Args' (Set node)
+✓ 'Query Get Config': correctly uses ctx for query parameters
+✓ 'If Valid Get': correctly checks ctx.validation.valid
+
+Route_Discord_Event.json - FAIL
+✗ 'Store Message Event': uses node reference without ctx
+! 'Route by Event Type': Switch node has no fallback output
+```
+
+---
+
+#### inspect_workflow.py - Workflow Inspector
+
+Inspect workflow structure, view node details, and search across workflows.
+
+```bash
+# Show workflow overview
+./inspect_workflow.py n8n-workflows/Execute_Command.json
+
+# List all nodes grouped by type
+./inspect_workflow.py n8n-workflows/Execute_Command.json --nodes
+
+# Show specific node details (including code)
+./inspect_workflow.py n8n-workflows/Execute_Command.json --node "Validate Get"
+
+# Show all Code node contents
+./inspect_workflow.py n8n-workflows/Execute_Command.json --code
+
+# Show connection graph
+./inspect_workflow.py n8n-workflows/Execute_Command.json --connections
+
+# Search for pattern across workflows
+./inspect_workflow.py "n8n-workflows/*.json" --find "ctx.event"
+./inspect_workflow.py "n8n-workflows/*.json" --find "validation.valid"
+```
+
+**Common use cases:**
+- Finding where a field is used: `--find "ctx.db.conversation_id"`
+- Viewing node code without opening n8n: `--node "Node Name"`
+- Understanding workflow structure: `--connections`
+- Checking which nodes exist: `--nodes`
+
+---
+
+#### Recommended Workflow Development Flow
+
+```bash
+# 1. After making changes in n8n UI, export and save
+#    (Download workflow JSON, save to n8n-workflows/)
+
+# 2. Validate JSON syntax
+./validate_workflows.sh
+
+# 3. Check ctx pattern compliance
+./lint_workflows.py
+
+# 4. Review specific nodes if needed
+./inspect_workflow.py n8n-workflows/MyWorkflow.json --node "Problem Node"
+
+# 5. Sanitize before commit
+./sanitize_workflows.sh
+
+# 6. Commit
+git add n8n-workflows/*.json
+git commit -m "feat: add new workflow feature"
+```
+
 ### File Locations
 
 ```
 kairon/
 ├── n8n-workflows/           # n8n workflow exports (sanitized)
-│   ├── Discord_Message_Router.json
-│   └── Command_Handler.json
+│   ├── Route_Discord_Event.json
+│   ├── Route_Message.json
+│   ├── Execute_Command.json
+│   └── ...
 ├── db/
 │   ├── migrations/          # Database schema
 │   └── seeds/               # Initial data
 ├── docs/                    # Detailed documentation
 ├── prompts/                 # LLM prompts
 ├── discord_relay.py         # Discord bot
-├── sanitize_workflows.sh    # Workflow sanitization script
+├── sanitize_workflows.sh    # Remove sensitive data from exports
+├── validate_workflows.sh    # Validate JSON syntax
+├── lint_workflows.py        # Check ctx pattern compliance
+├── inspect_workflow.py      # Inspect workflow structure
 ├── .env.example             # Environment variable template
 ├── README.md                # Main documentation
 └── AGENTS.md                # This file
