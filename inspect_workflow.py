@@ -21,7 +21,7 @@ import sys
 import os
 import re
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 # ANSI colors
 RED = '\033[0;31m'

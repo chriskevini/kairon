@@ -18,7 +18,7 @@ import sys
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import List, Optional
 
 # ANSI colors
 RED = '\033[0;31m'
@@ -131,12 +131,6 @@ def check_code_node_ctx_pattern(node: dict, result: LintResult):
     for pattern, msg in old_patterns:
         if re.search(pattern, code):
             result.error(f"'{name}': {msg}")
-    
-    # Check for proper ctx access patterns
-    good_patterns = [
-        (r'\$json\.ctx\.', 'uses $json.ctx.* access'),
-        (r"\$\('.*'\)\..*\.json\.ctx", 'uses node reference with ctx'),
-    ]
     
     bad_access_patterns = [
         (r"\$json\.(?!ctx)[a-z_]+(?!\s*\|\|)", 'accesses $json.X directly instead of $json.ctx.X'),
