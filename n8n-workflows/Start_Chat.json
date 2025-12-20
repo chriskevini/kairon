@@ -90,7 +90,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO conversations (\n  thread_id,\n  created_from_raw_event_id,\n  status,\n  topic,\n  metadata\n)\nVALUES (\n  $1,\n  $2::uuid,\n  'active',\n  $3,\n  '{\"initial_message\": true}'::jsonb\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.thread_id }},={{ $json.raw_event_id }},={{ $json.clean_text }}"
+          "queryReplacement": "={{ $json.thread_id }},={{ $json.event_id }},={{ $json.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -113,7 +113,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'user',\n  $3\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Prepare Context').item.json.raw_event_id }},={{ $('Prepare Context').item.json.clean_text }}"
+          "queryReplacement": "={{ $('Store Conversation').item.json.id }},={{ $('Prepare Context').item.json.event_id }},={{ $('Prepare Context').item.json.clean_text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -310,7 +310,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data after LLM inference (Option E schema)\nconst context = $('Set Inference Start').first().json.context;\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst inferenceStart = $('Set Inference Start').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template) with fallbacks\nconst northStar = context.north_star || '(not set)';\nconst cleanText = context.clean_text || '';\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${northStar}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: ${cleanText}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n...\n\nRespond to their initial message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_text: context.clean_text || '',\n    input_conversation_id: context.thread_id,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    duration_ms: durationMs,\n    event_id: event.event_id,\n    trace_chain_pg: traceChainPg,\n    ...context  // Pass through all context fields\n  }\n}];"
+        "jsCode": "// Prepare trace data after LLM inference (Option E schema)\nconst context = $('Set Inference Start').first().json.context;\nconst inferenceStart = $('Set Inference Start').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template) with fallbacks\nconst northStar = context.north_star || '(not set)';\nconst cleanText = context.clean_text || '';\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${northStar}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: ${cleanText}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n...\n\nRespond to their initial message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type (context has flat event fields)\nconst traceChain = context.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_text: context.clean_text || '',\n    input_conversation_id: context.thread_id,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    duration_ms: durationMs,\n    event_id: context.event_id,\n    trace_chain_pg: traceChainPg,\n    ...context  // Pass through all context fields\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

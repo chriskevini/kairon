@@ -246,9 +246,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'assistant',\n  $3\n)\nRETURNING *;",
+        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  NOW(),\n  'assistant',\n  $2\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $('Build Context').item.json.conversation_id }},={{ $('Build Context').item.json.raw_event_id }},={{ $('Generate Response').item.json.text }}"
+          "queryReplacement": "={{ $('Build Context').item.json.conversation_id }},={{ $('Generate Response').item.json.text }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -324,7 +324,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data after LLM inference (Option E schema)\nconst context = $('Build Context').first().json;\nconst event = $('Execute Workflow Trigger').first().json.event;\nconst inferenceStart = $('Build Context').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${context.north_star}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n${context.activities.map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${context.notes.map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${context.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${context.clean_text}\"\n\nRespond to their message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_text: context.clean_text,\n    input_conversation_id: context.conversation_id,\n    input_history_length: context.history.length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: context.activities.length,\n    result_referenced_notes: context.notes.length,\n    duration_ms: durationMs,\n    event_id: event.event_id,\n    trace_chain_pg: traceChainPg,\n    ...context  // Pass through all context fields\n  }\n}];"
+        "jsCode": "// Prepare trace data after LLM inference (Option E schema)\nconst context = $('Build Context').first().json;\nconst inferenceStart = $('Build Context').first().json.inference_start;\nconst durationMs = Date.now() - inferenceStart;\nconst response = $input.first().json.text;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${context.north_star}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n${context.activities.map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${context.notes.map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${context.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${context.clean_text}\"\n\nRespond to their message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type (context has flat event fields)\nconst traceChain = context.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    // Option E schema for trace\n    input_text: context.clean_text,\n    input_conversation_id: context.conversation_id,\n    input_history_length: context.history.length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: context.activities.length,\n    result_referenced_notes: context.notes.length,\n    duration_ms: durationMs,\n    event_id: context.event_id,\n    trace_chain_pg: traceChainPg,\n    ...context  // Pass through all context fields\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -351,6 +351,29 @@
       ],
       "id": "2e8e0334-a3c1-496e-81f2-6ae0d19f3425",
       "name": "Write Thread Response Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversation_messages (\n  conversation_id,\n  raw_event_id,\n  timestamp,\n  role,\n  text\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  NOW(),\n  'user',\n  $3\n)\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ $json.conversation_id }},={{ $json.event_id }},={{ $json.clean_text }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        7664,
+        544
+      ],
+      "id": "store-user-message-continue",
+      "name": "Store User Message",
       "credentials": {
         "postgres": {
           "id": "MdnYzEgjzWRujz2v",
@@ -458,6 +481,17 @@
       ]
     },
     "Build Context": {
+      "main": [
+        [
+          {
+            "node": "Store User Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store User Message": {
       "main": [
         [
           {
