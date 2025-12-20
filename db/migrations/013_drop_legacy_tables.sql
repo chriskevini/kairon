@@ -32,6 +32,10 @@ DROP TABLE IF EXISTS thread_extractions CASCADE;
 DROP TABLE IF EXISTS raw_events CASCADE;
 DROP TABLE IF EXISTS routing_decisions CASCADE;
 
+-- Drop legacy enums (categories are now strings in JSONB)
+DROP TYPE IF EXISTS activity_category CASCADE;
+DROP TYPE IF EXISTS note_category CASCADE;
+
 -- Add comment to schema
 COMMENT ON SCHEMA public IS 'Kairon: 5-table architecture (events, traces, projections, embeddings, config). Legacy tables dropped in migration 013.';
 
