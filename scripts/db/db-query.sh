@@ -10,7 +10,7 @@
 #   - SSH access configured
 #   - .env file in repo root
 
-set -e
+set -euo pipefail
 
 # Source SSH connection reuse setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -62,7 +62,11 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -f)
-            SQL_FILE="$2"
+            SQL_FILE="${2:-}"
+            if [ -z "$SQL_FILE" ]; then
+                echo "❌ Error: -f requires a filename"
+                exit 1
+            fi
             shift 2
             ;;
         -h|--help)

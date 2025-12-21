@@ -6,7 +6,7 @@
 # If no argument provided, validates all workflows in n8n-workflows/
 # Returns exit code 0 if all valid, 1 if any invalid
 
-set -e
+set -euo pipefail
 
 # Find repo root (works when called from any directory)
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -30,7 +30,7 @@ validate_json() {
 
 has_errors=0
 
-if [ -n "$1" ]; then
+if [ -n "${1:-}" ]; then
     # Validate specific file
     if [ -f "$1" ]; then
         validate_json "$1" || has_errors=1

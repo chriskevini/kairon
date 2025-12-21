@@ -9,7 +9,7 @@
 #   - SSH access configured (e.g., ~/.ssh/config with Host alias)
 #   - .env file with: REMOTE_HOST, N8N_API_KEY, N8N_API_URL (optional, defaults to http://localhost:5678)
 
-set -e
+set -euo pipefail
 
 # Source SSH connection reuse setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -92,7 +92,7 @@ if [ "$DRY_RUN" = true ]; then
             continue
         fi
         
-        existing_id="${WORKFLOW_IDS[$name]}"
+        existing_id="${WORKFLOW_IDS[$name]:-}"
         
         if [ -n "$existing_id" ]; then
             echo "   [DRY-RUN] Would UPDATE: $name (id: $existing_id)"
@@ -172,7 +172,7 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
         continue
     fi
     
-    existing_id="${WORKFLOW_IDS[$name]}"
+    existing_id="${WORKFLOW_IDS[$name]:-}"
     filename=$(basename "$json_file")
     
     if [ -n "$existing_id" ]; then

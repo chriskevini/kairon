@@ -10,7 +10,7 @@
 #   - SSH access configured
 #   - .env file in repo root
 
-set -e
+set -euo pipefail
 
 # Source SSH connection reuse setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,11 +37,11 @@ for var in REMOTE_HOST CONTAINER_DB DB_USER DB_NAME REMOTE_BACKUP_DIR; do
 done
 
 # --- 4. RESOLVE MIGRATION FILE ---
-if [ -z "$1" ]; then
+if [ -z "${1:-}" ]; then
     echo "Usage: $0 <migration_file_or_number>"
     echo ""
     echo "Available migrations:"
-    ls -1 "$REPO_ROOT/db/migrations/"*.sql 2>/dev/null | xargs -n1 basename
+    ls -1 "$REPO_ROOT/db/migrations/"*.sql 2>/dev/null | xargs -n1 basename || echo "  (none found)"
     exit 1
 fi
 

@@ -14,7 +14,7 @@
 #   - SSH access configured (e.g., ~/.ssh/config with Host alias)
 #   - .env file with: REMOTE_HOST, N8N_API_KEY, N8N_API_URL (optional)
 
-set -e
+set -euo pipefail
 
 # Source SSH connection reuse setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -125,7 +125,7 @@ while IFS= read -r line; do
             continue
         fi
     elif [ "$EXPORT_ALL" != true ]; then
-        if [ -z "${LOCAL_WORKFLOWS[$name]}" ]; then
+        if [ -z "${LOCAL_WORKFLOWS[$name]:-}" ]; then
             continue
         fi
     fi
