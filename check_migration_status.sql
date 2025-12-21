@@ -26,6 +26,19 @@ LEFT JOIN traces t ON e.id = t.event_id
 WHERE t.id IS NULL
   AND e.event_type = 'discord_message';
 
+-- 3b. Recent orphaned events (no trace)
+SELECT 
+    e.received_at,
+    e.payload->>'tag' as tag,
+    LEFT(e.payload->>'clean_text', 50) as content,
+    e.payload->>'message_url' as url
+FROM events e
+LEFT JOIN traces t ON e.id = t.event_id
+WHERE t.id IS NULL
+  AND e.event_type = 'discord_message'
+ORDER BY e.received_at DESC
+LIMIT 5;
+
 -- 4. Sample of recent events and their traces/projections
 SELECT 
     e.received_at,

@@ -14,7 +14,8 @@ FROM projections
 UNION ALL
 SELECT 
     'Orphaned Messages (no projections)', 
-    (SELECT COUNT(*) FROM events WHERE event_type = 'discord_message') - COUNT(DISTINCT event_id)
+    (SELECT COUNT(*) FROM events WHERE event_type = 'discord_message') - 
+    (SELECT COUNT(DISTINCT p.event_id) FROM projections p JOIN events e ON p.event_id = e.id WHERE e.event_type = 'discord_message')
 FROM projections;
 
 -- 2. Check for duplicate idempotency keys
