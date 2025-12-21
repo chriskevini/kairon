@@ -116,7 +116,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM response, filter by confidence, split into items with emoji\nconst EMOJI = { activity: '\ud83d\udd18', note: '\ud83d\udcdd', todo: '\u2705' };\nconst CONFIDENCE_THRESHOLD = 0.5;\n\nconst llmText = $json.text?.trim() || '';\nconst prepareItem = $('Prepare Capture').first().json;\nconst ctx = prepareItem.ctx;\nconst durationMs = Date.now() - prepareItem.inference_start;\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Parse JSON from LLM output\nlet parsed = { activity: null, note: null, todo: null };\nlet parseError = null;\n\ntry {\n  let jsonStr = llmText;\n  const codeBlock = llmText.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (codeBlock) jsonStr = codeBlock[1].trim();\n  const objMatch = jsonStr.match(/\\{[\\s\\S]*\\}/);\n  if (objMatch) jsonStr = objMatch[0];\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  parseError = e.message;\n}\n\n// Build captures array\nconst captures = [];\nconst emojis = [];\n\nif (parsed.activity?.confidence >= CONFIDENCE_THRESHOLD) {\n  captures.push({\n    type: 'activity',\n    emoji: EMOJI.activity,\n    data: {\n      timestamp: new Date().toISOString(),\n      category: parsed.activity.category || 'work',\n      description: parsed.activity.description || ctx.event.clean_text,\n      message_url: ctx.event.message_url,\n      confidence: parsed.activity.confidence\n    }\n  });\n  emojis.push(EMOJI.activity);\n}\n\nif (parsed.note?.confidence >= CONFIDENCE_THRESHOLD) {\n  captures.push({\n    type: 'note',\n    emoji: EMOJI.note,\n    data: {\n      timestamp: new Date().toISOString(),\n      category: parsed.note.category || 'reflection',\n      text: parsed.note.text || ctx.event.clean_text,\n      message_url: ctx.event.message_url,\n      confidence: parsed.note.confidence\n    }\n  });\n  emojis.push(EMOJI.note);\n}\n\nif (parsed.todo?.confidence >= CONFIDENCE_THRESHOLD) {\n  captures.push({\n    type: 'todo',\n    emoji: EMOJI.todo,\n    data: {\n      timestamp: new Date().toISOString(),\n      priority: parsed.todo.priority || 'medium',\n      text: parsed.todo.text || ctx.event.clean_text,\n      message_url: ctx.event.message_url,\n      confidence: parsed.todo.confidence\n    }\n  });\n  emojis.push(EMOJI.todo);\n}\n\n// Fallback: if nothing captured, create low-confidence note\nif (captures.length === 0) {\n  captures.push({\n    type: 'note',\n    emoji: EMOJI.note,\n    data: {\n      timestamp: new Date().toISOString(),\n      category: 'reflection',\n      text: ctx.event.clean_text,\n      message_url: ctx.event.message_url,\n      confidence: 0.3\n    }\n  });\n  emojis.push(EMOJI.note);\n}\n\n// Pre-stringify the result for postgres jsonb\nconst resultJson = JSON.stringify(captures.map(c => ({ type: c.type, confidence: c.data.confidence })));\n\n// Return one item per capture\nreturn captures.map((capture, idx) => ({\n  json: {\n    ctx,\n    capture,\n    emoji: capture.emoji,\n    capture_index: idx,\n    total_captures: captures.length,\n    emojis,\n    raw_response: llmText,\n    parse_error: parseError,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg,\n    result_json: resultJson\n  }\n}));"
+        "jsCode": "// Parse LLM response, filter by confidence, return SINGLE item with captures array\n// This ensures Store LLM Trace runs exactly ONCE (one LLM call = one trace)\nconst EMOJI = { activity: '\ud83d\udd18', note: '\ud83d\udcdd', todo: '\u2705' };\nconst CONFIDENCE_THRESHOLD = 0.5;\n\nconst llmText = $json.text?.trim() || '';\nconst prepareItem = $('Prepare Capture').first().json;\nconst ctx = prepareItem.ctx;\nconst durationMs = Date.now() - prepareItem.inference_start;\n\n// Full rendered prompt (template + input)\nconst fullPrompt = `You are an extraction agent for a life-tracking system. Analyze the message and extract all relevant items.\n\n## Message to Analyze\n\n\"${ctx.event.clean_text}\"\n\n## Extraction Types\n\n### Activity (what the user is doing NOW)\nExtract if the message describes a CURRENT or RECENT action by the user.\n- **Categories:** work, leisure, study, health, sleep, relationships, admin\n- **Indicators:** \"I am\", \"I'm\", \"-ing verbs\", \"just did\", present/recent past tense\n\n### Note (observation, insight, or fact worth remembering)\nExtract if the message contains knowledge, observations, or reflections.\n- **Categories:** reflection (about self), fact (about world/others)\n- **Indicators:** observations about things/people, realizations, ideas, decisions\n\n### Todo (actionable task to complete)\nExtract if the message contains a clear task to do later.\n- **Priority:** high, medium, low\n- **Indicators:** \"need to\", \"should\", \"have to\", \"TODO\", future tasks\n\n## Key Rules\n\n1. A message can have 0, 1, 2, or 3 extractions\n2. Set confidence 0.0-1.0 based on how clearly the message indicates each type\n3. Only include extractions with confidence >= 0.5\n4. Prefer fewer high-confidence extractions over many low-confidence ones\n5. Activity describes what I'M doing; Note describes observations about anything else\n\n## Output Format\n\nOutput ONLY valid JSON, no explanation:\n\n{\"activity\": {\"category\": \"work\", \"description\": \"debugging auth\", \"confidence\": 0.92}, \"note\": {\"category\": \"reflection\", \"text\": \"noticed pattern in logs\", \"confidence\": 0.78}, \"todo\": null}`;\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Parse JSON from LLM output\nlet parsed = { activity: null, note: null, todo: null };\nlet parseError = null;\n\ntry {\n  let jsonStr = llmText;\n  const codeBlock = llmText.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (codeBlock) jsonStr = codeBlock[1].trim();\n  const objMatch = jsonStr.match(/\\{[\\s\\S]*\\}/);\n  if (objMatch) jsonStr = objMatch[0];\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  parseError = e.message;\n}\n\n// Build captures array\nconst captures = [];\nconst emojis = [];\n\nif (parsed.activity?.confidence >= CONFIDENCE_THRESHOLD) {\n  captures.push({\n    type: 'activity',\n    emoji: EMOJI.activity,\n    data: {\n      timestamp: new Date().toISOString(),\n      category: parsed.activity.category || 'work',\n      description: parsed.activity.description || ctx.event.clean_text,\n      message_url: ctx.event.message_url,\n      confidence: parsed.activity.confidence\n    }\n  });\n  emojis.push(EMOJI.activity);\n}\n\nif (parsed.note?.confidence >= CONFIDENCE_THRESHOLD) {\n  captures.push({\n    type: 'note',\n    emoji: EMOJI.note,\n    data: {\n      timestamp: new Date().toISOString(),\n      category: parsed.note.category || 'reflection',\n      text: parsed.note.text || ctx.event.clean_text,\n      message_url: ctx.event.message_url,\n      confidence: parsed.note.confidence\n    }\n  });\n  emojis.push(EMOJI.note);\n}\n\nif (parsed.todo?.confidence >= CONFIDENCE_THRESHOLD) {\n  captures.push({\n    type: 'todo',\n    emoji: EMOJI.todo,\n    data: {\n      timestamp: new Date().toISOString(),\n      priority: parsed.todo.priority || 'medium',\n      text: parsed.todo.text || ctx.event.clean_text,\n      message_url: ctx.event.message_url,\n      confidence: parsed.todo.confidence\n    }\n  });\n  emojis.push(EMOJI.todo);\n}\n\n// Fallback: if nothing captured, create low-confidence note\nif (captures.length === 0) {\n  captures.push({\n    type: 'note',\n    emoji: EMOJI.note,\n    data: {\n      timestamp: new Date().toISOString(),\n      category: 'reflection',\n      text: ctx.event.clean_text,\n      message_url: ctx.event.message_url,\n      confidence: 0.3\n    }\n  });\n  emojis.push(EMOJI.note);\n}\n\n// Pre-stringify the result for postgres jsonb\nconst resultJson = JSON.stringify(captures.map(c => ({ type: c.type, confidence: c.data.confidence })));\n\n// Return SINGLE item containing all captures (one LLM call = one trace)\nreturn [{\n  json: {\n    ctx,\n    captures,           // Array of all captures\n    emojis,             // Array of emojis for reactions\n    total_captures: captures.length,\n    raw_response: llmText,\n    parse_error: parseError,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg,\n    result_json: resultJson,\n    full_prompt: fullPrompt\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -125,14 +125,14 @@
         840
       ],
       "id": "parse-and-split",
-      "name": "Parse & Split"
+      "name": "Parse Response"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'multi_capture',\n  jsonb_build_object(\n    'input', jsonb_build_object('text', $2),\n    'completion', $3,\n    'result', $4::jsonb,\n    'model', 'xiaomi/mimo-v2-flash:free',\n    'duration_ms', $5::integer,\n    'capture_count', $6::integer\n  ),\n  $7::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
+        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'multi_capture',\n  jsonb_build_object(\n    'prompt', $2,\n    'input', jsonb_build_object('text', $3),\n    'completion', $4,\n    'result', $5::jsonb,\n    'model', 'xiaomi/mimo-v2-flash:free',\n    'duration_ms', $6::integer,\n    'capture_count', $7::integer\n  ),\n  $8::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.ctx.event.clean_text }},={{ $json.raw_response }},={{ $json.result_json }},={{ $json.duration_ms }},={{ $json.total_captures }},={{ $json.trace_chain_pg }}"
+          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.full_prompt }},={{ $json.ctx.event.clean_text }},={{ $json.raw_response }},={{ $json.result_json }},={{ $json.duration_ms }},={{ $json.total_captures }},={{ $json.trace_chain_pg }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -152,7 +152,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare projection data with trace_id from Store LLM Trace\nconst traceResult = $json;\nconst allCaptures = $('Parse & Split').all();\n\nconst llmTraceId = traceResult.id;\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\nreturn allCaptures.map(item => ({\n  json: {\n    ...item.json,\n    llm_trace_id: llmTraceId,\n    trace_chain_pg: updatedTraceChainPg\n  }\n}));"
+        "jsCode": "// Split captures into individual items for projection storage\n// Input: Store LLM Trace result (single item with trace id)\n// Output: One item per capture, each with trace_id attached\n\nconst traceResult = $json;\nconst parseResult = $('Parse Response').first().json;\n\nconst llmTraceId = traceResult.id;\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// Split captures array into individual items\nreturn parseResult.captures.map(capture => ({\n  json: {\n    ctx: parseResult.ctx,\n    capture,\n    llm_trace_id: llmTraceId,\n    trace_chain_pg: updatedTraceChainPg\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -161,7 +161,7 @@
         1032
       ],
       "id": "prepare-projections",
-      "name": "Prepare Projections"
+      "name": "Split Captures"
     },
     {
       "parameters": {
@@ -188,7 +188,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Collect results for logging\nconst items = $('Parse & Split').all();\nconst first = items[0]?.json || {};\n\nreturn [{\n  json: {\n    ctx: first.ctx,\n    emojis: first.emojis || ['\ud83d\udcdd'],\n    projection_count: items.length\n  }\n}];"
+        "jsCode": "// Collect results for logging with standard emojis\nconst parseResult = $('Parse Response').first().json;\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '\ud83d\udd18',\n  'note': '\ud83d\udcdd',\n  'todo': '\ud83d\udd32'\n};\n\n// Map capture types to standard emojis\nconst emojis = parseResult.captures.map(c => typeEmojis[c.type] || '\ud83d\udce6');\n\nreturn [{\n  json: {\n    ctx: parseResult.ctx,\n    emojis: emojis,\n    duration_ms: parseResult.duration_ms,\n    projection_count: parseResult.total_captures\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -239,7 +239,7 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "=**[Multi-Capture]**\n**Message:** {{ $json.ctx.event.clean_text }}\n**Captures:** {{ $json.emojis.join(' ') }} ({{ $json.projection_count }} items)",
+        "content": "={{ $json.ctx.event.clean_text }} {{ $json.duration_ms }}ms \u27a1\ufe0f {{ $json.emojis.join(' ') }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -288,6 +288,19 @@
       ],
       "id": "2741faa1-e8ab-4588-b3b5-bc67839680a3",
       "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Convert emojis array to individual items for batch processing\nconst parseResult = $('Parse Response').first().json;\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '\ud83d\udd18',\n  'note': '\ud83d\udcdd',\n  'todo': '\ud83d\udd32'\n};\n\n// Map capture types to standard emojis\nconst emojis = parseResult.captures.map(c => typeEmojis[c.type] || '\ud83d\udce6');\n\nreturn emojis.map(emoji => ({\n  json: {\n    ctx: parseResult.ctx,\n    emoji: emoji\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        552
+      ],
+      "id": "prepare-emoji-items",
+      "name": "Prepare Emoji Items"
     }
   ],
   "connections": {
@@ -322,28 +335,7 @@
       "main": [
         [
           {
-            "node": "Parse & Split",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse & Split": {
-      "main": [
-        [
-          {
-            "node": "Store LLM Trace",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Collect Results",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Loop Over Items",
+            "node": "Parse Response",
             "type": "main",
             "index": 0
           }
@@ -354,18 +346,7 @@
       "main": [
         [
           {
-            "node": "Prepare Projections",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Projections": {
-      "main": [
-        [
-          {
-            "node": "Store Projection",
+            "node": "Split Captures",
             "type": "main",
             "index": 0
           }
@@ -438,6 +419,49 @@
         [
           {
             "node": "Add Emoji Reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Response": {
+      "main": [
+        [
+          {
+            "node": "Store LLM Trace",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Emoji Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Captures": {
+      "main": [
+        [
+          {
+            "node": "Store Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Emoji Items": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
             "type": "main",
             "index": 0
           }
