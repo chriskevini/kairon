@@ -186,7 +186,7 @@ curl -s -H 'X-N8N-API-KEY: $N8N_API_KEY' '$N8N_API_URL/api/v1/workflows/$id' | j
     meta: .meta,
     active: false
 }' > '$REMOTE_TMP/$filename'
-echo 'Exported: $filename'
+echo 'Exported: $filename' >&2
 "
 done
 
