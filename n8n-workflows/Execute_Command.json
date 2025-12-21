@@ -737,30 +737,10 @@
           "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
-        "channelId": {
+"channelId": {
           "__rl": true,
-          "value": "={{ $json.ctx.event.channel_id }}",
+          "value": "={{ $json.ctx.response.channel_id || $json.ctx.event.channel_id }}",
           "mode": "id"
-        },
-        "content": "={{ $json.ctx.validation.error_message }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.discord",
-      "typeVersion": 2,
-      "position": [
-        -432,
-        10544
-      ],
-      "id": "3620a516-8d38-4660-9d35-e615e8a611ec",
-      "name": "Send Error Message",
-      "webhookId": "error-webhook-001",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
         }
       }
     },
@@ -1037,7 +1017,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format response for generate command\nconst ctx = $('If Valid Generate').first().json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'nudge';\n\nreturn {\n  ctx: {\n    ...ctx,\n    // Override channel to send confirmation to kairon-logs\n    event: {\n      ...ctx.event,\n      channel_id: $env.DISCORD_CHANNEL_KAIRON_LOGS\n    },\n    response: {\n      content: `✅ Generating ${typeLabel}...`\n    }\n  }\n};"
+        "jsCode": "// Format response for generate command\nconst ctx = $('If Valid Generate').first().json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'nudge';\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `✅ Generating ${typeLabel}...`,\n      channel_id: $env.DISCORD_CHANNEL_KAIRON_LOGS\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
