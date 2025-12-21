@@ -22,10 +22,20 @@ git config core.hooksPath .githooks
 n8n-workflows/       # Workflow JSON files (synced with server)
 scripts/workflows/   # n8n-push.sh, n8n-pull.sh, sanitize, validate, lint
 scripts/db/          # run-migration.sh, db-query.sh
+scripts/ssh-setup.sh # SSH connection reuse (ControlMaster) - reduces rate-limiting
 db/migrations/       # SQL migrations
 prompts/             # LLM prompts
 discord_relay.py     # Discord bot that forwards to n8n
 ```
+
+## SSH Scripts (Optimized for Rate-Limiting)
+
+All SSH scripts use connection multiplexing to minimize rate-limiting:
+- **Automatic connection reuse** via `ssh-setup.sh` (ControlMaster)
+- **Reduced connection counts** through batched operations
+- **Tar pipes** for efficient file transfers
+
+See `docs/SSH_OPTIMIZATIONS.md` for implementation details.
 
 ## n8n Best Practices
 

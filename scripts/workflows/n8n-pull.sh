@@ -16,8 +16,11 @@
 
 set -e
 
-# --- 1. RESOLVE DIRECTORIES ---
+# Source SSH connection reuse setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../ssh-setup.sh" 2>/dev/null || true
+
+# --- 1. RESOLVE DIRECTORIES ---
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
 WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
@@ -183,21 +186,31 @@ curl -s -H 'X-N8N-API-KEY: $N8N_API_KEY' '$N8N_API_URL/api/v1/workflows/$id' | j
     meta: .meta,
     active: false
 }' > '$REMOTE_TMP/$filename'
-echo 'Exported: $filename'
+echo 'Exported: $filename' >&2
 "
 done
 
 echo "Exporting on remote server..."
-ssh "$REMOTE_HOST" "$REMOTE_SCRIPT" </dev/null
-
-# Download all files in one scp call
-echo ""
-echo "Downloading to local..."
 LOCAL_TMP=$(mktemp -d)
 trap "rm -rf $LOCAL_TMP" EXIT
 
-scp -q "$REMOTE_HOST:$REMOTE_TMP/*.json" "$LOCAL_TMP/"
+# Export, download, and cleanup in single SSH session via tar
+# The && ensures cleanup only happens if export succeeds
+ssh "$REMOTE_HOST" "
+    set -e
+    $REMOTE_SCRIPT
+    # Check if any JSON files were created
+    if ls $REMOTE_TMP/*.json >/dev/null 2>&1; then
+        cd $REMOTE_TMP && tar czf - *.json
+    else
+        echo 'No files exported' >&2
+        exit 1
+    fi
+    rm -rf $REMOTE_TMP
+" </dev/null | (cd "$LOCAL_TMP" && tar xzf -)
 
+echo ""
+echo "Downloading to local..."
 # Move files to workflow directory
 for id in "${EXPORT_IDS[@]}"; do
     name="${WORKFLOW_NAMES[$id]}"
@@ -208,9 +221,6 @@ for id in "${EXPORT_IDS[@]}"; do
         echo "   Saved: $name -> $filename"
     fi
 done
-
-# Cleanup remote
-ssh "$REMOTE_HOST" "rm -rf $REMOTE_TMP" </dev/null 2>/dev/null || true
 
 # Run sanitization
 echo ""
