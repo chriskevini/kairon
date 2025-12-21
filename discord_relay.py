@@ -30,6 +30,22 @@ intents.guild_reactions = True  # Enable reaction events
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# Persistent HTTP session (initialized on bot ready)
+http_session: Optional[aiohttp.ClientSession] = None
+
+
+def is_arcane_shell_channel(channel) -> bool:
+    """
+    Check if the channel is #arcane-shell or a thread from #arcane-shell.
+    Extracts duplicated channel checking logic.
+    """
+    if isinstance(channel, discord.Thread):
+        parent_channel = channel.parent
+        return parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME
+    elif isinstance(channel, discord.TextChannel):
+        return channel.name == ARCANE_SHELL_CHANNEL_NAME
+    return False
+
 
 def format_message_payload(message: discord.Message) -> dict:
     """
@@ -98,25 +114,30 @@ def format_reaction_payload(
 
 async def send_to_n8n(payload: dict) -> bool:
     """
-    Send payload to n8n webhook.
+    Send payload to n8n webhook using persistent session.
     Fires and forgets - responds immediately for fast relay.
     Returns True if webhook accepted, False if connection failed.
     """
+    global http_session
+    
+    if http_session is None:
+        print("✗ HTTP session not initialized")
+        return False
+    
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                N8N_WEBHOOK_URL,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=2),  # Quick timeout
-            ) as response:
-                # Just check if webhook accepted (200-299)
-                success = 200 <= response.status < 300
-                if success:
-                    event_type = payload.get('event_type', 'unknown')
-                    print(f"✓ Sent {event_type} to n8n (status {response.status})")
-                else:
-                    print(f"✗ n8n webhook returned {response.status}")
-                return success
+        async with http_session.post(
+            N8N_WEBHOOK_URL,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=2),  # Quick timeout
+        ) as response:
+            # Just check if webhook accepted (200-299)
+            success = 200 <= response.status < 300
+            if success:
+                event_type = payload.get('event_type', 'unknown')
+                print(f"✓ Sent {event_type} to n8n (status {response.status})")
+            else:
+                print(f"✗ n8n webhook returned {response.status}")
+            return success
     except asyncio.TimeoutError:
         print(f"✗ Timeout sending to n8n (>2s)")
         return False
@@ -128,12 +149,18 @@ async def send_to_n8n(payload: dict) -> bool:
 @bot.event
 async def on_ready():
     """
-    Bot startup event.
+    Bot startup event. Initializes persistent HTTP session.
     """
+    global http_session
+    
+    # Create persistent HTTP session for all webhook calls
+    http_session = aiohttp.ClientSession()
+    
     print(f"✓ Bot logged in as {bot.user}")
     print(f"✓ Connected to {len(bot.guilds)} guild(s)")
     print(f"✓ Listening for messages and reactions in #{ARCANE_SHELL_CHANNEL_NAME}")
     print(f"✓ Webhook URL: {N8N_WEBHOOK_URL}")
+    print(f"✓ HTTP session initialized")
 
 
 @bot.event
@@ -147,19 +174,7 @@ async def on_message(message: discord.Message):
         return
 
     # Check if message is in #arcane-shell or a thread from it
-    should_process = False
-
-    if isinstance(message.channel, discord.Thread):
-        # Message in thread - check if thread parent is #arcane-shell
-        parent_channel = message.channel.parent
-        if parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME:
-            should_process = True
-    elif isinstance(message.channel, discord.TextChannel):
-        # Message in channel - check if it's #arcane-shell
-        if message.channel.name == ARCANE_SHELL_CHANNEL_NAME:
-            should_process = True
-
-    if not should_process:
+    if not is_arcane_shell_channel(message.channel):
         return
 
     # Format and send to n8n (fire and forget)
@@ -181,22 +196,8 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User | disco
     if user.bot:
         return
 
-    message = reaction.message
-    
     # Check if reaction is in #arcane-shell or a thread from it
-    should_process = False
-
-    if isinstance(message.channel, discord.Thread):
-        # Reaction in thread - check if thread parent is #arcane-shell
-        parent_channel = message.channel.parent
-        if parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME:
-            should_process = True
-    elif isinstance(message.channel, discord.TextChannel):
-        # Reaction in channel - check if it's #arcane-shell
-        if message.channel.name == ARCANE_SHELL_CHANNEL_NAME:
-            should_process = True
-
-    if not should_process:
+    if not is_arcane_shell_channel(reaction.message.channel):
         return
 
     # Format and send to n8n (fire and forget)
@@ -214,22 +215,8 @@ async def on_reaction_remove(reaction: discord.Reaction, user: discord.User | di
     if user.bot:
         return
 
-    message = reaction.message
-    
     # Check if reaction is in #arcane-shell or a thread from it
-    should_process = False
-
-    if isinstance(message.channel, discord.Thread):
-        # Reaction in thread - check if thread parent is #arcane-shell
-        parent_channel = message.channel.parent
-        if parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME:
-            should_process = True
-    elif isinstance(message.channel, discord.TextChannel):
-        # Reaction in channel - check if it's #arcane-shell
-        if message.channel.name == ARCANE_SHELL_CHANNEL_NAME:
-            should_process = True
-
-    if not should_process:
+    if not is_arcane_shell_channel(reaction.message.channel):
         return
 
     # Format and send to n8n (fire and forget)
