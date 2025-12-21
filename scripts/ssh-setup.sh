@@ -37,8 +37,21 @@ export -f scp
 
 # Cleanup function to close the master connection
 cleanup_ssh_connection() {
-    if [ -n "$REMOTE_HOST" ] && [ -S "$SSH_CONTROL_DIR"/*"$REMOTE_HOST"* 2>/dev/null ]; then
-        command ssh -O exit -o ControlPath="$SSH_CONTROL_PATH" "$REMOTE_HOST" 2>/dev/null || true
+    if [ -n "$REMOTE_HOST" ]; then
+        # Check if any control socket exists for this host
+        local socket_found=false
+        shopt -s nullglob
+        for socket in "$SSH_CONTROL_DIR"/*"$REMOTE_HOST"*; do
+            if [ -S "$socket" ]; then
+                socket_found=true
+                break
+            fi
+        done
+        shopt -u nullglob
+        
+        if [ "$socket_found" = true ]; then
+            command ssh -O exit -o ControlPath="$SSH_CONTROL_PATH" "$REMOTE_HOST" 2>/dev/null || true
+        fi
     fi
 }
 
