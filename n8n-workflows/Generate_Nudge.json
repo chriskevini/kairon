@@ -131,7 +131,29 @@
     },
     {
       "parameters": {
-        "numberInputs": 4
+        "operation": "executeQuery",
+        "query": "SELECT value as timezone FROM config WHERE key = 'timezone';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        896,
+        384
+      ],
+      "id": "get-timezone",
+      "name": "Get Timezone",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
@@ -144,7 +166,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build LLM prompt context\nconst allItems = $input.all();\n\n// Extract ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\n// Extract north star (fallback to introspection prompt)\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = allItems.filter(item => item.json.value !== undefined);\nif (northStarItems.length > 0 && northStarItems[0].json.value) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities (has 'description' field)\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract last note (has 'text' field but not 'description')\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  !item.json.error\n);\n\n// Format activities list\nlet activitiesList = '';\nlet noActivities = true;\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  noActivities = false;\n  activityItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format last note\nlet lastNote = '(None)';\nif (noteItems.length > 0 && noteItems[0].json.text) {\n  const note = noteItems[0].json;\n  const time = new Date(note.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n  lastNote = `${time} [${note.category}] ${note.text}`;\n}\n\n// Current timestamp for prompt\nconst timestamp = ctx.event.timestamp;\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList,\n    no_activities: noActivities,\n    last_note: lastNote,\n    timestamp: timestamp,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n}];"
+        "jsCode": "// Build LLM prompt context\nconst allItems = $input.all();\n\n// Extract ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\n// Extract timezone (default to UTC if not set)\nlet timezone = 'UTC';\nconst tzItems = allItems.filter(item => item.json.timezone !== undefined);\nif (tzItems.length > 0 && tzItems[0].json.timezone) {\n  timezone = tzItems[0].json.timezone;\n}\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    // Fallback if timezone is invalid\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\n// Extract north star (fallback to introspection prompt)\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = allItems.filter(item => item.json.value !== undefined);\nif (northStarItems.length > 0 && northStarItems[0].json.value) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities (has 'description' field)\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract last note (has 'text' field but not 'description')\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  !item.json.error\n);\n\n// Format activities list with user's timezone\nlet activitiesList = '';\nlet noActivities = true;\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  noActivities = false;\n  activityItems.forEach(item => {\n    const time = formatTime(item.json.timestamp);\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format last note with user's timezone\nlet lastNote = '(None)';\nif (noteItems.length > 0 && noteItems[0].json.text) {\n  const note = noteItems[0].json;\n  const time = formatTime(note.timestamp);\n  lastNote = `${time} [${note.category}] ${note.text}`;\n}\n\n// Current time in user's timezone for prompt\nlet currentTime;\ntry {\n  currentTime = new Date().toLocaleString('en-US', {\n    timeZone: timezone,\n    weekday: 'short',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n} catch (e) {\n  currentTime = new Date().toLocaleString('en-US', {\n    weekday: 'short',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n}\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList,\n    no_activities: noActivities,\n    last_note: lastNote,\n    timestamp: currentTime,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n}];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -158,7 +180,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are a life coach checking in on your client. Current time: {{ $json.timestamp }}\n\n## Client's North Star\n{{ $json.north_star }}\n\n## Recent Activity (last 4 hours)\n{{ $json.recent_activities }}\n\n## Last Note\n{{ $json.last_note }}\n\n## Your Task\nDecide whether to nudge the client right now. You have three options:\n\n**SKIP** - Say nothing. Use when:\n- They're clearly in deep work (recent focused activity)\n- It's late night/early morning (let them sleep)\n- Recent activity shows good momentum\n- A nudge would interrupt more than help\n\n**ENCOURAGE** - Affirm what they're doing. Use when:\n- Current activity aligns with their north star\n- They're on a good streak\n- They might need a small boost to keep going\n\n**REDIRECT** - Gently suggest a shift. Use when:\n- They've been on one thing too long (3+ hours)\n- Time of day suggests a transition (morning focus -> lunch break)\n- They seem stuck or scattered\n- A break or change would serve them\n\n## Output Format\nFirst line: SKIP, ENCOURAGE, or REDIRECT\nIf not SKIP, second line onward: Your message (1-2 sentences, warm but concise)\n\n## Examples\n\nSKIP\n\n---\n\nENCOURAGE\nNice flow on the router work. You're building something meaningful - keep going.\n\n---\n\nREDIRECT\nYou've been heads-down for 3 hours. Quick stretch or refill water before the next push?\n\n---\n\nSKIP\n\n---\n\nENCOURAGE\nMorning deep work paying off. This is exactly the focus your north star calls for.\n\n---\n\nREDIRECT\nIt's 11pm and you're still coding. Tomorrow-you will thank tonight-you for sleeping.",
+        "text": "=You are a life coach checking in on your client. Current time: {{ $json.timestamp }}\n\n## Context (for your understanding only - do not mention directly)\nClient's guiding principle: {{ $json.north_star }}\n\n## Recent Activity (last 4 hours)\n{{ $json.recent_activities }}\n\n## Last Note\n{{ $json.last_note }}\n\n## Your Task\nDecide whether to nudge the client right now. You have three options:\n\n**SKIP** - Say nothing. Use when:\n- They're clearly in deep work (recent focused activity)\n- It's late night/early morning (let them sleep)\n- Recent activity shows good momentum\n- A nudge would interrupt more than help\n\n**ENCOURAGE** - Affirm what they're doing. Use when:\n- They're making good progress\n- They're on a good streak\n- They might need a small boost to keep going\n\n**REDIRECT** - Gently suggest a shift. Use when:\n- They've been on one thing too long (3+ hours)\n- Time of day suggests a transition (morning focus -> lunch break)\n- They seem stuck or scattered\n- A break or change would serve them\n\n## Output Format\nFirst line: SKIP, ENCOURAGE, or REDIRECT\nIf not SKIP, second line onward: Your message (1-2 sentences, warm but concise)\n\n## Important\n- Never mention \"north star\", \"guiding principle\", or similar phrases\n- Focus on the concrete activity and practical observations\n- Be natural and conversational\n\n## Examples\n\nSKIP\n\n---\n\nENCOURAGE\nNice flow on the router work - keep going.\n\n---\n\nREDIRECT\nYou've been heads-down for 3 hours. Quick stretch or refill water before the next push?\n\n---\n\nSKIP\n\n---\n\nENCOURAGE\nMorning deep work paying off. This is the kind of focus that compounds.\n\n---\n\nREDIRECT\nIt's 11pm and you're still coding. Tomorrow-you will thank tonight-you for sleeping.",
         "needsFallback": true,
         "batching": {}
       },
@@ -444,6 +466,11 @@
             "node": "Merge Query Results",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Get Timezone",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -610,6 +637,17 @@
             "node": "Generate Nudge with LLM",
             "type": "ai_languageModel",
             "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Timezone": {
+      "main": [
+        [
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 4
           }
         ]
       ]
