@@ -8,8 +8,8 @@ This audit identifies technical debt across the Kairon codebase, organized by pr
 
 | Area | Resolved | Remaining (Low Priority) |
 |------|----------|-------------------------|
-| n8n Workflows | 5 | 2 (error handling, ctx init) |
-| Database | 4 | 3 (views, embeddings, timezone) |
+| n8n Workflows | 7 | 0 |
+| Database | 5 | 2 (views, embeddings) |
 | Python Code | 7 | 1 (type hints) |
 | Shell Scripts | 4 | 2 (quoting, pre-commit speed) |
 | Documentation | 8 | 0 |
@@ -49,11 +49,20 @@ This audit identifies technical debt across the Kairon codebase, organized by pr
 
 ### Medium
 
-#### 1.6 Inconsistent Error Handling
-Not all workflows return user-friendly error messages on failure.
+#### 1.6 ~~Inconsistent Error Handling~~ RESOLVED
+~~Not all workflows return user-friendly error messages on failure.~~
 
-#### 1.7 Missing ctx Initialization
-Some workflows don't initialize `ctx.event` in the first node, especially system-triggered ones like `Generate_Daily_Summary`.
+**Status:** RESOLVED (Dec 2025) - All 15 workflows now have error handling. 14 of 15 workflows have `errorWorkflow` configured pointing to `Handle_Error` workflow (the exception is `Handle_Error` itself). The global error handler adds ❌ reactions, removes 🔵 processing indicators, and posts error details to the logs channel.
+
+#### 1.7 ~~Missing ctx Initialization~~ RESOLVED
+~~Some workflows don't initialize `ctx.event` in the first node, especially system-triggered ones like `Generate_Daily_Summary`.~~
+
+**Status:** RESOLVED (Dec 2025) - Workflow linter confirms all workflows pass ctx pattern validation. System-triggered workflows (`Generate_Daily_Summary`, `Generate_Nudge`) have dedicated "Initialize ctx" Code nodes. Sub-workflows (`Handle_Todo_Status`, `Route_Message`, etc.) receive ctx from parent workflows via `executeWorkflowTrigger`.
+
+#### 1.8 Timezone in Projections
+Migration 019 added `timezone` columns to projections. All workflows should populate this field.
+
+**Status:** RESOLVED (Dec 2025) - Added timezone to projection INSERTs in 5 workflows: Capture_Thread, Continue_Thread, Generate_Daily_Summary, Multi_Capture, Start_Thread.
 
 ---
 
@@ -91,8 +100,10 @@ Some workflows don't initialize `ctx.event` in the first node, especially system
 #### 2.6 Embeddings Table Downgrade
 `embeddings.embedding_data` uses JSONB instead of `pgvector`, which is inefficient for similarity searches.
 
-#### 2.7 Timezone Column Usage
-Migration 019 added `timezone` columns. Ensure all workflows populate this field.
+#### 2.7 ~~Timezone Column Usage~~ RESOLVED
+~~Migration 019 added `timezone` columns. Ensure all workflows populate this field.~~
+
+**Status:** RESOLVED (Dec 2025) - All projection INSERT statements now include timezone. User-triggered workflows use `$json.ctx.event.timezone`, system-triggered workflows use `(SELECT value FROM config WHERE key = 'timezone')`.
 
 ---
 
@@ -275,8 +286,12 @@ Variable quoting is inconsistent, especially in SQL contexts.
 2. ~~Add basic test coverage for Python~~ - RESOLVED (Dec 2025) - 12 tests for discord_relay.py
 3. ~~Pin dependencies~~ - RESOLVED (Dec 2025) - Exact versions in requirements.txt
 4. ~~Consolidate documentation inconsistencies~~ - RESOLVED (Dec 2025) - Removed outdated SUMMARY.md
+5. ~~Add timezone to projection INSERTs~~ - RESOLVED (Dec 2025) - All 5 workflows with projection INSERTs now include timezone
+6. ~~Error handling in workflows~~ - RESOLVED (Dec 2025) - All workflows have errorWorkflow configured
+7. ~~ctx initialization~~ - RESOLVED (Dec 2025) - All workflows pass ctx pattern linter
 
 ### Phase 4: Ongoing
 1. Add workflow documentation as features ship
 2. Improve type hints
 3. Consider materialized views for performance
+4. Upgrade embeddings table to pgvector when implementing RAG
