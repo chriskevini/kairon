@@ -47,7 +47,7 @@ Use this standard structure across all workflows:
       channel_id: "discord_id",      // Discord channel
       message_id: "discord_id",      // Discord message
       clean_text: "message text",    // Cleaned message content
-      tag: "!!" | ".." | "++" | null, // Route tag
+      tag: "!!" | ".." | "++" | "--" | "::" | "$$" | null, // Route tag (see docs/tag-parsing-reference.md)
       trace_chain: ["uuid"],         // LLM trace ancestry
       author_login: "username",      // Discord username
       timestamp: "ISO8601"           // Event timestamp
@@ -281,13 +281,17 @@ Event (immutable log)
 
 ## Tag Routing
 
-```
-!!  → Activity only
-..  → Note only
-++  → Start chat thread
-::  → Command
-(none) → LLM classification → multi-extraction
-```
+Tags are parsed at the start of messages. See `docs/tag-parsing-reference.md` for full parsing rules.
+
+| Symbol | Word Alt | Intent | Workflow |
+|--------|----------|--------|----------|
+| `!!` | `act` | Activity capture | Direct save |
+| `..` | `note` | Note capture | Direct save |
+| `++` | `chat` | Start thread | Thread agent |
+| `--` | `save` | Save & close thread | Save thread |
+| `::` | `cmd` | Execute command | Command handler |
+| `$$` | `todo` | Create todo | Todo handler |
+| (none) | - | Auto-classify | LLM router → multi-extraction |
 
 ## Scripts Reference
 
