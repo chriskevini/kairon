@@ -2,7 +2,7 @@
 # Pre-commit hook for Kairon
 # Validates and sanitizes n8n workflow files before commit
 
-set -e
+set -euo pipefail
 
 # Find repo root
 REPO_ROOT="$(git rev-parse --show-toplevel)"

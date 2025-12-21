@@ -1,7 +1,7 @@
 #!/bin/bash
 # Sanitize n8n workflow exports by removing pinData (test execution data)
 
-set -e
+set -euo pipefail
 
 # Find repo root (works when called from any directory)
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
