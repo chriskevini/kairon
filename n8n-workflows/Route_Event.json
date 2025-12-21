@@ -219,7 +219,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const reaction = $json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
+        "jsCode": "const reaction = $json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst timestamp = Date.now();\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${timestamp}`;\n\nreturn [{\n  json: {\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -257,7 +257,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING *;",
+        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9\n)\nRETURNING *;",
         "options": {
           "queryReplacement": "={{ $json.body.guild_id }},={{ $json.body.channel_id }},={{ $json.body.message_id }},={{ $json.body.user?.login || $json.body.user_id }},={{ $json.body.thread_id || null }},={{ $('Parse Reaction').item.json.emoji }},={{ $('Parse Reaction').item.json.extraction_index }},={{ $json.body.action }},={{ $('Parse Reaction').item.json.synthetic_id }}"
         }
@@ -523,7 +523,14 @@
     "availableInMCP": false,
     "errorWorkflow": "JOXLqn9TTznBdo7Q"
   },
-  "staticData": null,
+  "staticData": {
+    "node:Nudge Cron (Every 15 Min)": {
+      "recurrenceRules": []
+    },
+    "node:Summary Cron (Every 5 Min)": {
+      "recurrenceRules": []
+    }
+  },
   "meta": null,
-  "active": true
+  "active": false
 }

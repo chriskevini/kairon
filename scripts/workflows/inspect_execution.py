@@ -70,6 +70,52 @@ def run_ssh_curl(endpoint, env_vars, method="GET"):
         print(f"Response: {result.stdout[:500]}", file=sys.stderr)
         sys.exit(1)
 
+def run_ssh_multi_curl(endpoints, env_vars):
+    """Run multiple curl commands in a single SSH call, return list of results"""
+    remote_host = env_vars.get('REMOTE_HOST')
+    api_key = env_vars.get('N8N_API_KEY')
+    api_url = env_vars.get('N8N_API_URL', 'http://localhost:5678')
+    
+    if not remote_host:
+        print("Error: REMOTE_HOST not set in .env", file=sys.stderr)
+        sys.exit(1)
+    if not api_key:
+        print("Error: N8N_API_KEY not set in .env", file=sys.stderr)
+        sys.exit(1)
+    
+    # Build a script that runs all curls and outputs JSON array
+    curl_commands = []
+    for endpoint in endpoints:
+        url = f"{api_url}/api/v1{endpoint}"
+        curl_commands.append(f"curl -s '{url}' -H 'Accept: application/json' -H 'X-N8N-API-KEY: {api_key}'")
+    
+    # Join with delimiter so we can split results
+    # Use jq to wrap results in array
+    script = " && echo '|||DELIM|||' && ".join(curl_commands)
+    
+    cmd = ["ssh", remote_host, script]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"SSH/curl error: {result.stderr}", file=sys.stderr)
+        sys.exit(1)
+    if not result.stdout:
+        print("Error: Empty response from API", file=sys.stderr)
+        sys.exit(1)
+    
+    # Split results and parse each
+    parts = result.stdout.split('|||DELIM|||')
+    results = []
+    for part in parts:
+        part = part.strip()
+        if part:
+            try:
+                results.append(json.loads(part))
+            except json.JSONDecodeError as e:
+                print(f"Error parsing JSON: {e}", file=sys.stderr)
+                print(f"Response: {part[:500]}", file=sys.stderr)
+                sys.exit(1)
+    return results
+
 def format_timestamp(ts):
     """Format ISO timestamp to readable format"""
     if not ts:
@@ -110,6 +156,21 @@ def list_executions(env_vars, limit=10, status=None):
     if status:
         endpoint += f"&status={status}"
     return run_ssh_curl(endpoint, env_vars)
+
+def list_executions_with_names(env_vars, limit=10, status=None):
+    """List executions with workflow names in a single SSH call"""
+    exec_endpoint = f"/executions?limit={limit}"
+    if status:
+        exec_endpoint += f"&status={status}"
+    
+    # Fetch both in one SSH call
+    results = run_ssh_multi_curl(["/workflows", exec_endpoint], env_vars)
+    workflows_data, executions_data = results
+    
+    # Build name mapping
+    workflow_names = {w['id']: w['name'] for w in workflows_data.get('data', [])}
+    
+    return executions_data, workflow_names
 
 def print_execution_summary(exec_data):
     """Print execution summary"""
@@ -199,15 +260,23 @@ def print_node_outputs(exec_data):
                 else:
                     print(f"  [Run {i}] No output data")
 
-def print_execution_list(executions):
+def print_execution_list(executions, workflow_names=None):
     """Print list of executions"""
+    if workflow_names is None:
+        workflow_names = {}
+    
     print(f"\n{'ID':<8} {'Status':<10} {'Workflow':<30} {'Started':<20} {'Duration':<10}")
     print("-" * 80)
     
     for ex in executions.get('data', []):
         exec_id = ex.get('id', 'N/A')
         status = ex.get('status', 'N/A')
-        workflow = ex.get('workflowData', {}).get('name', 'Unknown')[:28]
+        
+        # Get workflow name from mapping, or from workflowData if present
+        workflow_id = ex.get('workflowId', '')
+        workflow = workflow_names.get(workflow_id) or ex.get('workflowData', {}).get('name', 'Unknown')
+        workflow = workflow[:28]
+        
         started = format_timestamp(ex.get('startedAt'))
         duration = format_duration(ex.get('startedAt'), ex.get('stoppedAt'))
         
@@ -233,11 +302,11 @@ def main():
     env_vars = load_env()
     
     if args.list:
-        executions = list_executions(env_vars, limit=args.limit)
-        print_execution_list(executions)
+        executions, workflow_names = list_executions_with_names(env_vars, limit=args.limit)
+        print_execution_list(executions, workflow_names)
     elif args.failed:
-        executions = list_executions(env_vars, limit=args.limit, status='error')
-        print_execution_list(executions)
+        executions, workflow_names = list_executions_with_names(env_vars, limit=args.limit, status='error')
+        print_execution_list(executions, workflow_names)
     elif args.execution_id:
         exec_data = get_execution(args.execution_id, env_vars, include_data=True)
         print_execution_summary(exec_data)
