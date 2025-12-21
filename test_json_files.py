@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import re
+from pathlib import Path
 
 def test_json_file(filepath):
     """Test if a JSON file can be parsed and return any errors."""
@@ -95,7 +96,8 @@ def fix_control_characters(content):
     return fixed_content
 
 def main():
-    workflow_dir = "/home/chris/Work/kairon/n8n-workflows"
+    script_dir = Path(__file__).parent
+    workflow_dir = script_dir / "n8n-workflows"
     json_files = [f for f in os.listdir(workflow_dir) if f.endswith('.json')]
     
     print(f"Testing {len(json_files)} JSON files...")

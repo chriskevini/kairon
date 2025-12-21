@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import re
+from pathlib import Path
 
 def fix_json_string_content(content):
     """Fix control characters in JSON string content by properly escaping them."""
@@ -70,7 +71,8 @@ def test_and_fix_json_file(filepath):
             return False, f"Still broken: {e2}", content
 
 def main():
-    workflow_dir = "/home/chris/Work/kairon/n8n-workflows"
+    script_dir = Path(__file__).parent
+    workflow_dir = script_dir / "n8n-workflows"
     broken_files = [
         "Continue_Chat.json",
         "Start_Chat.json", 

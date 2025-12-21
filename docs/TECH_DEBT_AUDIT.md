@@ -30,17 +30,15 @@ This audit identifies technical debt across the Kairon codebase, organized by pr
 
 ### High
 
-#### 1.3 Hardcoded Workflow IDs
-Workflows use hardcoded IDs instead of names or environment variables:
+#### 1.3 ~~Hardcoded Workflow IDs~~ NOT AN ISSUE
+~~Workflows use hardcoded IDs instead of names or environment variables~~
 
-- `Route_Event.json` - Hardcoded IDs for `Route_Message`, `Route_Reaction`, `Execute_Command`
-- `Route_Reaction.json` - Hardcoded IDs for `Save_Extraction`, `Handle_Correction`
-- `Handle_Correction.json` - Hardcoded ID for `Capture_Projection`
+**Status:** NOT AN ISSUE (Dec 2025) - n8n workflow IDs are stable and don't change. The IDs are generated once when workflows are created and persist across deployments. n8n doesn't support name-based workflow references, so using IDs is the standard approach. Moving to env vars would add complexity without benefit.
 
-**Fix:** Use workflow names or move IDs to environment variables.
+#### 1.4 ~~Switch Nodes Without Defaults~~ NOT AN ISSUE
+~~Some Switch nodes lack fallback cases, causing silent failures when no match occurs.~~
 
-#### 1.4 Switch Nodes Without Defaults
-Some Switch nodes lack fallback cases, causing silent failures when no match occurs.
+**Status:** NOT AN ISSUE (Dec 2025) - Audited all Switch nodes. Most have `fallbackOutput: extra` or explicit fallback outputs. The one exception (`Save_Extraction: What Action` with `fallbackOutput: none`) is intentional - unknown emojis are filtered upstream in Route_Reaction before reaching this workflow.
 
 #### 1.5 ~~Set Nodes with "Keep Only Set"~~ RESOLVED
 ~~Older nodes in `Execute_Command.json` use "Keep Only Set" behavior, dropping the `ctx` object.~~
@@ -114,12 +112,12 @@ Migration 019 added `timezone` columns. Ensure all workflows populate this field
 
 **Status:** RESOLVED - Extracted to `is_arcane_shell_channel()` helper function.
 
-#### 3.3 Hardcoded Absolute Paths
-**Files:**
-- `test_json_files.py:98` - Hardcoded `/home/chris/Work/kairon/n8n-workflows`
-- `fix_json_files.py:73` - Same hardcoded path
+#### 3.3 ~~Hardcoded Absolute Paths~~ RESOLVED
+~~**Files:**~~
+~~- `test_json_files.py:98` - Hardcoded `/home/chris/Work/kairon/n8n-workflows`~~
+~~- `fix_json_files.py:73` - Same hardcoded path~~
 
-**Fix:** Use `Path(__file__).parent` for relative paths.
+**Status:** RESOLVED (Dec 2025) - Refactored to use `Path(__file__).parent` for relative paths.
 
 #### 3.4 ~~Zero Test Coverage~~ RESOLVED
 ~~No unit tests exist. Critical gaps in:~~
@@ -138,17 +136,19 @@ Migration 019 added `timezone` columns. Ensure all workflows populate this field
 #### 3.6 Missing Type Hints
 Many functions lack return types and parameter types.
 
-#### 3.7 SSH Command Injection Risk
-**File:** `scripts/workflows/inspect_execution.py:57`
+#### 3.7 ~~SSH Command Injection Risk~~ RESOLVED
+~~**File:** `scripts/workflows/inspect_execution.py:57`~~
 
-Builds shell commands via string interpolation.
+~~Builds shell commands via string interpolation.~~
 
-**Fix:** Use `shlex.quote()` for all interpolated values.
+**Status:** RESOLVED (Dec 2025) - Added `shlex.quote()` for all interpolated values in SSH curl commands.
 
-#### 3.8 Manual .env Parsing
-**File:** `scripts/workflows/inspect_execution.py:26`
+#### 3.8 ~~Manual .env Parsing~~ RESOLVED
+~~**File:** `scripts/workflows/inspect_execution.py:26`~~
 
-Manually parses `.env` instead of using `python-dotenv`.
+~~Manually parses `.env` instead of using `python-dotenv`.~~
+
+**Status:** RESOLVED (Dec 2025) - Switched to `dotenv_values()` from python-dotenv.
 
 ---
 
@@ -196,12 +196,12 @@ Variable quoting is inconsistent, especially in SQL contexts.
 
 ### Critical
 
-#### 5.1 Outdated Architecture Docs
-**File:** `docs/n8n-workflow-implementation.md`
+#### 5.1 ~~Outdated Architecture Docs~~ RESOLVED
+~~**File:** `docs/n8n-workflow-implementation.md`~~
 
-References deprecated "original architecture" with old workflow names and patterns.
+~~References deprecated "original architecture" with old workflow names and patterns.~~
 
-**Fix:** Archive or rewrite.
+**Status:** RESOLVED (Dec 2025) - Moved to `docs/archive/`.
 
 #### 5.2 ~~Inconsistent Tag Definitions~~ RESOLVED
 ~~Tags defined differently across documents~~
