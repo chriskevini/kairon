@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_events_received_at ON events(received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type);
 CREATE INDEX IF NOT EXISTS idx_events_idempotency ON events(idempotency_key) WHERE idempotency_key IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_events_payload_gin ON events USING gin(payload);  -- Fast JSONB searches
+-- Note: GIN index on payload removed in migration 020 (unused - queries use ->> not @>)
 
 -- Traces: One trace per LLM call, always references an event
 CREATE TABLE IF NOT EXISTS traces (
@@ -73,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_projections_event_id ON projections(event_id);
 CREATE INDEX IF NOT EXISTS idx_projections_trace_id ON projections(trace_id);
 CREATE INDEX IF NOT EXISTS idx_projections_created_at ON projections(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_projections_data_timestamp ON projections(((data->>'timestamp')::timestamptz) DESC);
-CREATE INDEX IF NOT EXISTS idx_projections_data_gin ON projections USING gin(data);  -- Fast JSONB searches
+-- Note: GIN index on data removed in migration 020 (unused - queries use ->> not @>)
 
 -- Config: User configuration (north_star, timezone, etc.)
 CREATE TABLE IF NOT EXISTS config (

@@ -18,35 +18,15 @@ This audit identifies technical debt across the Kairon codebase, organized by pr
 
 ### Critical
 
-#### 1.1 Missing Merge Wrappers for Native Nodes
-**Impact:** Data loss when Postgres/HTTP nodes overwrite `$json`
+#### 1.1 ~~Missing Merge Wrappers for Native Nodes~~ RESOLVED
+~~**Impact:** Data loss when Postgres/HTTP nodes overwrite `$json`~~
 
-~80% of Postgres and HTTP nodes lack Merge wrappers to restore `ctx`. This breaks the ctx pattern documented in AGENTS.md.
+**Status:** RESOLVED (Dec 2025) - Merge wrappers added in commits 6ac2fbf, 2babfd9.
 
-**Affected Workflows:**
-- `Capture_Projection.json` - `Store Projection` node
-- `Handle_Correction.json` - `Lookup Original Event` node
-- `Multi_Capture.json` - `Store LLM Trace` node
-- `Generate_Daily_Summary.json` - `Insert Event` node
-- `Generate_Nudge.json` - `Insert Event` node
-- `Route_Reaction.json` - `Get Emoji Config` node
+#### 1.2 ~~ctx Pattern Violations (Node References)~~ RESOLVED
+~~**Impact:** Tight coupling, breaks if nodes are moved/renamed~~
 
-**Fix:** Add Merge node (Mode: Append) after each native node to restore ctx.
-
-#### 1.2 ctx Pattern Violations (Node References)
-**Impact:** Tight coupling, breaks if nodes are moved/renamed
-
-Nodes reading from `$('Node Name').item.json` instead of `$json.ctx.*`:
-
-| Workflow | Node | Issue |
-|----------|------|-------|
-| `Capture_Projection.json` | `Prepare Projection` | Reads from `$('Extract Projection Data')` |
-| `Save_Extraction.json` | `Prepare Save` | Reads from `$('Get Pending Extractions')` |
-| `Handle_Correction.json` | `Prepare Correction` | Reads from `$('Execute Workflow Trigger')` |
-| `Multi_Capture.json` | `Parse & Split` | Reads from `$('Prepare Capture')` |
-| `Generate_Daily_Summary.json` | `init-ctx` | Reads from `$('Prepare Event Data')` |
-
-**Fix:** Refactor to read from `$json.ctx.*` exclusively.
+**Status:** RESOLVED (Dec 2025) - Refactored to read from `$json.ctx.*` in commits 6ac2fbf, 2babfd9.
 
 ### High
 
@@ -62,10 +42,10 @@ Workflows use hardcoded IDs instead of names or environment variables:
 #### 1.4 Switch Nodes Without Defaults
 Some Switch nodes lack fallback cases, causing silent failures when no match occurs.
 
-#### 1.5 Set Nodes with "Keep Only Set"
-Older nodes in `Execute_Command.json` use "Keep Only Set" behavior, dropping the `ctx` object.
+#### 1.5 ~~Set Nodes with "Keep Only Set"~~ RESOLVED
+~~Older nodes in `Execute_Command.json` use "Keep Only Set" behavior, dropping the `ctx` object.~~
 
-**Fix:** Enable `includeOtherFields: true` on all Set nodes.
+**Status:** RESOLVED (Dec 2025) - `includeOtherFields: true` added in commit 5aa298c.
 
 ### Medium
 
@@ -81,23 +61,15 @@ Some workflows don't initialize `ctx.event` in the first node, especially system
 
 ### Critical
 
-#### 2.1 Missing GIN Indexes
-Migration 006 originally included GIN indexes on `events.payload` and `projections.data`, but these are **missing** from `db/schema.sql`.
+#### 2.1 ~~Missing GIN Indexes~~ RESOLVED
+~~Migration 006 originally included GIN indexes on `events.payload` and `projections.data`, but these are **missing** from `db/schema.sql`.~~
 
-```sql
--- Add to schema.sql
-CREATE INDEX idx_events_payload_gin ON events USING gin(payload);
-CREATE INDEX idx_projections_data_gin ON projections USING gin(data);
-```
+**Status:** RESOLVED (Dec 2025) - GIN indexes were present but **unused** (0 scans in pg_stat_user_indexes). All queries use `->>` (text extraction), not `@>` (containment). GIN only optimizes containment queries. Migration 020 dropped these indexes to reduce write overhead. Future RAG will use pgvector, not GIN.
 
-**Impact:** Full table scans when searching JSONB fields.
+#### 2.2 ~~Broken Seed File~~ RESOLVED
+~~`db/seeds/001_initial_data.sql` references `activity_categories` and `note_categories` tables that were dropped in Migration 013.~~
 
-#### 2.2 Broken Seed File
-`db/seeds/001_initial_data.sql` references `activity_categories` and `note_categories` tables that were dropped in Migration 013.
-
-**Impact:** Fresh installs fail.
-
-**Fix:** Remove or update the seed file.
+**Status:** RESOLVED - Seed file was already updated to only seed the `config` table.
 
 ### High
 
@@ -126,27 +98,21 @@ Migration 019 added `timezone` columns. Ensure all workflows populate this field
 
 ### Critical
 
-#### 3.1 Inefficient HTTP Connection Handling
-**File:** `discord_relay.py:106`
+#### 3.1 ~~Inefficient HTTP Connection Handling~~ RESOLVED
+~~**File:** `discord_relay.py:106`~~
 
-Creates a new `aiohttp.ClientSession()` for every request. This causes socket exhaustion under load.
+~~Creates a new `aiohttp.ClientSession()` for every request. This causes socket exhaustion under load.~~
 
-```python
-# Current (bad)
-async with aiohttp.ClientSession() as session:
-    await session.post(url, json=payload)
-
-# Fix: Use persistent session attached to bot
-```
+**Status:** RESOLVED - `discord_relay.py` now uses a persistent `http_session` global initialized in `on_ready()`.
 
 ### High
 
-#### 3.2 Logic Duplication
-**File:** `discord_relay.py:150, 187, 220`
+#### 3.2 ~~Logic Duplication~~ RESOLVED
+~~**File:** `discord_relay.py:150, 187, 220`~~
 
-Channel filtering logic for `#arcane-shell` is duplicated 3 times.
+~~Channel filtering logic for `#arcane-shell` is duplicated 3 times.~~
 
-**Fix:** Extract to helper function or decorator.
+**Status:** RESOLVED - Extracted to `is_arcane_shell_channel()` helper function.
 
 #### 3.3 Hardcoded Absolute Paths
 **Files:**
@@ -186,22 +152,19 @@ Manually parses `.env` instead of using `python-dotenv`.
 
 ### Critical
 
-#### 4.1 SQL Injection in setup_db.sh
-**File:** `scripts/db/setup_db.sh:66-70`
+#### 4.1 ~~SQL Injection in setup_db.sh~~ RESOLVED
+~~**File:** `scripts/db/setup_db.sh:66-70`~~
 
-User input is interpolated directly into SQL:
-```bash
-VALUES ('$DISCORD_USER', false, NULL)
-```
+~~User input is interpolated directly into SQL~~
 
-**Fix:** Use `psql` variables (`-v`) or validate input.
+**Status:** RESOLVED - The referenced code no longer exists in `setup_db.sh`.
 
 ### High
 
-#### 4.2 Missing `set -u`
-All scripts lack `set -u` (nounset), allowing undefined variable usage.
+#### 4.2 ~~Missing `set -u`~~ RESOLVED
+~~All scripts lack `set -u` (nounset), allowing undefined variable usage.~~
 
-**Fix:** Use `set -euo pipefail` in all scripts.
+**Status:** RESOLVED (Dec 2025) - All scripts now use `set -euo pipefail`. Fixed unbound variable issues with `${1:-}` and `${ARRAY[$key]:-}` syntax.
 
 #### 4.3 Fragile .env Loading
 **Files:** `n8n-pull.sh`, `n8n-push.sh`, `run-migration.sh`, `db-query.sh`
@@ -285,17 +248,17 @@ Documents reference migrations in `db/migrations/` but most are in `archive/`.
 
 ## Recommended Priority Order
 
-### Phase 1: Critical Fixes (Week 1)
-1. Add GIN indexes to schema.sql
-2. Fix broken seed file
-3. Refactor `discord_relay.py` to use persistent session
-4. Add SQL injection protection to `setup_db.sh`
+### Phase 1: Critical Fixes ~~(Week 1)~~ COMPLETED
+1. ~~Add GIN indexes to schema.sql~~ - RESOLVED: Dropped unused indexes instead (migration 020)
+2. ~~Fix broken seed file~~ - RESOLVED: Already fixed
+3. ~~Refactor `discord_relay.py` to use persistent session~~ - RESOLVED: Already implemented
+4. ~~Add SQL injection protection to `setup_db.sh`~~ - RESOLVED: Code no longer exists
 
-### Phase 2: High Priority (Week 2-3)
-1. Add Merge wrappers to all native nodes in workflows
-2. Refactor ctx pattern violations
-3. Add `set -euo pipefail` to all scripts
-4. Update outdated documentation (AGENTS.md tags, prompts)
+### Phase 2: High Priority ~~(Week 2-3)~~ COMPLETED
+1. ~~Add Merge wrappers to all native nodes in workflows~~ - RESOLVED (commits 6ac2fbf, 2babfd9)
+2. ~~Refactor ctx pattern violations~~ - RESOLVED (commits 6ac2fbf, 2babfd9)
+3. ~~Add `set -euo pipefail` to all scripts~~ - RESOLVED (Dec 2025)
+4. ~~Update outdated documentation (AGENTS.md tags, prompts)~~ - RESOLVED (commit e0a2469)
 
 ### Phase 3: Medium Priority (Month 1)
 1. Extract common shell functions
