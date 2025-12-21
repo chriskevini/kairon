@@ -139,11 +139,12 @@ done
 REMOTE_TMP="/tmp/n8n_sync_$$"
 echo ""
 echo "Uploading to remote..."
-# Create directory and upload in single SSH session via tar
 # Check if there are any JSON files to upload
-if ls "$LOCAL_TMP"/*.json >/dev/null 2>&1; then
+FILE_COUNT=$(ls "$LOCAL_TMP"/*.json 2>/dev/null | wc -l)
+if [ "$FILE_COUNT" -gt 0 ]; then
+    # Create directory and upload in single SSH session via tar
     (cd "$LOCAL_TMP" && tar czf - *.json) | ssh "$REMOTE_HOST" "mkdir -p $REMOTE_TMP && cd $REMOTE_TMP && tar xzf -" </dev/null
-    echo "   Uploaded $(ls "$LOCAL_TMP"/*.json 2>/dev/null | wc -l) files"
+    echo "   Uploaded $FILE_COUNT files"
 else
     echo "   No files to upload"
     exit 0

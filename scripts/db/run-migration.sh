@@ -91,12 +91,13 @@ echo "Step 1+2: Creating backup and running migration (single SSH session)..."
 
 # Combine backup and migration in single SSH call to avoid rate limiting
 cat "$MIGRATION_FILE" | ssh "$REMOTE_HOST" "
-    mkdir -p $REMOTE_BACKUP_DIR && \
-    docker exec $CONTAINER_DB pg_dump -U $DB_USER $DB_NAME > $REMOTE_BACKUP_DIR/$BACKUP_FILE && \
-    echo '✅ Backup created: $REMOTE_BACKUP_DIR/$BACKUP_FILE' && \
-    echo '⏳ Running migration...' && \
+    set -e
+    mkdir -p $REMOTE_BACKUP_DIR
+    docker exec $CONTAINER_DB pg_dump -U $DB_USER $DB_NAME > $REMOTE_BACKUP_DIR/$BACKUP_FILE
+    echo '✅ Backup created: $REMOTE_BACKUP_DIR/$BACKUP_FILE'
+    echo '⏳ Running migration...'
     docker exec -i $CONTAINER_DB psql -U $DB_USER -d $DB_NAME
-" && echo "✅ Backup saved to: $REMOTE_BACKUP_DIR/$BACKUP_FILE"
+"
 
 echo ""
 echo "✅ Migration complete: $MIGRATION_NAME"

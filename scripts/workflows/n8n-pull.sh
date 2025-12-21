@@ -199,7 +199,8 @@ trap "rm -rf $LOCAL_TMP" EXIT
 ssh "$REMOTE_HOST" "
     set -e
     $REMOTE_SCRIPT
-    if [ -f $REMOTE_TMP/*.json 2>/dev/null ]; then
+    # Check if any JSON files were created
+    if ls $REMOTE_TMP/*.json >/dev/null 2>&1; then
         cd $REMOTE_TMP && tar czf - *.json
     else
         echo 'No files exported' >&2
