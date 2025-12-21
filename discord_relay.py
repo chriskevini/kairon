@@ -11,7 +11,7 @@ from discord.ext import commands
 import aiohttp
 import asyncio
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Union
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -34,7 +34,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 http_session: Optional[aiohttp.ClientSession] = None
 
 
-def is_arcane_shell_channel(channel) -> bool:
+def is_arcane_shell_channel(channel: Union[discord.TextChannel, discord.Thread, discord.abc.GuildChannel]) -> bool:
     """
     Check if the channel is #arcane-shell or a thread from #arcane-shell.
     Extracts duplicated channel checking logic.

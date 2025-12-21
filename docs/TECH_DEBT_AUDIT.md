@@ -223,8 +223,10 @@ References deprecated "original architecture" with old workflow names and patter
 
 **Status:** RESOLVED (Dec 2025) - Removed outdated `docs/SUMMARY.md`. `AGENTS.md` is the source of truth.
 
-#### 5.5 Missing Workflow Documentation
-No docs for `Handle_Todo_Status.json` or `Handle_Correction.json`.
+#### 5.5 ~~Missing Workflow Documentation~~ RESOLVED
+~~No docs for `Handle_Todo_Status.json` or `Handle_Correction.json`.~~
+
+**Status:** RESOLVED (Dec 2025) - Added to workflow table in README.md.
 
 ### Medium
 

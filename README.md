@@ -121,13 +121,17 @@ timezone      Your timezone (e.g., "vancouver", "pacific", "America/Vancouver")
 | Workflow | Purpose |
 |----------|---------|
 | Route_Event | Main entry point (webhook + crons) |
-| Route_Message | Classify and route messages |
+| Route_Message | Classify and route messages by tag |
 | Route_Reaction | Handle emoji reactions |
-| Multi_Capture | Extract activities/notes/todos from text |
-| Start_Thread | Create conversation threads |
+| Multi_Capture | Extract activities/notes/todos from untagged text |
+| Start_Thread | Create Discord threads for `++` |
 | Continue_Thread | Handle thread replies |
+| Capture_Thread | Save thread extractions on `--` |
 | Capture_Projection | Store projections in DB |
+| Save_Extraction | Save individual thread items via reaction |
 | Execute_Command | Handle `::` commands |
+| Handle_Correction | Re-process messages after user correction emoji |
+| Handle_Todo_Status | Update todo status via reactions (WIP) |
 | Generate_Nudge | Periodic check-ins (every 15 min) |
 | Generate_Daily_Summary | End-of-day summary (11 PM) |
 | Handle_Error | Error handling and logging |
