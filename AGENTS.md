@@ -332,6 +332,135 @@ git commit -m "feat: add new workflow"
 
 If the hook blocks your commit, it will tell you what's wrong.
 
+## Standard Workflow Patterns
+
+Common patterns used across workflows. Follow these for consistency.
+
+### Remove Processing Reaction
+
+Used in 8 workflows to remove the 🔵 "processing" indicator.
+
+**Implementation:** HTTP Request node
+```
+Method: DELETE
+URL: https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/%F0%9F%94%B5/@me
+```
+
+**Naming:** "Remove 🔵 Reaction"
+
+**Usage:** Place at end of workflow to remove processing indicator after completion.
+
+### Get North Star Config
+
+Used in 4 workflows (thread operations, summaries, nudges).
+
+**Implementation:** Postgres node
+```sql
+SELECT value FROM config WHERE key = 'north_star';
+```
+
+**Usage:** Retrieve user's north star for context in LLM prompts.
+
+### Store LLM Trace
+
+Used in 3 workflows to record LLM reasoning.
+
+**Implementation:** Postgres node with CTE
+```sql
+WITH new_trace AS (
+  INSERT INTO traces (event_id, step_name, data, trace_chain)
+  VALUES ($1::uuid, $2, $3::jsonb, $4::uuid[])
+  RETURNING id, trace_chain
+)
+SELECT 
+  new_trace.id as trace_id,
+  new_trace.trace_chain
+FROM new_trace;
+```
+
+**Parameters:**
+- `$1`: `{{ $json.ctx.event.event_id }}`
+- `$2`: Step name (e.g., "thread_extraction", "thread_response")
+- `$3`: LLM output and metadata as JSONB
+- `$4`: Trace chain array (Postgres format: `{uuid,uuid}`)
+
+**Naming:** "Write [Purpose] Trace" (e.g., "Write Thread Extraction Trace")
+
+### Store Projection
+
+Used in 5 workflows to save structured outputs.
+
+**Standard column order:**
+```sql
+INSERT INTO projections (
+  event_id,
+  trace_id,
+  trace_chain,
+  projection_type,
+  status,
+  data
+) VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id;
+```
+
+**Parameters:**
+- `$1`: `{{ $json.ctx.event.event_id }}`
+- `$2`: `{{ $json.ctx.db.trace_id }}`
+- `$3`: Trace chain (Postgres array format)
+- `$4`: Type: 'activity', 'note', 'todo', 'thread_response', etc.
+- `$5`: Status: 'pending', 'auto_confirmed', 'confirmed'
+- `$6`: Projection data as JSONB
+
+**Naming:** "Store [Type] Projection" or "Store Response Projection"
+
+### LLM Dual-Provider Pattern
+
+Used in 7 workflows for reliable LLM calls with fallback.
+
+**Implementation:**
+1. **Chain LLM** node (prompt construction)
+2. **Primary Provider:** nemotron-nano-9b (lmChatOpenRouter)
+3. **Fallback Provider:** mimo-v2-flash (lmChatOpenRouter)
+
+**Configuration:**
+- Primary provider on Chain LLM's first output
+- Fallback provider on Chain LLM's second output (error path)
+- Both providers use OpenRouter credentials
+
+**Usage:** All LLM operations that require high reliability.
+
+### Switch Node Fallback
+
+All Switch nodes **must** have a fallback output.
+
+**Configuration:**
+```json
+"options": {
+  "fallbackOutput": "extra"
+}
+```
+
+**Why:** Prevents workflows from silently failing when no rules match.
+
+**Naming:** Use descriptive output names: "Save", "Dismiss", "Delete Thread", etc.
+
+### Projection INSERT Standard
+
+When inserting projections, use this standard column order:
+
+```sql
+INSERT INTO projections (
+  event_id,      -- Always first
+  trace_id,      -- Links to trace
+  trace_chain,   -- Ancestry
+  projection_type,
+  status,
+  data           -- Always last
+) VALUES ...
+```
+
+**Rationale:** Consistent ordering makes queries more maintainable and reduces errors.
+
 ## Commit Messages
 
 ```
