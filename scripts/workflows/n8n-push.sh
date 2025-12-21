@@ -11,8 +11,11 @@
 
 set -e
 
-# --- 1. RESOLVE DIRECTORIES ---
+# Source SSH connection reuse setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../ssh-setup.sh" 2>/dev/null || true
+
+# --- 1. RESOLVE DIRECTORIES ---
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
 WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
@@ -132,12 +135,12 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
     echo "   Prepared: $name"
 done
 
-# Copy all files to remote in one scp call
+# Copy all files to remote in one scp call (creates dir automatically)
 REMOTE_TMP="/tmp/n8n_sync_$$"
 echo ""
 echo "Uploading to remote..."
-ssh "$REMOTE_HOST" "mkdir -p $REMOTE_TMP" </dev/null
-scp -q "$LOCAL_TMP"/*.json "$REMOTE_HOST:$REMOTE_TMP/"
+# Create directory and upload in single SSH session via tar
+(cd "$LOCAL_TMP" && tar czf - *.json) | ssh "$REMOTE_HOST" "mkdir -p $REMOTE_TMP && cd $REMOTE_TMP && tar xzf -" </dev/null
 echo "   Uploaded $(ls "$LOCAL_TMP"/*.json 2>/dev/null | wc -l) files"
 
 # Process all workflows on remote (single SSH call with all curl commands)

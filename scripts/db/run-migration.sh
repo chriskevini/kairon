@@ -12,8 +12,11 @@
 
 set -e
 
-# --- 1. RESOLVE DIRECTORIES ---
+# Source SSH connection reuse setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../ssh-setup.sh" 2>/dev/null || true
+
+# --- 1. RESOLVE DIRECTORIES ---
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
 
@@ -84,13 +87,16 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="backup_before_${MIGRATION_NAME%.sql}_$TIMESTAMP.sql"
 
 echo ""
-echo "Step 1: Creating backup on remote server..."
-ssh "$REMOTE_HOST" "mkdir -p $REMOTE_BACKUP_DIR && docker exec $CONTAINER_DB pg_dump -U $DB_USER $DB_NAME > $REMOTE_BACKUP_DIR/$BACKUP_FILE"
-echo "✅ Backup created: $REMOTE_BACKUP_DIR/$BACKUP_FILE"
+echo "Step 1+2: Creating backup and running migration (single SSH session)..."
 
-echo ""
-echo "Step 2: Running migration..."
-cat "$MIGRATION_FILE" | ssh "$REMOTE_HOST" "docker exec -i $CONTAINER_DB psql -U $DB_USER -d $DB_NAME"
+# Combine backup and migration in single SSH call to avoid rate limiting
+cat "$MIGRATION_FILE" | ssh "$REMOTE_HOST" "
+    mkdir -p $REMOTE_BACKUP_DIR && \
+    docker exec $CONTAINER_DB pg_dump -U $DB_USER $DB_NAME > $REMOTE_BACKUP_DIR/$BACKUP_FILE && \
+    echo '✅ Backup created: $REMOTE_BACKUP_DIR/$BACKUP_FILE' && \
+    echo '⏳ Running migration...' && \
+    docker exec -i $CONTAINER_DB psql -U $DB_USER -d $DB_NAME
+"
 
 echo ""
 echo "✅ Migration complete: $MIGRATION_NAME"

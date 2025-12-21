@@ -12,8 +12,11 @@
 
 set -e
 
-# --- 1. RESOLVE DIRECTORIES ---
+# Source SSH connection reuse setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../ssh-setup.sh" 2>/dev/null || true
+
+# --- 1. RESOLVE DIRECTORIES ---
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
 

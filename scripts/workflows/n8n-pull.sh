@@ -16,8 +16,11 @@
 
 set -e
 
-# --- 1. RESOLVE DIRECTORIES ---
+# Source SSH connection reuse setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../ssh-setup.sh" 2>/dev/null || true
+
+# --- 1. RESOLVE DIRECTORIES ---
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
 WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
@@ -188,16 +191,14 @@ echo 'Exported: $filename'
 done
 
 echo "Exporting on remote server..."
-ssh "$REMOTE_HOST" "$REMOTE_SCRIPT" </dev/null
-
-# Download all files in one scp call
-echo ""
-echo "Downloading to local..."
 LOCAL_TMP=$(mktemp -d)
 trap "rm -rf $LOCAL_TMP" EXIT
 
-scp -q "$REMOTE_HOST:$REMOTE_TMP/*.json" "$LOCAL_TMP/"
+# Export, download, and cleanup in single SSH session via tar
+ssh "$REMOTE_HOST" "$REMOTE_SCRIPT && cd $REMOTE_TMP && tar czf - *.json && rm -rf $REMOTE_TMP" </dev/null | (cd "$LOCAL_TMP" && tar xzf -)
 
+echo ""
+echo "Downloading to local..."
 # Move files to workflow directory
 for id in "${EXPORT_IDS[@]}"; do
     name="${WORKFLOW_NAMES[$id]}"
@@ -208,9 +209,6 @@ for id in "${EXPORT_IDS[@]}"; do
         echo "   Saved: $name -> $filename"
     fi
 done
-
-# Cleanup remote
-ssh "$REMOTE_HOST" "rm -rf $REMOTE_TMP" </dev/null 2>/dev/null || true
 
 # Run sanitization
 echo ""
