@@ -243,9 +243,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  status,\n  data\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'thread_response',\n  'auto_confirmed',\n  jsonb_build_object(\n    'thread_id', $4,\n    'response_text', $5,\n    'role', 'assistant',\n    'timestamp', $6::timestamptz\n  )\n)\nRETURNING id;",
+        "query": "INSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  status,\n  data,\n  timezone\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'thread_response',\n  'auto_confirmed',\n  jsonb_build_object(\n    'thread_id', $4,\n    'response_text', $5,\n    'role', 'assistant',\n    'timestamp', $6::timestamptz\n  ),\n  $7\n)\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.trace_id }},={{ $json.updated_trace_chain }},={{ $json.ctx.event.thread_id }},={{ $json.ctx.llm.completion_text }},={{ $json.ctx.event.timestamp }}"
+          "queryReplacement": "={{ $json.event_id }},={{ $json.trace_id }},={{ $json.updated_trace_chain }},={{ $json.ctx.event.thread_id }},={{ $json.ctx.llm.completion_text }},={{ $json.ctx.event.timestamp }},={{ $json.ctx.event.timezone }}"
         }
       },
       "type": "n8n-nodes-base.postgres",

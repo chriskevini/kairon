@@ -166,9 +166,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  $4,\n  $5::jsonb,\n  'auto_confirmed'\n)\nRETURNING *;",
+        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  $4,\n  $5::jsonb,\n  'auto_confirmed',\n  $6\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.llm_trace_id }},={{ $json.ctx.event.event_id }},={{ $json.trace_chain_pg }},={{ $json.capture.type }},={{ JSON.stringify($json.capture.data) }}"
+          "queryReplacement": "={{ $json.llm_trace_id }},={{ $json.ctx.event.event_id }},={{ $json.trace_chain_pg }},={{ $json.capture.type }},={{ JSON.stringify($json.capture.data) }},={{ $json.ctx.event.timezone }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
