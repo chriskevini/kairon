@@ -246,7 +246,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'daily_summary',\n  $4::jsonb,\n  'auto_confirmed'\n)\nRETURNING id;",
+        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'daily_summary',\n  $4::jsonb,\n  'auto_confirmed',\n  (SELECT value FROM config WHERE key = 'timezone')\n)\nRETURNING id;",
         "options": {
           "queryReplacement": "={{ $json.trace_id }},={{ $json.ctx.event.event_id }},={{ $json.trace_chain_pg }},={{ JSON.stringify($json.projection_data) }}"
         }
