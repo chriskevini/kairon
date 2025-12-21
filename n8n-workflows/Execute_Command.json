@@ -841,7 +841,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=🔘"
+        "emoji": "=💻"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -850,7 +850,7 @@
         9424
       ],
       "id": "e5ebd093-f037-4d4a-94a8-5830869a2dbc",
-      "name": "React with 🔘",
+      "name": "React with 💻",
       "webhookId": "7d6473eb-7f05-4fc7-ba61-8a8ae16deae0",
       "retryOnFail": true,
       "maxTries": 3,
@@ -1064,7 +1064,7 @@
             "index": 0
           },
           {
-            "node": "React with 🔘",
+            "node": "React with 💻",
             "type": "main",
             "index": 0
           }
