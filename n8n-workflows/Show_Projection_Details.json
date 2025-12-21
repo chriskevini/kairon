@@ -1,0 +1,159 @@
+{
+  "name": "Show_Projection_Details",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-400, 300],
+      "id": "trigger-projection-details",
+      "name": "Receive Event"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH target_event AS (\n  SELECT id, payload, received_at\n  FROM events\n  WHERE payload->>'discord_message_id' = $1\n    AND event_type = 'discord_message'\n  ORDER BY received_at DESC\n  LIMIT 1\n),\nrelated_traces AS (\n  SELECT \n    t.id as trace_id,\n    t.event_id,\n    t.input_text,\n    t.output_text,\n    t.model,\n    t.duration_ms,\n    t.confidence,\n    t.created_at as trace_created_at\n  FROM traces t\n  WHERE t.event_id = (SELECT id FROM target_event)\n  ORDER BY t.created_at DESC\n),\nrelated_projections AS (\n  SELECT \n    p.id as projection_id,\n    p.trace_id,\n    p.event_id,\n    p.projection_type,\n    p.data,\n    p.status,\n    p.quality_score,\n    p.created_at as projection_created_at,\n    p.timezone\n  FROM projections p\n  WHERE p.event_id = (SELECT id FROM target_event)\n    AND p.status IN ('auto_confirmed', 'confirmed', 'pending')\n  ORDER BY p.created_at DESC\n)\nSELECT \n  e.id as event_id,\n  e.payload->>'clean_text' as original_text,\n  e.payload->>'tag' as tag,\n  e.received_at as event_time,\n  json_agg(DISTINCT jsonb_build_object(\n    'trace_id', t.trace_id,\n    'model', t.model,\n    'duration_ms', t.duration_ms,\n    'confidence', t.confidence,\n    'input_preview', LEFT(t.input_text, 100),\n    'output_preview', LEFT(t.output_text, 200)\n  )) FILTER (WHERE t.trace_id IS NOT NULL) as traces,\n  json_agg(DISTINCT jsonb_build_object(\n    'projection_id', p.projection_id,\n    'type', p.projection_type,\n    'status', p.status,\n    'quality_score', p.quality_score,\n    'data', p.data\n  )) FILTER (WHERE p.projection_id IS NOT NULL) as projections\nFROM target_event e\nLEFT JOIN related_traces t ON true\nLEFT JOIN related_projections p ON true\nGROUP BY e.id, e.payload, e.received_at;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.event.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [-180, 300],
+      "id": "lookup-projection-chain",
+      "name": "Lookup Projection Chain",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format projection chain details for Discord\nconst ctx = $('Receive Event').first().json.ctx;\nconst result = $input.first()?.json;\n\nif (!result || !result.event_id) {\n  return {\n    ctx,\n    response: {\n      content: '❓ No projection data found for this message.\\n\\nThis message may not have been processed by Kairon yet.'\n    }\n  };\n}\n\nconst eventId = result.event_id;\nconst originalText = result.original_text || '(no text)';\nconst tag = result.tag || '(auto-classified)';\nconst eventTime = result.event_time;\n\n// Parse arrays (Postgres returns as JSON)\nconst traces = result.traces || [];\nconst projections = result.projections || [];\n\nlet content = '🔍 **Projection Details**\\n\\n';\n\n// Event info\ncontent += `**Event:** \\`${eventId.substring(0, 8)}...\\`\\n`;\ncontent += `**Tag:** ${tag}\\n`;\ncontent += `**Text:** \"${originalText.length > 80 ? originalText.substring(0, 80) + '...' : originalText}\"\\n\\n`;\n\n// Traces section\nif (traces.length > 0 && traces[0].trace_id) {\n  content += '**🧠 LLM Traces**\\n';\n  for (const trace of traces) {\n    if (!trace.trace_id) continue;\n    const confidence = trace.confidence ? `${Math.round(trace.confidence * 100)}%` : 'N/A';\n    const duration = trace.duration_ms ? `${trace.duration_ms}ms` : 'N/A';\n    content += `• \\`${trace.trace_id.substring(0, 8)}...\\` | ${trace.model || 'unknown'} | ${duration} | ${confidence} confidence\\n`;\n  }\n  content += '\\n';\n}\n\n// Projections section\nif (projections.length > 0 && projections[0].projection_id) {\n  content += '**📊 Projections**\\n';\n  const typeIcons = {\n    'activity': '🔘',\n    'note': '📝',\n    'todo': '✅',\n    'thread_response': '💬',\n    'thread_extraction': '📋',\n    'daily_summary': '📅',\n    'nudge': '👋'\n  };\n  const statusIcons = {\n    'auto_confirmed': '✓',\n    'confirmed': '✓✓',\n    'pending': '⏳',\n    'voided': '🗑️'\n  };\n  \n  for (const proj of projections) {\n    if (!proj.projection_id) continue;\n    const icon = typeIcons[proj.type] || '•';\n    const status = statusIcons[proj.status] || proj.status;\n    const quality = proj.quality_score !== null ? ` | Q:${proj.quality_score}` : '';\n    \n    // Extract key data based on type\n    let dataPreview = '';\n    if (proj.data) {\n      if (proj.type === 'activity' && proj.data.category) {\n        dataPreview = ` → ${proj.data.category}`;\n      } else if (proj.type === 'note' && proj.data.category) {\n        dataPreview = ` → ${proj.data.category}`;\n      } else if (proj.type === 'todo' && proj.data.text) {\n        dataPreview = ` → \"${proj.data.text.substring(0, 30)}...\"`;\n      }\n    }\n    \n    content += `${icon} **${proj.type}** [${status}]${quality}${dataPreview}\\n`;\n  }\n} else {\n  content += '📭 No projections created from this message.\\n';\n}\n\n// Truncate if too long\nif (content.length > 1900) {\n  content = content.substring(0, 1900) + '\\n...truncated';\n}\n\nreturn {\n  ctx,\n  response: {\n    content\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [40, 300],
+      "id": "format-details",
+      "name": "Format Details"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.channel_id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.response.content }}",
+        "options": {
+          "messageReference": "={{ $json.ctx.event.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [260, 300],
+      "id": "send-details",
+      "name": "Send Details",
+      "webhookId": "projection-details-response",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/%E2%9D%93/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "id": "remove-question-reaction",
+      "name": "Remove ❓ Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Receive Event": {
+      "main": [
+        [
+          {
+            "node": "Lookup Projection Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Projection Chain": {
+      "main": [
+        [
+          {
+            "node": "Format Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Details": {
+      "main": [
+        [
+          {
+            "node": "Send Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Details": {
+      "main": [
+        [
+          {
+            "node": "Remove ❓ Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
+}
