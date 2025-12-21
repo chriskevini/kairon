@@ -302,9 +302,38 @@ Tags are parsed at the start of messages. See `docs/tag-parsing-reference.md` fo
 | `sanitize_workflows.sh` | Remove pinData (auto-run by hooks) |
 | `validate_workflows.sh` | Check JSON syntax |
 | `lint_workflows.py` | Check ctx pattern compliance |
-| `inspect_workflow.py` | View nodes, search workflows |
+| `inspect_workflow.py` | Inspect workflows (nodes, code, SQL, connections) |
+| `inspect_execution.py` | Debug n8n execution results |
 | `run-migration.sh` | Run DB migrations with backup |
 | `db-query.sh` | Run SQL on remote DB |
+
+### inspect_workflow.py Usage
+
+```bash
+# Show workflow overview
+./scripts/workflows/inspect_workflow.py n8n-workflows/Multi_Capture.json
+
+# List all nodes grouped by type
+./scripts/workflows/inspect_workflow.py n8n-workflows/Multi_Capture.json --nodes
+
+# Show specific node details (code, SQL, params)
+./scripts/workflows/inspect_workflow.py n8n-workflows/Multi_Capture.json --node "Parse Response"
+
+# Show all Code node contents
+./scripts/workflows/inspect_workflow.py n8n-workflows/Multi_Capture.json --code
+
+# Extract all SQL queries
+./scripts/workflows/inspect_workflow.py n8n-workflows/Multi_Capture.json --sql
+
+# Show connection graph
+./scripts/workflows/inspect_workflow.py n8n-workflows/Multi_Capture.json --connections
+
+# Validate structure (broken connections, orphans, ctx issues)
+./scripts/workflows/inspect_workflow.py n8n-workflows/*.json --validate
+
+# Search for pattern in code/queries
+./scripts/workflows/inspect_workflow.py n8n-workflows/*.json --find "ctx.event"
+```
 
 ## Database Health Checks
 
