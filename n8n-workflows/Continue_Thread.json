@@ -105,7 +105,8 @@
     },
     {
       "parameters": {
-        "numberInputs": 5
+        "numberInputs": 5,
+        "mode": "append"
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
@@ -277,7 +278,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=💭"
+        "emoji": "=\ud83d\udcad"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -286,7 +287,7 @@
         96
       ],
       "id": "3d6f0aee-f86f-437e-aa57-0683b80c2ced",
-      "name": "React with 💭",
+      "name": "React with \ud83d\udcad",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "retryOnFail": true,
       "maxTries": 3,
@@ -302,7 +303,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -314,7 +315,7 @@
         1152
       ],
       "id": "remove-blue-reaction-continue-chat",
-      "name": "Remove 🔵 Reaction",
+      "name": "Remove \ud83d\udd35 Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -426,12 +427,12 @@
             "index": 0
           },
           {
-            "node": "React with 💭",
+            "node": "React with \ud83d\udcad",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove 🔵 Reaction",
+            "node": "Remove \ud83d\udd35 Reaction",
             "type": "main",
             "index": 0
           },

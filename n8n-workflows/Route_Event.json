@@ -206,7 +206,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "fallbackOutput": 2
+        }
       },
       "id": "1c5b0871-58a8-457f-8b94-c1225e4e38b7",
       "name": "Route by Event Type",
@@ -219,7 +221,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const reaction = $json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
+        "jsCode": "const reaction = $json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\n// Preserve original body and add parsed fields\nreturn [{\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -235,7 +237,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ 'https://discord.com/channels/' + $json.guild_id + '/' + $json.channel_id + '/' + $json.message_id }},={{ $json.author.login }},={{ $json.thread_id || null }},={{ $json.content }},={{ $('Parse Message').item.json.clean_text }},={{ $('Parse Message').item.json.tag || null }},={{ $json.timestamp }}"
+          "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ 'https://discord.com/channels/' + $json.guild_id + '/' + $json.channel_id + '/' + $json.message_id }},={{ $json.author.login }},={{ $json.thread_id || null }},={{ $json.content }},={{ $json.clean_text }},={{ $json.tag || null }},={{ $json.timestamp }}"
         }
       },
       "id": "22b228b1-5999-4f45-8dc4-498385ad6aa9",
@@ -259,7 +261,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.body.guild_id }},={{ $json.body.channel_id }},={{ $json.body.message_id }},={{ $json.body.user?.login || $json.body.user_id }},={{ $json.body.thread_id || null }},={{ $('Parse Reaction').item.json.emoji }},={{ $('Parse Reaction').item.json.extraction_index }},={{ $json.body.action }},={{ $('Parse Reaction').item.json.synthetic_id }}"
+          "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ $json.user?.login || $json.user_id }},={{ $json.thread_id || null }},={{ $json.emoji }},={{ $json.extraction_index }},={{ $json.action }},={{ $json.synthetic_id }}"
         }
       },
       "id": "a6bdb18b-71f2-4c8f-afce-c269250fb9ac",
@@ -364,7 +366,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const json = $input.first().json;\nconst content = (json.body.content || \"\").trim();\nconst lowerContent = content.toLowerCase();\n\nconst TAG_TABLE = [\n  [\"!!\", \"act\"],\n  [\"..\", \"note\"],\n  [\"++\", \"chat\"],\n  [\"--\", \"save\"],\n  [\"::\", \"cmd\"],\n  [\"$$\", \"todo\", \"to-do\"]\n];\n\nlet tag = null;\nlet clean_text = content;\n\nfor (const row of TAG_TABLE) {\n  const normalized = row[0];\n  \n  const match = row.find(alias => {\n    const a = alias.toLowerCase();\n    \n    // Check if alias is strictly symbols (no letters or numbers)\n    const isSymbolOnly = !/[a-z0-9]/i.test(a);\n\n    if (isSymbolOnly) {\n      // Symbols match even if glued to text: \"!!task\"\n      return lowerContent.startsWith(a);\n    } else {\n      // Words require a space or exact match: \"act task\" or \"act\"\n      return lowerContent.startsWith(a + \" \") || lowerContent === a;\n    }\n  });\n\n  if (match) {\n    tag = normalized;\n    clean_text = content.slice(match.length).trim();\n    break;\n  }\n}\n\nreturn { ...json.body, tag, clean_text };"
+        "jsCode": "const json = $input.first().json;\nconst content = (json.body.content || \"\").trim();\nconst lowerContent = content.toLowerCase();\n\nconst TAG_TABLE = [\n  [\"            {                 echo ___BEGIN___COMMAND_OUTPUT_MARKER___;                 PS1=;PS2=;unset HISTFILE;                 EC=0;                 echo ___BEGIN___COMMAND_DONE_MARKER___0;             }\", \"act\"],\n  [\"..\", \"note\"],\n  [\"++\", \"chat\"],\n  [\"--\", \"save\"],\n  [\"::\", \"cmd\"],\n  [\"$$\", \"todo\", \"to-do\"]\n];\n\nlet tag = null;\nlet clean_text = content;\n\nfor (const row of TAG_TABLE) {\n  const normalized = row[0];\n  \n  const match = row.find(alias => {\n    const a = alias.toLowerCase();\n    \n    // Check if alias is strictly symbols (no letters or numbers)\n\n    if (isSymbolOnly) {\n      // Symbols match even if glued to text: \"            {                 echo ___BEGIN___COMMAND_OUTPUT_MARKER___;                 PS1=;PS2=;unset HISTFILE;                 EC=0;                 echo ___BEGIN___COMMAND_DONE_MARKER___0;             }task\"\n      return lowerContent.startsWith(a);\n    } else {\n      // Words require a space or exact match: \"act task\" or \"act\"\n      return lowerContent.startsWith(a + \" \") || lowerContent === a;\n    }\n  });\n\n  if (match) {\n    tag = normalized;\n    clean_text = content.slice(match.length).trim();\n    break;\n  }\n}\n\n// Return entire webhook body plus parsed fields\nreturn {\n  ...json.body,\n  tag,\n  clean_text\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

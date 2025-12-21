@@ -40,7 +40,8 @@
     },
     {
       "parameters": {
-        "numberInputs": 1
+        "numberInputs": 1,
+        "mode": "append"
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
@@ -67,7 +68,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.ctx.db.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom’s birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom’s birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus\n\n**Example Thread 3:**\n\"I feel drained after back-to-back calls. I should probably book a vacation soon. The team lunch is next Thursday at the Italian place downtown. I've committed to no email checks after 8 PM.\"\n\n**Good Extraction:**\nreflection|I feel drained after back-to-back calls\nreflection|I've committed to no email checks after 8 PM\ntodo|Book a vacation\nfact|The team lunch is next Thursday at the Italian place downtown\n\n## Rules\n- Extract only items **explicitly stated or strongly implied** — never invent or infer new information.\n- Use the user's own words/phrasing when possible; minor edits only for clarity/conciseness.\n- Be specific and concrete — skip vague statements.\n- Limit to **maximum 10 items**.\n- Order by **importance/relevance** (most impactful, urgent, or personal first).\n- Prioritize categories: todo > reflection > fact (if something could fit multiple).\n- If unsure between reflection and fact, choose reflection.\n- Edge cases:\n  - \"I should probably...\" or \"Maybe I need to...\" → reflection unless clear commitment (\"I'm going to...\").\n  - Wishes/hypotheticals → reflection only if they reveal a pattern; otherwise omit.\n  - Advice from others → ignore unless user explicitly adopts it.\n  - Repeated ideas → extract only once (best phrasing).\n  - Negations (e.g., \"I hate early meetings\") → reflection.\n\n## Output Format\nOutput **only** the extracted lines, one per item, exactly like this (no preamble, no explanations, no extra text):\n\ntype|text\ntype|text\n...\n\nExtract thoughtfully for maximum signal and relevance.",
+        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.ctx.db.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom\u2019s birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom\u2019s birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus\n\n**Example Thread 3:**\n\"I feel drained after back-to-back calls. I should probably book a vacation soon. The team lunch is next Thursday at the Italian place downtown. I've committed to no email checks after 8 PM.\"\n\n**Good Extraction:**\nreflection|I feel drained after back-to-back calls\nreflection|I've committed to no email checks after 8 PM\ntodo|Book a vacation\nfact|The team lunch is next Thursday at the Italian place downtown\n\n## Rules\n- Extract only items **explicitly stated or strongly implied** \u2014 never invent or infer new information.\n- Use the user's own words/phrasing when possible; minor edits only for clarity/conciseness.\n- Be specific and concrete \u2014 skip vague statements.\n- Limit to **maximum 10 items**.\n- Order by **importance/relevance** (most impactful, urgent, or personal first).\n- Prioritize categories: todo > reflection > fact (if something could fit multiple).\n- If unsure between reflection and fact, choose reflection.\n- Edge cases:\n  - \"I should probably...\" or \"Maybe I need to...\" \u2192 reflection unless clear commitment (\"I'm going to...\").\n  - Wishes/hypotheticals \u2192 reflection only if they reveal a pattern; otherwise omit.\n  - Advice from others \u2192 ignore unless user explicitly adopts it.\n  - Repeated ideas \u2192 extract only once (best phrasing).\n  - Negations (e.g., \"I hate early meetings\") \u2192 reflection.\n\n## Output Format\nOutput **only** the extracted lines, one per item, exactly like this (no preamble, no explanations, no extra text):\n\ntype|text\ntype|text\n...\n\nExtract thoughtfully for maximum signal and relevance.",
         "needsFallback": true,
         "batching": {}
       },
@@ -190,7 +191,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build Discord summary message\nconst ctx = $('Build Insert Query').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '📊 **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '💡 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '📋 **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '❌ Dismiss • 🗑️ Delete thread';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        summary_content: content,\n        emoji_count: extractions.length\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build Discord summary message\nconst ctx = $('Build Insert Query').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1\ufe0f\u20e3', '2\ufe0f\u20e3', '3\ufe0f\u20e3', '4\ufe0f\u20e3', '5\ufe0f\u20e3', '6\ufe0f\u20e3', '7\ufe0f\u20e3', '8\ufe0f\u20e3', '9\ufe0f\u20e3', '\ud83d\udd1f'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '\ud83d\udcca **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '\ud83d\udca1 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '\u2022';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '\ud83d\udccb **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '\u2022';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '\u274c Dismiss \u2022 \ud83d\uddd1\ufe0f Delete thread';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        summary_content: content,\n        emoji_count: extractions.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -203,7 +204,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst ctx = $('Build Summary Message').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '❌'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '🗑️'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ctx: ctx,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
+        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst ctx = $('Build Summary Message').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1\ufe0f\u20e3', '2\ufe0f\u20e3', '3\ufe0f\u20e3', '4\ufe0f\u20e3', '5\ufe0f\u20e3', '6\ufe0f\u20e3', '7\ufe0f\u20e3', '8\ufe0f\u20e3', '9\ufe0f\u20e3', '\ud83d\udd1f'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '\u274c'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '\ud83d\uddd1\ufe0f'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ctx: ctx,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -268,7 +269,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Build Summary Message').first().json.ctx.event.channel_id }}/messages/{{ $('Build Summary Message').first().json.ctx.event.message_id }}/reactions/💭/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Build Summary Message').first().json.ctx.event.channel_id }}/messages/{{ $('Build Summary Message').first().json.ctx.event.message_id }}/reactions/\ud83d\udcad/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -280,7 +281,7 @@
         928
       ],
       "id": "3a889796-3250-4fef-af78-7b779e545595",
-      "name": "Remove 💭 Reaction",
+      "name": "Remove \ud83d\udcad Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -305,7 +306,7 @@
           "value": "={{ $json.ctx.event.thread_id }}",
           "mode": "id"
         },
-        "content": "❌ No items extracted from this thread. You must have had quite an interesting conversation.",
+        "content": "\u274c No items extracted from this thread. You must have had quite an interesting conversation.",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -331,7 +332,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -343,7 +344,7 @@
         736
       ],
       "id": "remove-blue-reaction-save-chat-no-extract",
-      "name": "Remove 🔵 Reaction (No Extract)",
+      "name": "Remove \ud83d\udd35 Reaction (No Extract)",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -414,7 +415,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "💭"
+        "emoji": "\ud83d\udcad"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -423,7 +424,7 @@
         352
       ],
       "id": "ee2bc94f-b03b-4d5c-a04e-3e80e8e3acf1",
-      "name": "React with 💭",
+      "name": "React with \ud83d\udcad",
       "webhookId": "2af02bbb-3f0b-490a-b0c9-234c0e9013ae",
       "retryOnFail": true,
       "maxTries": 3,
@@ -569,17 +570,17 @@
             "index": 0
           },
           {
-            "node": "React with 💭",
+            "node": "React with \ud83d\udcad",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove 💭 Reaction",
+            "node": "Remove \ud83d\udcad Reaction",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove 🔵 Reaction (No Extract)",
+            "node": "Remove \ud83d\udd35 Reaction (No Extract)",
             "type": "main",
             "index": 0
           }
@@ -752,7 +753,7 @@
         []
       ]
     },
-    "Remove 💭 Reaction": {
+    "Remove \ud83d\udcad Reaction": {
       "main": [
         []
       ]
@@ -779,7 +780,7 @@
         ]
       ]
     },
-    "React with 💭": {
+    "React with \ud83d\udcad": {
       "main": [
         []
       ]
