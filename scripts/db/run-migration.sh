@@ -96,7 +96,7 @@ cat "$MIGRATION_FILE" | ssh "$REMOTE_HOST" "
     echo '✅ Backup created: $REMOTE_BACKUP_DIR/$BACKUP_FILE' && \
     echo '⏳ Running migration...' && \
     docker exec -i $CONTAINER_DB psql -U $DB_USER -d $DB_NAME
-"
+" && echo "✅ Backup saved to: $REMOTE_BACKUP_DIR/$BACKUP_FILE"
 
 echo ""
 echo "✅ Migration complete: $MIGRATION_NAME"

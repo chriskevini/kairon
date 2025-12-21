@@ -195,7 +195,18 @@ LOCAL_TMP=$(mktemp -d)
 trap "rm -rf $LOCAL_TMP" EXIT
 
 # Export, download, and cleanup in single SSH session via tar
-ssh "$REMOTE_HOST" "$REMOTE_SCRIPT && cd $REMOTE_TMP && tar czf - *.json && rm -rf $REMOTE_TMP" </dev/null | (cd "$LOCAL_TMP" && tar xzf -)
+# The && ensures cleanup only happens if export succeeds
+ssh "$REMOTE_HOST" "
+    set -e
+    $REMOTE_SCRIPT
+    if [ -f $REMOTE_TMP/*.json 2>/dev/null ]; then
+        cd $REMOTE_TMP && tar czf - *.json
+    else
+        echo 'No files exported' >&2
+        exit 1
+    fi
+    rm -rf $REMOTE_TMP
+" </dev/null | (cd "$LOCAL_TMP" && tar xzf -)
 
 echo ""
 echo "Downloading to local..."

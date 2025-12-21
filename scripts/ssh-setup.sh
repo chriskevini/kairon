@@ -39,17 +39,11 @@ export -f scp
 cleanup_ssh_connection() {
     if [ -n "$REMOTE_HOST" ]; then
         # Check if any control socket exists for this host
-        local socket_found=false
-        shopt -s nullglob
-        for socket in "$SSH_CONTROL_DIR"/*"$REMOTE_HOST"*; do
-            if [ -S "$socket" ]; then
-                socket_found=true
-                break
-            fi
-        done
-        shopt -u nullglob
+        # Use find to safely check without glob expansion issues
+        local socket_count
+        socket_count=$(find "$SSH_CONTROL_DIR" -maxdepth 1 -type s -name "*${REMOTE_HOST}*" 2>/dev/null | wc -l)
         
-        if [ "$socket_found" = true ]; then
+        if [ "$socket_count" -gt 0 ]; then
             command ssh -O exit -o ControlPath="$SSH_CONTROL_PATH" "$REMOTE_HOST" 2>/dev/null || true
         fi
     fi
