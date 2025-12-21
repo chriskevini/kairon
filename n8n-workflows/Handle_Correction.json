@@ -1,0 +1,528 @@
+{
+  "name": "Handle_Correction",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -800,
+        400
+      ],
+      "id": "trigger-correction",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Look up the original event that created projections for this message\n-- Also get the emoji mapping config for correction types\nWITH original AS (\n  SELECT \n    e.id as event_id,\n    e.payload->>'discord_message_id' as message_id,\n    e.payload->>'clean_text' as clean_text,\n    e.payload->>'discord_channel_id' as channel_id,\n    e.payload->>'discord_guild_id' as guild_id,\n    e.payload->>'author_login' as author_login,\n    e.payload as original_payload\n  FROM events e\n  WHERE e.payload->>'discord_message_id' = $1\n    AND e.event_type = 'discord_message'\n  ORDER BY e.received_at DESC\n  LIMIT 1\n),\nemoji_config AS (\n  SELECT value FROM config WHERE key = 'emoji_mapping'\n)\nSELECT \n  o.*,\n  ec.value as emoji_mapping\nFROM original o\nCROSS JOIN emoji_config ec;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.event.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -576,
+        400
+      ],
+      "id": "lookup-original-event",
+      "name": "Lookup Original Event",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare correction context\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\nconst original = $json;\n\nif (!original || !original.event_id) {\n  return {\n    ctx,\n    has_original: false,\n    error: 'No original event found for this message'\n  };\n}\n\n// Parse emoji mapping - Postgres returns JSON as string\nconst rawMapping = original.emoji_mapping;\nconst emojiMapping = typeof rawMapping === 'string' ? JSON.parse(rawMapping) : (rawMapping || {});\nconst types = emojiMapping.types || {};\nconst actions = emojiMapping.actions || {};\nconst emoji = ctx.event.emoji;\n\n// Determine correction type\nlet correctionType = null;\nlet correctionTag = null;\nlet isVoidOnly = false;\n\nif (types[emoji]) {\n  correctionType = types[emoji].type;\n  correctionTag = types[emoji].tag;\n} else if (actions[emoji] === 'void') {\n  isVoidOnly = true;\n}\n\n// Pre-compute values for Postgres queries to avoid n8n expression parsing issues\nconst messageUrl = `https://discord.com/channels/${original.guild_id}/${original.channel_id}/${original.message_id}`;\nconst idempotencyKey = `correction_${original.message_id}_${Date.now()}`;\n\nreturn {\n  ctx,\n  has_original: true,\n  original: {\n    event_id: original.event_id,\n    message_id: original.message_id,\n    clean_text: original.clean_text,\n    channel_id: original.channel_id,\n    guild_id: original.guild_id,\n    author_login: original.author_login,\n    payload: original.original_payload,\n    message_url: messageUrl\n  },\n  correction: {\n    emoji: emoji,\n    type: correctionType,\n    tag: correctionTag,\n    is_void_only: isVoidOnly,\n    idempotency_key: idempotencyKey\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        400
+      ],
+      "id": "prepare-correction",
+      "name": "Prepare Correction"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-original",
+              "leftValue": "={{ $json.has_original }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        400
+      ],
+      "id": "has-original-check",
+      "name": "Has Original?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Create correction event for audit trail\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'user_correction',\n  jsonb_build_object(\n    'original_event_id', $2,\n    'original_message_id', $3,\n    'correction_emoji', $4,\n    'correction_type', $5,\n    'is_void_only', $6,\n    'triggered_by_event_id', $7\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.correction.idempotency_key }},={{ $json.original.event_id }},={{ $json.original.message_id }},={{ $json.correction.emoji }},={{ $json.correction.type || 'void' }},={{ $json.correction.is_void_only }},={{ $json.ctx.event.event_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        96,
+        336
+      ],
+      "id": "create-correction-event",
+      "name": "Create Correction Event",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Void ALL projections for this Discord message (by message_url)\n-- This catches both original projections and any corrected ones\nUPDATE projections\nSET \n  status = 'voided',\n  voided_at = NOW(),\n  voided_reason = 'user_correction',\n  voided_by_event_id = $1::uuid\nWHERE data->>'message_url' = $2\n  AND status IN ('pending', 'auto_confirmed', 'confirmed')\nRETURNING id, projection_type, data->>'description' as description, data->>'text' as text;",
+        "options": {
+          "queryReplacement": "={{ $json.id }},={{ $('Prepare Correction').first().json.original.message_url }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        320,
+        336
+      ],
+      "id": "void-projections",
+      "name": "Void Projections",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build list of emojis to remove based on voided projection types\nconst ctx = $('Prepare Correction').first().json;\nconst channelId = ctx.original.channel_id;\nconst messageId = ctx.original.message_id;\n\n// Get voided projection types from Void Projections result\nconst voidedItems = $('Void Projections').all();\nconst voidedTypes = voidedItems.map(item => item.json.projection_type).filter(Boolean);\n\n// Map projection types to their emojis\nconst typeToEmoji = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '✅'\n};\n\n// Only remove emojis for the projection types that were actually voided\nconst emojisToRemove = [...new Set(voidedTypes.map(t => typeToEmoji[t]).filter(Boolean))];\n\nif (emojisToRemove.length === 0) {\n  // No emojis to remove, return skip marker\n  return [{ json: { skip: true } }];\n}\n\nreturn emojisToRemove.map(emoji => ({\n  json: {\n    channel_id: channelId,\n    message_id: messageId,\n    emoji: emoji,\n    encoded_emoji: encodeURIComponent(emoji),\n    skip: false\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        336
+      ],
+      "id": "build-emoji-remove-list",
+      "name": "Build Emoji Remove List"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channel_id }}/messages/{{ $json.message_id }}/reactions/{{ $json.encoded_emoji }}/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        336
+      ],
+      "id": "remove-bot-emojis",
+      "name": "Remove Bot Emojis",
+      "retryOnFail": false,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// After removing emojis, check if we need to re-extract or just void\nconst prepareData = $('Prepare Correction').first().json;\nconst correctionEventResult = $('Create Correction Event').first().json;\n\nreturn {\n  ctx: prepareData.ctx,\n  original: prepareData.original,\n  correction: prepareData.correction,\n  correction_event_id: correctionEventResult.id,\n  should_reextract: !prepareData.correction.is_void_only && !!prepareData.correction.type\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        336
+      ],
+      "id": "check-reextract",
+      "name": "Check Re-extract"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "should-reextract",
+              "leftValue": "={{ $json.should_reextract }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        336
+      ],
+      "id": "should-reextract-check",
+      "name": "Should Re-extract?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build ctx for Capture_Projection, reusing original event data\nconst data = $json;\nconst original = data.original;\nconst correction = data.correction;\n\n// Map correction type to projection type\nconst typeMap = {\n  'activity': 'activity',\n  'note': 'note',\n  'todo': 'todo'\n};\n\nconst projectionType = typeMap[correction.type] || 'note';\n\n// Build new trace chain starting from correction event\nconst traceChain = [data.correction_event_id];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Construct message_url from original data\nconst messageUrl = `https://discord.com/channels/${original.guild_id}/${original.channel_id}/${original.message_id}`;\n\nreturn {\n  ctx: {\n    event: {\n      event_id: data.correction_event_id,\n      event_type: 'user_correction',\n      timestamp: new Date().toISOString(),\n      guild_id: original.guild_id,\n      channel_id: original.channel_id,\n      message_id: original.message_id,\n      message_url: messageUrl,\n      author_login: original.author_login,\n      raw_text: original.clean_text,\n      clean_text: original.clean_text,\n      tag: correction.tag,\n      trace_chain: traceChain,\n      trace_chain_pg: traceChainPg\n    },\n    projection: {\n      type: projectionType\n    },\n    correction: {\n      original_event_id: original.event_id,\n      emoji: correction.emoji\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        272
+      ],
+      "id": "build-capture-ctx",
+      "name": "Build Capture ctx"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "fCzIE4pwbotbDlD6",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1776,
+        272
+      ],
+      "id": "execute-capture",
+      "name": "Execute Capture_Projection"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Prepare Correction').first().json.original.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
+          "mode": "id"
+        },
+        "content": "=**[Correction]** {{ $('Prepare Correction').first().json.correction.is_void_only ? 'Voided' : 'Re-extracted as ' + $('Prepare Correction').first().json.correction.type }} for message `{{ $('Prepare Correction').first().json.original.message_id }}`",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        464
+      ],
+      "id": "log-correction",
+      "name": "Log Correction",
+      "webhookId": "correction-log",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
+          "mode": "id"
+        },
+        "content": "=**[Correction]** No original event found for message `{{ $json.ctx.event.message_id }}`",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        96,
+        560
+      ],
+      "id": "log-no-original",
+      "name": "Log No Original",
+      "webhookId": "no-original-log",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "not-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        656,
+        336
+      ],
+      "id": "filter-skip",
+      "name": "Has Emoji to Remove?"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Lookup Original Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Original Event": {
+      "main": [
+        [
+          {
+            "node": "Prepare Correction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Correction": {
+      "main": [
+        [
+          {
+            "node": "Has Original?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Original?": {
+      "main": [
+        [
+          {
+            "node": "Create Correction Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Original",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Correction Event": {
+      "main": [
+        [
+          {
+            "node": "Void Projections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Void Projections": {
+      "main": [
+        [
+          {
+            "node": "Build Emoji Remove List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Emoji Remove List": {
+      "main": [
+        [
+          {
+            "node": "Has Emoji to Remove?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Bot Emojis": {
+      "main": [
+        [
+          {
+            "node": "Check Re-extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Re-extract": {
+      "main": [
+        [
+          {
+            "node": "Should Re-extract?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Re-extract?": {
+      "main": [
+        [
+          {
+            "node": "Build Capture ctx",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Correction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Capture ctx": {
+      "main": [
+        [
+          {
+            "node": "Execute Capture_Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Emoji to Remove?": {
+      "main": [
+        [
+          {
+            "node": "Remove Bot Emojis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Re-extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
+}

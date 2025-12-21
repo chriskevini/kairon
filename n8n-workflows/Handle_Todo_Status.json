@@ -1,0 +1,76 @@
+{
+  "name": "Handle_Todo_Status",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -160,
+        400
+      ],
+      "id": "trigger-todo-status",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.channel_id }}",
+          "mode": "id"
+        },
+        "content": "=Todo status changes are WIP. Reacted with {{ $json.ctx.event.emoji }} on message `{{ $json.ctx.event.message_id }}`",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        80,
+        400
+      ],
+      "id": "send-wip-message",
+      "name": "Send WIP Message",
+      "webhookId": "todo-status-wip",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send WIP Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
+}
