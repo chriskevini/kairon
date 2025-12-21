@@ -1,31 +1,39 @@
--- Understanding "orphaned" raw events
+-- Understanding processing health by tag
 
--- Orphans are EXPECTED for these cases:
--- 1. Commands (::) - ephemeral, no secondary table
--- 2. Failed workflow processing - debugging info
--- 3. Messages in threads (continuation) - may not create activity/note
+-- Tags have different expected outcomes:
+-- !! (Activity) -> Expected 1+ activity projections
+-- .. (Note)     -> Expected 1+ note projections
+-- ++ (Thread)   -> Expected trace and thread_response projection
+-- :: (Command)  -> Expected trace, may not have projection (if ephemeral)
+-- (null)        -> Multi-extraction, expected 1+ projections
 
 SELECT 
-  re.tag,
+  e.payload->>'tag' as tag,
   COUNT(*) AS total_events,
-  COUNT(al.id) AS has_activity,
-  COUNT(n.id) AS has_note,
-  COUNT(*) - COUNT(al.id) - COUNT(n.id) AS orphaned
-FROM raw_events re
-LEFT JOIN activity_log al ON re.id = al.raw_event_id
-LEFT JOIN notes n ON re.id = n.raw_event_id
-GROUP BY re.tag
-ORDER BY re.tag;
+  COUNT(DISTINCT p.id) FILTER (WHERE p.projection_type = 'activity') AS with_activity,
+  COUNT(DISTINCT p.id) FILTER (WHERE p.projection_type = 'note') AS with_note,
+  COUNT(DISTINCT p.id) FILTER (WHERE p.projection_type = 'todo') AS with_todo,
+  COUNT(DISTINCT p.id) FILTER (WHERE p.projection_type = 'thread_response') AS with_thread_resp,
+  COUNT(DISTINCT t.id) AS with_trace,
+  COUNT(DISTINCT e.id) FILTER (WHERE t.id IS NULL AND p.id IS NULL) AS orphaned
+FROM events e
+LEFT JOIN traces t ON e.id = t.event_id
+LEFT JOIN projections p ON e.id = p.event_id
+WHERE e.event_type = 'discord_message'
+GROUP BY e.payload->>'tag'
+ORDER BY tag;
 
--- Show recent orphaned events by tag
+-- Recent orphaned messages (no trace, no projection)
 SELECT 
-  re.tag,
-  re.clean_text,
-  re.received_at,
-  re.message_url
-FROM raw_events re
-LEFT JOIN activity_log al ON re.id = al.raw_event_id
-LEFT JOIN notes n ON re.id = n.raw_event_id
-WHERE al.id IS NULL AND n.id IS NULL
-ORDER BY re.received_at DESC
+  e.payload->>'tag' as tag,
+  LEFT(e.payload->>'clean_text', 50) as text,
+  e.received_at,
+  e.payload->>'message_url' as message_url
+FROM events e
+LEFT JOIN traces t ON e.id = t.event_id
+LEFT JOIN projections p ON e.id = p.event_id
+WHERE e.event_type = 'discord_message'
+  AND t.id IS NULL 
+  AND p.id IS NULL
+ORDER BY e.received_at DESC
 LIMIT 20;

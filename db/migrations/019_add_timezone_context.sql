@@ -27,6 +27,7 @@ END $$;
 -- 4. Update Views to include timezone
 
 -- Activity log
+DROP VIEW IF EXISTS activity_log_v2;
 CREATE OR REPLACE VIEW activity_log_v2 AS
 SELECT 
   p.id,
@@ -47,6 +48,7 @@ WHERE p.projection_type = 'activity'
 ORDER BY (p.data->>'timestamp')::timestamptz DESC;
 
 -- Notes
+DROP VIEW IF EXISTS notes_v2;
 CREATE OR REPLACE VIEW notes_v2 AS
 SELECT 
   p.id,
@@ -64,6 +66,7 @@ WHERE p.projection_type = 'note'
 ORDER BY (p.data->>'timestamp')::timestamptz DESC;
 
 -- Todos
+DROP VIEW IF EXISTS todos_v2;
 CREATE OR REPLACE VIEW todos_v2 AS
 SELECT 
   p.id,
@@ -82,6 +85,7 @@ WHERE p.projection_type = 'todo'
 ORDER BY (p.data->>'timestamp')::timestamptz DESC;
 
 -- Recent projections
+DROP VIEW IF EXISTS recent_projections;
 CREATE OR REPLACE VIEW recent_projections AS
 SELECT 
   p.id,
@@ -101,6 +105,7 @@ WHERE p.status IN ('auto_confirmed', 'confirmed')
 ORDER BY (p.data->>'timestamp')::timestamptz DESC;
 
 -- Thread history
+DROP VIEW IF EXISTS thread_history;
 CREATE OR REPLACE VIEW thread_history AS
 SELECT
   p.id,
@@ -118,6 +123,7 @@ WHERE p.projection_type = 'thread_response'
 ORDER BY (p.data->>'timestamp')::timestamptz ASC;
 
 -- Thread extractions
+DROP VIEW IF EXISTS thread_extractions_v2;
 CREATE OR REPLACE VIEW thread_extractions_v2 AS
 SELECT 
   p.id,

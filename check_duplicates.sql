@@ -1,40 +1,44 @@
--- Check for duplicates and failed processing
+-- Check for duplicates and processing health
 
--- 1. Count total raw events
-SELECT 'Total raw events' AS metric, COUNT(*) AS count
-FROM raw_events
+-- 1. Summary of processing success
+WITH stats AS (
+    SELECT 
+        COUNT(*) as total_msg,
+        COUNT(DISTINCT p.event_id) as with_projections
+    FROM events e
+    LEFT JOIN projections p ON e.id = p.event_id
+    WHERE e.event_type = 'discord_message'
+)
+SELECT 'Total Discord Messages' AS metric, total_msg AS count FROM stats
 UNION ALL
-
--- 2. Count successful activities
-SELECT 'Successful activities', COUNT(*)
-FROM activity_log
+SELECT 'Messages with Projections', with_projections FROM stats
 UNION ALL
+SELECT 'Orphaned Messages (no projections)', total_msg - with_projections FROM stats;
 
--- 3. Count successful notes
-SELECT 'Successful notes', COUNT(*)
-FROM notes
-UNION ALL
-
--- 4. Find "orphaned" raw events (received but not processed)
-SELECT 'Orphaned raw events (not processed)', COUNT(*)
-FROM raw_events re
-LEFT JOIN activity_log al ON re.id = al.raw_event_id
-LEFT JOIN notes n ON re.id = n.raw_event_id
-WHERE al.id IS NULL AND n.id IS NULL;
-
--- 5. Show recent raw events with processing status
+-- 2. Check for duplicate idempotency keys
 SELECT 
-  re.received_at,
-  re.clean_text,
-  re.tag,
+    idempotency_key, 
+    event_type, 
+    COUNT(*) 
+FROM events 
+WHERE idempotency_key IS NOT NULL 
+GROUP BY idempotency_key, event_type 
+HAVING COUNT(*) > 1;
+
+-- 3. Show recent events with processing status
+SELECT 
+  e.received_at,
+  e.payload->>'tag' as tag,
+  LEFT(e.payload->>'clean_text', 50) as text,
   CASE 
-    WHEN al.id IS NOT NULL THEN 'activity'
-    WHEN n.id IS NOT NULL THEN 'note'
+    WHEN COUNT(p.id) > 0 THEN 'processed (' || COUNT(p.id) || ' projections)'
+    WHEN COUNT(t.id) > 0 THEN 'trace only'
     ELSE 'unprocessed'
-  END AS status,
-  COALESCE(al.category::text, n.category::text, '-') AS category
-FROM raw_events re
-LEFT JOIN activity_log al ON re.id = al.raw_event_id
-LEFT JOIN notes n ON re.id = n.raw_event_id
-ORDER BY re.received_at DESC
+  END AS status
+FROM events e
+LEFT JOIN traces t ON e.id = t.event_id
+LEFT JOIN projections p ON e.id = p.event_id
+WHERE e.event_type = 'discord_message'
+GROUP BY e.id
+ORDER BY e.received_at DESC
 LIMIT 10;
