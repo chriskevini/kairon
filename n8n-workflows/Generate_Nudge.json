@@ -618,9 +618,14 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false
   },
-  "staticData": null,
+  "staticData": {
+    "node:Every 15 Minutes": {
+      "recurrenceRules": []
+    }
+  },
   "meta": null,
-  "active": true
+  "active": false
 }

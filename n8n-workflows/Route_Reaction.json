@@ -63,7 +63,7 @@
                   {
                     "id": "is-number-emoji",
                     "leftValue": "={{ $json.ctx.event.emoji }}",
-                    "rightValue": "1\ufe0f\u20e3,2\ufe0f\u20e3,3\ufe0f\u20e3,4\ufe0f\u20e3,5\ufe0f\u20e3,6\ufe0f\u20e3,7\ufe0f\u20e3,8\ufe0f\u20e3,9\ufe0f\u20e3,\ud83d\udd1f,\u274c",
+                    "rightValue": "1️⃣,2️⃣,3️⃣,4️⃣,5️⃣,6️⃣,7️⃣,8️⃣,9️⃣,🔟,❌",
                     "operator": {
                       "type": "string",
                       "operation": "containedIn"
@@ -87,7 +87,7 @@
                   {
                     "id": "is-trash-emoji",
                     "leftValue": "={{ $json.ctx.event.emoji }}",
-                    "rightValue": "\ud83d\uddd1\ufe0f",
+                    "rightValue": "🗑️",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -111,7 +111,7 @@
                   {
                     "id": "is-regenerate-emoji",
                     "leftValue": "={{ $json.ctx.event.emoji }}",
-                    "rightValue": "\ud83d\udd04",
+                    "rightValue": "🔄",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -188,7 +188,7 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\u2705/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/✅/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -200,7 +200,7 @@
         656
       ],
       "id": "confirm-void",
-      "name": "Confirm Void \u2705",
+      "name": "Confirm Void ✅",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -383,7 +383,7 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Check Regeneratable').first().json.ctx.event.channel_id }}/messages/{{ $('Check Regeneratable').first().json.ctx.event.message_id }}/reactions/\u23f3/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Check Regeneratable').first().json.ctx.event.channel_id }}/messages/{{ $('Check Regeneratable').first().json.ctx.event.message_id }}/reactions/⏳/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -395,7 +395,7 @@
         848
       ],
       "id": "react-hourglass",
-      "name": "React with \u23f3",
+      "name": "React with ⏳",
       "credentials": {
         "discordBotApi": {
           "id": "hvetTjtpeKFB1V0I",
@@ -545,7 +545,7 @@
         ]
       ]
     },
-    "Confirm Void \u2705": {
+    "Confirm Void ✅": {
       "main": [
         [
           {
@@ -560,7 +560,7 @@
       "main": [
         [
           {
-            "node": "Confirm Void \u2705",
+            "node": "Confirm Void ✅",
             "type": "main",
             "index": 0
           }
@@ -622,14 +622,14 @@
       "main": [
         [
           {
-            "node": "React with \u23f3",
+            "node": "React with ⏳",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "React with \u23f3": {
+    "React with ⏳": {
       "main": [
         [
           {

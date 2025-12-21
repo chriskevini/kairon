@@ -1,5 +1,5 @@
 {
-  "name": "Route_Discord_Event",
+  "name": "Route_Event",
   "nodes": [
     {
       "parameters": {
