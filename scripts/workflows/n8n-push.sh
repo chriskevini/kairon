@@ -11,34 +11,15 @@
 
 set -euo pipefail
 
-# Source SSH connection reuse setup
+# --- COMMON SETUP ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../ssh-setup.sh" 2>/dev/null || true
-
-# --- 1. RESOLVE DIRECTORIES ---
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ENV_FILE="$REPO_ROOT/.env"
-WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
-
-# --- 2. LOAD .ENV FILE ---
-if [ -f "$ENV_FILE" ]; then
-    export $(grep -v '^#' "$ENV_FILE" | grep -v '^$' | xargs)
-else
-    echo "Error: .env file not found at $ENV_FILE"
-    exit 1
-fi
-
-# --- 3. VALIDATE REQUIRED VARIABLES ---
-if [ -z "$REMOTE_HOST" ]; then
-    echo "Error: REMOTE_HOST not set in .env"
-    exit 1
-fi
-if [ -z "$N8N_API_KEY" ]; then
-    echo "Error: N8N_API_KEY not set in .env"
-    exit 1
-fi
+source "$SCRIPT_DIR/../common.sh"
+kairon_init "$SCRIPT_DIR"
+kairon_setup_ssh
+kairon_require_vars REMOTE_HOST N8N_API_KEY
 
 N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
+WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
 
 # --- 4. PARSE ARGUMENTS ---
 DRY_RUN=false
