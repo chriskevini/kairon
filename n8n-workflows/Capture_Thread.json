@@ -40,6 +40,7 @@
     },
     {
       "parameters": {
+        "mode": "append",
         "numberInputs": 1
       },
       "type": "n8n-nodes-base.merge",
