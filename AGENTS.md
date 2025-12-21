@@ -302,6 +302,21 @@ Event (immutable log)
 | `run-migration.sh` | Run DB migrations with backup |
 | `db-query.sh` | Run SQL on remote DB |
 
+## Database Health Checks
+
+Use these scripts with `db-query.sh` to monitor system health:
+
+```bash
+# 1. General health and migration status
+./scripts/db/db-query.sh -f check_migration_status.sql
+
+# 2. Check for processing failures and orphans
+./scripts/db/db-query.sh -f check_duplicates.sql
+
+# 3. Processing breakdown by tag
+./scripts/db/db-query.sh -f check_orphans_by_tag.sql
+```
+
 ## Git Workflow
 
 The pre-commit hook handles validation and sanitization automatically. Just commit normally:
