@@ -121,15 +121,19 @@ Migration 019 added `timezone` columns. Ensure all workflows populate this field
 
 **Fix:** Use `Path(__file__).parent` for relative paths.
 
-#### 3.4 Zero Test Coverage
-No unit tests exist. Critical gaps in:
-- Payload formatting logic (`format_message_payload`)
-- ctx-pattern linter regex rules
+#### 3.4 ~~Zero Test Coverage~~ RESOLVED
+~~No unit tests exist. Critical gaps in:~~
+~~- Payload formatting logic (`format_message_payload`)~~
+~~- ctx-pattern linter regex rules~~
+
+**Status:** RESOLVED (Dec 2025) - Added 12 unit tests for `discord_relay.py` covering channel filtering and payload formatting.
 
 ### Medium
 
-#### 3.5 Unpinned Dependencies
-`requirements.txt` uses `>=` instead of exact versions, risking build breaks.
+#### 3.5 ~~Unpinned Dependencies~~ RESOLVED
+~~`requirements.txt` uses `>=` instead of exact versions, risking build breaks.~~
+
+**Status:** RESOLVED (Dec 2025) - Dependencies pinned to exact versions.
 
 #### 3.6 Missing Type Hints
 Many functions lack return types and parameter types.
@@ -173,10 +177,10 @@ Pattern `export $(grep -v '^#' "$ENV_FILE" | xargs)` fails with spaces/special c
 
 ### Medium
 
-#### 4.4 Code Duplication
-`.env` loading, path resolution, and SSH setup are copy-pasted across 4+ scripts.
+#### 4.4 ~~Code Duplication~~ RESOLVED
+~~`.env` loading, path resolution, and SSH setup are copy-pasted across 4+ scripts.~~
 
-**Fix:** Extract to `scripts/common.sh`.
+**Status:** RESOLVED (Dec 2025) - Extracted to `scripts/common.sh` with `kairon_init`, `kairon_require_vars`, `kairon_setup_ssh` functions.
 
 #### 4.5 Inconsistent Quoting
 Variable quoting is inconsistent, especially in SQL contexts.
@@ -199,18 +203,10 @@ References deprecated "original architecture" with old workflow names and patter
 
 **Fix:** Archive or rewrite.
 
-#### 5.2 Inconsistent Tag Definitions
-Tags defined differently across documents:
+#### 5.2 ~~Inconsistent Tag Definitions~~ RESOLVED
+~~Tags defined differently across documents~~
 
-| Document | `++` Tag Name |
-|----------|---------------|
-| `AGENTS.md` | "Start chat thread" |
-| `docs/tag-parsing-reference.md` | "Thread Start" |
-| `docs/SUMMARY.md` | "ask" |
-
-Also, `AGENTS.md` is missing `--`, `::`, and `$$` tags.
-
-**Fix:** Make `docs/tag-parsing-reference.md` the single source of truth.
+**Status:** RESOLVED (Dec 2025) - `AGENTS.md` updated with complete tag definitions. Outdated `docs/SUMMARY.md` removed.
 
 ### High
 
@@ -222,13 +218,15 @@ Also, `AGENTS.md` is missing `--`, `::`, and `$$` tags.
 
 **Fix:** Update to `TAG|CONFIDENCE` format.
 
-#### 5.4 Category Implementation Confusion
-`AGENTS.md` says "Categories are strings in JSONB (not enums)" but `docs/SUMMARY.md` discusses "fixed enums".
+#### 5.4 ~~Category Implementation Confusion~~ RESOLVED
+~~`AGENTS.md` says "Categories are strings in JSONB (not enums)" but `docs/SUMMARY.md` discusses "fixed enums".~~
 
-**Fix:** Clarify actual implementation.
+**Status:** RESOLVED (Dec 2025) - Removed outdated `docs/SUMMARY.md`. `AGENTS.md` is the source of truth.
 
-#### 5.5 Missing Workflow Documentation
-No docs for `Handle_Todo_Status.json` or `Handle_Correction.json`.
+#### 5.5 ~~Missing Workflow Documentation~~ RESOLVED
+~~No docs for `Handle_Todo_Status.json` or `Handle_Correction.json`.~~
+
+**Status:** RESOLVED (Dec 2025) - Added to workflow table in README.md.
 
 ### Medium
 
@@ -260,11 +258,11 @@ Documents reference migrations in `db/migrations/` but most are in `archive/`.
 3. ~~Add `set -euo pipefail` to all scripts~~ - RESOLVED (Dec 2025)
 4. ~~Update outdated documentation (AGENTS.md tags, prompts)~~ - RESOLVED (commit e0a2469)
 
-### Phase 3: Medium Priority (Month 1)
-1. Extract common shell functions
-2. Add basic test coverage for Python
-3. Pin dependencies
-4. Consolidate documentation inconsistencies
+### Phase 3: Medium Priority ~~(Month 1)~~ COMPLETED
+1. ~~Extract common shell functions~~ - RESOLVED (Dec 2025) - `scripts/common.sh`
+2. ~~Add basic test coverage for Python~~ - RESOLVED (Dec 2025) - 12 tests for discord_relay.py
+3. ~~Pin dependencies~~ - RESOLVED (Dec 2025) - Exact versions in requirements.txt
+4. ~~Consolidate documentation inconsistencies~~ - RESOLVED (Dec 2025) - Removed outdated SUMMARY.md
 
 ### Phase 4: Ongoing
 1. Add workflow documentation as features ship

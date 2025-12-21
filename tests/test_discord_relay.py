@@ -92,15 +92,14 @@ class TestIsArcaneShellChannel:
         assert discord_relay.is_arcane_shell_channel(thread) is False
     
     def test_thread_no_parent(self):
-        """Thread with no parent should return False (falsy)."""
+        """Thread with no parent should return False."""
         import discord_relay
         import discord
         
         thread = Mock(spec=discord.Thread)
         thread.parent = None
         
-        # Function returns None when parent is None, which is falsy
-        assert not discord_relay.is_arcane_shell_channel(thread)
+        assert discord_relay.is_arcane_shell_channel(thread) is False
     
     def test_unknown_channel_type(self):
         """Unknown channel type should return False."""

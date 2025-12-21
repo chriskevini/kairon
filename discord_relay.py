@@ -10,8 +10,8 @@ import discord
 from discord.ext import commands
 import aiohttp
 import asyncio
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Optional, Union
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -34,14 +34,14 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 http_session: Optional[aiohttp.ClientSession] = None
 
 
-def is_arcane_shell_channel(channel) -> bool:
+def is_arcane_shell_channel(channel: Union[discord.TextChannel, discord.Thread, discord.abc.GuildChannel]) -> bool:
     """
     Check if the channel is #arcane-shell or a thread from #arcane-shell.
     Extracts duplicated channel checking logic.
     """
     if isinstance(channel, discord.Thread):
         parent_channel = channel.parent
-        return parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME
+        return bool(parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME)
     elif isinstance(channel, discord.TextChannel):
         return channel.name == ARCANE_SHELL_CHANNEL_NAME
     return False
@@ -108,7 +108,7 @@ def format_reaction_payload(
             "login": message.author.name,
         },
         "message_content": message.content,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
