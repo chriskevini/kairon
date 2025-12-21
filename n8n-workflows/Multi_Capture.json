@@ -130,7 +130,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO traces (event_id, step_name, step_order, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'multi_capture',\n  1,\n  jsonb_build_object(\n    'input', jsonb_build_object('text', $2),\n    'completion', $3,\n    'result', $4::jsonb,\n    'model', 'xiaomi/mimo-v2-flash:free',\n    'duration_ms', $5::integer,\n    'capture_count', $6::integer\n  ),\n  $7::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
+        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'multi_capture',\n  jsonb_build_object(\n    'input', jsonb_build_object('text', $2),\n    'completion', $3,\n    'result', $4::jsonb,\n    'model', 'xiaomi/mimo-v2-flash:free',\n    'duration_ms', $5::integer,\n    'capture_count', $6::integer\n  ),\n  $7::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
         "options": {
           "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.ctx.event.clean_text }},={{ $json.raw_response }},={{ $json.result_json }},={{ $json.duration_ms }},={{ $json.total_captures }},={{ $json.trace_chain_pg }}"
         }

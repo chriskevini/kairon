@@ -98,6 +98,30 @@
               },
               "renameOutput": true,
               "outputKey": "Void"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "is-regenerate-emoji",
+                    "leftValue": "={{ $json.ctx.event.emoji }}",
+                    "rightValue": "🔄",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Regenerate"
             }
           ]
         },
@@ -238,6 +262,222 @@
       ],
       "id": "0f4b8d45-71e3-4a08-82f4-b1d3241323ba",
       "name": "Merge Void Result"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Find projection and its type by the Discord message that created it\n-- The reaction's message_id is the bot's reply message\n-- We stored discord_message_id in projection.data\nSELECT \n  p.id as projection_id,\n  p.projection_type,\n  p.trace_id,\n  p.event_id,\n  p.data\nFROM projections p\nWHERE p.data->>'discord_message_id' = $1\n  AND p.status IN ('auto_confirmed', 'confirmed')\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.event.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        304,
+        912
+      ],
+      "id": "lookup-projection-regenerate",
+      "name": "Lookup Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if projection can be regenerated\nconst ctx = $('Receive Event').first().json.ctx;\nconst projection = $json;\n\n// Only daily_summary and nudge can be regenerated\nconst regeneratableTypes = ['daily_summary', 'nudge'];\n\nif (!projection || !projection.projection_id) {\n  return {\n    ctx,\n    can_regenerate: false,\n    error_message: 'No projection found for this message'\n  };\n}\n\nif (!regeneratableTypes.includes(projection.projection_type)) {\n  return {\n    ctx,\n    can_regenerate: false,\n    error_message: `Cannot regenerate ${projection.projection_type} projections`\n  };\n}\n\nreturn {\n  ctx,\n  can_regenerate: true,\n  projection: projection,\n  regenerate_type: projection.projection_type === 'daily_summary' ? 'summary' : 'nudge'\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        912
+      ],
+      "id": "check-regeneratable",
+      "name": "Check Regeneratable"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "can-regenerate-check",
+              "leftValue": "={{ $json.can_regenerate }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        912
+      ],
+      "id": "if-can-regenerate",
+      "name": "If Can Regenerate"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert system event for regeneration\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'source_type', 'reaction',\n    'trigger_type', $2,\n    'trigger_reason', 'regenerate',\n    'supersedes_projection_id', $3,\n    'supersedes_trace_id', $4,\n    'triggered_by_event_id', $5\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING id;",
+        "options": {
+          "queryReplacement": "=regenerate:{{ $json.projection.projection_type }}:{{ $json.projection.projection_id }}:{{ Date.now() }},={{ $json.projection.projection_type }},={{ $json.projection.projection_id }},={{ $json.projection.trace_id }},={{ $json.ctx.event.event_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        976,
+        848
+      ],
+      "id": "insert-regenerate-event",
+      "name": "Insert Regenerate Event",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Void the old projection (superseded by regeneration)\nUPDATE projections\nSET \n  status = 'voided',\n  voided_at = NOW(),\n  voided_reason = 'superseded_by_regeneration',\n  voided_by_event_id = $1::uuid\nWHERE id = $2::uuid\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.id }},={{ $('Check Regeneratable').first().json.projection.projection_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1200,
+        848
+      ],
+      "id": "void-old-projection",
+      "name": "Void Old Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Check Regeneratable').first().json.ctx.event.channel_id }}/messages/{{ $('Check Regeneratable').first().json.ctx.event.message_id }}/reactions/⏳/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1424,
+        848
+      ],
+      "id": "react-hourglass",
+      "name": "React with ⏳",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $('Check Regeneratable').first().json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
+          "mode": "id"
+        },
+        "content": "=**[Regenerate]** Triggered regeneration of `{{ $('Check Regeneratable').first().json.projection.projection_type }}` (projection: `{{ $('Check Regeneratable').first().json.projection.projection_id }}`)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        848
+      ],
+      "id": "log-regenerate",
+      "name": "Log Regenerate",
+      "webhookId": "regenerate-log",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
+          "mode": "id"
+        },
+        "content": "=**[Regenerate]** Cannot regenerate: {{ $json.error_message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        976,
+        1008
+      ],
+      "id": "log-cannot-regenerate",
+      "name": "Log Cannot Regenerate",
+      "webhookId": "cannot-regenerate-log",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -283,6 +523,14 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [],
+        [
+          {
+            "node": "Lookup Projection",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -313,6 +561,79 @@
         [
           {
             "node": "Confirm Void ✅",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Projection": {
+      "main": [
+        [
+          {
+            "node": "Check Regeneratable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Regeneratable": {
+      "main": [
+        [
+          {
+            "node": "If Can Regenerate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Can Regenerate": {
+      "main": [
+        [
+          {
+            "node": "Insert Regenerate Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Cannot Regenerate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Regenerate Event": {
+      "main": [
+        [
+          {
+            "node": "Void Old Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Void Old Projection": {
+      "main": [
+        [
+          {
+            "node": "React with ⏳",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "React with ⏳": {
+      "main": [
+        [
+          {
+            "node": "Log Regenerate",
             "type": "main",
             "index": 0
           }

@@ -1,5 +1,5 @@
 {
-  "name": "Route_Discord_Event",
+  "name": "Route_Event",
   "nodes": [
     {
       "parameters": {
@@ -16,6 +16,141 @@
         256
       ],
       "webhookId": "discord-events"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -768,
+        -128
+      ],
+      "id": "cron-nudge",
+      "name": "Nudge Cron (Every 15 Min)"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/5 * * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -768,
+        544
+      ],
+      "id": "cron-summary",
+      "name": "Summary Cron (Every 5 Min)"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "59PoRBQyv8eCroDh",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "trigger_reason": "cron"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -544,
+        -128
+      ],
+      "id": "execute-nudge-cron",
+      "name": "Execute Generate_Nudge"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT key, value FROM config WHERE key IN ('summary_time', 'last_summary_date');",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -544,
+        544
+      ],
+      "id": "get-summary-config",
+      "name": "Get Summary Config",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if we should run summary (time matches AND not already run today)\nconst currentHour = $now.hour;\nconst todayDate = $now.toFormat('yyyy-MM-dd');\nconst inputItems = $input.all();\n\n// Extract config values\nlet targetHour = 20; // default\nlet lastSummaryDate = null;\n\nfor (const item of inputItems) {\n  if (item.json.key === 'summary_time') {\n    const configTime = item.json.value;\n    if (configTime.includes(':')) {\n      targetHour = parseInt(configTime.split(':')[0]);\n    } else {\n      targetHour = parseInt(configTime);\n    }\n  } else if (item.json.key === 'last_summary_date') {\n    lastSummaryDate = item.json.value;\n  }\n}\n\n// Check 1: Is it the right hour?\nif (currentHour !== targetHour) {\n  return [];\n}\n\n// Check 2: Already ran today?\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - time matches and not run today\nreturn [{ json: { should_run: true, today: todayDate, trigger_reason: 'cron' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        544
+      ],
+      "id": "check-summary-time",
+      "name": "Check Should Run Summary"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "cIROQISrYEAKML84",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "trigger_reason": "cron"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        544
+      ],
+      "id": "execute-summary-cron",
+      "name": "Execute Generate_Daily_Summary"
     },
     {
       "parameters": {
@@ -98,7 +233,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO events (\n  event_type,\n  source,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  'discord',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;",
+        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;",
         "options": {
           "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ 'https://discord.com/channels/' + $json.guild_id + '/' + $json.channel_id + '/' + $json.message_id }},={{ $json.author.login }},={{ $json.thread_id || null }},={{ $json.content }},={{ $('Parse Message').item.json.clean_text }},={{ $('Parse Message').item.json.tag || null }},={{ $json.timestamp }}"
         }
@@ -122,7 +257,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO events (\n  event_type,\n  source,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_reaction',\n  'discord',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING *;",
+        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING *;",
         "options": {
           "queryReplacement": "={{ $json.body.guild_id }},={{ $json.body.channel_id }},={{ $json.body.message_id }},={{ $json.body.user?.login || $json.body.user_id }},={{ $json.body.thread_id || null }},={{ $('Parse Reaction').item.json.emoji }},={{ $('Parse Reaction').item.json.extraction_index }},={{ $json.body.action }},={{ $('Parse Reaction').item.json.synthetic_id }}"
         }
@@ -253,6 +388,50 @@
         ]
       ]
     },
+    "Nudge Cron (Every 15 Min)": {
+      "main": [
+        [
+          {
+            "node": "Execute Generate_Nudge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary Cron (Every 5 Min)": {
+      "main": [
+        [
+          {
+            "node": "Get Summary Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Summary Config": {
+      "main": [
+        [
+          {
+            "node": "Check Should Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Should Run Summary": {
+      "main": [
+        [
+          {
+            "node": "Execute Generate_Daily_Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Route by Event Type": {
       "main": [
         [
@@ -346,5 +525,5 @@
   },
   "staticData": null,
   "meta": null,
-  "active": false
+  "active": true
 }
