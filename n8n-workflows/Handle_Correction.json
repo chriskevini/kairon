@@ -130,7 +130,8 @@
           "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -219,7 +220,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build ctx for Capture_Projection, reusing original event data\nconst data = $json;\nconst original = data.original;\nconst correction = data.correction;\n\n// Map correction type to projection type\nconst typeMap = {\n  'activity': 'activity',\n  'note': 'note',\n  'todo': 'todo'\n};\n\nconst projectionType = typeMap[correction.type] || 'note';\n\n// Build new trace chain starting from correction event\nconst traceChain = [data.correction_event_id];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Construct message_url from original data\nconst messageUrl = `https://discord.com/channels/${original.guild_id}/${original.channel_id}/${original.message_id}`;\n\n// Pass voided projection IDs for supersedes linking\nconst voidedProjectionIds = data.voided_projection_ids || [];\n\nreturn {\n  ctx: {\n    event: {\n      event_id: data.correction_event_id,\n      event_type: 'user_correction',\n      timestamp: new Date().toISOString(),\n      guild_id: original.guild_id,\n      channel_id: original.channel_id,\n      message_id: original.message_id,\n      message_url: messageUrl,\n      author_login: original.author_login,\n      raw_text: original.clean_text,\n      clean_text: original.clean_text,\n      tag: correction.tag,\n      trace_chain: traceChain,\n      trace_chain_pg: traceChainPg\n    },\n    projection: {\n      type: projectionType\n    },\n    correction: {\n      original_event_id: original.event_id,\n      emoji: correction.emoji,\n      voided_projection_ids: voidedProjectionIds\n    }\n  }\n};"
+        "jsCode": "// Build ctx for Capture_Projection, reusing original event data\nconst data = $json;\nconst original = data.original;\nconst correction = data.correction;\nconst existingCtx = data.ctx || {};\n\n// Map correction type to projection type\nconst typeMap = {\n  'activity': 'activity',\n  'note': 'note',\n  'todo': 'todo'\n};\n\nconst projectionType = typeMap[correction.type] || 'note';\n\n// Build new trace chain starting from correction event\nconst traceChain = [data.correction_event_id];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Construct message_url from original data\nconst messageUrl = `https://discord.com/channels/${original.guild_id}/${original.channel_id}/${original.message_id}`;\n\n// Pass voided projection IDs for supersedes linking\nconst voidedProjectionIds = data.voided_projection_ids || [];\n\nreturn {\n  ctx: {\n    ...existingCtx,\n    event: {\n      event_id: data.correction_event_id,\n      event_type: 'user_correction',\n      timestamp: new Date().toISOString(),\n      timezone: existingCtx.event?.timezone,\n      guild_id: original.guild_id,\n      channel_id: original.channel_id,\n      message_id: original.message_id,\n      message_url: messageUrl,\n      author_login: original.author_login,\n      raw_text: original.clean_text,\n      clean_text: original.clean_text,\n      tag: correction.tag,\n      trace_chain: traceChain,\n      trace_chain_pg: traceChainPg\n    },\n    projection: {\n      type: projectionType\n    },\n    correction: {\n      original_event_id: original.event_id,\n      emoji: correction.emoji,\n      voided_projection_ids: voidedProjectionIds\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
