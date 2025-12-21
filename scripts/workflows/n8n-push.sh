@@ -143,7 +143,8 @@ echo "Uploading to remote..."
 FILE_COUNT=$(ls "$LOCAL_TMP"/*.json 2>/dev/null | wc -l)
 if [ "$FILE_COUNT" -gt 0 ]; then
     # Create directory and upload in single SSH session via tar
-    (cd "$LOCAL_TMP" && tar czf - *.json) | ssh "$REMOTE_HOST" "mkdir -p $REMOTE_TMP && cd $REMOTE_TMP && tar xzf -" </dev/null
+    # Note: Do NOT use </dev/null here - it would override the piped tar input
+    (cd "$LOCAL_TMP" && tar czf - *.json) | ssh "$REMOTE_HOST" "mkdir -p $REMOTE_TMP && cd $REMOTE_TMP && tar xzf -"
     echo "   Uploaded $FILE_COUNT files"
 else
     echo "   No files to upload"
