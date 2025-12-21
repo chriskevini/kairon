@@ -52,7 +52,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id for downstream nodes\nconst eventResult = $json;\nconst checkResult = $('Prepare Event Data').first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'daily_summary',\n        trigger_reason: checkResult.trigger_reason,\n        today: checkResult.today,\n        trace_chain: []\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx with event_id for downstream nodes\nconst eventResult = $json;\nconst checkResult = $(\"Prepare Event Data\").first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"daily_summary\",\n        trigger_reason: checkResult.trigger_reason,\n        today: checkResult.today,\n        trace_chain: [eventResult.id]\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
