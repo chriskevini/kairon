@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS events (
   received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   event_type TEXT NOT NULL,  -- 'discord_message', 'system', 'discord_reaction'
   payload JSONB NOT NULL DEFAULT '{}',
-  idempotency_key TEXT,
+  idempotency_key TEXT NOT NULL,
   metadata JSONB DEFAULT '{}',
   timezone TEXT,  -- User's timezone at event time (e.g., 'America/New_York')
   
@@ -48,8 +48,8 @@ CREATE INDEX IF NOT EXISTS idx_traces_created_at ON traces(created_at DESC);
 -- Projections: Structured outputs from traces (activities, notes, todos, nudges, summaries)
 CREATE TABLE IF NOT EXISTS projections (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  trace_id UUID REFERENCES traces(id),
-  event_id UUID REFERENCES events(id),
+  trace_id UUID NOT NULL REFERENCES traces(id),
+  event_id UUID NOT NULL REFERENCES events(id),
   trace_chain UUID[] NOT NULL DEFAULT '{}',  -- Always includes event_id, trace_id
   projection_type TEXT NOT NULL,  -- 'activity', 'note', 'todo', 'nudge', 'daily_summary', 'thread_response', 'thread_extraction'
   data JSONB NOT NULL DEFAULT '{}',

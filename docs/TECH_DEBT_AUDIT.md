@@ -71,13 +71,15 @@ Some workflows don't initialize `ctx.event` in the first node, especially system
 
 ### High
 
-#### 2.3 Nullable Foreign Keys
-`projections.trace_id` and `projections.event_id` are nullable despite the architecture requiring them.
+#### 2.3 ~~Nullable Foreign Keys~~ RESOLVED
+~~`projections.trace_id` and `projections.event_id` are nullable despite the architecture requiring them.~~
 
-**Fix:** Add `NOT NULL` constraints after confirming no orphaned data.
+**Status:** RESOLVED (Dec 2025) - Migration 021 added NOT NULL constraints. Data audit confirmed no null values existed.
 
-#### 2.4 Nullable Idempotency Key
-`events.idempotency_key` should be `NOT NULL` per Migration 006 documentation.
+#### 2.4 ~~Nullable Idempotency Key~~ RESOLVED
+~~`events.idempotency_key` should be `NOT NULL` per Migration 006 documentation.~~
+
+**Status:** RESOLVED (Dec 2025) - Migration 021 added NOT NULL constraint. Data audit confirmed no null values existed.
 
 ### Medium
 
@@ -170,10 +172,12 @@ Many functions lack return types and parameter types.
 
 **Status:** RESOLVED (Dec 2025) - All scripts now use `set -euo pipefail`. Fixed unbound variable issues with `${1:-}` and `${ARRAY[$key]:-}` syntax.
 
-#### 4.3 Fragile .env Loading
-**Files:** `n8n-pull.sh`, `n8n-push.sh`, `run-migration.sh`, `db-query.sh`
+#### 4.3 ~~Fragile .env Loading~~ RESOLVED
+~~**Files:** `n8n-pull.sh`, `n8n-push.sh`, `run-migration.sh`, `db-query.sh`~~
 
-Pattern `export $(grep -v '^#' "$ENV_FILE" | xargs)` fails with spaces/special chars.
+~~Pattern `export $(grep -v '^#' "$ENV_FILE" | xargs)` fails with spaces/special chars.~~
+
+**Status:** RESOLVED (Dec 2025) - Refactored `scripts/common.sh` to use line-by-line parsing that properly handles spaces and quoted values.
 
 ### Medium
 
@@ -210,13 +214,13 @@ Variable quoting is inconsistent, especially in SQL contexts.
 
 ### High
 
-#### 5.3 Deprecated Prompt References
-**File:** `prompts/router-agent.md`
+#### 5.3 ~~Deprecated Prompt References~~ RESOLVED
+~~**File:** `prompts/router-agent.md`~~
 
-- Still uses "Tool Calling" format (deprecated)
-- References "Note Titles" (removed in migration 002b)
+~~- Still uses "Tool Calling" format (deprecated)~~
+~~- References "Note Titles" (removed in migration 002b)~~
 
-**Fix:** Update to `TAG|CONFIDENCE` format.
+**Status:** RESOLVED (Dec 2025) - Archived `router-agent.md`. The system now uses `Multi_Capture` workflow with embedded prompts for untagged messages.
 
 #### 5.4 ~~Category Implementation Confusion~~ RESOLVED
 ~~`AGENTS.md` says "Categories are strings in JSONB (not enums)" but `docs/SUMMARY.md` discusses "fixed enums".~~
@@ -230,17 +234,23 @@ Variable quoting is inconsistent, especially in SQL contexts.
 
 ### Medium
 
-#### 5.6 Stale TODO Comments
-- `docs/router-agent-implementation.md:320` - References deprecated title extraction
-- `docs/thread-continuation-agent-implementation.md:384` - Incomplete implementation notes
+#### 5.6 ~~Stale TODO Comments~~ RESOLVED
+~~- `docs/router-agent-implementation.md:320` - References deprecated title extraction~~
+~~- `docs/thread-continuation-agent-implementation.md:384` - Incomplete implementation notes~~
 
-#### 5.7 Implementation Status Inconsistencies
-- `docs/router-agent-implementation.md` marked "Not Implemented"
-- `docs/todo-intent-design.md` marked "Pending"
-- No tracking of what's actually live
+**Status:** RESOLVED (Dec 2025) - Both files moved to `docs/archive/`.
 
-#### 5.8 Broken Migration References
-Documents reference migrations in `db/migrations/` but most are in `archive/`.
+#### 5.7 ~~Implementation Status Inconsistencies~~ RESOLVED
+~~- `docs/router-agent-implementation.md` marked "Not Implemented"~~
+~~- `docs/todo-intent-design.md` marked "Pending"~~
+~~- No tracking of what's actually live~~
+
+**Status:** RESOLVED (Dec 2025) - Archived 24 outdated design docs. Active docs reduced from 34 to 8. `AGENTS.md` and `README.md` are the sources of truth for current implementation.
+
+#### 5.8 ~~Broken Migration References~~ NOT AN ISSUE
+~~Documents reference migrations in `db/migrations/` but most are in `archive/`.~~
+
+**Status:** NOT AN ISSUE - Migrations in `archive/` are intentionally preserved for historical reference. The archive structure is documented.
 
 ---
 
