@@ -10,7 +10,7 @@ import discord
 from discord.ext import commands
 import aiohttp
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
 
@@ -41,7 +41,7 @@ def is_arcane_shell_channel(channel) -> bool:
     """
     if isinstance(channel, discord.Thread):
         parent_channel = channel.parent
-        return parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME
+        return bool(parent_channel and parent_channel.name == ARCANE_SHELL_CHANNEL_NAME)
     elif isinstance(channel, discord.TextChannel):
         return channel.name == ARCANE_SHELL_CHANNEL_NAME
     return False
@@ -108,7 +108,7 @@ def format_reaction_payload(
             "login": message.author.name,
         },
         "message_content": message.content,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
