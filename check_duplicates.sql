@@ -1,22 +1,19 @@
 -- Check for duplicates and processing health
 
 -- 1. Summary of processing success
-SELECT 
-    'Total Discord Messages' AS metric, 
-    COUNT(*) AS count
-FROM events 
-WHERE event_type = 'discord_message'
+WITH stats AS (
+    SELECT 
+        COUNT(*) as total_msg,
+        COUNT(DISTINCT p.event_id) as with_projections
+    FROM events e
+    LEFT JOIN projections p ON e.id = p.event_id
+    WHERE e.event_type = 'discord_message'
+)
+SELECT 'Total Discord Messages' AS metric, total_msg AS count FROM stats
 UNION ALL
-SELECT 
-    'Messages with Projections', 
-    COUNT(DISTINCT event_id)
-FROM projections
+SELECT 'Messages with Projections', with_projections FROM stats
 UNION ALL
-SELECT 
-    'Orphaned Messages (no projections)', 
-    (SELECT COUNT(*) FROM events WHERE event_type = 'discord_message') - 
-    (SELECT COUNT(DISTINCT p.event_id) FROM projections p JOIN events e ON p.event_id = e.id WHERE e.event_type = 'discord_message')
-FROM projections;
+SELECT 'Orphaned Messages (no projections)', total_msg - with_projections FROM stats;
 
 -- 2. Check for duplicate idempotency keys
 SELECT 
