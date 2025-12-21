@@ -70,7 +70,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Determine route based on emoji_mapping config\nconst ctx = $('Receive Event').first().json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Parse config - Postgres returns JSON as string\nconst rawValue = $json.value;\nconst config = typeof rawValue === 'string' ? JSON.parse(rawValue) : (rawValue || {});\n\n// Extraction emojis (number selections + dismiss)\n// These are hardcoded because they're tied to display order logic\nconst extractionEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '❌'];\n\n// Info emojis (show details about the projection)\nconst infoEmojis = ['❓'];\n\n// Get correction emojis from config (type corrections + void)\nconst corrections = config.corrections || [];\n\n// Get todo status emojis from config\nconst statusEmojis = Object.keys(config.status || {});\n\n// Determine route\nlet route = 'unknown';\n\nif (extractionEmojis.includes(emoji)) {\n  route = 'extraction';\n} else if (infoEmojis.includes(emoji)) {\n  route = 'info';\n} else if (corrections.includes(emoji)) {\n  route = 'correction';\n} else if (statusEmojis.includes(emoji)) {\n  route = 'todo_status';\n}\n\nreturn {\n  ctx,\n  route,\n  emoji,\n  config\n};"
+        "jsCode": "// Determine route based on emoji_mapping config\nconst ctx = $('Receive Event').first().json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Parse config - Postgres returns JSON as string\nconst rawValue = $json.value;\nconst config = typeof rawValue === 'string' ? JSON.parse(rawValue) : (rawValue || {});\n\n// Extraction emojis (number selections + dismiss)\n// These are hardcoded because they're tied to display order logic\nconst extractionEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '❌'];\n\n// Info emojis (show details about the projection)\nconst infoEmojis = ['❓'];\n\n// Quality rating emojis (rate projection quality)\nconst qualityEmojis = ['👍', '👎'];\n\n// Get correction emojis from config (type corrections + void)\nconst corrections = config.corrections || [];\n\n// Get todo status emojis from config\nconst statusEmojis = Object.keys(config.status || {});\n\n// Determine route\nlet route = 'unknown';\n\nif (extractionEmojis.includes(emoji)) {\n  route = 'extraction';\n} else if (infoEmojis.includes(emoji)) {\n  route = 'info';\n} else if (qualityEmojis.includes(emoji)) {\n  route = 'quality';\n} else if (corrections.includes(emoji)) {\n  route = 'correction';\n} else if (statusEmojis.includes(emoji)) {\n  route = 'todo_status';\n}\n\nreturn {\n  ctx,\n  route,\n  emoji,\n  config\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -132,6 +132,30 @@
               },
               "renameOutput": true,
               "outputKey": "Info"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "is-quality",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "quality",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Quality"
             },
             {
               "conditions": {
@@ -274,7 +298,7 @@
       "typeVersion": 1,
       "position": [
         720,
-        960
+        1040
       ],
       "id": "unknown-emoji-error",
       "name": "Unknown Emoji Error"
@@ -302,6 +326,30 @@
       ],
       "id": "show-projection-details",
       "name": "Show Projection Details"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "XmanM922rwHz8e7X",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        880
+      ],
+      "id": "handle-quality-rating",
+      "name": "Handle Quality Rating"
     }
   ],
   "connections": {
@@ -361,6 +409,13 @@
         [
           {
             "node": "Show Projection Details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Quality Rating",
             "type": "main",
             "index": 0
           }

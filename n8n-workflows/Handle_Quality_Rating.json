@@ -1,0 +1,145 @@
+{
+  "name": "Handle_Quality_Rating",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-400, 300],
+      "id": "trigger-quality-rating",
+      "name": "Receive Event"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse quality rating from emoji\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '👍': 1.0,\n  '👎': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\nreturn {\n  ctx,\n  quality_score: qualityScore,\n  emoji\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-180, 300],
+      "id": "parse-quality",
+      "name": "Parse Quality Rating"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE projections\nSET \n  quality_score = $1,\n  metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(\n    'quality_rated_at', NOW(),\n    'quality_emoji', $2\n  )\nWHERE event_id = (\n  SELECT id FROM events \n  WHERE payload->>'discord_message_id' = $3\n    AND event_type = 'discord_message'\n  ORDER BY received_at DESC\n  LIMIT 1\n)\nAND status IN ('auto_confirmed', 'confirmed')\nRETURNING id, projection_type, quality_score;",
+        "options": {
+          "queryReplacement": "={{ $json.quality_score }},={{ $json.emoji }},={{ $json.ctx.event.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [40, 300],
+      "id": "update-quality-score",
+      "name": "Update Quality Score",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response based on updated projections\nconst ctx = $('Receive Event').first().json.ctx;\nconst qualityScore = $('Parse Quality Rating').first().json.quality_score;\nconst emoji = $('Parse Quality Rating').first().json.emoji;\nconst updated = $input.all();\n\nif (!updated || updated.length === 0 || !updated[0].json.id) {\n  return {\n    ctx,\n    response: {\n      content: `${emoji} No projections found for this message to rate.`\n    },\n    updated_count: 0\n  };\n}\n\nconst count = updated.length;\nconst types = [...new Set(updated.map(u => u.json.projection_type))];\nconst typeStr = types.join(', ');\nconst scoreLabel = qualityScore === 1.0 ? 'good' : 'poor';\n\nreturn {\n  ctx,\n  response: {\n    content: `${emoji} Marked ${count} projection(s) as **${scoreLabel}** quality (${typeStr})`\n  },\n  updated_count: count\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 300],
+      "id": "format-response",
+      "name": "Format Response"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.channel_id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.response.content }}",
+        "options": {
+          "messageReference": "={{ $json.ctx.event.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [480, 300],
+      "id": "send-response",
+      "name": "Send Response",
+      "webhookId": "quality-rating-response",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Event": {
+      "main": [
+        [
+          {
+            "node": "Parse Quality Rating",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Quality Rating": {
+      "main": [
+        [
+          {
+            "node": "Update Quality Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Quality Score": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
+}
