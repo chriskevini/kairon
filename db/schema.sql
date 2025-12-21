@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS events (
   payload JSONB NOT NULL DEFAULT '{}',
   idempotency_key TEXT,
   metadata JSONB DEFAULT '{}',
+  timezone TEXT,  -- User's timezone at event time (e.g., 'America/New_York')
   
   UNIQUE (event_type, idempotency_key)
 );
@@ -61,7 +62,8 @@ CREATE TABLE IF NOT EXISTS projections (
   supersedes_projection_id UUID REFERENCES projections(id),
   quality_score NUMERIC,
   user_edited BOOLEAN DEFAULT FALSE,
-  metadata JSONB DEFAULT '{}'
+  metadata JSONB DEFAULT '{}',
+  timezone TEXT  -- User's timezone at projection time (e.g., 'America/New_York')
 );
 
 CREATE INDEX IF NOT EXISTS idx_projections_type ON projections(projection_type);
@@ -107,6 +109,7 @@ SELECT
   p.created_at,
   p.event_id,
   p.trace_id,
+  p.timezone,
   e.payload->>'discord_message_id' as discord_message_id,
   e.payload->>'discord_channel_id' as discord_channel_id
 FROM projections p
@@ -125,7 +128,8 @@ SELECT
   p.status,
   p.created_at,
   p.event_id,
-  p.trace_id
+  p.trace_id,
+  p.timezone
 FROM projections p
 WHERE p.projection_type = 'note'
   AND p.status IN ('auto_confirmed', 'confirmed')
@@ -142,7 +146,8 @@ SELECT
   p.status as projection_status,
   p.created_at,
   p.event_id,
-  p.trace_id
+  p.trace_id,
+  p.timezone
 FROM projections p
 WHERE p.projection_type = 'todo'
   AND p.status IN ('auto_confirmed', 'confirmed')
@@ -158,6 +163,7 @@ SELECT
   COALESCE(p.data->>'description', p.data->>'text') as text,
   p.status,
   p.created_at,
+  p.timezone,
   e.payload->>'discord_guild_id' as guild_id,
   e.payload->>'discord_channel_id' as channel_id,
   e.payload->>'discord_message_id' as message_id
@@ -176,7 +182,8 @@ SELECT
   p.data->>'role' as role,
   p.data->>'content' as content,
   (p.data->>'timestamp')::timestamptz as timestamp,
-  p.created_at
+  p.created_at,
+  p.timezone
 FROM projections p
 WHERE p.projection_type = 'thread_response'
   AND p.status IN ('auto_confirmed', 'confirmed')
@@ -212,7 +219,8 @@ SELECT
   p.status,
   p.created_at,
   p.event_id,
-  p.trace_id
+  p.trace_id,
+  p.timezone
 FROM projections p
 WHERE p.projection_type = 'thread_extraction'
   AND p.status IN ('auto_confirmed', 'confirmed')
