@@ -4,13 +4,15 @@ This audit identifies technical debt across the Kairon codebase, organized by pr
 
 ## Executive Summary
 
-| Area | Critical | High | Medium | Low |
-|------|----------|------|--------|-----|
-| n8n Workflows | 2 | 4 | 3 | 2 |
-| Database | 2 | 2 | 3 | 1 |
-| Python Code | 1 | 3 | 4 | 2 |
-| Shell Scripts | 1 | 2 | 3 | 2 |
-| Documentation | 2 | 3 | 4 | 2 |
+**Status: Nearly all critical and high-priority items resolved.**
+
+| Area | Resolved | Remaining (Low Priority) |
+|------|----------|-------------------------|
+| n8n Workflows | 5 | 2 (error handling, ctx init) |
+| Database | 4 | 3 (views, embeddings, timezone) |
+| Python Code | 7 | 1 (type hints) |
+| Shell Scripts | 4 | 2 (quoting, pre-commit speed) |
+| Documentation | 8 | 0 |
 
 ---
 
@@ -30,17 +32,15 @@ This audit identifies technical debt across the Kairon codebase, organized by pr
 
 ### High
 
-#### 1.3 Hardcoded Workflow IDs
-Workflows use hardcoded IDs instead of names or environment variables:
+#### 1.3 ~~Hardcoded Workflow IDs~~ NOT AN ISSUE
+~~Workflows use hardcoded IDs instead of names or environment variables~~
 
-- `Route_Event.json` - Hardcoded IDs for `Route_Message`, `Route_Reaction`, `Execute_Command`
-- `Route_Reaction.json` - Hardcoded IDs for `Save_Extraction`, `Handle_Correction`
-- `Handle_Correction.json` - Hardcoded ID for `Capture_Projection`
+**Status:** NOT AN ISSUE (Dec 2025) - n8n workflow IDs are stable and don't change. The IDs are generated once when workflows are created and persist across deployments. n8n doesn't support name-based workflow references, so using IDs is the standard approach. Moving to env vars would add complexity without benefit.
 
-**Fix:** Use workflow names or move IDs to environment variables.
+#### 1.4 ~~Switch Nodes Without Defaults~~ NOT AN ISSUE
+~~Some Switch nodes lack fallback cases, causing silent failures when no match occurs.~~
 
-#### 1.4 Switch Nodes Without Defaults
-Some Switch nodes lack fallback cases, causing silent failures when no match occurs.
+**Status:** NOT AN ISSUE (Dec 2025) - Audited all Switch nodes. Most have `fallbackOutput: extra` or explicit fallback outputs. The one exception (`Save_Extraction: What Action` with `fallbackOutput: none`) is intentional - unknown emojis are filtered upstream in Route_Reaction before reaching this workflow.
 
 #### 1.5 ~~Set Nodes with "Keep Only Set"~~ RESOLVED
 ~~Older nodes in `Execute_Command.json` use "Keep Only Set" behavior, dropping the `ctx` object.~~
@@ -73,13 +73,15 @@ Some workflows don't initialize `ctx.event` in the first node, especially system
 
 ### High
 
-#### 2.3 Nullable Foreign Keys
-`projections.trace_id` and `projections.event_id` are nullable despite the architecture requiring them.
+#### 2.3 ~~Nullable Foreign Keys~~ RESOLVED
+~~`projections.trace_id` and `projections.event_id` are nullable despite the architecture requiring them.~~
 
-**Fix:** Add `NOT NULL` constraints after confirming no orphaned data.
+**Status:** RESOLVED (Dec 2025) - Migration 021 added NOT NULL constraints. Data audit confirmed no null values existed.
 
-#### 2.4 Nullable Idempotency Key
-`events.idempotency_key` should be `NOT NULL` per Migration 006 documentation.
+#### 2.4 ~~Nullable Idempotency Key~~ RESOLVED
+~~`events.idempotency_key` should be `NOT NULL` per Migration 006 documentation.~~
+
+**Status:** RESOLVED (Dec 2025) - Migration 021 added NOT NULL constraint. Data audit confirmed no null values existed.
 
 ### Medium
 
@@ -114,12 +116,12 @@ Migration 019 added `timezone` columns. Ensure all workflows populate this field
 
 **Status:** RESOLVED - Extracted to `is_arcane_shell_channel()` helper function.
 
-#### 3.3 Hardcoded Absolute Paths
-**Files:**
-- `test_json_files.py:98` - Hardcoded `/home/chris/Work/kairon/n8n-workflows`
-- `fix_json_files.py:73` - Same hardcoded path
+#### 3.3 ~~Hardcoded Absolute Paths~~ RESOLVED
+~~**Files:**~~
+~~- `test_json_files.py:98` - Hardcoded `/home/chris/Work/kairon/n8n-workflows`~~
+~~- `fix_json_files.py:73` - Same hardcoded path~~
 
-**Fix:** Use `Path(__file__).parent` for relative paths.
+**Status:** RESOLVED (Dec 2025) - Refactored to use `Path(__file__).parent` for relative paths.
 
 #### 3.4 ~~Zero Test Coverage~~ RESOLVED
 ~~No unit tests exist. Critical gaps in:~~
@@ -138,17 +140,19 @@ Migration 019 added `timezone` columns. Ensure all workflows populate this field
 #### 3.6 Missing Type Hints
 Many functions lack return types and parameter types.
 
-#### 3.7 SSH Command Injection Risk
-**File:** `scripts/workflows/inspect_execution.py:57`
+#### 3.7 ~~SSH Command Injection Risk~~ RESOLVED
+~~**File:** `scripts/workflows/inspect_execution.py:57`~~
 
-Builds shell commands via string interpolation.
+~~Builds shell commands via string interpolation.~~
 
-**Fix:** Use `shlex.quote()` for all interpolated values.
+**Status:** RESOLVED (Dec 2025) - Added `shlex.quote()` for all interpolated values in SSH curl commands.
 
-#### 3.8 Manual .env Parsing
-**File:** `scripts/workflows/inspect_execution.py:26`
+#### 3.8 ~~Manual .env Parsing~~ RESOLVED
+~~**File:** `scripts/workflows/inspect_execution.py:26`~~
 
-Manually parses `.env` instead of using `python-dotenv`.
+~~Manually parses `.env` instead of using `python-dotenv`.~~
+
+**Status:** RESOLVED (Dec 2025) - Switched to `dotenv_values()` from python-dotenv.
 
 ---
 
@@ -170,10 +174,12 @@ Manually parses `.env` instead of using `python-dotenv`.
 
 **Status:** RESOLVED (Dec 2025) - All scripts now use `set -euo pipefail`. Fixed unbound variable issues with `${1:-}` and `${ARRAY[$key]:-}` syntax.
 
-#### 4.3 Fragile .env Loading
-**Files:** `n8n-pull.sh`, `n8n-push.sh`, `run-migration.sh`, `db-query.sh`
+#### 4.3 ~~Fragile .env Loading~~ RESOLVED
+~~**Files:** `n8n-pull.sh`, `n8n-push.sh`, `run-migration.sh`, `db-query.sh`~~
 
-Pattern `export $(grep -v '^#' "$ENV_FILE" | xargs)` fails with spaces/special chars.
+~~Pattern `export $(grep -v '^#' "$ENV_FILE" | xargs)` fails with spaces/special chars.~~
+
+**Status:** RESOLVED (Dec 2025) - Refactored `scripts/common.sh` to use line-by-line parsing that properly handles spaces and quoted values.
 
 ### Medium
 
@@ -196,12 +202,12 @@ Variable quoting is inconsistent, especially in SQL contexts.
 
 ### Critical
 
-#### 5.1 Outdated Architecture Docs
-**File:** `docs/n8n-workflow-implementation.md`
+#### 5.1 ~~Outdated Architecture Docs~~ RESOLVED
+~~**File:** `docs/n8n-workflow-implementation.md`~~
 
-References deprecated "original architecture" with old workflow names and patterns.
+~~References deprecated "original architecture" with old workflow names and patterns.~~
 
-**Fix:** Archive or rewrite.
+**Status:** RESOLVED (Dec 2025) - Moved to `docs/archive/`.
 
 #### 5.2 ~~Inconsistent Tag Definitions~~ RESOLVED
 ~~Tags defined differently across documents~~
@@ -210,13 +216,13 @@ References deprecated "original architecture" with old workflow names and patter
 
 ### High
 
-#### 5.3 Deprecated Prompt References
-**File:** `prompts/router-agent.md`
+#### 5.3 ~~Deprecated Prompt References~~ RESOLVED
+~~**File:** `prompts/router-agent.md`~~
 
-- Still uses "Tool Calling" format (deprecated)
-- References "Note Titles" (removed in migration 002b)
+~~- Still uses "Tool Calling" format (deprecated)~~
+~~- References "Note Titles" (removed in migration 002b)~~
 
-**Fix:** Update to `TAG|CONFIDENCE` format.
+**Status:** RESOLVED (Dec 2025) - Archived `router-agent.md`. The system now uses `Multi_Capture` workflow with embedded prompts for untagged messages.
 
 #### 5.4 ~~Category Implementation Confusion~~ RESOLVED
 ~~`AGENTS.md` says "Categories are strings in JSONB (not enums)" but `docs/SUMMARY.md` discusses "fixed enums".~~
@@ -230,17 +236,23 @@ References deprecated "original architecture" with old workflow names and patter
 
 ### Medium
 
-#### 5.6 Stale TODO Comments
-- `docs/router-agent-implementation.md:320` - References deprecated title extraction
-- `docs/thread-continuation-agent-implementation.md:384` - Incomplete implementation notes
+#### 5.6 ~~Stale TODO Comments~~ RESOLVED
+~~- `docs/router-agent-implementation.md:320` - References deprecated title extraction~~
+~~- `docs/thread-continuation-agent-implementation.md:384` - Incomplete implementation notes~~
 
-#### 5.7 Implementation Status Inconsistencies
-- `docs/router-agent-implementation.md` marked "Not Implemented"
-- `docs/todo-intent-design.md` marked "Pending"
-- No tracking of what's actually live
+**Status:** RESOLVED (Dec 2025) - Both files moved to `docs/archive/`.
 
-#### 5.8 Broken Migration References
-Documents reference migrations in `db/migrations/` but most are in `archive/`.
+#### 5.7 ~~Implementation Status Inconsistencies~~ RESOLVED
+~~- `docs/router-agent-implementation.md` marked "Not Implemented"~~
+~~- `docs/todo-intent-design.md` marked "Pending"~~
+~~- No tracking of what's actually live~~
+
+**Status:** RESOLVED (Dec 2025) - Archived 24 outdated design docs. Active docs reduced from 34 to 8. `AGENTS.md` and `README.md` are the sources of truth for current implementation.
+
+#### 5.8 ~~Broken Migration References~~ NOT AN ISSUE
+~~Documents reference migrations in `db/migrations/` but most are in `archive/`.~~
+
+**Status:** NOT AN ISSUE - Migrations in `archive/` are intentionally preserved for historical reference. The archive structure is documented.
 
 ---
 

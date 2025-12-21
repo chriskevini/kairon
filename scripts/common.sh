@@ -33,11 +33,23 @@ kairon_init() {
     
     export REPO_ROOT
     
-    # Load .env file
+    # Load .env file safely (handles values with spaces and special characters)
     local env_file="$REPO_ROOT/.env"
     if [ -f "$env_file" ]; then
-        # shellcheck disable=SC2046
-        export $(grep -v '^#' "$env_file" | grep -v '^$' | xargs)
+        # Read line by line to properly handle values with spaces
+        while IFS='=' read -r key value; do
+            # Skip empty lines and comments
+            [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+            # Remove leading/trailing whitespace from key
+            key=$(echo "$key" | xargs)
+            # Remove surrounding quotes from value if present
+            value="${value%\"}"
+            value="${value#\"}"
+            value="${value%\'}"
+            value="${value#\'}"
+            # Export the variable
+            export "$key=$value"
+        done < "$env_file"
     else
         echo "Error: .env file not found at $env_file"
         exit 1

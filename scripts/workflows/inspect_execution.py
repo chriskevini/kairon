@@ -20,24 +20,18 @@ import sys
 import subprocess
 import argparse
 import os
+import shlex
 from pathlib import Path
 from datetime import datetime
+from dotenv import dotenv_values
 
 def load_env():
-    """Load environment variables from .env file"""
+    """Load environment variables from .env file using python-dotenv"""
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent.parent
     env_file = repo_root / '.env'
     
-    env_vars = {}
-    if env_file.exists():
-        with open(env_file) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    env_vars[key.strip()] = value.strip()
-    return env_vars
+    return dotenv_values(env_file) if env_file.exists() else {}
 
 def run_ssh_curl(endpoint, env_vars, method="GET"):
     """Run curl command through SSH tunnel"""
@@ -53,8 +47,8 @@ def run_ssh_curl(endpoint, env_vars, method="GET"):
         sys.exit(1)
     
     url = f"{api_url}/api/v1{endpoint}"
-    # Build curl command as a single string to avoid shell quoting issues
-    curl_cmd = f"curl -s -X {method} '{url}' -H 'Accept: application/json' -H 'X-N8N-API-KEY: {api_key}'"
+    # Build curl command with proper shell quoting to prevent injection
+    curl_cmd = f"curl -s -X {shlex.quote(method)} {shlex.quote(url)} -H 'Accept: application/json' -H {shlex.quote(f'X-N8N-API-KEY: {api_key}')}"
     cmd = ["ssh", remote_host, curl_cmd]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -84,10 +78,11 @@ def run_ssh_multi_curl(endpoints, env_vars):
         sys.exit(1)
     
     # Build a script that runs all curls and outputs JSON array
+    # Use shlex.quote for proper shell escaping
     curl_commands = []
     for endpoint in endpoints:
         url = f"{api_url}/api/v1{endpoint}"
-        curl_commands.append(f"curl -s '{url}' -H 'Accept: application/json' -H 'X-N8N-API-KEY: {api_key}'")
+        curl_commands.append(f"curl -s {shlex.quote(url)} -H 'Accept: application/json' -H {shlex.quote(f'X-N8N-API-KEY: {api_key}')}")
     
     # Join with delimiter so we can split results
     # Use jq to wrap results in array
