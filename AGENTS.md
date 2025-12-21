@@ -22,20 +22,10 @@ git config core.hooksPath .githooks
 n8n-workflows/       # Workflow JSON files (synced with server)
 scripts/workflows/   # n8n-push.sh, n8n-pull.sh, sanitize, validate, lint
 scripts/db/          # run-migration.sh, db-query.sh
-scripts/ssh-setup.sh # SSH connection reuse (ControlMaster) - reduces rate-limiting
 db/migrations/       # SQL migrations
 prompts/             # LLM prompts
 discord_relay.py     # Discord bot that forwards to n8n
 ```
-
-## SSH Scripts (Optimized for Rate-Limiting)
-
-All SSH scripts use connection multiplexing to minimize rate-limiting:
-- **Automatic connection reuse** via `ssh-setup.sh` (ControlMaster)
-- **Reduced connection counts** through batched operations
-- **Tar pipes** for efficient file transfers
-
-See `docs/SSH_OPTIMIZATIONS.md` for implementation details.
 
 ## n8n Best Practices
 
@@ -43,24 +33,126 @@ See `docs/SSH_OPTIMIZATIONS.md` for implementation details.
 
 Every workflow uses a `ctx` object to pass data between nodes. This prevents data loss when native nodes (Postgres, HTTP) overwrite `$json`.
 
+#### Canonical ctx Shape
+
+Use this standard structure across all workflows:
+
 ```javascript
-// All data flows through ctx with namespaced keys
 {
   ctx: {
-    event: { event_id, channel_id, clean_text, tag, ... },  // From trigger
-    routing: { intent, confidence },                         // From classification  
-    db: { inserted_id, user_record },                        // From queries
-    llm: { completion_text, tokens_used }                    // From LLM calls
+    // Core event data (REQUIRED - always present)
+    event: {
+      event_id: "uuid",              // Database event ID
+      event_type: "discord_message", // Event type
+      channel_id: "discord_id",      // Discord channel
+      message_id: "discord_id",      // Discord message
+      clean_text: "message text",    // Cleaned message content
+      tag: "!!" | ".." | "++" | null, // Route tag
+      trace_chain: ["uuid"],         // LLM trace ancestry
+      author_login: "username",      // Discord username
+      timestamp: "ISO8601"           // Event timestamp
+    },
+    
+    // LLM outputs (when workflow calls LLM)
+    llm?: {
+      completion_text: "llm output",
+      confidence: 0.95,              // 0-1 confidence score
+      duration_ms: 1234,             // Inference time
+      model?: "openai/gpt-4"         // Optional model name
+    },
+    
+    // Database results (when workflow queries/inserts)
+    db?: {
+      trace_id?: "uuid",             // Trace record ID
+      projection_id?: "uuid",        // Projection record ID
+      user_record?: {...}            // User/config data
+    },
+    
+    // Validation results (for commands/inputs)
+    validation?: {
+      valid: true,
+      error_message?: "Error details"
+    },
+    
+    // Thread-specific (only in thread workflows)
+    thread?: {
+      thread_id: "uuid",
+      history: [...],                // Conversation history
+      extractions: [...]             // Extracted items
+    },
+    
+    // Command-specific (only in Execute_Command)
+    command?: {
+      name: "get",                   // Command name
+      args: ["key"]                  // Command arguments
+    }
   }
 }
 ```
 
 **Rules:**
-1. First node after trigger initializes `ctx.event`
+1. First node after trigger **must** initialize `ctx.event` with all required fields
 2. Code nodes: `return { ctx: { ...$json.ctx, new_namespace: {...} } }`
-3. Native nodes need a "Merge" wrapper to restore ctx
-4. Set nodes: enable `includeOtherFields: true`
-5. Read data from `$json.ctx.*`, never `$('Node Name').item.json`
+3. Native nodes (Postgres, HTTP) need a "Merge" wrapper to restore ctx
+4. Set nodes: **always** enable `includeOtherFields: true` when setting ctx fields
+5. Read data from `$json.ctx.*`, **never** `$('Node Name').item.json`
+6. Don't pollute ctx root with workflow-specific fields - use namespaces
+
+#### Common Patterns
+
+```javascript
+// ✅ Initialize ctx.event in first node after trigger
+return [{
+  json: {
+    ctx: {
+      event: {
+        event_id: $json.id,
+        clean_text: $json.content,
+        trace_chain: [$json.id],
+        // ... all required fields
+      }
+    }
+  }
+}];
+
+// ✅ Add namespace to existing ctx
+return [{
+  json: {
+    ctx: {
+      ...$json.ctx,
+      llm: {
+        completion_text: llmResponse,
+        confidence: 0.95
+      }
+    }
+  }
+}];
+
+// ✅ Read from ctx (not node references)
+const eventId = $json.ctx.event.event_id;
+const cleanText = $json.ctx.event.clean_text;
+
+// ❌ DON'T: Mix flat and nested in ctx
+return {
+  ctx: {
+    event_id: "...",        // ❌ Should be ctx.event.event_id
+    event: { ... }
+  }
+};
+
+// ❌ DON'T: Use node references (breaks ctx pattern)
+const text = $('Previous Node').item.json.text;  // ❌
+const text = $json.ctx.event.clean_text;         // ✅
+
+// ❌ DON'T: Pollute ctx root with workflow fields
+return {
+  ctx: {
+    event: {...},
+    emoji_count: 3,         // ❌ Workflow-specific, no namespace
+    has_extractions: true   // ❌ Should be in ctx.thread or similar
+  }
+};
+```
 
 ### Sub-Workflow Pattern: Fire-and-Forget
 
@@ -110,21 +202,35 @@ if (!data) {
 }
 ```
 
-### Common Patterns
+### Additional Patterns
 
 ```javascript
-// Initialize arrays
-trace_chain: $json.trace_chain || []
+// Initialize arrays from ctx
+const traceChain = $json.ctx.event.trace_chain || [];
 
 // Format Postgres arrays in Code nodes, not query expressions
-const trace_chain_pg = `{${trace_chain.join(',')}}`;
+const traceChainPg = `{${traceChain.join(',')}}`;
 
-// Validate before access
-const event = $('Node').item?.json;
-if (!event?.event_id) return { error: true, response: "❌ Missing data" };
+// Validate ctx before access
+const ctx = $json.ctx;
+if (!ctx?.event?.event_id) {
+  return {
+    ctx,
+    error: true,
+    response: "❌ Missing event data"
+  };
+}
 
 // Always use snake_case for object keys
-{ event_id: "...", clean_text: "...", user_id: "..." }
+const projectionData = {
+  event_id: ctx.event.event_id,
+  clean_text: ctx.event.clean_text,
+  user_id: ctx.db?.user_record?.id
+};
+
+// Safely access nested ctx properties
+const channelId = $json.ctx?.event?.channel_id || 'unknown';
+const confidence = $json.ctx?.llm?.confidence ?? 0.5;
 ```
 
 ### Switch Nodes

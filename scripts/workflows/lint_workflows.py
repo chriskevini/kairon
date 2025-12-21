@@ -272,6 +272,76 @@ def check_merge_node_config(node: dict, result: LintResult):
         result.warn(f"'{name}': Merge node missing 'mode' parameter (should usually be 'append')")
 
 
+def check_ctx_namespace_whitelist(node: dict, result: LintResult):
+    """Check if code nodes only use approved ctx namespaces"""
+    name = node.get('name', 'Unknown')
+    code = node.get('parameters', {}).get('jsCode', '')
+    
+    if not code:
+        return
+    
+    # Approved namespaces from audit
+    approved = ['event', 'llm', 'db', 'validation', 'thread', 'command', 'projection', 'timing']
+    
+    # Find all ctx.XXX patterns
+    ctx_accesses = re.findall(r'ctx\.(\w+)', code)
+    
+    # Check for unapproved namespaces (only warn for uncommon ones)
+    unapproved = set()
+    for namespace in set(ctx_accesses):
+        if namespace not in approved:
+            # Only warn if it's not a common variation
+            if namespace not in ['response', 'error', 'result', 'data']:
+                unapproved.add(namespace)
+    
+    if unapproved:
+        result.warn(f"'{name}': uses non-standard ctx namespace(s): {', '.join(sorted(unapproved))} - consider using: {', '.join(approved)}")
+
+
+def check_ctx_event_required_fields(node: dict, result: LintResult):
+    """Check if ctx.event initialization has required fields"""
+    name = node.get('name', 'Unknown')
+    code = node.get('parameters', {}).get('jsCode', '')
+    
+    if not code:
+        return
+    
+    # Only check nodes that initialize ctx.event
+    if 'ctx:' not in code or 'event:' not in code:
+        return
+    
+    # Required fields for ctx.event (relaxed - some workflows may not need all)
+    # event_id is always required, clean_text and trace_chain are highly recommended
+    critical_fields = ['event_id']
+    recommended_fields = ['trace_chain']
+    
+    # Extract the event object initialization
+    event_init = re.search(r'event:\s*\{([^}]+)\}', code, re.DOTALL)
+    if not event_init:
+        return
+    
+    event_content = event_init.group(1)
+    
+    # Check for critical fields
+    missing_critical = []
+    for field in critical_fields:
+        if field + ':' not in event_content and f'"{field}"' not in event_content and f"'{field}'" not in event_content:
+            missing_critical.append(field)
+    
+    # Check for recommended fields
+    missing_recommended = []
+    for field in recommended_fields:
+        if field + ':' not in event_content and f'"{field}"' not in event_content and f"'{field}'" not in event_content:
+            missing_recommended.append(field)
+    
+    if missing_critical:
+        result.error(f"'{name}': ctx.event initialization missing critical fields: {', '.join(missing_critical)}")
+    elif missing_recommended:
+        result.warn(f"'{name}': ctx.event initialization missing recommended fields: {', '.join(missing_recommended)}")
+    else:
+        result.ok(f"'{name}': ctx.event has required fields")
+
+
 def lint_workflow(filepath: str) -> LintResult:
     """Lint a single workflow file"""
     result = LintResult()
@@ -294,6 +364,8 @@ def lint_workflow(filepath: str) -> LintResult:
         
         if node_type == 'code':
             check_code_node_ctx_pattern(node, result)
+            check_ctx_namespace_whitelist(node, result)
+            check_ctx_event_required_fields(node, result)
         elif node_type == 'if':
             check_if_node_ctx_pattern(node, result)
         elif node_type == 'postgres':
