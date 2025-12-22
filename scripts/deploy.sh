@@ -173,22 +173,65 @@ if [ "$TARGET" == "dev" ]; then
         exit 0
     fi
     
-    # Execute smoke test via webhook
+    # Execute smoke test via webhook with timeout
+    echo "   Invoking smoke test webhook..."
     RESULT=$(curl -s -X POST \
+        --max-time 60 \
         -H "Content-Type: application/json" \
         "$API_URL/webhook/smoke-test" \
         -d '{}')
     
+    # Check if curl succeeded
+    if [ -z "$RESULT" ]; then
+        echo "FAILED: No response from smoke test (timeout or connection error)"
+        exit 1
+    fi
+    
+    # Check if response is valid JSON
+    if ! echo "$RESULT" | jq -e '.' > /dev/null 2>&1; then
+        echo "FAILED: Smoke test returned invalid JSON"
+        echo "Raw response: $RESULT"
+        exit 1
+    fi
+    
     # Check result
     if echo "$RESULT" | jq -e '.success == true' > /dev/null 2>&1; then
-        echo "SUCCESS: Smoke tests passed"
-        echo "$RESULT" | jq '.'
+        echo ""
+        echo "========================================"
+        echo "SMOKE TESTS PASSED"
+        echo "========================================"
+        echo "$RESULT" | jq -r '"Run: \(.run_id)"' || echo "Run: unknown"
+        echo "$RESULT" | jq -r '"Tests: \(.summary.passed)/\(.summary.total) passed"' || echo "Tests: unknown"
+        echo ""
+        echo "Test Results:"
+        echo "$RESULT" | jq -r '.tests[] | "  \(if .passed then "✓" else "✗" end) \(.name): \(.details)"' || {
+            echo "  (could not parse individual test results)"
+        }
     else
-        echo "FAILED: Smoke tests did not pass"
-        echo "$RESULT" | jq '.' 2>/dev/null || echo "$RESULT"
+        echo ""
+        echo "========================================"
+        echo "SMOKE TESTS FAILED"
+        echo "========================================"
+        
+        # Try to parse structured response
+        if echo "$RESULT" | jq -e '.tests' > /dev/null 2>&1; then
+            echo "$RESULT" | jq -r '"Run: \(.run_id // "unknown")"' || echo "Run: unknown"
+            echo "$RESULT" | jq -r '"Tests: \(.summary.passed // 0)/\(.summary.total // 0) passed"' || echo "Tests: unknown"
+            echo ""
+            echo "Test Results:"
+            echo "$RESULT" | jq -r '.tests[] | "  \(if .passed then "✓" else "✗" end) \(.name): \(.details)"' || {
+                echo "  (could not parse individual test results)"
+            }
+        else
+            # Raw output if not structured
+            echo "Raw response:"
+            echo "$RESULT" | jq '.' 2>/dev/null || echo "$RESULT"
+        fi
         exit 1
     fi
 fi
 
 echo ""
-echo "SUCCESS: $TARGET deployment complete"
+echo "========================================"
+echo "DEPLOYMENT COMPLETE: $TARGET"
+echo "========================================"

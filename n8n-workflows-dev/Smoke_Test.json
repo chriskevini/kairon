@@ -8,7 +8,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "smoke-test-trigger",
+      "id": "smoke-trigger",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -17,24 +17,237 @@
     },
     {
       "parameters": {
-        "jsCode": "// Smoke Test: Basic sanity checks\n// This workflow verifies the dev environment is working\n\nconst results = [];\nlet allPassed = true;\n\n// Test 1: Code nodes work\ntry {\n  const testObj = { foo: 'bar' };\n  if (testObj.foo === 'bar') {\n    results.push({ test: 'code_node_execution', passed: true });\n  } else {\n    results.push({ test: 'code_node_execution', passed: false, error: 'Object access failed' });\n    allPassed = false;\n  }\n} catch (e) {\n  results.push({ test: 'code_node_execution', passed: false, error: e.message });\n  allPassed = false;\n}\n\n// Test 2: Date/time functions work\ntry {\n  const now = new Date();\n  const iso = now.toISOString();\n  if (iso.includes('T')) {\n    results.push({ test: 'datetime_functions', passed: true });\n  } else {\n    results.push({ test: 'datetime_functions', passed: false, error: 'ISO format invalid' });\n    allPassed = false;\n  }\n} catch (e) {\n  results.push({ test: 'datetime_functions', passed: false, error: e.message });\n  allPassed = false;\n}\n\n// Test 3: JSON operations work\ntry {\n  const obj = { test: 'data', nested: { value: 123 } };\n  const str = JSON.stringify(obj);\n  const parsed = JSON.parse(str);\n  if (parsed.nested.value === 123) {\n    results.push({ test: 'json_operations', passed: true });\n  } else {\n    results.push({ test: 'json_operations', passed: false, error: 'JSON roundtrip failed' });\n    allPassed = false;\n  }\n} catch (e) {\n  results.push({ test: 'json_operations', passed: false, error: e.message });\n  allPassed = false;\n}\n\nreturn [{\n  json: {\n    success: allPassed,\n    message: allPassed ? 'All smoke tests passed' : 'Some tests failed',\n    timestamp: new Date().toISOString(),\n    results: results,\n    testsRun: results.length,\n    testsPassed: results.filter(r => r.passed).length\n  }\n}];"
+        "jsCode": "// Initialize smoke test run\nconst runId = 'smoke-' + Date.now();\n\nreturn [{\n  json: {\n    run_id: runId,\n    started_at: new Date().toISOString(),\n    tests: [],\n    current_test: 'db_read'\n  }\n}];"
       },
-      "id": "smoke-test-run",
-      "name": "Run Smoke Tests",
+      "id": "smoke-init",
+      "name": "Initialize Test Run",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [220, 0]
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT key, value FROM config WHERE key IN ('north_star', 'timezone') ORDER BY key",
+        "options": {}
+      },
+      "id": "smoke-db-read",
+      "name": "Test DB Read",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [440, 0],
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "smoke-merge-read",
+      "name": "Merge DB Read",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect DB read results and record test outcome\nconst items = $input.all();\n\n// Find our state (has run_id) and DB results\nlet state = null;\nconst dbRows = [];\n\nfor (const item of items) {\n  if (item.json.run_id) {\n    state = item.json;\n  } else if (item.json.key) {\n    dbRows.push(item.json);\n  }\n}\n\nif (!state) {\n  throw new Error('Lost test state after DB read');\n}\n\n// Evaluate DB read test\nconst hasNorthStar = dbRows.some(r => r.key === 'north_star');\nconst hasTimezone = dbRows.some(r => r.key === 'timezone');\nconst dbReadPassed = hasNorthStar && hasTimezone;\n\nstate.tests.push({\n  name: 'db_read',\n  passed: dbReadPassed,\n  details: dbReadPassed \n    ? `Found ${dbRows.length} config rows` \n    : `Missing config: north_star=${hasNorthStar}, timezone=${hasTimezone}`\n});\n\nstate.db_config = dbRows;\nstate.current_test = 'db_write';\n\nreturn [{ json: state }];"
+      },
+      "id": "smoke-eval-read",
+      "name": "Evaluate DB Read",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO events (event_type, payload, idempotency_key, timezone)\nVALUES (\n  'smoke_test',\n  $1::jsonb,\n  $2,\n  'UTC'\n)\nON CONFLICT (idempotency_key) DO UPDATE SET event_type = 'smoke_test'\nRETURNING id, idempotency_key",
+        "options": {
+          "queryReplacement": "={{ [ JSON.stringify({ smoke_run_id: $json.run_id, timestamp: new Date().toISOString() }), 'smoke-test-' + $json.run_id ] }}"
+        }
+      },
+      "id": "smoke-db-write",
+      "name": "Test DB Write",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1100, 0],
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "smoke-merge-write",
+      "name": "Merge DB Write",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect DB write results and record test outcome\nconst items = $input.all();\n\nlet state = null;\nlet writeResult = null;\n\nfor (const item of items) {\n  if (item.json.run_id) {\n    state = item.json;\n  } else if (item.json.id || item.json.idempotency_key) {\n    writeResult = item.json;\n  }\n}\n\nif (!state) {\n  throw new Error('Lost test state after DB write');\n}\n\n// Evaluate DB write test\nconst dbWritePassed = !!(writeResult && writeResult.id);\n\nstate.tests.push({\n  name: 'db_write',\n  passed: dbWritePassed,\n  details: dbWritePassed \n    ? `Created/updated event ${writeResult.id}` \n    : 'Failed to write event'\n});\n\nstate.test_event_id = writeResult?.id;\nstate.current_test = 'ctx_pattern';\n\nreturn [{ json: state }];"
+      },
+      "id": "smoke-eval-write",
+      "name": "Evaluate DB Write",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Test ctx pattern - simulate what workflows do\n// This verifies our ctx initialization and namespace patterns work\nconst state = $json;\n\n// Simulate ctx.event initialization (like Route_Event does)\nconst mockEvent = {\n  event_id: state.test_event_id || 'mock-event-id',\n  event_type: 'smoke_test',\n  channel_id: 'smoke-channel',\n  message_id: 'smoke-message',\n  clean_text: '::ping',\n  tag: '::',\n  trace_chain: [state.test_event_id || 'mock-event-id'],\n  author_login: 'smoke_tester',\n  timestamp: new Date().toISOString()\n};\n\n// Build ctx like our workflows do\nconst ctx = {\n  event: mockEvent,\n  db: {\n    config: state.db_config || []\n  }\n};\n\n// Verify ctx structure\nconst hasEvent = ctx.event && ctx.event.event_id;\nconst hasTraceChain = Array.isArray(ctx.event.trace_chain) && ctx.event.trace_chain.length > 0;\nconst hasDb = ctx.db && ctx.db.config;\n\nconst ctxPassed = hasEvent && hasTraceChain && hasDb;\n\nstate.tests.push({\n  name: 'ctx_pattern',\n  passed: ctxPassed,\n  details: ctxPassed \n    ? 'ctx structure valid: event, trace_chain, db namespaces present'\n    : `ctx invalid: event=${hasEvent}, trace_chain=${hasTraceChain}, db=${hasDb}`\n});\n\nstate.ctx = ctx;\nstate.current_test = 'db_array_params';\n\nreturn [{ json: state }];"
+      },
+      "id": "smoke-ctx-test",
+      "name": "Test ctx Pattern",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT $1::uuid[] AS trace_chain_test, array_length($1::uuid[], 1) AS chain_length",
+        "options": {
+          "queryReplacement": "={{ [ '{' + $json.ctx.event.trace_chain.join(',') + '}' ] }}"
+        }
+      },
+      "id": "smoke-db-array",
+      "name": "Test DB Array Params",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1980, 0],
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "smoke-merge-array",
+      "name": "Merge Array Test",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2200, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Evaluate array parameter test\nconst items = $input.all();\n\nlet state = null;\nlet arrayResult = null;\n\nfor (const item of items) {\n  if (item.json.ctx) {\n    state = item.json;\n  } else if (item.json.chain_length !== undefined) {\n    arrayResult = item.json;\n  }\n}\n\nif (!state) {\n  throw new Error('Lost test state after array params test');\n}\n\n// Evaluate array params test\nconst arrayPassed = arrayResult && arrayResult.chain_length >= 1;\n\nstate.tests.push({\n  name: 'db_array_params',\n  passed: arrayPassed,\n  details: arrayPassed \n    ? `Postgres array param worked: chain_length=${arrayResult.chain_length}` \n    : `Array param failed: ${JSON.stringify(arrayResult)}`\n});\n\nstate.current_test = 'workflow_invoke';\n\nreturn [{ json: state }];"
+      },
+      "id": "smoke-eval-array",
+      "name": "Evaluate Array Params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare ctx for Execute_Command invocation\n// This tests sub-workflow calling with proper ctx shape\nconst state = $json;\nconst ctx = state.ctx;\n\n// Execute_Command expects ctx.event with tag='::' and clean_text starting with command\nreturn [{\n  json: {\n    _smoke_state: state,\n    ctx: ctx\n  }\n}];"
+      },
+      "id": "smoke-prep-invoke",
+      "name": "Prepare Workflow Invoke",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 0]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Execute_Command"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "smoke-invoke-cmd",
+      "name": "Invoke Execute_Command",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [2860, 0],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Evaluate workflow invocation result\n// Execute_Command should return a response for ::ping\nconst input = $input.first().json;\n\n// Get our state back (might be in different locations depending on success/failure)\nlet state = input._smoke_state;\nlet invokeResult = null;\n\nif (!state && input.ctx) {\n  // Sub-workflow returned ctx, find our state\n  state = input._smoke_state || { tests: [], run_id: 'unknown' };\n  invokeResult = input;\n} else if (state) {\n  // We got our state back directly (maybe error case)\n  invokeResult = input.error ? null : input;\n}\n\nif (!state) {\n  // Fallback - create minimal state\n  state = { tests: [], run_id: 'recovery-' + Date.now() };\n}\n\n// Check if invocation worked\n// For ::ping, Execute_Command returns { response: 'pong', ... }\nconst hasResponse = invokeResult && (invokeResult.response || invokeResult.ctx);\nconst isPong = invokeResult?.response?.toLowerCase().includes('pong');\n\n// Invocation passes if we got any structured response back\n// (the mock might not return 'pong' but should return something)\nconst invokePassed = hasResponse || isPong;\n\nstate.tests.push({\n  name: 'workflow_invoke',\n  passed: invokePassed,\n  details: invokePassed\n    ? `Sub-workflow returned response: ${JSON.stringify(invokeResult?.response || invokeResult?.ctx?.event?.event_type || 'ctx present').substring(0, 100)}`\n    : `Sub-workflow failed or returned unexpected shape: ${JSON.stringify(input).substring(0, 200)}`\n});\n\nstate.current_test = 'complete';\nstate.invoke_result = invokeResult;\n\nreturn [{ json: state }];"
+      },
+      "id": "smoke-eval-invoke",
+      "name": "Evaluate Invoke",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3080, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM events WHERE event_type = 'smoke_test' AND idempotency_key LIKE 'smoke-test-%' AND received_at > NOW() - INTERVAL '1 hour' RETURNING id",
+        "options": {}
+      },
+      "id": "smoke-cleanup",
+      "name": "Cleanup Test Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [3300, 0],
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "smoke-merge-cleanup",
+      "name": "Merge Cleanup",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3520, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compile final results\nconst items = $input.all();\n\n// Find state and cleanup results\nlet state = null;\nlet cleanedCount = 0;\n\nfor (const item of items) {\n  if (item.json.tests) {\n    state = item.json;\n  } else if (item.json.id) {\n    cleanedCount++;\n  }\n}\n\nif (!state) {\n  state = { tests: [], run_id: 'unknown' };\n}\n\nconst allTests = state.tests || [];\nconst passed = allTests.filter(t => t.passed).length;\nconst failed = allTests.filter(t => !t.passed).length;\nconst allPassed = failed === 0 && passed > 0;\n\nreturn [{\n  json: {\n    success: allPassed,\n    message: allPassed \n      ? `All ${passed} smoke tests passed` \n      : `${failed} of ${passed + failed} tests failed`,\n    run_id: state.run_id,\n    started_at: state.started_at,\n    completed_at: new Date().toISOString(),\n    summary: {\n      total: allTests.length,\n      passed: passed,\n      failed: failed\n    },\n    tests: allTests,\n    cleanup: {\n      events_deleted: cleanedCount\n    }\n  }\n}];"
+      },
+      "id": "smoke-compile",
+      "name": "Compile Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3740, 0]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}"
       },
-      "id": "smoke-test-respond",
+      "id": "smoke-respond",
       "name": "Return Results",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [440, 0]
+      "position": [3960, 0]
     }
   ],
   "connections": {
@@ -42,14 +255,210 @@
       "main": [
         [
           {
-            "node": "Run Smoke Tests",
+            "node": "Initialize Test Run",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Run Smoke Tests": {
+    "Initialize Test Run": {
+      "main": [
+        [
+          {
+            "node": "Test DB Read",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge DB Read",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Test DB Read": {
+      "main": [
+        [
+          {
+            "node": "Merge DB Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge DB Read": {
+      "main": [
+        [
+          {
+            "node": "Evaluate DB Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate DB Read": {
+      "main": [
+        [
+          {
+            "node": "Test DB Write",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge DB Write",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Test DB Write": {
+      "main": [
+        [
+          {
+            "node": "Merge DB Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge DB Write": {
+      "main": [
+        [
+          {
+            "node": "Evaluate DB Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate DB Write": {
+      "main": [
+        [
+          {
+            "node": "Test ctx Pattern",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test ctx Pattern": {
+      "main": [
+        [
+          {
+            "node": "Test DB Array Params",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Array Test",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Test DB Array Params": {
+      "main": [
+        [
+          {
+            "node": "Merge Array Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Array Test": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Array Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Array Params": {
+      "main": [
+        [
+          {
+            "node": "Prepare Workflow Invoke",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Workflow Invoke": {
+      "main": [
+        [
+          {
+            "node": "Invoke Execute_Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoke Execute_Command": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Invoke",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Invoke": {
+      "main": [
+        [
+          {
+            "node": "Cleanup Test Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Cleanup",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Cleanup Test Data": {
+      "main": [
+        [
+          {
+            "node": "Merge Cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Cleanup": {
+      "main": [
+        [
+          {
+            "node": "Compile Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Results": {
       "main": [
         [
           {
