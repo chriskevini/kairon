@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2025-12-22T04:47:06.588Z",
+  "createdAt": "2025-12-20T14:22:59.769Z",
+  "id": "YKY0jMK92KQdPqfS",
   "name": "Multi_Capture",
+  "description": null,
+  "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -139,7 +145,7 @@
       "typeVersion": 2.4,
       "position": [
         -576,
-        1032
+        840
       ],
       "id": "store-llm-trace",
       "name": "Store LLM Trace",
@@ -158,7 +164,7 @@
       "typeVersion": 2,
       "position": [
         -352,
-        1032
+        840
       ],
       "id": "prepare-projections",
       "name": "Split Captures"
@@ -175,7 +181,7 @@
       "typeVersion": 2.4,
       "position": [
         -128,
-        1032
+        840
       ],
       "id": "store-projection",
       "name": "Store Projection",
@@ -194,7 +200,7 @@
       "typeVersion": 2,
       "position": [
         -576,
-        840
+        1032
       ],
       "id": "collect-results",
       "name": "Collect Results"
@@ -210,7 +216,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -352,
+        -128,
         528
       ],
       "id": "add-emoji-reactions",
@@ -246,7 +252,7 @@
       "typeVersion": 2,
       "position": [
         -352,
-        840
+        1224
       ],
       "id": "log-to-kairon-logs",
       "name": "Log to Kairon Logs",
@@ -269,7 +275,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -128,
+        96,
         552
       ],
       "id": "wait-rate-limit",
@@ -283,7 +289,7 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -576,
+        -352,
         552
       ],
       "id": "2741faa1-e8ab-4588-b3b5-bc67839680a3",
@@ -296,7 +302,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -800,
+        -576,
         552
       ],
       "id": "prepare-emoji-items",
@@ -311,8 +317,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -128,
-        840
+        -352,
+        1032
       ],
       "id": "query-verbose-setting",
       "name": "Query Verbose Setting",
@@ -334,12 +340,11 @@
           "conditions": [
             {
               "id": "f55070f3-80b6-4076-a05d-6799052b6555",
-              "leftValue": "={{ $json.verbose }}",
-              "rightValue": "true",
+              "leftValue": "={{ $json.ctx.verbose }}",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter_string_equals"
+                "type": "boolean",
+                "operation": "equals"
               }
             }
           ],
@@ -350,8 +355,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        128,
-        840
+        96,
+        1032
       ],
       "id": "if-verbose-true",
       "name": "If Verbose True"
@@ -376,21 +381,21 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        384,
-        840
+        320,
+        1032
       ],
       "id": "trigger-show-details",
       "name": "Trigger Show Details"
     },
     {
       "parameters": {
-        "jsCode": "const ctx = $('Collect Results').first().json.ctx;\nreturn [{\n  json: {\n    ctx: ctx,\n    verbose: $json.value || 'false'\n  }\n}];"
+        "jsCode": "const ctx = $('Collect Results').first().json.ctx;\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      verbose: $json.value === 'true' || $json.value === true\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        0,
-        840
+        -128,
+        1032
       ],
       "id": "merge-ctx-verbose",
       "name": "Merge Ctx for Verbose"
@@ -456,6 +461,11 @@
         [
           {
             "node": "Log to Kairon Logs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Verbose Setting",
             "type": "main",
             "index": 0
           }
@@ -563,13 +573,7 @@
     },
     "Log to Kairon Logs": {
       "main": [
-        [
-          {
-            "node": "Query Verbose Setting",
-            "index": 0,
-            "type": "main"
-          }
-        ]
+        []
       ]
     },
     "Query Verbose Setting": {
@@ -614,5 +618,27 @@
   },
   "staticData": null,
   "meta": null,
-  "active": false
+  "versionId": "987e4738-43d2-4a5a-8e2b-8cb9241f290d",
+  "activeVersionId": null,
+  "versionCounter": 94,
+  "triggerCount": 0,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-20T14:22:59.769Z",
+      "createdAt": "2025-12-20T14:22:59.769Z",
+      "role": "workflow:owner",
+      "workflowId": "YKY0jMK92KQdPqfS",
+      "projectId": "nz6YNVzBbNS8GXLz",
+      "project": {
+        "updatedAt": "2025-12-12T06:59:55.775Z",
+        "createdAt": "2025-12-12T06:21:59.705Z",
+        "id": "nz6YNVzBbNS8GXLz",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
 }
