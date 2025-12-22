@@ -63,8 +63,22 @@ The `scripts/workflows/lint_workflows.py` script enforces this:
 - **Clarity:** Parent workflows become significantly cleaner, replacing 3+ nodes with a single "Execute Workflow" node.
 - **Agent Efficiency:** Clear contract - always use Query_DB, always get `ctx.db.results` back.
 
+## When to Use Query_DB
+
+**Good candidates:**
+- Single SELECT queries that need ctx preserved
+- Sequential queries where you build up context
+- Reusable query patterns across workflows
+
+**Keep inline Postgres for:**
+- Parallel queries from a single trigger (Query_DB would force sequential execution)
+- Simple config lookups with no parameters
+- INSERT/UPDATE/DELETE operations tightly coupled with workflow logic
+- Queries where the result feeds directly into the next node's parameters
+
 ## Migration Path
-Existing workflows using direct Postgres nodes will show warnings. They can be migrated incrementally:
-1. Replace Postgres + Merge + ctx-restore pattern with Query_DB call
-2. Update code to read from `ctx.db.results` instead of custom locations
-3. Run linter to verify no direct Postgres usage remains
+Existing workflows using direct Postgres SELECT nodes will show warnings. Migrate incrementally:
+1. Identify SELECT queries that would benefit from standardization
+2. Replace Postgres + Merge + ctx-restore pattern with Query_DB call
+3. Update code to read from `ctx.db.results` instead of custom locations
+4. Keep parallel query patterns inline when performance matters

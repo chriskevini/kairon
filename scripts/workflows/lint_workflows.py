@@ -201,15 +201,20 @@ def check_if_node_ctx_pattern(node: dict, result: LintResult):
 def check_postgres_node_pattern(node: dict, result: LintResult, workflow_name: str):
     """Check if Postgres nodes use ctx for query parameters"""
     name = node.get("name", "Unknown")
-    options = node.get("parameters", {}).get("options", {})
+    params = node.get("parameters", {})
+    query = params.get("query", "")
+    options = params.get("options", {})
     query_replacement = options.get("queryReplacement", "")
 
-    # Flag direct Postgres usage - should use Query_DB wrapper instead
+    # Flag direct Postgres SELECT usage - should use Query_DB wrapper instead
     # Exception: Query_DB workflow itself is allowed to use Postgres directly
+    # Exception: INSERT/UPDATE/DELETE operations are often tightly coupled with workflow logic
     if workflow_name != "Query_DB":
-        result.warn(
-            f"'{name}': consider using Query_DB sub-workflow instead of direct Postgres node"
-        )
+        query_upper = query.strip().upper()
+        if query_upper.startswith("SELECT"):
+            result.warn(
+                f"'{name}': consider using Query_DB sub-workflow instead of direct Postgres SELECT"
+            )
 
     if not query_replacement:
         return
