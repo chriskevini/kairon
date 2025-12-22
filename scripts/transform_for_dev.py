@@ -3,16 +3,33 @@
 Transform workflow JSON for dev environment testing.
 
 Replaces external API calls (Discord, LLM) with mock Code nodes,
-and converts Webhook triggers to Execute Workflow Triggers for
-pure internal testing.
+converts Webhook triggers to Execute Workflow Triggers, and
+remaps workflow IDs for Execute Workflow nodes.
 
 Usage:
     cat workflow.json | python transform_for_dev.py > transformed.json
-    python transform_for_dev.py < workflow.json > transformed.json
+
+    # With workflow ID remapping:
+    cat workflow.json | WORKFLOW_IDS='{"Route_Event":"abc123"}' python transform_for_dev.py
 """
 
 import json
+import os
 import sys
+
+
+# Workflow ID mapping (name -> dev ID), populated from environment
+WORKFLOW_ID_MAP: dict[str, str] = {}
+
+
+def load_workflow_id_map():
+    """Load workflow ID mapping from WORKFLOW_IDS environment variable."""
+    global WORKFLOW_ID_MAP
+    ids_json = os.environ.get("WORKFLOW_IDS", "{}")
+    try:
+        WORKFLOW_ID_MAP = json.loads(ids_json)
+    except json.JSONDecodeError:
+        WORKFLOW_ID_MAP = {}
 
 
 def transform_node(node: dict) -> dict:
@@ -91,6 +108,23 @@ return [{{
     # HTTP Request nodes that call external APIs could also be mocked here
     # if needed in the future
 
+    # Execute Workflow Node → Remap workflow IDs
+    # Replace prod workflow IDs with dev workflow IDs based on cached name
+    if node_type == "n8n-nodes-base.executeWorkflow":
+        params = node.get("parameters", {})
+        workflow_ref = params.get("workflowId", {})
+
+        if isinstance(workflow_ref, dict):
+            cached_name = workflow_ref.get("cachedResultName", "")
+            if cached_name and cached_name in WORKFLOW_ID_MAP:
+                workflow_ref["value"] = WORKFLOW_ID_MAP[cached_name]
+                # Update cached URL too
+                workflow_ref["cachedResultUrl"] = (
+                    f"/workflow/{WORKFLOW_ID_MAP[cached_name]}"
+                )
+
+        return node
+
     return node
 
 
@@ -110,6 +144,8 @@ def transform_workflow(workflow: dict) -> dict:
 
 
 def main():
+    load_workflow_id_map()
+
     try:
         workflow = json.load(sys.stdin)
     except json.JSONDecodeError as e:

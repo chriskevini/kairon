@@ -53,11 +53,16 @@ if [ "$TARGET" == "dev" ]; then
         exit 1
     fi
     
-    # Transform workflows for dev (mock external calls, convert webhooks)
-    echo "Transforming workflows for dev environment..."
     TEMP_DIR=$(mktemp -d)
     trap "rm -rf $TEMP_DIR" EXIT
     
+    # --- PASS 1: Initial transform and push (creates workflows, gets IDs) ---
+    echo "Pass 1: Initial deployment..."
+    echo ""
+    
+    # Transform workflows for dev (mock external calls, convert webhooks)
+    # First pass: no ID remapping yet
+    echo "Transforming workflows for dev environment..."
     for workflow in "$WORKFLOW_DIR"/*.json; do
         [ -f "$workflow" ] || continue
         filename=$(basename "$workflow")
@@ -75,9 +80,44 @@ if [ "$TARGET" == "dev" ]; then
         done
     fi
     
-    # Push transformed workflows to dev
+    # Push transformed workflows to dev (creates any missing workflows)
     echo ""
-    echo "Pushing to dev n8n..."
+    echo "Pushing to dev n8n (pass 1)..."
+    WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
+        "$SCRIPT_DIR/workflows/n8n-push-local.sh"
+    
+    # --- PASS 2: Fetch IDs and re-push with correct workflow references ---
+    echo ""
+    echo "Pass 2: Remapping workflow IDs..."
+    
+    # Fetch workflow name -> ID mapping from dev n8n
+    WORKFLOW_IDS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
+        "$API_URL/api/v1/workflows?limit=100" | \
+        jq -c '[.data[] | {(.name): .id}] | add // {}')
+    
+    echo "   Found workflow IDs: $(echo "$WORKFLOW_IDS" | jq 'keys | length') workflows"
+    
+    # Re-transform with ID mapping
+    rm -f "$TEMP_DIR"/*.json
+    
+    for workflow in "$WORKFLOW_DIR"/*.json; do
+        [ -f "$workflow" ] || continue
+        filename=$(basename "$workflow")
+        WORKFLOW_IDS="$WORKFLOW_IDS" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
+    done
+    
+    # Copy dev-only workflows again
+    if [ -d "$WORKFLOW_DEV_DIR" ]; then
+        for workflow in "$WORKFLOW_DEV_DIR"/*.json; do
+            [ -f "$workflow" ] || continue
+            filename=$(basename "$workflow")
+            cp "$workflow" "$TEMP_DIR/$filename"
+        done
+    fi
+    
+    # Push again with correct IDs
+    echo ""
+    echo "Pushing to dev n8n (pass 2 - with correct workflow IDs)..."
     WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
         "$SCRIPT_DIR/workflows/n8n-push-local.sh"
     
