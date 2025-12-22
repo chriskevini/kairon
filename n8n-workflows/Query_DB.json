@@ -1,0 +1,143 @@
+{
+  "name": "Query_DB",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "trigger-execute-query",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate input and prepare query\nconst ctx = $json.ctx;\n\nif (!ctx?.db_query?.sql) {\n  throw new Error('Query_DB requires ctx.db_query.sql');\n}\n\n// Store original ctx for restoration after Postgres node\nreturn [{\n  json: {\n    original_ctx: ctx,\n    sql: ctx.db_query.sql,\n    params: ctx.db_query.params || []\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "prepare-query",
+      "name": "Prepare Query"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {
+          "queryReplacement": "={{ $json.params.join(',=') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        440,
+        0
+      ],
+      "id": "execute-postgres-query",
+      "name": "Execute Query",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        660,
+        0
+      ],
+      "id": "merge-results",
+      "name": "Merge Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore ctx and attach query results in ctx.db namespace\nconst items = $input.all();\n\n// Find the original_ctx from the first item that has it\nlet originalCtx = null;\nconst results = [];\n\nfor (const item of items) {\n  if (item.json.original_ctx) {\n    originalCtx = item.json.original_ctx;\n  } else {\n    // This is a Postgres result row\n    results.push(item.json);\n  }\n}\n\nif (!originalCtx) {\n  throw new Error('Query_DB: Lost original context');\n}\n\n// Return ctx with db.results populated\n// Remove db_query since it was consumed\nconst { db_query, ...restCtx } = originalCtx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...restCtx,\n      db: {\n        ...(restCtx.db || {}),\n        results: results,\n        count: results.length\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "id": "finalize-context",
+      "name": "Finalize Context"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Execute Query": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Finalize Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
+}

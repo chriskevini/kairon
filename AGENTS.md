@@ -191,6 +191,41 @@ Parent Workflow                    Sub-Workflow
 [Execute Sub-Workflow] → [Use $json.ctx from sub-workflow] → [Remove reaction]
 ```
 
+#### Exception: Query_DB Wrapper
+
+The `Query_DB` sub-workflow is the **only exception** to fire-and-forget. It's a utility wrapper that:
+- Takes `ctx` with `ctx.db_query.sql` and optional `ctx.db_query.params`
+- Returns `ctx` with results in `ctx.db.results` and `ctx.db.count`
+- Handles ctx preservation automatically (no manual Merge nodes needed)
+
+**Usage:**
+```javascript
+// 1. Prepare query in a Code node
+return [{
+  json: {
+    ctx: {
+      ...$json.ctx,
+      db_query: {
+        sql: "SELECT * FROM projections WHERE event_id = $1",
+        params: [$json.ctx.event.event_id]
+      }
+    }
+  }
+}];
+
+// 2. Call Query_DB sub-workflow (waitForSubWorkflow: true)
+
+// 3. Use results - ctx.db.results contains rows, ctx.db.count has row count
+const rows = $json.ctx.db.results;
+const count = $json.ctx.db.count;
+```
+
+**Why this exception exists:**
+- Database queries are the most common source of ctx-loss bugs
+- The wrapper is dead simple (no branching, no side effects)
+- Eliminates 3-4 boilerplate nodes per query
+- Standardizes result shape across all workflows
+
 ### Error Handling
 
 Workflows must never die silently. Always return a response:
