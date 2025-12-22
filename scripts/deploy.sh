@@ -6,14 +6,21 @@
 #   ./scripts/deploy.sh prod   # Deploy to prod as-is (not yet implemented)
 #
 # Prerequisites:
-#   - Dev: docker-compose.dev.yml running, N8N_DEV_API_KEY set in environment or /opt/n8n-docker-caddy/.env
+#   - Dev: docker-compose.dev.yml running on server
+#   - N8N_DEV_API_KEY set in .env
+#   - N8N_DEV_SSH_HOST set in .env (if running from a different machine)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Load environment variables
+# Load environment variables from repo .env first, then server .env
+if [ -f "$REPO_ROOT/.env" ]; then
+    set -a
+    source "$REPO_ROOT/.env"
+    set +a
+fi
 if [ -f /opt/n8n-docker-caddy/.env ]; then
     set -a
     source /opt/n8n-docker-caddy/.env
@@ -33,9 +40,24 @@ if [ "$TARGET" == "prod" ]; then
 else
     if [ -z "${N8N_DEV_API_KEY:-}" ]; then
         echo "Error: N8N_DEV_API_KEY not set"
-        echo "Add it to /opt/n8n-docker-caddy/.env or export it"
+        echo "Add it to .env or export it"
         exit 1
     fi
+    
+    # Set up SSH tunnel if N8N_DEV_SSH_HOST is configured and port 5679 isn't already open
+    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        if ! nc -z localhost 5679 2>/dev/null; then
+            echo "Opening SSH tunnel to $N8N_DEV_SSH_HOST..."
+            ssh -f -N -L 5679:localhost:5679 "$N8N_DEV_SSH_HOST" 2>/dev/null || {
+                echo "Error: Failed to open SSH tunnel to $N8N_DEV_SSH_HOST"
+                echo "Make sure you can SSH to this host without a password prompt"
+                exit 1
+            }
+            # Give tunnel a moment to establish
+            sleep 1
+        fi
+    fi
+    
     API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
     API_KEY="$N8N_DEV_API_KEY"
     echo "Deploying to DEV ($API_URL)"
