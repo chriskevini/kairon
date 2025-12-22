@@ -2,28 +2,13 @@
 
 Instructions for AI agents working on Kairon - a life-tracking system using n8n workflows + Discord.
 
-## Quick Start
-
-```bash
-# Setup git hooks (one-time)
-git config core.hooksPath .githooks
-
-# Workflow development
-./scripts/workflows/n8n-pull.sh            # Pull changes from server
-./scripts/workflows/n8n-push.sh            # Push changes to server
-./scripts/workflows/n8n-push.sh --dry-run  # Preview what would push
-
-# The pre-commit hook automatically validates and sanitizes workflows
-```
-
 ## Project Structure
 
 ```
-n8n-workflows/       # Workflow JSON files (synced with server)
-scripts/workflows/   # n8n-push.sh, n8n-pull.sh, sanitize, validate, lint
-scripts/db/          # run-migration.sh, db-query.sh
+n8n-workflows/       # Workflow JSON files
 db/migrations/       # SQL migrations
-prompts/             # LLM prompts
+db/schema.sql        # Current database schema
+docs/                # Documentation
 discord_relay.py     # Discord bot that forwards to n8n
 ```
 
@@ -47,7 +32,7 @@ Use this standard structure across all workflows:
       channel_id: "discord_id",      // Discord channel
       message_id: "discord_id",      // Discord message
       clean_text: "message text",    // Cleaned message content
-      tag: "!!" | ".." | "++" | "--" | "::" | "$$" | null, // Route tag (see docs/tag-parsing-reference.md)
+      tag: "!!" | ".." | "++" | "--" | "::" | "$$" | null, // Route tag
       trace_chain: ["uuid"],         // LLM trace ancestry
       author_login: "username",      // Discord username
       timestamp: "ISO8601"           // Event timestamp
@@ -293,45 +278,6 @@ Tags are parsed at the start of messages. See `docs/tag-parsing-reference.md` fo
 | `$$` | `todo` | Create todo | Todo handler |
 | (none) | - | Auto-classify | LLM router → multi-extraction |
 
-## Scripts Reference
-
-| Script | Purpose |
-|--------|---------|
-| `n8n-push.sh` | Push local workflows to server |
-| `n8n-pull.sh` | Pull workflows from server |
-| `sanitize_workflows.sh` | Remove pinData (auto-run by hooks) |
-| `validate_workflows.sh` | Check JSON syntax |
-| `lint_workflows.py` | Check ctx pattern compliance |
-| `inspect_workflow.py` | View nodes, search workflows |
-| `run-migration.sh` | Run DB migrations with backup |
-| `db-query.sh` | Run SQL on remote DB |
-
-## Database Health Checks
-
-Use these scripts with `db-query.sh` to monitor system health:
-
-```bash
-# 1. General health and migration status
-./scripts/db/db-query.sh -f check_migration_status.sql
-
-# 2. Check for processing failures and orphans
-./scripts/db/db-query.sh -f check_duplicates.sql
-
-# 3. Processing breakdown by tag
-./scripts/db/db-query.sh -f check_orphans_by_tag.sql
-```
-
-## Git Workflow
-
-The pre-commit hook handles validation and sanitization automatically. Just commit normally:
-
-```bash
-git add n8n-workflows/
-git commit -m "feat: add new workflow"
-```
-
-If the hook blocks your commit, it will tell you what's wrong.
-
 ## Commit Messages
 
 ```
@@ -341,11 +287,3 @@ refactor: code restructuring
 docs: documentation
 chore: maintenance
 ```
-
-## Troubleshooting
-
-**Workflow not running:** Check if activated, check webhook URL, check `journalctl -u n8n -f`
-
-**Data not flowing:** Check ctx object is preserved through all nodes, check Merge wrappers after native nodes
-
-**SSH connection refused:** Server may rate-limit. Scripts batch operations to avoid this.
