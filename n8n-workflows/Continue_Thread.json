@@ -79,7 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare first query: conversation history\nconst ctx = $json.ctx;\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_query: {\n        sql: \"SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 AND NOT (role = 'user' AND text = $2) ORDER BY timestamp ASC LIMIT 20\",\n        params: [ctx.event.thread_id, ctx.event.clean_text]\n      },\n      llm: {\n        inference_start: Date.now()\n      }\n    }\n  }\n}];"
+        "jsCode": "// Prepare all queries for thread continuation context\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [\n        {\n          key: 'history',\n          sql: \"SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 AND NOT (role = 'user' AND text = $2) ORDER BY timestamp ASC LIMIT 20\",\n          params: [ctx.event.thread_id, ctx.event.clean_text]\n        },\n        {\n          key: 'north_star',\n          sql: \"SELECT value FROM config WHERE key = 'north_star'\"\n        },\n        {\n          key: 'activities',\n          sql: `SELECT \n            (data->>'timestamp')::timestamptz as timestamp,\n            data->>'category' as category,\n            data->>'description' as description\n          FROM projections\n          WHERE projection_type = 'activity'\n            AND status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (data->>'timestamp')::timestamptz DESC\n          LIMIT 20`\n        },\n        {\n          key: 'notes',\n          sql: `SELECT \n            (data->>'timestamp')::timestamptz as timestamp,\n            data->>'category' as category,\n            data->>'text' as text\n          FROM projections\n          WHERE projection_type = 'note'\n            AND status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (data->>'timestamp')::timestamptz DESC\n          LIMIT 10`\n        }\n      ],\n      llm: {\n        inference_start: Date.now()\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -87,8 +87,8 @@
         224,
         400
       ],
-      "id": "prepare-history-query",
-      "name": "Prepare History Query"
+      "id": "prepare-queries",
+      "name": "Prepare All Queries"
     },
     {
       "parameters": {
@@ -113,12 +113,12 @@
         448,
         400
       ],
-      "id": "query-history",
-      "name": "Query History"
+      "id": "query-db",
+      "name": "Query DB"
     },
     {
       "parameters": {
-        "jsCode": "// Store history results and prepare north star query\nconst ctx = $json.ctx;\nconst history = ctx.db?.results || [];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        history: history.map(h => ({ role: h.role, text: h.text }))\n      },\n      db_query: {\n        sql: \"SELECT value FROM config WHERE key = 'north_star'\"\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build LLM context from batch query results\nconst ctx = $json.ctx;\n\n// Extract results from ctx.db (keyed by query name)\nconst history = (ctx.db?.history?.results || []).map(h => ({ role: h.role, text: h.text }));\nconst northStar = ctx.db?.north_star?.results?.[0]?.value || '(not set)';\nconst activities = (ctx.db?.activities?.results || []).map(a => ({\n  timestamp: a.timestamp,\n  category: a.category,\n  description: a.description\n}));\nconst notes = (ctx.db?.notes?.results || []).map(n => ({\n  timestamp: n.timestamp,\n  category: n.category,\n  text: n.text\n}));\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        history: history,\n        north_star: northStar,\n        activities: activities,\n        notes: notes\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -126,125 +126,8 @@
         672,
         400
       ],
-      "id": "store-history-prepare-north-star",
-      "name": "Store History + Prepare North Star"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "ctx": "={{ $json.ctx }}"
-          }
-        },
-        "options": {
-          "waitForSubWorkflow": true
-        }
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        896,
-        400
-      ],
-      "id": "query-north-star",
-      "name": "Query North Star"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Store north star and prepare activities query\nconst ctx = $json.ctx;\nconst northStar = ctx.db?.results?.[0]?.value || 'Not set';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        north_star: northStar\n      },\n      db_query: {\n        sql: `SELECT \n          (data->>'timestamp')::timestamptz as timestamp,\n          data->>'category' as category,\n          data->>'description' as description\n        FROM projections\n        WHERE projection_type = 'activity'\n          AND status IN ('auto_confirmed', 'confirmed')\n        ORDER BY (data->>'timestamp')::timestamptz DESC\n        LIMIT 20`\n      }\n    }\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1120,
-        400
-      ],
-      "id": "store-north-star-prepare-activities",
-      "name": "Store North Star + Prepare Activities"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "ctx": "={{ $json.ctx }}"
-          }
-        },
-        "options": {
-          "waitForSubWorkflow": true
-        }
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        1344,
-        400
-      ],
-      "id": "query-activities",
-      "name": "Query Activities"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Store activities and prepare notes query\nconst ctx = $json.ctx;\nconst activities = ctx.db?.results || [];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        activities: activities.map(a => ({\n          timestamp: a.timestamp,\n          category: a.category,\n          description: a.description\n        }))\n      },\n      db_query: {\n        sql: `SELECT \n          (data->>'timestamp')::timestamptz as timestamp,\n          data->>'category' as category,\n          data->>'text' as text\n        FROM projections\n        WHERE projection_type = 'note'\n          AND status IN ('auto_confirmed', 'confirmed')\n        ORDER BY (data->>'timestamp')::timestamptz DESC\n        LIMIT 10`\n      }\n    }\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1568,
-        400
-      ],
-      "id": "store-activities-prepare-notes",
-      "name": "Store Activities + Prepare Notes"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "ctx": "={{ $json.ctx }}"
-          }
-        },
-        "options": {
-          "waitForSubWorkflow": true
-        }
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        1792,
-        400
-      ],
-      "id": "query-notes",
-      "name": "Query Notes"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Store notes - ctx.llm now has all data for LLM\nconst ctx = $json.ctx;\nconst notes = ctx.db?.results || [];\n\n// Clear db_query and db since we're done with queries\nconst { db_query, db, ...restCtx } = ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...restCtx,\n      llm: {\n        ...ctx.llm,\n        notes: notes.map(n => ({\n          timestamp: n.timestamp,\n          category: n.category,\n          text: n.text\n        }))\n      }\n    }\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2016,
-        400
-      ],
-      "id": "store-notes",
-      "name": "Store Notes"
+      "id": "build-context",
+      "name": "Build LLM Context"
     },
     {
       "parameters": {
@@ -256,7 +139,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        2240,
+        896,
         400
       ],
       "id": "generate-response",
@@ -272,7 +155,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        2248,
+        904,
         624
       ],
       "id": "mimo-v2-flash",
@@ -294,7 +177,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        2376,
+        1032,
         624
       ],
       "id": "nemotron-nano-9b",
@@ -325,7 +208,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2464,
+        1120,
         400
       ],
       "id": "set-llm-completion",
@@ -350,7 +233,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        2688,
+        1344,
         200
       ],
       "id": "post-to-thread",
@@ -372,7 +255,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2688,
+        1344,
         400
       ],
       "id": "prepare-trace-data",
@@ -389,7 +272,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2912,
+        1568,
         400
       ],
       "id": "write-trace",
@@ -410,7 +293,7 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        3136,
+        1792,
         400
       ],
       "id": "merge-trace-result",
@@ -427,7 +310,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        3360,
+        2016,
         400
       ],
       "id": "store-projection",
@@ -450,7 +333,7 @@
             "index": 0
           },
           {
-            "node": "Prepare History Query",
+            "node": "Prepare All Queries",
             "type": "main",
             "index": 0
           },
@@ -462,95 +345,29 @@
         ]
       ]
     },
-    "Prepare History Query": {
+    "Prepare All Queries": {
       "main": [
         [
           {
-            "node": "Query History",
+            "node": "Query DB",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Query History": {
+    "Query DB": {
       "main": [
         [
           {
-            "node": "Store History + Prepare North Star",
+            "node": "Build LLM Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store History + Prepare North Star": {
-      "main": [
-        [
-          {
-            "node": "Query North Star",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Query North Star": {
-      "main": [
-        [
-          {
-            "node": "Store North Star + Prepare Activities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Store North Star + Prepare Activities": {
-      "main": [
-        [
-          {
-            "node": "Query Activities",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Query Activities": {
-      "main": [
-        [
-          {
-            "node": "Store Activities + Prepare Notes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Store Activities + Prepare Notes": {
-      "main": [
-        [
-          {
-            "node": "Query Notes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Query Notes": {
-      "main": [
-        [
-          {
-            "node": "Store Notes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Store Notes": {
+    "Build LLM Context": {
       "main": [
         [
           {

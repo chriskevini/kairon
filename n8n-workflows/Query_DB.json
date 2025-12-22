@@ -16,12 +16,25 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate input and prepare query\nconst ctx = $json.ctx;\n\nif (!ctx?.db_query?.sql) {\n  throw new Error('Query_DB requires ctx.db_query.sql');\n}\n\n// Store original ctx for restoration after Postgres node\nreturn [{\n  json: {\n    original_ctx: ctx,\n    sql: ctx.db_query.sql,\n    params: ctx.db_query.params || []\n  }\n}];"
+        "jsCode": "// Validate input and initialize loop state\nconst ctx = $json.ctx;\n\nif (!ctx?.db_queries || !Array.isArray(ctx.db_queries) || ctx.db_queries.length === 0) {\n  throw new Error('Query_DB requires ctx.db_queries array with at least one query');\n}\n\n// Validate each query has required fields\nfor (const q of ctx.db_queries) {\n  if (!q.key || !q.sql) {\n    throw new Error('Each query in ctx.db_queries must have key and sql fields');\n  }\n}\n\n// Initialize loop state\nreturn [{\n  json: {\n    original_ctx: ctx,\n    queries: ctx.db_queries,\n    current_index: 0,\n    results: {}  // Will accumulate {key: {results, count}}\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         220,
+        0
+      ],
+      "id": "initialize-loop",
+      "name": "Initialize Loop"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare current query for execution\nconst state = $json;\nconst query = state.queries[state.current_index];\n\nreturn [{\n  json: {\n    ...state,\n    current_query: query,\n    sql: query.sql,\n    params: query.params || []\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
         0
       ],
       "id": "prepare-query",
@@ -38,7 +51,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        440,
+        660,
         0
       ],
       "id": "execute-postgres-query",
@@ -60,7 +73,7 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        660,
+        880,
         0
       ],
       "id": "merge-results",
@@ -68,13 +81,59 @@
     },
     {
       "parameters": {
-        "jsCode": "// Restore ctx and attach query results in ctx.db namespace\nconst items = $input.all();\n\n// Find the original_ctx from the first item that has it\nlet originalCtx = null;\nconst results = [];\n\nfor (const item of items) {\n  if (item.json.original_ctx) {\n    originalCtx = item.json.original_ctx;\n  } else {\n    // This is a Postgres result row\n    results.push(item.json);\n  }\n}\n\nif (!originalCtx) {\n  throw new Error('Query_DB: Lost original context');\n}\n\n// Return ctx with db.results populated\n// Remove db_query since it was consumed\nconst { db_query, ...restCtx } = originalCtx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...restCtx,\n      db: {\n        ...(restCtx.db || {}),\n        results: results,\n        count: results.length\n      }\n    }\n  }\n}];"
+        "jsCode": "// Collect query results and check if more queries remain\nconst items = $input.all();\n\n// Find state from merge (has original_ctx)\nlet state = null;\nconst queryResults = [];\n\nfor (const item of items) {\n  if (item.json.original_ctx) {\n    state = item.json;\n  } else {\n    // This is a Postgres result row\n    queryResults.push(item.json);\n  }\n}\n\nif (!state) {\n  throw new Error('Query_DB: Lost loop state');\n}\n\n// Store results for current query\nconst currentKey = state.current_query.key;\nstate.results[currentKey] = {\n  results: queryResults,\n  count: queryResults.length\n};\n\n// Move to next query\nstate.current_index++;\n\n// Check if more queries remain\nconst hasMore = state.current_index < state.queries.length;\n\nreturn [{\n  json: {\n    ...state,\n    has_more: hasMore\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        1100,
         0
+      ],
+      "id": "collect-results",
+      "name": "Collect Results"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-more",
+              "leftValue": "={{ $json.has_more }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        0
+      ],
+      "id": "check-more-queries",
+      "name": "More Queries?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore ctx with all query results in ctx.db namespace\nconst state = $json;\n\n// Remove db_queries since it was consumed\nconst { db_queries, ...restCtx } = state.original_ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...restCtx,\n      db: {\n        ...(restCtx.db || {}),\n        ...state.results\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        100
       ],
       "id": "finalize-context",
       "name": "Finalize Context"
@@ -82,6 +141,17 @@
   ],
   "connections": {
     "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Initialize Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Loop": {
       "main": [
         [
           {
@@ -121,6 +191,35 @@
     },
     "Merge Results": {
       "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Results": {
+      "main": [
+        [
+          {
+            "node": "More Queries?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "More Queries?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Finalize Context",

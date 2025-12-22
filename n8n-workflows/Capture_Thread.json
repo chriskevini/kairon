@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare thread history query\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_query: {\n        sql: \"SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 ORDER BY timestamp ASC\",\n        params: [ctx.event.thread_id]\n      }\n    }\n  }\n}];"
+        "jsCode": "// Prepare thread history query using batch pattern\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [\n        {\n          key: 'history',\n          sql: \"SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 ORDER BY timestamp ASC\",\n          params: [ctx.event.thread_id]\n        }\n      ]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -33,10 +33,19 @@
           "__rl": true,
           "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
           "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
+      "typeVersion": 1.3,
       "position": [
         -1648,
         544
@@ -46,7 +55,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build context from Query_DB results\nconst ctx = $json.ctx;\nconst messages = ctx.db?.results || [];\n\n// Format thread history for LLM (reverse to get chronological for display)\nconst threadHistory = messages.toReversed().map(msg => {\n  return `${msg.role.toUpperCase()}: ${msg.text}`;\n}).join('\\n');\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        thread_id: ctx.event.thread_id,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build context from Query_DB results (batch pattern)\nconst ctx = $json.ctx;\nconst messages = ctx.db?.history?.results || [];\n\n// Format thread history for LLM (reverse to get chronological for display)\nconst threadHistory = messages.toReversed().map(msg => {\n  return `${msg.role.toUpperCase()}: ${msg.text}`;\n}).join('\\n');\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        thread_id: ctx.event.thread_id,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

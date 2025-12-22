@@ -193,38 +193,89 @@ Parent Workflow                    Sub-Workflow
 
 #### Exception: Query_DB Wrapper
 
-The `Query_DB` sub-workflow is the **only exception** to fire-and-forget. It's a utility wrapper that:
-- Takes `ctx` with `ctx.db_query.sql` and optional `ctx.db_query.params`
-- Returns `ctx` with results in `ctx.db.results` and `ctx.db.count`
-- Handles ctx preservation automatically (no manual Merge nodes needed)
+The `Query_DB` sub-workflow is the **only exception** to fire-and-forget. It's a utility wrapper that executes SELECT queries while preserving ctx. Supports both single and batch queries.
 
-**Usage:**
+**Why this exists:**
+- Database queries are the most common source of ctx-loss bugs
+- Eliminates forking/merging patterns that are hard to understand
+- Standardizes result shape across all workflows
+- Since n8n doesn't parallelize branches anyway, sequential batch queries are just as fast
+
+**Batch Usage (preferred for multiple queries):**
 ```javascript
-// 1. Prepare query in a Code node
+// 1. Prepare ALL queries in a single Code node
 return [{
   json: {
     ctx: {
       ...$json.ctx,
-      db_query: {
-        sql: "SELECT * FROM projections WHERE event_id = $1",
-        params: [$json.ctx.event.event_id]
-      }
+      db_queries: [
+        { 
+          key: 'history', 
+          sql: 'SELECT * FROM thread_history WHERE thread_id = $1 ORDER BY timestamp',
+          params: [$json.ctx.event.thread_id]
+        },
+        { 
+          key: 'north_star', 
+          sql: "SELECT value FROM config WHERE key = 'north_star'"
+        },
+        { 
+          key: 'activities', 
+          sql: 'SELECT * FROM projections WHERE projection_type = $1 LIMIT $2',
+          params: ['activity', 10]
+        }
+      ]
     }
   }
 }];
 
 // 2. Call Query_DB sub-workflow (waitForSubWorkflow: true)
 
-// 3. Use results - ctx.db.results contains rows, ctx.db.count has row count
-const rows = $json.ctx.db.results;
-const count = $json.ctx.db.count;
+// 3. Results are keyed by the 'key' field:
+const history = $json.ctx.db.history;           // { results: [...], count: N }
+const northStar = $json.ctx.db.north_star;      // { results: [...], count: N }
+const activities = $json.ctx.db.activities;     // { results: [...], count: N }
+
+// Common patterns:
+const northStarValue = $json.ctx.db.north_star.results[0]?.value || '(not set)';
+const historyRows = $json.ctx.db.history.results;
 ```
 
-**Why this exception exists:**
-- Database queries are the most common source of ctx-loss bugs
-- The wrapper is dead simple (no branching, no side effects)
-- Eliminates 3-4 boilerplate nodes per query
-- Standardizes result shape across all workflows
+**Single Query Usage (for simple cases):**
+```javascript
+// 1. Prepare query
+return [{
+  json: {
+    ctx: {
+      ...$json.ctx,
+      db_queries: [{ 
+        key: 'config',
+        sql: "SELECT value FROM config WHERE key = 'verbose'",
+      }]
+    }
+  }
+}];
+
+// 2. Call Query_DB, then access:
+const verbose = $json.ctx.db.config.results[0]?.value === 'true';
+```
+
+**Workflow Pattern:**
+```
+[Trigger] → [Prepare Queries] → [Query_DB] → [Build Context] → [Rest of workflow...]
+```
+
+This replaces the old fan-out pattern:
+```
+// ❌ OLD: Fork to multiple Postgres nodes, then Merge
+[Trigger] → [Query 1] ─┐
+         → [Query 2] ──┼→ [Merge (5 inputs)] → [Build Context]
+         → [Query 3] ──┤
+         → [Query 4] ──┤
+         → [ctx pass] ─┘
+
+// ✅ NEW: Single linear flow
+[Trigger] → [Prepare Queries] → [Query_DB] → [Build Context]
+```
 
 ### Error Handling
 

@@ -194,7 +194,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Collect results for logging with standard emojis\n// Also prepare db_query for verbose setting lookup\nconst parseResult = $('Parse Response').first().json;\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '🔲'\n};\n\n// Map capture types to standard emojis\nconst emojis = parseResult.captures.map(c => typeEmojis[c.type] || '📦');\n\nreturn [{\n  json: {\n    ctx: {\n      ...parseResult.ctx,\n      db_query: {\n        sql: \"SELECT value FROM config WHERE key = 'verbose'\"\n      }\n    },\n    emojis: emojis,\n    duration_ms: parseResult.duration_ms,\n    projection_count: parseResult.total_captures\n  }\n}];"
+        "jsCode": "// Collect results for logging with standard emojis\n// Also prepare db_queries for verbose setting lookup (batch pattern)\nconst parseResult = $('Parse Response').first().json;\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '🔲'\n};\n\n// Map capture types to standard emojis\nconst emojis = parseResult.captures.map(c => typeEmojis[c.type] || '📦');\n\nreturn [{\n  json: {\n    ctx: {\n      ...parseResult.ctx,\n      db_queries: [\n        {\n          key: 'verbose',\n          sql: \"SELECT value FROM config WHERE key = 'verbose'\"\n        }\n      ]\n    },\n    emojis: emojis,\n    duration_ms: parseResult.duration_ms,\n    projection_count: parseResult.total_captures\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -345,7 +345,7 @@
           "conditions": [
             {
               "id": "f55070f3-80b6-4076-a05d-6799052b6555",
-              "leftValue": "={{ $json.ctx.db.results[0]?.value }}",
+              "leftValue": "={{ $json.ctx.db.verbose?.results?.[0]?.value }}",
               "rightValue": "true",
               "operator": {
                 "type": "string",
