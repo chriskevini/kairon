@@ -7,13 +7,17 @@ Usage:
     ./inspect_workflow.py workflow.json --nodes      # List all nodes
     ./inspect_workflow.py workflow.json --node "Name" # Show specific node details
     ./inspect_workflow.py workflow.json --code       # Show all Code node contents
+    ./inspect_workflow.py workflow.json --sql        # Show all SQL queries
     ./inspect_workflow.py workflow.json --connections # Show connection graph
+    ./inspect_workflow.py workflow.json --validate   # Check for structural issues
     ./inspect_workflow.py workflow.json --find "pattern" # Find nodes/code matching pattern
 
 Examples:
     ./inspect_workflow.py n8n-workflows/Execute_Command.json --node "Validate Get"
     ./inspect_workflow.py n8n-workflows/Route_Message.json --code
+    ./inspect_workflow.py n8n-workflows/Multi_Capture.json --sql
     ./inspect_workflow.py n8n-workflows/*.json --find "ctx.event"
+    ./inspect_workflow.py n8n-workflows/*.json --validate
 """
 
 import json
@@ -300,6 +304,106 @@ def find_pattern(workflow: dict, pattern: str, filepath: str):
     return matches
 
 
+def show_sql(workflow: dict, filepath: str):
+    """Show all SQL queries in the workflow"""
+    nodes = workflow.get('nodes', [])
+    
+    print(f"\n{CYAN}{'='*60}{NC}")
+    print(f"{BOLD}SQL Queries in {os.path.basename(filepath)}{NC}")
+    print(f"{CYAN}{'='*60}{NC}")
+    
+    found = False
+    for node in nodes:
+        query = node.get('parameters', {}).get('query')
+        if query:
+            found = True
+            name = node.get('name', 'Unknown')
+            print(f"\n{YELLOW}{name}{NC}")
+            print(f"{MAGENTA}{'─'*40}{NC}")
+            print(query)
+            
+            replacement = node.get('parameters', {}).get('options', {}).get('queryReplacement')
+            if replacement:
+                print(f"\n{CYAN}Parameters:{NC} {replacement}")
+            print(f"{MAGENTA}{'─'*40}{NC}")
+    
+    if not found:
+        print(f"\n{YELLOW}No SQL queries found{NC}")
+
+
+def validate_workflow(workflow: dict, filepath: str) -> bool:
+    """Validate workflow structure and check for common issues"""
+    nodes = {n['name'] for n in workflow.get('nodes', [])}
+    conns = workflow.get('connections', {})
+    
+    errors = []
+    warnings = []
+    
+    # Check for broken connections
+    for src, outputs in conns.items():
+        if src not in nodes:
+            errors.append(f"Connection from non-existent node: {src}")
+        for conn_type, output_list in outputs.items():
+            for output in output_list:
+                for conn in output:
+                    target = conn.get('node')
+                    if target and target not in nodes:
+                        errors.append(f"Connection to non-existent node: {src} → {target}")
+    
+    # Check for orphan nodes (not trigger and not connected)
+    connected = set(conns.keys())
+    for outputs in conns.values():
+        for conn_type, output_list in outputs.items():
+            for output in output_list:
+                for conn in output:
+                    connected.add(conn.get('node'))
+    
+    for node in workflow.get('nodes', []):
+        node_type = node.get('type', '').lower()
+        if 'trigger' not in node_type and node['name'] not in connected:
+            warnings.append(f"Orphan node (not connected): {node['name']}")
+    
+    # Check for ctx pattern issues in Code nodes
+    for node in workflow.get('nodes', []):
+        code = node.get('parameters', {}).get('jsCode', '')
+        name = node.get('name', '')
+        
+        # Flat ctx access (should be $json.ctx.event.X not $json.event_id)
+        if re.search(r'\$json\.(event_id|channel_id|message_id|guild_id)\b', code):
+            warnings.append(f"Possible flat ctx access in '{name}' (use $json.ctx.event.X)")
+        
+        # Direct node reference for ctx (except in Merge nodes which need it)
+        if "Merge" not in name and re.search(r"\$\(['\"].*['\"]\)\..*\.json\.ctx", code):
+            warnings.append(f"Node reference for ctx in '{name}' (may break ctx pattern)")
+    
+    # Print results
+    print(f"\n{CYAN}{'='*60}{NC}")
+    print(f"{BOLD}Validating {os.path.basename(filepath)}{NC}")
+    print(f"{CYAN}{'='*60}{NC}\n")
+    
+    if errors:
+        print(f"{RED}Errors:{NC}")
+        for e in errors:
+            print(f"  ✗ {e}")
+        print()
+    
+    if warnings:
+        print(f"{YELLOW}Warnings:{NC}")
+        for w in warnings:
+            print(f"  ! {w}")
+        print()
+    
+    if not errors and not warnings:
+        print(f"{GREEN}✓ No issues found{NC}")
+        return True
+    elif not errors:
+        print(f"{GREEN}✓ No errors ({len(warnings)} warnings){NC}")
+        return True
+    else:
+        print(f"{RED}✗ {len(errors)} errors, {len(warnings)} warnings{NC}")
+        return False
+
+
 def main():
     args = sys.argv[1:]
     
@@ -323,8 +427,12 @@ def main():
             command_arg = args[i] if i < len(args) else None
         elif arg == '--code':
             command = 'code'
+        elif arg == '--sql':
+            command = 'sql'
         elif arg == '--connections':
             command = 'connections'
+        elif arg == '--validate':
+            command = 'validate'
         elif arg == '--find':
             command = 'find'
             i += 1
@@ -342,6 +450,7 @@ def main():
         sys.exit(1)
     
     # Process each file
+    all_valid = True
     for filepath in files:
         workflow = load_workflow(str(filepath))
         if not workflow:
@@ -360,14 +469,22 @@ def main():
         elif command == 'code':
             print(f"\n{BOLD}File: {filepath}{NC}")
             show_all_code(workflow)
+        elif command == 'sql':
+            show_sql(workflow, str(filepath))
         elif command == 'connections':
             show_overview(workflow, str(filepath))
             show_connections(workflow)
+        elif command == 'validate':
+            if not validate_workflow(workflow, str(filepath)):
+                all_valid = False
         elif command == 'find':
             if not command_arg:
                 print(f"{RED}--find requires a pattern{NC}")
                 sys.exit(1)
             find_pattern(workflow, command_arg, str(filepath))
+    
+    if command == 'validate' and not all_valid:
+        sys.exit(1)
 
 
 if __name__ == '__main__':
