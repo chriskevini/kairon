@@ -44,11 +44,12 @@ else
         exit 1
     fi
     
-    # Set up SSH tunnel if N8N_DEV_SSH_HOST is configured and port 5679 isn't already open
+    # Set up SSH tunnels if N8N_DEV_SSH_HOST is configured
     if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
-        if ! nc -z localhost 5679 2>/dev/null; then
+        # Dev tunnel (5679)
+        if ! curl -s --connect-timeout 1 http://localhost:5679/ > /dev/null 2>&1; then
             echo "Opening SSH tunnel to $N8N_DEV_SSH_HOST..."
-            ssh -f -N -L 5679:localhost:5679 "$N8N_DEV_SSH_HOST" 2>/dev/null || {
+            ssh -f -N -L 5679:localhost:5679 -L 5678:localhost:5678 "$N8N_DEV_SSH_HOST" 2>/dev/null || {
                 echo "Error: Failed to open SSH tunnel to $N8N_DEV_SSH_HOST"
                 echo "Make sure you can SSH to this host without a password prompt"
                 exit 1
@@ -60,6 +61,8 @@ else
     
     API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
     API_KEY="$N8N_DEV_API_KEY"
+    PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
+    PROD_API_KEY="${N8N_API_KEY:-}"
     echo "Deploying to DEV ($API_URL)"
 fi
 
@@ -113,19 +116,40 @@ if [ "$TARGET" == "dev" ]; then
     echo "Pass 2: Remapping workflow IDs..."
     
     # Fetch workflow name -> ID mapping from dev n8n
-    WORKFLOW_IDS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
+    DEV_WORKFLOW_IDS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
         "$API_URL/api/v1/workflows?limit=100" | \
         jq -c '[.data[] | {(.name): .id}] | add // {}')
     
-    echo "   Found workflow IDs: $(echo "$WORKFLOW_IDS" | jq 'keys | length') workflows"
+    echo "   Found dev workflow IDs: $(echo "$DEV_WORKFLOW_IDS" | jq 'keys | length') workflows"
     
-    # Re-transform with ID mapping
+    # Fetch workflow name -> ID mapping from prod n8n (via remote SSH to avoid tunnel auth issues)
+    if [ -n "$PROD_API_KEY" ] && [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        PROD_WORKFLOW_IDS=$(ssh "$N8N_DEV_SSH_HOST" \
+            "curl -s -H 'X-N8N-API-KEY: $PROD_API_KEY' '$PROD_API_URL/api/v1/workflows?limit=100'" | \
+            jq -c '[.data[] | {(.name): .id}] | add // {}')
+        
+        echo "   Found prod workflow IDs: $(echo "$PROD_WORKFLOW_IDS" | jq 'keys | length') workflows"
+        
+        # Build prod ID -> dev ID mapping by matching names
+        # { "prodId1": "devId1", "prodId2": "devId2", ... }
+        WORKFLOW_ID_REMAP=$(echo "$PROD_WORKFLOW_IDS" "$DEV_WORKFLOW_IDS" | \
+            jq -sc '.[0] as $prod | .[1] as $dev | 
+                [$prod | to_entries[] | {(.value): $dev[.key]}] | 
+                add // {}')
+        
+        echo "   Built ID remap: $(echo "$WORKFLOW_ID_REMAP" | jq 'keys | length') mappings"
+    else
+        echo "   Warning: N8N_API_KEY not set, skipping workflow ID remapping"
+        WORKFLOW_ID_REMAP='{}'
+    fi
+    
+    # Re-transform with ID remapping
     rm -f "$TEMP_DIR"/*.json
     
     for workflow in "$WORKFLOW_DIR"/*.json; do
         [ -f "$workflow" ] || continue
         filename=$(basename "$workflow")
-        WORKFLOW_IDS="$WORKFLOW_IDS" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
+        WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
     done
     
     # Copy dev-only workflows again
