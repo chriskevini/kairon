@@ -6,8 +6,14 @@ Instructions for AI agents working on Kairon - a life-tracking system using n8n 
 
 ```
 n8n-workflows/       # Workflow JSON files
-db/migrations/       # SQL migrations
-db/schema.sql        # Current database schema
+db/
+  migrations/        # SQL migrations (numbered, run in order)
+  schema.sql         # Current database schema (reference only)
+  seeds/             # Initial seed data
+scripts/
+  db/                # Database health checks and utilities
+  workflows/         # Workflow JSON tools (lint, inspect, validate)
+prompts/             # LLM prompts used in workflows
 docs/                # Documentation
 discord_relay.py     # Discord bot that forwards to n8n
 ```
@@ -287,6 +293,28 @@ Tags are parsed at the start of messages. See `docs/tag-parsing-reference.md` fo
 | `lint_workflows.py` | Check ctx pattern compliance |
 | `inspect_workflow.py` | Inspect workflows (nodes, code, SQL, connections) |
 | `inspect_execution.py` | Debug n8n execution results |
+| `fix_json_files.py` | Fix control characters in workflow JSON |
+| `test_json_files.py` | Test and fix broken workflow JSON files |
+
+### Database Health Scripts
+
+SQL scripts in `scripts/db/` for checking database state:
+
+| Script | Purpose |
+|--------|---------|
+| `check_duplicates.sql` | Find duplicate events and processing health |
+| `check_migration_status.sql` | Check core table stats and orphaned events |
+| `check_orphans_by_tag.sql` | Analyze processing health by tag type |
+| `cleanup_test_events.sql` | Remove test/debug events (preview first!) |
+
+**Usage:**
+```bash
+# Run a health check
+docker exec -i postgres-db psql -U $DB_USER -d $DB_NAME < scripts/db/check_migration_status.sql
+
+# Check processing by tag
+docker exec -i postgres-db psql -U $DB_USER -d $DB_NAME < scripts/db/check_orphans_by_tag.sql
+```
 
 ### inspect_workflow.py Usage
 
