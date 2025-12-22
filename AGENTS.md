@@ -295,6 +295,44 @@ Tags are parsed at the start of messages. See `docs/tag-parsing-reference.md` fo
 | `$$` | `todo` | Create todo | Todo handler |
 | (none) | - | Auto-classify | LLM router → multi-extraction |
 
+## Deployment
+
+### Dev Environment
+
+Deploy to dev with smoke tests:
+```bash
+./scripts/deploy.sh dev
+```
+
+This will:
+1. Transform workflows for dev (mock Discord, convert webhooks)
+2. Push to dev n8n (creates missing workflows)
+3. Remap workflow IDs from prod → dev
+4. Run smoke tests (gate deployment on success)
+
+### Workflow ID References
+
+**Always use the n8n API to get workflow IDs** - never hardcode them or guess from the UI.
+
+```bash
+# Get workflow IDs from n8n
+curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+  "http://localhost:5678/api/v1/workflows" | \
+  jq '.data[] | {name, id}'
+
+# Get a specific workflow by name
+curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+  "http://localhost:5678/api/v1/workflows" | \
+  jq -r '.data[] | select(.name == "Execute_Command") | .id'
+```
+
+**Why API over UI:**
+- IDs differ between prod and dev instances
+- UI can show stale cached values
+- API is the source of truth for what n8n actually uses
+
+**Execute Workflow nodes** should use `mode: "id"` with the actual workflow ID. The deploy script handles remapping prod IDs to dev IDs automatically.
+
 ## Local Tools
 
 | Script | Purpose |
