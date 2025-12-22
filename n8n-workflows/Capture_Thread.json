@@ -16,45 +16,37 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 ORDER BY timestamp ASC;",
-        "options": {
-          "queryReplacement": "={{ $json.ctx.event.thread_id }}"
-        }
+        "jsCode": "// Prepare thread history query\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_query: {\n        sql: \"SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 ORDER BY timestamp ASC\",\n        params: [ctx.event.thread_id]\n      }\n    }\n  }\n}];"
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -1872,
         544
       ],
-      "id": "837680d8-e710-4699-ae2d-9e1c5fc045c0",
-      "name": "Get Thread History",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "prepare-history-query",
+      "name": "Prepare History Query"
     },
     {
       "parameters": {
-        "mode": "append",
-        "numberInputs": 1
+        "workflowId": {
+          "__rl": true,
+          "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
+          "mode": "id"
+        }
       },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         -1648,
         544
       ],
-      "id": "merge-thread-data",
-      "name": "Merge Thread Data"
+      "id": "query-thread-history",
+      "name": "Query Thread History"
     },
     {
       "parameters": {
-        "jsCode": "// Merge DB results into ctx pattern\n// All inputs come via Merge node in append mode\nconst allInputs = $input.all();\n\n// Get thread messages (items with role and text properties)\nconst messages = allInputs\n  .filter(item => item.json.role !== undefined && item.json.text !== undefined)\n  .toReversed();\n\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get ctx from trigger (already initialized by Route_Message)\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        thread_id: ctx.event.thread_id,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build context from Query_DB results\nconst ctx = $json.ctx;\nconst messages = ctx.db?.results || [];\n\n// Format thread history for LLM (reverse to get chronological for display)\nconst threadHistory = messages.toReversed().map(msg => {\n  return `${msg.role.toUpperCase()}: ${msg.text}`;\n}).join('\\n');\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        thread_id: ctx.event.thread_id,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -68,7 +60,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.ctx.db.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom’s birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom’s birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus\n\n**Example Thread 3:**\n\"I feel drained after back-to-back calls. I should probably book a vacation soon. The team lunch is next Thursday at the Italian place downtown. I've committed to no email checks after 8 PM.\"\n\n**Good Extraction:**\nreflection|I feel drained after back-to-back calls\nreflection|I've committed to no email checks after 8 PM\ntodo|Book a vacation\nfact|The team lunch is next Thursday at the Italian place downtown\n\n## Rules\n- Extract only items **explicitly stated or strongly implied** — never invent or infer new information.\n- Use the user's own words/phrasing when possible; minor edits only for clarity/conciseness.\n- Be specific and concrete — skip vague statements.\n- Limit to **maximum 10 items**.\n- Order by **importance/relevance** (most impactful, urgent, or personal first).\n- Prioritize categories: todo > reflection > fact (if something could fit multiple).\n- If unsure between reflection and fact, choose reflection.\n- Edge cases:\n  - \"I should probably...\" or \"Maybe I need to...\" → reflection unless clear commitment (\"I'm going to...\").\n  - Wishes/hypotheticals → reflection only if they reveal a pattern; otherwise omit.\n  - Advice from others → ignore unless user explicitly adopts it.\n  - Repeated ideas → extract only once (best phrasing).\n  - Negations (e.g., \"I hate early meetings\") → reflection.\n\n## Output Format\nOutput **only** the extracted lines, one per item, exactly like this (no preamble, no explanations, no extra text):\n\ntype|text\ntype|text\n...\n\nExtract thoughtfully for maximum signal and relevance.",
+        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.ctx.db.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom's birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom's birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus\n\n## Response Format\n\nOutput ONLY lines in this format:\ntype|extracted text\n\nOne item per line. No numbers, bullets, or extra formatting.\nOmit any items that are unclear or not worth saving.\n\nNow analyze the thread and extract items:",
         "needsFallback": true,
         "batching": {}
       },
@@ -511,8 +503,9 @@
             }
           ]
         },
-        "includeOtherFields": true,
-        "options": {}
+        "options": {
+          "includeOtherFields": true
+        }
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -565,7 +558,7 @@
       "main": [
         [
           {
-            "node": "Get Thread History",
+            "node": "Prepare History Query",
             "type": "main",
             "index": 0
           },
@@ -587,18 +580,18 @@
         ]
       ]
     },
-    "Get Thread History": {
+    "Prepare History Query": {
       "main": [
         [
           {
-            "node": "Merge Thread Data",
+            "node": "Query Thread History",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge Thread Data": {
+    "Query Thread History": {
       "main": [
         [
           {
