@@ -1,0 +1,132 @@
+#!/bin/bash
+# deploy.sh - Deploy workflows to dev or prod with testing
+#
+# Usage:
+#   ./scripts/deploy.sh dev    # Transform + deploy to dev + run smoke tests
+#   ./scripts/deploy.sh prod   # Deploy to prod as-is (not yet implemented)
+#
+# Prerequisites:
+#   - Dev: docker-compose.dev.yml running, N8N_DEV_API_KEY set in environment or /opt/n8n-docker-caddy/.env
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Load environment variables
+if [ -f /opt/n8n-docker-caddy/.env ]; then
+    set -a
+    source /opt/n8n-docker-caddy/.env
+    set +a
+fi
+
+TARGET="${1:-dev}"
+WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
+WORKFLOW_DEV_DIR="$REPO_ROOT/n8n-workflows-dev"
+TRANSFORM_SCRIPT="$SCRIPT_DIR/transform_for_dev.py"
+
+# --- CONFIGURATION ---
+if [ "$TARGET" == "prod" ]; then
+    echo "Prod deployment not yet implemented in this script"
+    echo "Use the existing manual process for now"
+    exit 1
+else
+    if [ -z "${N8N_DEV_API_KEY:-}" ]; then
+        echo "Error: N8N_DEV_API_KEY not set"
+        echo "Add it to /opt/n8n-docker-caddy/.env or export it"
+        exit 1
+    fi
+    API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
+    API_KEY="$N8N_DEV_API_KEY"
+    echo "Deploying to DEV ($API_URL)"
+fi
+
+echo "   Workflow source: $WORKFLOW_DIR"
+echo ""
+
+# --- DEV DEPLOYMENT ---
+if [ "$TARGET" == "dev" ]; then
+    # Check if dev stack is running
+    if ! curl -s -o /dev/null -w "" "$API_URL/" 2>/dev/null; then
+        echo "Error: Dev n8n not responding at $API_URL"
+        echo "Start it with: cd /opt/n8n-docker-caddy && docker compose -f docker-compose.dev.yml up -d"
+        exit 1
+    fi
+    
+    # Transform workflows for dev (mock external calls, convert webhooks)
+    echo "Transforming workflows for dev environment..."
+    TEMP_DIR=$(mktemp -d)
+    trap "rm -rf $TEMP_DIR" EXIT
+    
+    for workflow in "$WORKFLOW_DIR"/*.json; do
+        [ -f "$workflow" ] || continue
+        filename=$(basename "$workflow")
+        python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
+        echo "   Transformed: $filename"
+    done
+    
+    # Copy dev-only workflows (no transformation needed, they're already dev-specific)
+    if [ -d "$WORKFLOW_DEV_DIR" ]; then
+        for workflow in "$WORKFLOW_DEV_DIR"/*.json; do
+            [ -f "$workflow" ] || continue
+            filename=$(basename "$workflow")
+            cp "$workflow" "$TEMP_DIR/$filename"
+            echo "   Copied (dev-only): $filename"
+        done
+    fi
+    
+    # Push transformed workflows to dev
+    echo ""
+    echo "Pushing to dev n8n..."
+    WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
+        "$SCRIPT_DIR/workflows/n8n-push-local.sh"
+    
+    # Run smoke tests
+    echo ""
+    echo "Running smoke tests..."
+    
+    # Find Smoke_Test workflow ID
+    SMOKE_TEST_ID=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
+        "$API_URL/api/v1/workflows" | \
+        jq -r '.data[] | select(.name == "Smoke_Test") | .id')
+    
+    if [ -z "$SMOKE_TEST_ID" ] || [ "$SMOKE_TEST_ID" == "null" ]; then
+        echo "Warning: Smoke_Test workflow not found in dev n8n"
+        echo "Create it manually in the dev n8n UI, then re-run deploy"
+        echo ""
+        echo "Deployment complete (smoke tests skipped)"
+        exit 0
+    fi
+    
+    # Activate the workflow (required for webhook to work)
+    ACTIVATE_RESULT=$(curl -s -X POST \
+        -H "X-N8N-API-KEY: $API_KEY" \
+        "$API_URL/api/v1/workflows/$SMOKE_TEST_ID/activate")
+    
+    if ! echo "$ACTIVATE_RESULT" | jq -e '.active == true' > /dev/null 2>&1; then
+        echo "Warning: Could not activate Smoke_Test workflow"
+        echo "$ACTIVATE_RESULT" | jq '.' 2>/dev/null || echo "$ACTIVATE_RESULT"
+        echo ""
+        echo "Deployment complete (smoke tests skipped)"
+        exit 0
+    fi
+    
+    # Execute smoke test via webhook
+    RESULT=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        "$API_URL/webhook/smoke-test" \
+        -d '{}')
+    
+    # Check result
+    if echo "$RESULT" | jq -e '.success == true' > /dev/null 2>&1; then
+        echo "SUCCESS: Smoke tests passed"
+        echo "$RESULT" | jq '.'
+    else
+        echo "FAILED: Smoke tests did not pass"
+        echo "$RESULT" | jq '.' 2>/dev/null || echo "$RESULT"
+        exit 1
+    fi
+fi
+
+echo ""
+echo "SUCCESS: $TARGET deployment complete"

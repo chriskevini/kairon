@@ -1,0 +1,67 @@
+{
+  "name": "Smoke_Test",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smoke-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "smoke-test-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "smoke-test-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Smoke Test: Basic sanity checks\n// This workflow verifies the dev environment is working\n\nconst results = [];\nlet allPassed = true;\n\n// Test 1: Code nodes work\ntry {\n  const testObj = { foo: 'bar' };\n  if (testObj.foo === 'bar') {\n    results.push({ test: 'code_node_execution', passed: true });\n  } else {\n    results.push({ test: 'code_node_execution', passed: false, error: 'Object access failed' });\n    allPassed = false;\n  }\n} catch (e) {\n  results.push({ test: 'code_node_execution', passed: false, error: e.message });\n  allPassed = false;\n}\n\n// Test 2: Date/time functions work\ntry {\n  const now = new Date();\n  const iso = now.toISOString();\n  if (iso.includes('T')) {\n    results.push({ test: 'datetime_functions', passed: true });\n  } else {\n    results.push({ test: 'datetime_functions', passed: false, error: 'ISO format invalid' });\n    allPassed = false;\n  }\n} catch (e) {\n  results.push({ test: 'datetime_functions', passed: false, error: e.message });\n  allPassed = false;\n}\n\n// Test 3: JSON operations work\ntry {\n  const obj = { test: 'data', nested: { value: 123 } };\n  const str = JSON.stringify(obj);\n  const parsed = JSON.parse(str);\n  if (parsed.nested.value === 123) {\n    results.push({ test: 'json_operations', passed: true });\n  } else {\n    results.push({ test: 'json_operations', passed: false, error: 'JSON roundtrip failed' });\n    allPassed = false;\n  }\n} catch (e) {\n  results.push({ test: 'json_operations', passed: false, error: e.message });\n  allPassed = false;\n}\n\nreturn [{\n  json: {\n    success: allPassed,\n    message: allPassed ? 'All smoke tests passed' : 'Some tests failed',\n    timestamp: new Date().toISOString(),\n    results: results,\n    testsRun: results.length,\n    testsPassed: results.filter(r => r.passed).length\n  }\n}];"
+      },
+      "id": "smoke-test-run",
+      "name": "Run Smoke Tests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "smoke-test-respond",
+      "name": "Return Results",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 0]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Smoke Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Smoke Tests": {
+      "main": [
+        [
+          {
+            "node": "Return Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
