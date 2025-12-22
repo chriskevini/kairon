@@ -1,0 +1,101 @@
+{
+  "name": "Execute_Query",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql_query }}",
+        "options": {
+          "queryReplacement": "={{ $json.sql_params }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        250,
+        0
+      ],
+      "id": "query",
+      "name": "Postgres"
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 1
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        500,
+        0
+      ],
+      "id": "merge",
+      "name": "Merge Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all().map(i => i.json);\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        results: results,\n        count: results.length\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        0
+      ],
+      "id": "finalize",
+      "name": "Finalize Context"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Finalize Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "execute-query-id"
+}
