@@ -145,6 +145,17 @@ return {
 };
 ```
 
+### Execution Order & Parallelism
+
+n8n does not run branches in parallel. When a node has multiple outgoing connections (fork), the first branch executes to completion (until it hits a leaf node or a merge node) before the second branch begins.
+
+**Critical for Database Writes:**
+If one branch writes to the database (e.g., `Store Projection`) and another branch reads that data (e.g., `Trigger Show Details` sub-workflow), you must ensure the write branch completes first.
+
+- **Check Connections:** In the JSON, the order of nodes in the `main` output array determines execution order.
+- **Merge Nodes:** Use a Merge node (set to "Wait for all inputs") to explicitly synchronize branches if subsequent nodes depend on data from all previous branches.
+- **Wait Nodes:** If triggering an external system or sub-workflow that queries the database, a small `Wait` node in the receiver is a good safety net, but proper branch ordering in the sender is preferred.
+
 ### Sub-Workflow Pattern: Fire-and-Forget
 
 When calling sub-workflows via Execute Workflow nodes, **do not expect ctx back**. Sub-workflows are fully responsible for their own lifecycle, including any cleanup or finalization (e.g., adding/removing reactions).
