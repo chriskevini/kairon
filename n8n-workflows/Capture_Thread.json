@@ -131,7 +131,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE projections SET status = 'voided', voided_at = NOW(), voided_reason = 'replaced_by_new_extraction' WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $1 AND status = 'pending';",
+        "query": "UPDATE projections SET status = 'voided', voided_at = NOW(), voided_reason = 'replaced_by_new_extraction' WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $1 AND status IN ('pending', 'confirmed');",
         "options": {
           "queryReplacement": "={{ $('Has Extractions?').first().json.ctx.db.thread_id }}"
         }
@@ -154,7 +154,29 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build SQL query to insert extractions as projections\nconst ctx = $('Has Extractions?').first().json.ctx;\nconst traceResult = $('Write Thread Extraction Trace').first().json;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = traceResult.trace_id;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst updatedTraceChain = [...traceChain, extractionTraceId];\nconst traceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// 7 parameters per row: event_id, trace_id, trace_chain, projection_type, data (jsonb), status, timezone\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 7;\n  return `($${offset + 1}::uuid, $${offset + 2}::uuid, $${offset + 3}::uuid[], $${offset + 4}, $${offset + 5}::jsonb, $${offset + 6}, $${offset + 7})`;\n}).join(', ');\n\nconst query = `\nINSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  data,\n  status,\n  timezone\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5, $6, $7... sequence (7 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ctx.event.event_id);  // event_id\n  params.push(extractionTraceId);    // trace_id\n  params.push(traceChainPg);         // trace_chain\n  params.push('thread_extraction');  // projection_type\n  params.push(JSON.stringify({       // data as JSONB\n    thread_id: ext.thread_id,\n    item_type: ext.item_type,\n    text: ext.text,\n    display_order: ext.display_order\n  }));\n  params.push('pending');            // status\n  params.push(ctx.event.timezone || null);  // timezone\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      }\n    },\n    sql_query: query,\n    sql_params: params\n  }\n}];"
+        "operation": "executeQuery",
+        "query": "SELECT value FROM config WHERE key = 'auto_confirm_extractions';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        384,
+        448
+      ],
+      "id": "b61d8d16-fe6b-4857-b334-c89fd98b2187",
+      "name": "Get Auto Confirm Setting",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build SQL query to insert extractions as projections\nconst ctx = $('Has Extractions?').first().json.ctx;\nconst traceResult = $('Write Thread Extraction Trace').first().json;\nconst autoConfirmResult = $('Get Auto Confirm Setting').first().json;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = traceResult.trace_id;\nconst autoConfirm = autoConfirmResult?.value === 'true';\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst updatedTraceChain = [...traceChain, extractionTraceId];\nconst traceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// 7 parameters per row: event_id, trace_id, trace_chain, projection_type, data (jsonb), status, timezone\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 7;\n  return `($${offset + 1}::uuid, $${offset + 2}::uuid, $${offset + 3}::uuid[], $${offset + 4}, $${offset + 5}::jsonb, $${offset + 6}, $${offset + 7})`;\n}).join(', ');\n\nconst query = `\nINSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  data,\n  status,\n  timezone\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5, $6, $7... sequence (7 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ctx.event.event_id);  // event_id\n  params.push(extractionTraceId);    // trace_id\n  params.push(traceChainPg);         // trace_chain\n  params.push('thread_extraction');  // projection_type\n  params.push(JSON.stringify({       // data as JSONB\n    thread_id: ext.thread_id,\n    item_type: ext.item_type,\n    text: ext.text,\n    display_order: ext.display_order\n  }));\n  params.push(autoConfirm ? 'confirmed' : 'pending');            // status\n  params.push(ctx.event.timezone || null);  // timezone\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      }\n    },\n    sql_query: query,\n    sql_params: params\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -245,7 +267,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE projections SET data = data || jsonb_build_object('summary_message_id', $1) WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $2 AND status = 'pending';",
+        "query": "UPDATE projections SET data = data || jsonb_build_object('summary_message_id', $1) WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $2 AND status IN ('pending', 'confirmed');",
         "options": {
           "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.ctx.db.thread_id }}"
         }
@@ -683,6 +705,17 @@
       ]
     },
     "Void Old Extractions": {
+      "main": [
+        [
+          {
+            "node": "Get Auto Confirm Setting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Auto Confirm Setting": {
       "main": [
         [
           {
