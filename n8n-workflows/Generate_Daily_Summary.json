@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract trigger_reason from caller, prepare event data\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst today = $now.toFormat('yyyy-MM-dd');\n\nreturn [{ json: { should_run: true, today: today, trigger_reason: triggerReason } }];"
+        "jsCode": "// Prepare event insert and initialize ctx\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst today = $now.toFormat('yyyy-MM-dd');\nconst idempotencyKey = `scheduled:daily_summary:${today}:${triggerReason}`;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        trigger_type: 'daily_summary',\n        trigger_reason: triggerReason,\n        today: today\n      },\n      db_writes: [{\n        key: 'event',\n        sql: `INSERT INTO events (idempotency_key, event_type, payload)\n              VALUES ($1, 'system', jsonb_build_object(\n                'trigger_type', 'daily_summary',\n                'trigger_reason', $2,\n                'scheduled_date', $3\n              ))\n              ON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\n              RETURNING id, idempotency_key`,\n        params: [idempotencyKey, triggerReason, today]\n      }]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -25,34 +25,37 @@
         1856
       ],
       "id": "prepare-event-data",
-      "name": "Prepare Event Data"
+      "name": "Prepare Event Write"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "-- Insert system event for daily summary\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'daily_summary',\n    'trigger_reason', $2,\n    'scheduled_date', $3\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id, idempotency_key;",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "zgJX3AbUNUvDJa48"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
         "options": {
-          "queryReplacement": "=scheduled:daily_summary:{{ $json.today }}:{{ $json.trigger_reason }},={{ $json.trigger_reason }},={{ $json.today }}"
+          "waitForSubWorkflow": true
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
         592,
         1856
       ],
-      "id": "insert-event",
-      "name": "Insert Event",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "write-event",
+      "name": "Write Event"
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id and prepare all queries\nconst eventResult = $json;\nconst checkResult = $(\"Prepare Event Data\").first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"daily_summary\",\n        trigger_reason: checkResult.trigger_reason,\n        today: checkResult.today,\n        trace_chain: [eventResult.id]\n      },\n      db_queries: [\n        {\n          key: 'north_star',\n          sql: \"SELECT value FROM config WHERE key = 'north_star'\"\n        },\n        {\n          key: 'activities',\n          sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n        },\n        {\n          key: 'notes',\n          sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n        },\n        {\n          key: 'breakdown',\n          sql: `SELECT \n            p.data->>'category' as category,\n            COUNT(*) as count\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          GROUP BY p.data->>'category'\n          ORDER BY count DESC`\n        }\n      ]\n    }\n  }\n}];"
+        "jsCode": "// Build ctx with event_id and prepare batch queries\nconst ctx = $json.ctx;\nconst eventId = ctx.db.event.row.id;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        ...ctx.event,\n        event_id: eventId,\n        trace_chain: [eventId]\n      },\n      db_queries: [\n        {\n          key: 'north_star',\n          sql: \"SELECT value FROM config WHERE key = 'north_star'\"\n        },\n        {\n          key: 'activities',\n          sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n        },\n        {\n          key: 'notes',\n          sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n        },\n        {\n          key: 'breakdown',\n          sql: `SELECT \n            p.data->>'category' as category,\n            COUNT(*) as count\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          GROUP BY p.data->>'category'\n          ORDER BY count DESC`\n        }\n      ]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -120,7 +123,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM response and prepare for trace/projection storage\nconst prepareData = $('Prepare Summary Data').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    summary_text: llmText,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg,\n    llm_input: prepareData.llm_input,\n    llm_input_json: JSON.stringify(prepareData.llm_input)\n  }\n}];"
+        "jsCode": "// Parse LLM response and prepare trace + projection writes (chained)\nconst prepareData = $('Prepare Summary Data').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\nconst eventId = ctx.event.event_id;\nconst traceChain = ctx.event.trace_chain || [];\nconst today = ctx.event.today;\n\n// Build input JSON for trace\nconst llmInputJson = JSON.stringify(prepareData.llm_input);\n\n// Build projection data\nconst projectionData = JSON.stringify({\n  timestamp: new Date().toISOString(),\n  summary_date: today,\n  text: llmText,\n  activity_count: prepareData.llm_input?.activity_count || 0,\n  note_count: prepareData.llm_input?.note_count || 0\n});\n\nreturn [{\n  json: {\n    ctx: {\n      event: ctx.event,\n      summary_text: llmText,\n      db_writes: [\n        {\n          key: 'trace',\n          sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n                VALUES ($1::uuid, 'daily_summary', jsonb_build_object(\n                  'input', $2::jsonb,\n                  'prompt', 'daily-summary-prompt',\n                  'completion', $3,\n                  'result', jsonb_build_object('summary', $3),\n                  'duration_ms', $4::integer\n                ), $5::uuid[])\n                RETURNING id, trace_chain || id AS updated_trace_chain`,\n          params: [eventId, llmInputJson, llmText, durationMs, traceChain]\n        },\n        {\n          key: 'projection',\n          sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n                VALUES ($1::uuid, $2::uuid, $3::uuid[], 'daily_summary', $4::jsonb, 'auto_confirmed',\n                  (SELECT value FROM config WHERE key = 'timezone'))\n                RETURNING id`,\n          params: ['$results.trace.row.id', eventId, '$results.trace.row.updated_trace_chain', projectionData]\n        }\n      ]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -129,34 +132,37 @@
         1856
       ],
       "id": "parse-llm-response",
-      "name": "Parse LLM Response"
+      "name": "Prepare Trace + Projection Writes"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'daily_summary',\n  jsonb_build_object(\n    'input', $2::jsonb,\n    'prompt', 'daily-summary-prompt',\n    'completion', $3,\n    'result', jsonb_build_object('summary', $3),\n    'duration_ms', $4::integer\n  ),\n  $5::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "zgJX3AbUNUvDJa48"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.event_id }},={{ $json.llm_input_json }},={{ $json.summary_text }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+          "waitForSubWorkflow": true
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
         1936,
         1856
       ],
-      "id": "store-trace",
-      "name": "Store Trace",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "write-trace-projection",
+      "name": "Write Trace + Projection"
     },
     {
       "parameters": {
-        "jsCode": "// Prepare projection data with trace_id\nconst traceResult = $json;\nconst parseData = $('Parse LLM Response').first().json;\nconst ctx = parseData.ctx;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    summary_text: parseData.summary_text,\n    projection_data: {\n      timestamp: new Date().toISOString(),\n      summary_date: ctx.event.today,\n      text: parseData.summary_text,\n      activity_count: parseData.llm_input?.activity_count || 0,\n      note_count: parseData.llm_input?.note_count || 0\n    }\n  }\n}];"
+        "jsCode": "// Prepare for Discord post\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx,\n    projection_id: ctx.db.projection.row.id,\n    summary_text: ctx.summary_text\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -164,44 +170,8 @@
         2160,
         1856
       ],
-      "id": "prepare-projection",
-      "name": "Prepare Projection"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'daily_summary',\n  $4::jsonb,\n  'auto_confirmed',\n  (SELECT value FROM config WHERE key = 'timezone')\n)\nRETURNING id;",
-        "options": {
-          "queryReplacement": "={{ $json.trace_id }},={{ $json.ctx.event.event_id }},={{ $json.trace_chain_pg }},={{ JSON.stringify($json.projection_data) }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        2384,
-        1856
-      ],
-      "id": "store-projection",
-      "name": "Store Projection",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Merge projection result back with summary text for Discord\nconst projResult = $json;\nconst prepData = $('Prepare Projection').first().json;\n\nreturn [{\n  json: {\n    ctx: prepData.ctx,\n    projection_id: projResult.id,\n    summary_text: prepData.summary_text\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2608,
-        1856
-      ],
       "id": "merge-for-discord",
-      "name": "Merge for Discord"
+      "name": "Prepare Discord Post"
     },
     {
       "parameters": {
@@ -222,7 +192,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        2832,
+        2384,
         1856
       ],
       "id": "2d3ec420-6f75-49e0-8851-af9ba845977d",
@@ -240,49 +210,42 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "-- Update projection with Discord message ID for void/regenerate support\nUPDATE projections \nSET data = data || jsonb_build_object(\n  'discord_message_id', $1,\n  'discord_channel_id', $2,\n  'discord_guild_id', $3\n)\nWHERE id = $4::uuid\nRETURNING id;",
-        "options": {
-          "queryReplacement": "={{ $json.id }},={{ $env.DISCORD_CHANNEL_OBSIDIAN_BOARD }},={{ $env.DISCORD_GUILD_ID }},={{ $('Merge for Discord').first().json.projection_id }}"
-        }
+        "jsCode": "// Prepare final writes: update projection with message ID + update last summary date\nconst discordResult = $json;\nconst prevData = $('Prepare Discord Post').first().json;\nconst ctx = prevData.ctx;\nconst projectionId = prevData.projection_id;\nconst today = ctx.event.today;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_writes: [\n        {\n          key: 'update_projection',\n          sql: `UPDATE projections \n                SET data = data || jsonb_build_object(\n                  'discord_message_id', $1,\n                  'discord_channel_id', $2,\n                  'discord_guild_id', $3\n                )\n                WHERE id = $4::uuid\n                RETURNING id`,\n          params: [discordResult.id, $env.DISCORD_CHANNEL_OBSIDIAN_BOARD, $env.DISCORD_GUILD_ID, projectionId]\n        },\n        {\n          key: 'update_config',\n          sql: `INSERT INTO config (key, value) VALUES ('last_summary_date', $1) \n                ON CONFLICT (key) DO UPDATE SET value = $1 \n                RETURNING *`,\n          params: [today]\n        }\n      ]\n    }\n  }\n}];"
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        3056,
+        2608,
         1856
       ],
-      "id": "update-projection-message-id",
-      "name": "Update Projection with Message ID",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "prepare-final-writes",
+      "name": "Prepare Final Writes"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO config (key, value) VALUES ('last_summary_date', $1) ON CONFLICT (key) DO UPDATE SET value = $1 RETURNING *;",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "zgJX3AbUNUvDJa48"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
         "options": {
-          "queryReplacement": "={{ $('Initialize ctx + Prepare Queries').first().json.ctx.event.today }}"
+          "waitForSubWorkflow": true
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
-        3280,
+        2832,
         1856
       ],
-      "id": "3a056015-e868-4fbc-b433-cadee441431d",
-      "name": "Update Last Summary Date",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "write-final",
+      "name": "Write Final Updates"
     },
     {
       "parameters": {
@@ -330,25 +293,25 @@
       "main": [
         [
           {
-            "node": "Prepare Event Data",
+            "node": "Prepare Event Write",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Event Data": {
+    "Prepare Event Write": {
       "main": [
         [
           {
-            "node": "Insert Event",
+            "node": "Write Event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Insert Event": {
+    "Write Event": {
       "main": [
         [
           {
@@ -396,58 +359,36 @@
       "main": [
         [
           {
-            "node": "Parse LLM Response",
+            "node": "Prepare Trace + Projection Writes",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse LLM Response": {
+    "Prepare Trace + Projection Writes": {
       "main": [
         [
           {
-            "node": "Store Trace",
+            "node": "Write Trace + Projection",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Trace": {
+    "Write Trace + Projection": {
       "main": [
         [
           {
-            "node": "Prepare Projection",
+            "node": "Prepare Discord Post",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Projection": {
-      "main": [
-        [
-          {
-            "node": "Store Projection",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Store Projection": {
-      "main": [
-        [
-          {
-            "node": "Merge for Discord",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge for Discord": {
+    "Prepare Discord Post": {
       "main": [
         [
           {
@@ -462,18 +403,18 @@
       "main": [
         [
           {
-            "node": "Update Projection with Message ID",
+            "node": "Prepare Final Writes",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Projection with Message ID": {
+    "Prepare Final Writes": {
       "main": [
         [
           {
-            "node": "Update Last Summary Date",
+            "node": "Write Final Updates",
             "type": "main",
             "index": 0
           }

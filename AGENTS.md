@@ -277,6 +277,144 @@ This replaces the old fan-out pattern:
 [Trigger] → [Prepare Queries] → [Query_DB] → [Build Context]
 ```
 
+#### Write_DB Wrapper
+
+The `Write_DB` sub-workflow handles INSERT, UPDATE, and DELETE operations while preserving ctx. Like Query_DB, it supports batch operations and chaining results between writes.
+
+**Why this exists:**
+- Eliminates ctx-loss from native Postgres nodes
+- Supports chaining: use results from one write as params in subsequent writes
+- Standardizes result shape across all workflows
+- One workflow to maintain instead of many similar Postgres node patterns
+
+**Basic Usage:**
+```javascript
+// 1. Prepare writes in a Code node
+return [{
+  json: {
+    ctx: {
+      ...$json.ctx,
+      db_writes: [
+        {
+          key: 'trace',
+          sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)
+                VALUES ($1::uuid, $2, $3::jsonb, $4::uuid[])
+                RETURNING id, trace_chain || id AS updated_trace_chain`,
+          params: [eventId, 'multi_capture', JSON.stringify(data), traceChainPg]
+        }
+      ]
+    }
+  }
+}];
+
+// 2. Call Write_DB sub-workflow (waitForSubWorkflow: true)
+
+// 3. Access results:
+const traceId = $json.ctx.db.trace.row.id;
+const updatedChain = $json.ctx.db.trace.row.updated_trace_chain;
+```
+
+**Chaining Writes (using previous results as params):**
+```javascript
+// Write operations can reference previous results using $results.key.field
+return [{
+  json: {
+    ctx: {
+      ...$json.ctx,
+      db_writes: [
+        {
+          key: 'trace',
+          sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)
+                VALUES ($1::uuid, $2, $3::jsonb, $4::uuid[])
+                RETURNING id`,
+          params: [eventId, 'step', dataJson, traceChainPg]
+        },
+        {
+          key: 'projection',
+          sql: `INSERT INTO projections (trace_id, event_id, projection_type, data, status)
+                VALUES ($1::uuid, $2::uuid, $3, $4::jsonb, 'auto_confirmed')
+                RETURNING *`,
+          // $results.trace.row.id resolves to the id from the first write
+          params: ['$results.trace.row.id', eventId, 'activity', projectionJson]
+        }
+      ]
+    }
+  }
+}];
+
+// After Write_DB:
+const traceId = $json.ctx.db.trace.row.id;
+const projection = $json.ctx.db.projection.row;
+```
+
+**Result Shape:**
+```javascript
+// Each write result has:
+$json.ctx.db.{key} = {
+  row: {...},      // First returned row (most common for single inserts)
+  rows: [...],     // All returned rows (for multi-row operations)
+  count: N         // Number of rows affected/returned
+}
+```
+
+**Workflow Pattern:**
+```
+[Trigger] → [Prepare Writes] → [Write_DB] → [Continue workflow...]
+```
+
+This replaces the old chained pattern:
+```
+// ❌ OLD: Multiple Postgres nodes with ctx restoration between each
+[Code: Prep] → [Postgres: Insert Trace] → [Merge] → [Code: Prep2] → [Postgres: Insert Projection] → [Merge]
+
+// ✅ NEW: Single linear flow
+[Code: Prepare Writes] → [Write_DB] → [Continue...]
+```
+
+#### Referencing Sub-Workflows by ID
+
+When calling sub-workflows (Query_DB, Write_DB, etc.) via Execute Workflow nodes, **always use workflow IDs, not names**. Name-based lookup (`"mode": "name"`) is unreliable in n8n.
+
+**Workflow for adding new sub-workflow references:**
+
+1. **First push** - If creating a new workflow or adding Execute Workflow nodes, do a dry-run push first to get the workflow IDs:
+   ```bash
+   rdev n8n push --dry-run
+   # Shows: Would UPDATE: Write_DB (id: zgJX3AbUNUvDJa48)
+   ```
+
+2. **Reference by ID** - Use the ID in Execute Workflow nodes:
+   ```json
+   {
+     "workflowId": {
+       "__rl": true,
+       "mode": "id",
+       "value": "zgJX3AbUNUvDJa48"
+     }
+   }
+   ```
+
+3. **Then push** - Deploy with the correct IDs in place:
+   ```bash
+   rdev n8n push
+   ```
+
+**Current workflow IDs** (reference these when adding Execute Workflow nodes):
+- `Query_DB`: `UpiUvzlgVuMdYsnp`
+- `Write_DB`: `zgJX3AbUNUvDJa48`
+
+**Anti-pattern:**
+```json
+// ❌ DON'T: Name-based lookup is unreliable
+{
+  "workflowId": {
+    "__rl": true,
+    "mode": "name",
+    "value": "Write_DB"
+  }
+}
+```
+
 ### Error Handling
 
 Workflows must never die silently. Always return a response:
