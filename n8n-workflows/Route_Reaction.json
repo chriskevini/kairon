@@ -49,28 +49,40 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'emoji_mapping';",
-        "options": {}
+        "jsCode": "// Prepare query for emoji config\nconst ctx = $json.ctx;\nreturn [{\n  json: {\n    ctx,\n    db_queries: [{\n      key: 'emoji_config',\n      sql: \"SELECT value FROM config WHERE key = 'emoji_mapping'\"\n    }]\n  }\n}];"
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         60,
         480
       ],
-      "id": "get-emoji-config",
-      "name": "Get Emoji Config",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "prepare-query",
+      "name": "Prepare Query"
     },
     {
       "parameters": {
-        "jsCode": "// Determine route based on emoji_mapping config\nconst ctx = $('Receive Event').first().json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Parse config - Postgres returns JSON as string\nconst rawValue = $json.value;\nconst config = typeof rawValue === 'string' ? JSON.parse(rawValue) : (rawValue || {});\n\n// Extraction emojis (number selections + dismiss)\n// These are hardcoded because they're tied to display order logic\nconst extractionEmojis = ['1\ufe0f\u20e3', '2\ufe0f\u20e3', '3\ufe0f\u20e3', '4\ufe0f\u20e3', '5\ufe0f\u20e3', '6\ufe0f\u20e3', '7\ufe0f\u20e3', '8\ufe0f\u20e3', '9\ufe0f\u20e3', '\ud83d\udd1f', '\u274c'];\n\n// Info emojis (show details about the projection)\n// \u2754 = simple view (just projections)\n// \u2753 = detailed view (full prompts, timing)\nconst infoEmojis = ['\u2753', '\u2754'];\n\n// Quality rating emojis (rate projection quality)\nconst qualityEmojis = ['\ud83d\udc4d', '\ud83d\udc4e'];\n\n// Get correction emojis from config (type corrections + void)\nconst corrections = config.corrections || [];\n\n// Get todo status emojis from config\nconst statusEmojis = Object.keys(config.status || {});\n\n// Determine route\nlet route = 'unknown';\n\nif (extractionEmojis.includes(emoji)) {\n  route = 'extraction';\n} else if (infoEmojis.includes(emoji)) {\n  route = 'info';\n} else if (qualityEmojis.includes(emoji)) {\n  route = 'quality';\n} else if (corrections.includes(emoji)) {\n  route = 'correction';\n} else if (statusEmojis.includes(emoji)) {\n  route = 'todo_status';\n}\n\nreturn {\n  ctx,\n  route,\n  emoji,\n  config\n};"
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "UpiUvzlgVuMdYsnp"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        180,
+        480
+      ],
+      "id": "get-emoji-config",
+      "name": "Get Emoji Config Query_DB"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine route based on emoji_mapping config from Query_DB\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Parse config from Query_DB result\nconst rawValue = ctx.db?.emoji_config?.results?.[0]?.value;\nconst config = typeof rawValue === 'string' ? JSON.parse(rawValue) : (rawValue || {});\n\n// Extraction emojis (number selections + dismiss)\n// These are hardcoded because they're tied to display order logic\nconst extractionEmojis = ['1\ufe0f\u20e3', '2\ufe0f\u20e3', '3\ufe0f\u20e3', '4\ufe0f\u20e3', '5\ufe0f\u20e3', '6\ufe0f\u20e3', '7\ufe0f\u20e3', '8\ufe0f\u20e3', '9\ufe0f\u20e3', '\ud83d\udd1f', '\u274c'];\n\n// Info emojis (show details about the projection)\n// \u2754 = simple view (just projections)\n// \u2753 = detailed view (full prompts, timing)\nconst infoEmojis = ['\u2753', '\u2754'];\n\n// Quality rating emojis (rate projection quality)\nconst qualityEmojis = ['\ud83d\udc4d', '\ud83d\udc4e'];\n\n// Get correction emojis from config (type corrections + void)\nconst corrections = config.corrections || [];\n\n// Get todo status emojis from config\nconst statusEmojis = Object.keys(config.status || {});\n\n// Determine route\nlet route = 'unknown';\n\nif (extractionEmojis.includes(emoji)) {\n  route = 'extraction';\n} else if (infoEmojis.includes(emoji)) {\n  route = 'info';\n} else if (qualityEmojis.includes(emoji)) {\n  route = 'quality';\n} else if (corrections.includes(emoji)) {\n  route = 'correction';\n} else if (statusEmojis.includes(emoji)) {\n  route = 'todo_status';\n}\n\nreturn {\n  ctx,\n  route,\n  emoji,\n  config\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -368,14 +380,25 @@
       "main": [
         [
           {
-            "node": "Get Emoji Config",
+            "node": "Prepare Query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Emoji Config": {
+    "Prepare Query": {
+      "main": [
+        [
+          {
+            "node": "Get Emoji Config Query_DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Emoji Config Query_DB": {
       "main": [
         [
           {

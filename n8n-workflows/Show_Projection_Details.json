@@ -22,36 +22,42 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH target_event AS (\n  -- Find the event for this Discord message\n  SELECT id, payload, received_at, payload->>'message_url' as message_url\n  FROM events\n  WHERE payload->>'discord_message_id' = $1\n    AND event_type = 'discord_message'\n  ORDER BY received_at DESC\n  LIMIT 1\n),\nbot_reply_projections AS (\n  -- Find projections for a bot reply message (no LIMIT - one message can have multiple)\n  SELECT p.id, p.trace_id, p.event_id, p.projection_type, p.data, p.status, p.quality_score, p.created_at, p.timezone\n  FROM projections p\n  WHERE (p.metadata->>'message_id' = $1 \n     OR p.data->>'discord_message_id' = $1\n     OR p.data->>'summary_message_id' = $1)\n    AND p.status IN ('auto_confirmed', 'confirmed', 'pending')\n),\nrelevant_projections AS (\n  -- Get projections either from the event or the bot reply\n  SELECT p.id as projection_id, p.trace_id, p.event_id, p.projection_type, p.data, p.status, p.quality_score, p.created_at, p.timezone\n  FROM projections p\n  WHERE p.event_id = (SELECT id FROM target_event)\n    AND p.status IN ('auto_confirmed', 'confirmed', 'pending')\n  UNION\n  SELECT id, trace_id, event_id, projection_type, data, status, quality_score, created_at, timezone\n  FROM bot_reply_projections\n),\nrelevant_traces AS (\n  -- Get ONLY the traces linked to these projections (not all traces for the event)\n  SELECT DISTINCT ON (t.id)\n    t.id as trace_id,\n    t.event_id,\n    COALESCE(t.data->>'prompt', t.data->>'input') as prompt_text,\n    t.data->>'completion' as output_text,\n    t.data->>'model' as model,\n    (t.data->>'duration_ms')::numeric as duration_ms,\n    t.created_at as trace_created_at\n  FROM traces t\n  WHERE t.id IN (SELECT trace_id FROM relevant_projections WHERE trace_id IS NOT NULL)\n  ORDER BY t.id, t.created_at DESC\n)\nSELECT \n  COALESCE((SELECT id FROM target_event), (SELECT event_id FROM bot_reply_projections LIMIT 1)) as event_id,\n  (SELECT payload->>'original_text' FROM target_event) as original_text,\n  (SELECT payload->>'tag' FROM target_event) as tag,\n  COALESCE((SELECT received_at FROM target_event), (SELECT created_at FROM bot_reply_projections LIMIT 1)) as event_time,\n  CASE WHEN EXISTS (SELECT 1 FROM target_event) THEN 'user_message' ELSE 'bot_reply' END as source,\n  COALESCE(\n    (SELECT message_url FROM target_event),\n    (SELECT e.payload->>'message_url' FROM events e WHERE e.id = (SELECT event_id FROM bot_reply_projections LIMIT 1))\n  ) as message_url,\n  (SELECT json_agg(jsonb_build_object(\n    'trace_id', t.trace_id,\n    'model', t.model,\n    'duration_ms', t.duration_ms,\n    'prompt', t.prompt_text,\n    'output_preview', LEFT(t.output_text, 200)\n  )) FROM relevant_traces t) as traces,\n  (SELECT json_agg(jsonb_build_object(\n    'projection_id', p.projection_id,\n    'trace_id', p.trace_id,\n    'projection_type', p.projection_type,\n    'status', p.status,\n    'quality_score', p.quality_score,\n    'data', p.data\n  )) FROM relevant_projections p) as projections;",
-        "options": {
-          "queryReplacement": "={{ $json.ctx.event.message_id }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        -176,
-        240
-      ],
-      "id": "lookup-projection-chain",
-      "name": "Lookup Projection Chain",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Merge ctx from trigger with db results\nconst ctx = $('Receive Event').first().json.ctx;\nconst db = $input.first()?.json || {};\n\nreturn [{\n  json: {\n    ctx,\n    db\n  }\n}];"
+        "jsCode": "// Prepare query to lookup projection chain\nconst ctx = $json.ctx;\nconst messageId = ctx.event.message_id;\n\nconst sql = `WITH target_event AS (\n  -- Find the event for this Discord message\n  SELECT id, payload, received_at, payload->>'message_url' as message_url\n  FROM events\n  WHERE payload->>'discord_message_id' = $1\n    AND event_type = 'discord_message'\n  ORDER BY received_at DESC\n  LIMIT 1\n),\nbot_reply_projections AS (\n  -- Find projections for a bot reply message (no LIMIT - one message can have multiple)\n  SELECT p.id, p.trace_id, p.event_id, p.projection_type, p.data, p.status, p.quality_score, p.created_at, p.timezone\n  FROM projections p\n  WHERE (p.metadata->>'message_id' = $1 \n     OR p.data->>'discord_message_id' = $1\n     OR p.data->>'summary_message_id' = $1)\n    AND p.status IN ('auto_confirmed', 'confirmed', 'pending')\n),\nrelevant_projections AS (\n  -- Get projections either from the event or the bot reply\n  SELECT p.id as projection_id, p.trace_id, p.event_id, p.projection_type, p.data, p.status, p.quality_score, p.created_at, p.timezone\n  FROM projections p\n  WHERE p.event_id = (SELECT id FROM target_event)\n    AND p.status IN ('auto_confirmed', 'confirmed', 'pending')\n  UNION\n  SELECT id, trace_id, event_id, projection_type, data, status, quality_score, created_at, timezone\n  FROM bot_reply_projections\n),\nrelevant_traces AS (\n  -- Get ONLY the traces linked to these projections (not all traces for the event)\n  SELECT DISTINCT ON (t.id)\n    t.id as trace_id,\n    t.event_id,\n    COALESCE(t.data->>'prompt', t.data->>'input') as prompt_text,\n    t.data->>'completion' as output_text,\n    t.data->>'model' as model,\n    (t.data->>'duration_ms')::numeric as duration_ms,\n    t.created_at as trace_created_at\n  FROM traces t\n  WHERE t.id IN (SELECT trace_id FROM relevant_projections WHERE trace_id IS NOT NULL)\n  ORDER BY t.id, t.created_at DESC\n)\nSELECT \n  COALESCE((SELECT id FROM target_event), (SELECT event_id FROM bot_reply_projections LIMIT 1)) as event_id,\n  (SELECT payload->>'original_text' FROM target_event) as original_text,\n  (SELECT payload->>'tag' FROM target_event) as tag,\n  COALESCE((SELECT received_at FROM target_event), (SELECT created_at FROM bot_reply_projections LIMIT 1)) as event_time,\n  CASE WHEN EXISTS (SELECT 1 FROM target_event) THEN 'user_message' ELSE 'bot_reply' END as source,\n  COALESCE(\n    (SELECT message_url FROM target_event),\n    (SELECT e.payload->>'message_url' FROM events e WHERE e.id = (SELECT event_id FROM bot_reply_projections LIMIT 1))\n  ) as message_url,\n  (SELECT json_agg(jsonb_build_object(\n    'trace_id', t.trace_id,\n    'model', t.model,\n    'duration_ms', t.duration_ms,\n    'prompt', t.prompt_text,\n    'output_preview', LEFT(t.output_text, 200)\n  )) FROM relevant_traces t) as traces,\n  (SELECT json_agg(jsonb_build_object(\n    'projection_id', p.projection_id,\n    'trace_id', p.trace_id,\n    'projection_type', p.projection_type,\n    'status', p.status,\n    'quality_score', p.quality_score,\n    'data', p.data\n  )) FROM relevant_projections p) as projections`;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [{\n        key: 'projection_chain',\n        sql,\n        params: [messageId]\n      }]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
+        -176,
+        240
+      ],
+      "id": "prepare-query",
+      "name": "Prepare Query"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "UpiUvzlgVuMdYsnp"
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
         48,
+        240
+      ],
+      "id": "lookup-projection-chain",
+      "name": "Lookup Projection Chain"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract db result from Query_DB ctx\nconst ctx = $json.ctx;\nconst db = ctx.db?.projection_chain?.rows?.[0] || {};\n\nreturn [{\n  json: {\n    ctx,\n    db\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
         240
       ],
       "id": "merge-ctx-db",
@@ -64,7 +70,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        272,
+        496,
         240
       ],
       "id": "format-details",
@@ -89,7 +95,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        496,
+        720,
         240
       ],
       "id": "send-details",
@@ -112,7 +118,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
+        944,
         240
       ],
       "id": "restore-ctx",
@@ -154,7 +160,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        944,
+        1168,
         240
       ],
       "id": "if-last-message",
@@ -171,7 +177,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1168,
+        1392,
         240
       ],
       "id": "remove-info-reaction",
@@ -190,6 +196,17 @@
   ],
   "connections": {
     "Receive Event": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Query": {
       "main": [
         [
           {

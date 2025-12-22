@@ -131,31 +131,7 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE projections SET status = 'voided', voided_at = NOW(), voided_reason = 'replaced_by_new_extraction' WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $1 AND status = 'pending';",
-        "options": {
-          "queryReplacement": "={{ $('Has Extractions?').first().json.ctx.db.thread_id }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        272,
-        448
-      ],
-      "id": "a3a014f0-33c5-4103-80aa-6b645163d8b2",
-      "name": "Void Old Extractions",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Build SQL query to insert extractions as projections\nconst ctx = $('Has Extractions?').first().json.ctx;\nconst traceResult = $('Write Thread Extraction Trace').first().json;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = traceResult.trace_id;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst updatedTraceChain = [...traceChain, extractionTraceId];\nconst traceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// 7 parameters per row: event_id, trace_id, trace_chain, projection_type, data (jsonb), status, timezone\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 7;\n  return `($${offset + 1}::uuid, $${offset + 2}::uuid, $${offset + 3}::uuid[], $${offset + 4}, $${offset + 5}::jsonb, $${offset + 6}, $${offset + 7})`;\n}).join(', ');\n\nconst query = `\nINSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  data,\n  status,\n  timezone\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5, $6, $7... sequence (7 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ctx.event.event_id);  // event_id\n  params.push(extractionTraceId);    // trace_id\n  params.push(traceChainPg);         // trace_chain\n  params.push('thread_extraction');  // projection_type\n  params.push(JSON.stringify({       // data as JSONB\n    thread_id: ext.thread_id,\n    item_type: ext.item_type,\n    text: ext.text,\n    display_order: ext.display_order\n  }));\n  params.push('pending');            // status\n  params.push(ctx.event.timezone || null);  // timezone\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      }\n    },\n    sql_query: query,\n    sql_params: params\n  }\n}];"
+        "jsCode": "// Build Discord summary message - read from Write_DB results\nconst ctx = $json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '📊 **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '💡 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '📋 **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '❌ Dismiss • 🗑️ Delete thread';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        summary_content: content,\n        emoji_count: extractions.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -163,54 +139,17 @@
         496,
         448
       ],
-      "id": "6f856663-e8d6-4f8c-9c9c-41a6eab0d27b",
-      "name": "Build Insert Query"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "{{ $json.sql_query }}",
-        "options": {
-          "queryReplacement": "={{ $json.sql_params }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        720,
-        448
-      ],
-      "id": "48cebe42-d9c8-4de1-a10a-d1e09935ad25",
-      "name": "Save Extractions to DB",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Build Discord summary message\nconst ctx = $('Build Insert Query').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '📊 **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '💡 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '📋 **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '❌ Dismiss • 🗑️ Delete thread';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        summary_content: content,\n        emoji_count: extractions.length\n      }\n    }\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        944,
-        448
-      ],
       "id": "8cfff2da-39dd-4c84-abab-f5a723655499",
       "name": "Build Summary Message"
     },
     {
       "parameters": {
-        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst ctx = $('Build Summary Message').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '❌'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '🗑️'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ctx: ctx,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
+        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst ctx = $('Build Summary Message').first().json.ctx;\nconst extractions = ctx.llm.extractions;\nconst threadId = ctx.event.thread_id;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '❌'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '🗑️'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ctx: ctx,\n    summary_message_id: summaryMessageId,\n    thread_id: threadId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1392,
+        944,
         448
       ],
       "id": "d7ff0aa4-b3d1-42f5-a10d-37aad4ec2f56",
@@ -227,7 +166,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1840,
+        1392,
         448
       ],
       "id": "124efe0a-5911-42ba-bd1f-4478da67fdff",
@@ -248,13 +187,13 @@
         "operation": "executeQuery",
         "query": "UPDATE projections SET data = data || jsonb_build_object('summary_message_id', $1) WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $2 AND status = 'pending';",
         "options": {
-          "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.ctx.db.thread_id }}"
+          "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.thread_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1840,
+        1392,
         256
       ],
       "id": "cc84e221-84fb-49bb-b72b-e0589a531893",
@@ -457,7 +396,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1168,
+        720,
         448
       ],
       "id": "59068362-0e97-4e90-90c3-98373b60e25f",
@@ -480,7 +419,7 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        1616,
+        1168,
         448
       ],
       "id": "ebfeb17a-a211-4a67-adf9-ec9c26e418cc",
@@ -493,7 +432,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2064,
+        1616,
         520
       ],
       "id": "9a504ad1-2ee7-435b-9c81-ff106ef75821",
@@ -527,7 +466,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data for thread extraction (using ctx pattern)\nconst ctx = $('Set Inference Start').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedCtx = $input.first().json.ctx;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${ctx.db.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: parsedCtx,\n    // Trace data for query\n    input_thread_history: ctx.db.thread_history,\n    input_thread_id: ctx.db.thread_id,\n    prompt_text: promptText,\n    completion_text: llmOutput,\n    result_extraction_count: parsedCtx.llm.extractions?.length || 0,\n    result_has_extractions: parsedCtx.llm.has_extractions,\n    duration_ms: durationMs,\n    event_id: ctx.event.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+        "jsCode": "// Prepare trace data for thread extraction (using ctx pattern) with Write_DB batch\nconst ctx = $('Set Inference Start').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedCtx = $input.first().json.ctx;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${ctx.db.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nconst eventId = ctx.event.event_id;\nconst threadId = ctx.db.thread_id;\nconst timezone = ctx.event.timezone || null;\n\n// Build trace data JSON\nconst traceDataJson = JSON.stringify({\n  input: {\n    thread_history: ctx.db.thread_history,\n    conversation_id: threadId\n  },\n  prompt: promptText,\n  completion: llmOutput,\n  result: {\n    extraction_count: parsedCtx.llm.extractions?.length || 0,\n    has_extractions: parsedCtx.llm.has_extractions\n  },\n  model: 'nvidia/nemotron-nano-9b-v2:free',\n  duration_ms: durationMs\n});\n\nreturn [{\n  json: {\n    ctx: parsedCtx,\n    // Store data needed for building extraction queries later\n    trace_data: {\n      event_id: eventId,\n      thread_id: threadId,\n      trace_chain_pg: traceChainPg,\n      trace_data_json: traceDataJson,\n      timezone: timezone\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -540,26 +479,33 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_extraction',\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'thread_history', $2,\n        'conversation_id', $3::text\n      ),\n      'prompt', $4,\n      'completion', $5,\n      'result', jsonb_build_object(\n        'extraction_count', $6::integer,\n        'has_extractions', true\n      ),\n      'model', 'nvidia/nemotron-nano-9b-v2:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $8::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
-        "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_thread_history }},={{ $json.input_thread_id }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_extraction_count }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
-        }
+        "jsCode": "// Build Write_DB batch for trace, void old, and save extractions\nconst ctx = $json.ctx;\nconst traceData = $json.trace_data;\nconst extractions = ctx.llm.extractions;\n\nconst writes = [];\n\n// Write 1: Insert trace\nwrites.push({\n  key: 'trace',\n  sql: `WITH new_trace AS (\n    INSERT INTO traces (event_id, step_name, data, trace_chain)\n    VALUES ($1::uuid, 'thread_extraction', $2::jsonb, $3::uuid[])\n    RETURNING id\n  )\n  SELECT new_trace.id as trace_id, $3::uuid[] || new_trace.id as updated_trace_chain\n  FROM new_trace`,\n  params: [traceData.event_id, traceData.trace_data_json, traceData.trace_chain_pg]\n});\n\n// Write 2: Void old extractions\nwrites.push({\n  key: 'void_old',\n  sql: `UPDATE projections SET status = 'voided', voided_at = NOW(), voided_reason = 'replaced_by_new_extraction' \n        WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $1 AND status = 'pending'\n        RETURNING id`,\n  params: [traceData.thread_id]\n});\n\n// Write 3: Insert extractions (dynamic multi-row insert)\nif (extractions && extractions.length > 0) {\n  // Build values and params for multi-row insert\n  const values = extractions.map((ext, idx) => {\n    const offset = idx * 7;\n    return `($${offset + 1}::uuid, $${offset + 2}::uuid, $${offset + 3}::uuid[], $${offset + 4}, $${offset + 5}::jsonb, $${offset + 6}, $${offset + 7})`;\n  }).join(', ');\n  \n  const params = [];\n  extractions.forEach(ext => {\n    params.push(traceData.event_id);                    // event_id\n    params.push('$results.trace.row.trace_id');         // trace_id (chained from trace write)\n    params.push('$results.trace.row.updated_trace_chain'); // trace_chain (chained)\n    params.push('thread_extraction');                   // projection_type\n    params.push(JSON.stringify({                        // data as JSONB\n      thread_id: ext.thread_id,\n      item_type: ext.item_type,\n      text: ext.text,\n      display_order: ext.display_order\n    }));\n    params.push('pending');                             // status\n    params.push(traceData.timezone);                    // timezone\n  });\n  \n  writes.push({\n    key: 'extractions',\n    sql: `INSERT INTO projections (event_id, trace_id, trace_chain, projection_type, data, status, timezone)\n          VALUES ${values}\n          RETURNING *`,\n    params: params\n  });\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_writes: writes\n    }\n  }\n}];"
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         48,
         448
       ],
-      "id": "write-thread-extraction-trace",
-      "name": "Write Thread Extraction Trace",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+      "id": "build-write-batch",
+      "name": "Build Write Batch"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zgJX3AbUNUvDJa48"
         }
-      }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        272,
+        448
+      ],
+      "id": "write-trace-and-extractions",
+      "name": "Write Trace + Extractions"
     }
   ],
   "connections": {
@@ -659,7 +605,7 @@
       "main": [
         [
           {
-            "node": "Write Thread Extraction Trace",
+            "node": "Build Write Batch",
             "type": "main",
             "index": 0
           }
@@ -673,40 +619,18 @@
         ]
       ]
     },
-    "Write Thread Extraction Trace": {
+    "Build Write Batch": {
       "main": [
         [
           {
-            "node": "Void Old Extractions",
+            "node": "Write Trace + Extractions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Void Old Extractions": {
-      "main": [
-        [
-          {
-            "node": "Build Insert Query",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Insert Query": {
-      "main": [
-        [
-          {
-            "node": "Save Extractions to DB",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Save Extractions to DB": {
+    "Write Trace + Extractions": {
       "main": [
         [
           {

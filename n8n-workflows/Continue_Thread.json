@@ -250,7 +250,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data after LLM inference\nconst ctx = $json.ctx || {};\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${ctx.llm?.north_star || '(not set)'}\n\n**Recent Activities (Last 20)**\n${(ctx.llm?.activities || []).map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${(ctx.llm?.notes || []).map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Conversation History\n${(ctx.llm?.history || []).map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\nUSER: ${ctx.event?.clean_text || ''}\n\nASSISTANT:`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: ctx,\n    input_text: ctx.event?.clean_text || '',\n    input_thread_id: ctx.event?.thread_id,\n    input_history_length: (ctx.llm?.history || []).length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: (ctx.llm?.activities || []).length,\n    result_referenced_notes: (ctx.llm?.notes || []).length,\n    duration_ms: durationMs,\n    event_id: ctx.event?.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+        "jsCode": "// Prepare trace data after LLM inference using Write_DB batch\nconst ctx = $json.ctx || {};\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${ctx.llm?.north_star || '(not set)'}\n\n**Recent Activities (Last 20)**\n${(ctx.llm?.activities || []).map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${(ctx.llm?.notes || []).map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Conversation History\n${(ctx.llm?.history || []).map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\nUSER: ${ctx.event?.clean_text || ''}\n\nASSISTANT:`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nconst eventId = ctx.event?.event_id;\nconst threadId = ctx.event?.thread_id;\nconst timestamp = ctx.event?.timestamp;\nconst timezone = ctx.event?.timezone;\nconst cleanText = ctx.event?.clean_text || '';\nconst historyLength = (ctx.llm?.history || []).length;\n\n// Build trace data JSON\nconst traceDataJson = JSON.stringify({\n  input: { text: cleanText, thread_id: threadId, history_length: historyLength },\n  prompt: promptText,\n  completion: response,\n  result: { \n    response_length: response.length,\n    referenced_activities: (ctx.llm?.activities || []).length,\n    referenced_notes: (ctx.llm?.notes || []).length\n  },\n  model: 'xiaomi/mimo-v2-flash:free',\n  duration_ms: durationMs\n});\n\n// Build projection data JSON\nconst projectionDataJson = JSON.stringify({\n  thread_id: threadId,\n  response_text: response,\n  role: 'assistant',\n  timestamp: timestamp\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_writes: [\n        {\n          key: 'trace',\n          sql: `WITH new_trace AS (\n            INSERT INTO traces (event_id, step_name, data, trace_chain)\n            VALUES ($1::uuid, 'thread_response', $2::jsonb, $3::uuid[])\n            RETURNING id\n          )\n          SELECT new_trace.id as trace_id, $3::uuid[] || new_trace.id as updated_trace_chain\n          FROM new_trace`,\n          params: [eventId, traceDataJson, traceChainPg]\n        },\n        {\n          key: 'projection',\n          sql: `INSERT INTO projections (event_id, trace_id, trace_chain, projection_type, status, data, timezone)\n                VALUES ($1::uuid, $2::uuid, $3::uuid[], 'thread_response', 'auto_confirmed', $4::jsonb, $5)\n                RETURNING id`,\n          params: [eventId, '$results.trace.row.trace_id', '$results.trace.row.updated_trace_chain', projectionDataJson, timezone]\n        }\n      ]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -263,64 +263,20 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_response',\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'thread_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $9::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $10::integer\n    ),\n    $11::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $11::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
-        "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_thread_id }},={{ $json.input_history_length }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.result_referenced_activities }},={{ $json.result_referenced_notes }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zgJX3AbUNUvDJa48"
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         1568,
         400
       ],
-      "id": "write-trace",
-      "name": "Write Thread Response Trace",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        1792,
-        400
-      ],
-      "id": "merge-trace-result",
-      "name": "Merge Trace Result"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  status,\n  data,\n  timezone\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'thread_response',\n  'auto_confirmed',\n  jsonb_build_object(\n    'thread_id', $4,\n    'response_text', $5,\n    'role', 'assistant',\n    'timestamp', $6::timestamptz\n  ),\n  $7\n)\nRETURNING id;",
-        "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.trace_id }},={{ $json.updated_trace_chain }},={{ $json.ctx.event.thread_id }},={{ $json.ctx.llm.completion_text }},={{ $json.ctx.event.timestamp }},={{ $json.ctx.event.timezone }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        2016,
-        400
-      ],
-      "id": "store-projection",
-      "name": "Store Response Projection",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "write-trace-and-projection",
+      "name": "Write Trace + Projection"
     }
   ],
   "connections": {
@@ -431,34 +387,7 @@
       "main": [
         [
           {
-            "node": "Write Thread Response Trace",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Merge Trace Result",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Write Thread Response Trace": {
-      "main": [
-        [
-          {
-            "node": "Merge Trace Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge Trace Result": {
-      "main": [
-        [
-          {
-            "node": "Store Response Projection",
+            "node": "Write Trace + Projection",
             "type": "main",
             "index": 0
           }

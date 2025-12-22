@@ -13,7 +13,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse quality rating from emoji\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '👍': 1.0,\n  '👎': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\nreturn {\n  ctx,\n  quality_score: qualityScore,\n  emoji\n};"
+        "jsCode": "// Parse quality rating from emoji and prepare db_writes\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '👍': 1.0,\n  '👎': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\n// Prepare quality metadata JSON\nconst metadataUpdate = JSON.stringify({\n  quality_rated_at: new Date().toISOString(),\n  quality_emoji: emoji\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      quality: {\n        score: qualityScore,\n        emoji: emoji\n      }\n    },\n    db_writes: [{\n      key: 'updated_projections',\n      sql: `WITH target_projections AS (\n              SELECT p.id\n              FROM projections p\n              JOIN events e ON p.event_id = e.id\n              WHERE e.payload->>'discord_message_id' = $3\n                AND e.event_type = 'discord_message'\n                AND p.status IN ('auto_confirmed', 'confirmed')\n              UNION\n              SELECT p.id\n              FROM projections p\n              WHERE (p.data->>'discord_message_id' = $3\n                 OR p.metadata->>'message_id' = $3)\n                AND p.status IN ('auto_confirmed', 'confirmed')\n            )\n            UPDATE projections\n            SET \n              quality_score = $1,\n              metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb\n            WHERE id IN (SELECT id FROM target_projections)\n            RETURNING id, projection_type, quality_score`,\n      params: [qualityScore, metadataUpdate, ctx.event.message_id]\n    }]\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -23,28 +23,24 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "-- Find projections by either the original user message or the bot reply message\nWITH target_projections AS (\n  -- Option 1: User message that triggered projections\n  SELECT p.id\n  FROM projections p\n  JOIN events e ON p.event_id = e.id\n  WHERE e.payload->>'discord_message_id' = $3\n    AND e.event_type = 'discord_message'\n    AND p.status IN ('auto_confirmed', 'confirmed')\n  UNION\n  -- Option 2: Bot reply message (projection stores the message ID)\n  SELECT p.id\n  FROM projections p\n  WHERE (p.data->>'discord_message_id' = $3\n     OR p.metadata->>'message_id' = $3)\n    AND p.status IN ('auto_confirmed', 'confirmed')\n)\nUPDATE projections\nSET \n  quality_score = $1,\n  metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(\n    'quality_rated_at', NOW(),\n    'quality_emoji', $2\n  )\nWHERE id IN (SELECT id FROM target_projections)\nRETURNING id, projection_type, quality_score;",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "zgJX3AbUNUvDJa48"
+        },
         "options": {
-          "queryReplacement": "={{ $json.quality_score }},={{ $json.emoji }},={{ $json.ctx.event.message_id }}"
+          "waitForSubWorkflow": true
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [40, 300],
       "id": "update-quality-score",
-      "name": "Update Quality Score",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "name": "Update Quality Write_DB"
     },
     {
       "parameters": {
-        "jsCode": "// Format response based on updated projections\nconst ctx = $('Receive Event').first().json.ctx;\nconst qualityScore = $('Parse Quality Rating').first().json.quality_score;\nconst emoji = $('Parse Quality Rating').first().json.emoji;\nconst updated = $input.all();\n\nif (!updated || updated.length === 0 || !updated[0].json.id) {\n  return {\n    ctx,\n    response: {\n      content: `${emoji} No projections found for this message to rate.`\n    },\n    updated_count: 0\n  };\n}\n\nconst count = updated.length;\nconst types = [...new Set(updated.map(u => u.json.projection_type))];\nconst typeStr = types.join(', ');\nconst scoreLabel = qualityScore === 1.0 ? 'good' : 'poor';\n\nreturn {\n  ctx,\n  response: {\n    content: `${emoji} Marked ${count} projection(s) as **${scoreLabel}** quality (${typeStr})`\n  },\n  updated_count: count\n};"
+        "jsCode": "// Format response based on updated projections from Write_DB\nconst ctx = $json.ctx;\nconst qualityScore = ctx.quality.score;\nconst emoji = ctx.quality.emoji;\nconst updated = ctx.db?.updated_projections?.rows || [];\n\nif (!updated || updated.length === 0) {\n  return {\n    ctx,\n    response: {\n      content: `${emoji} No projections found for this message to rate.`\n    },\n    updated_count: 0\n  };\n}\n\nconst count = updated.length;\nconst types = [...new Set(updated.map(u => u.projection_type))];\nconst typeStr = types.join(', ');\nconst scoreLabel = qualityScore === 1.0 ? 'good' : 'poor';\n\nreturn {\n  ctx,\n  response: {\n    content: `${emoji} Marked ${count} projection(s) as **${scoreLabel}** quality (${typeStr})`\n  },\n  updated_count: count\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -103,14 +99,14 @@
       "main": [
         [
           {
-            "node": "Update Quality Score",
+            "node": "Update Quality Write_DB",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Quality Score": {
+    "Update Quality Write_DB": {
       "main": [
         [
           {
