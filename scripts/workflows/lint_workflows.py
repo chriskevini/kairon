@@ -259,7 +259,10 @@ def check_set_node_pattern(node: dict, workflow: dict, result: LintResult):
     name = node.get("name", "Unknown")
     params = node.get("parameters", {})
 
-    include_other = params.get("includeOtherFields", False)
+    # includeOtherFields can be at params level or nested in options
+    include_other = params.get("includeOtherFields", False) or params.get(
+        "options", {}
+    ).get("includeOtherFields", False)
     assignments = params.get("assignments", {}).get("assignments", [])
 
     # Check if any assignments set ctx fields

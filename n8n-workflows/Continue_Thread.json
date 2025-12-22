@@ -8,260 +8,11 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        6656,
-        624
+        0,
+        400
       ],
-      "id": "cf49146a-7b65-4fe1-8882-9190f8ac80f3",
+      "id": "trigger",
       "name": "Execute Workflow Trigger"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 AND NOT (role = 'user' AND text = $2) ORDER BY timestamp ASC LIMIT 20;",
-        "options": {
-          "queryReplacement": "={{ $json.ctx.event.thread_id }},={{ $json.ctx.event.clean_text }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        6880,
-        288
-      ],
-      "id": "862be3f8-3ec4-4873-9601-51c0412b5953",
-      "name": "Get Conversation History",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'north_star';",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        6880,
-        480
-      ],
-      "id": "466482ef-e173-4639-920d-4a7d4a809c9d",
-      "name": "Get North Star",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (data->>'timestamp')::timestamptz as timestamp,\n  data->>'category' as category,\n  data->>'description' as description\nFROM projections\nWHERE projection_type = 'activity'\n  AND status IN ('auto_confirmed', 'confirmed')\nORDER BY (data->>'timestamp')::timestamptz DESC\nLIMIT 20;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        6880,
-        768
-      ],
-      "id": "583b8b02-bf8c-4dd6-ab42-1f0e4df1d3e6",
-      "name": "Get Recent Activities",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (data->>'timestamp')::timestamptz as timestamp,\n  data->>'category' as category,\n  data->>'text' as text\nFROM projections\nWHERE projection_type = 'note'\n  AND status IN ('auto_confirmed', 'confirmed')\nORDER BY (data->>'timestamp')::timestamptz DESC\nLIMIT 10;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        6880,
-        960
-      ],
-      "id": "7a6cb0ab-38bd-449e-89f4-302bcab90d06",
-      "name": "Get Recent Notes",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 5
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        7104,
-        576
-      ],
-      "id": "3e910a00-1800-474d-aba6-8f67169d3a9b",
-      "name": "Wait for Context"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Merge all context data into ctx pattern\n// Input 0 has ctx from Merge Conversation ctx\nconst ctxInput = $input.all().find(item => item.json.ctx);\nconst ctx = ctxInput?.json?.ctx || {};\n\n// Get all merged inputs\nconst allInputs = $input.all();\n\n// Extract conversation history and sort by timestamp ascending\nconst historyItems = allInputs.filter(item => item.json.role !== undefined && item.json.text !== undefined);\nconst history = historyItems\n  .sort((a, b) => new Date(a.json.timestamp) - new Date(b.json.timestamp))\n  .map(item => ({\n    role: item.json.role,\n    text: item.json.text\n  }));\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItem = allInputs.find(item => item.json.value !== undefined && item.json.key === undefined);\nif (northStarItem) {\n  northStar = northStarItem.json.value;\n}\n\n// Extract activities\nconst activities = allInputs\n  .filter(item => item.json.category && item.json.description)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    description: item.json.description\n  }));\n\n// Extract notes\nconst notes = allInputs\n  .filter(item => item.json.category && item.json.text && !item.json.role)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    text: item.json.text\n  }));\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        north_star: northStar,\n        inference_start: Date.now(),\n        history: history,\n        activities: activities,\n        notes: notes\n      }\n    }\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        7328,
-        624
-      ],
-      "id": "66722f6e-f428-4136-bc15-f60097699a36",
-      "name": "Build Context"
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.llm.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n{{ $json.ctx.llm.activities.map(act => `${DateTime.fromISO(act.timestamp).format(\"yyyy-MM-dd hh:mm\")} - ${act.description}`).join('\\n') }}\n\n**Recent Notes (Last 10)**\n{{ $json.ctx.llm.notes.map(n => `[${n.category}] ${n.text}`).join('\\n') }}\n\n## Instructions\n\n1. **Consider the full context**: conversation history, activities, and notes\n2. **Provide grounded insights**: Reference specific activities or notes when relevant\n3. **Be conversational**: This is an ongoing dialogue, not a new conversation\n4. **Ask clarifying questions**: Help them think deeper when appropriate\n5. **Be concise**: 3-5 sentences, respect their time\n6. **Don't force connections**: Only mention the guiding principle if it's naturally relevant to what they're asking about\n\n## Style\n- Warm and supportive\n- Natural and conversational\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Conversation History\n{{ $json.ctx.llm.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n') }}\n\nUSER: {{ $json.ctx.event.clean_text }}\n\nASSISTANT:",
-        "needsFallback": true,
-        "batching": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.7,
-      "position": [
-        7552,
-        748
-      ],
-      "id": "4119f733-a0a8-4c97-bcf3-a67ab535c4b5",
-      "name": "Generate Response"
-    },
-    {
-      "parameters": {
-        "model": "xiaomi/mimo-v2-flash:free",
-        "options": {
-          "temperature": 0.7
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        7560,
-        972
-      ],
-      "id": "120ceee9-00cb-4175-8df8-57f862e218fd",
-      "name": "mimo-v2-flash",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "nvidia/nemotron-nano-9b-v2:free",
-        "options": {
-          "temperature": 0.7
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        7688,
-        972
-      ],
-      "id": "9c28edb3-a048-474e-8217-915ddee94e23",
-      "name": "nemotron-nano-9b",
-      "credentials": {
-        "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
-          "name": "OpenRouter account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "resource": "message",
-        "guildId": {
-          "__rl": true,
-          "value": "={{ $json.ctx.event.guild_id }}",
-          "mode": "id"
-        },
-        "channelId": {
-          "__rl": true,
-          "value": "={{ $json.ctx.event.thread_id }}",
-          "mode": "id"
-        },
-        "content": "={{ $json.ctx.llm.completion_text }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.discord",
-      "typeVersion": 2,
-      "position": [
-        8352,
-        528
-      ],
-      "id": "742d2510-b9ca-4252-9f4e-4d2c485050a9",
-      "name": "Post to Thread",
-      "webhookId": "a65d6a4d-1d64-4ef4-b3b6-a4fe185b4957",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000,
-      "credentials": {
-        "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
-          "name": "Discord Bot account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        8800,
-        720
-      ],
-      "id": "merge-trace-result-continue",
-      "name": "Merge Trace Result"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  status,\n  data,\n  timezone\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'thread_response',\n  'auto_confirmed',\n  jsonb_build_object(\n    'thread_id', $4,\n    'response_text', $5,\n    'role', 'assistant',\n    'timestamp', $6::timestamptz\n  ),\n  $7\n)\nRETURNING id;",
-        "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.trace_id }},={{ $json.updated_trace_chain }},={{ $json.ctx.event.thread_id }},={{ $json.ctx.llm.completion_text }},={{ $json.ctx.event.timestamp }},={{ $json.ctx.event.timezone }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        9024,
-        720
-      ],
-      "id": "store-response-projection-continue",
-      "name": "Store Response Projection",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
     },
     {
       "parameters": {
@@ -283,12 +34,11 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        6880,
-        96
+        224,
+        200
       ],
-      "id": "3d6f0aee-f86f-437e-aa57-0683b80c2ced",
+      "id": "react-thinking",
       "name": "React with 💭",
-      "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -311,10 +61,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        6880,
-        1152
+        224,
+        600
       ],
-      "id": "remove-blue-reaction-continue-chat",
+      "id": "remove-blue-reaction",
       "name": "Remove 🔵 Reaction",
       "retryOnFail": true,
       "maxTries": 3,
@@ -329,37 +79,230 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data after LLM inference\n// ctx comes from Merge LLM Result\nconst ctx = $json.ctx || {};\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${ctx.llm?.north_star || '(not set)'}\n\n**Recent Activities (Last 20)**\n${(ctx.llm?.activities || []).map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${(ctx.llm?.notes || []).map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${(ctx.llm?.history || []).map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${ctx.event?.clean_text || ''}\"\n\nRespond to their message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: ctx,\n    // Trace data for query\n    input_text: ctx.event?.clean_text || '',\n    input_thread_id: ctx.event?.thread_id,\n    input_history_length: (ctx.llm?.history || []).length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: (ctx.llm?.activities || []).length,\n    result_referenced_notes: (ctx.llm?.notes || []).length,\n    duration_ms: durationMs,\n    event_id: ctx.event?.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+        "jsCode": "// Prepare first query: conversation history\nconst ctx = $json.ctx;\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_query: {\n        sql: \"SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 AND NOT (role = 'user' AND text = $2) ORDER BY timestamp ASC LIMIT 20\",\n        params: [ctx.event.thread_id, ctx.event.clean_text]\n      },\n      llm: {\n        inference_start: Date.now()\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        8352,
-        720
+        224,
+        400
       ],
-      "id": "02a979dc-1ba9-49d2-a9cd-7eff23c82510",
-      "name": "Prepare Trace Data"
+      "id": "prepare-history-query",
+      "name": "Prepare History Query"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_response',\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'thread_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $9::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $10::integer\n    ),\n    $11::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $11::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
+        "workflowId": {
+          "__rl": true,
+          "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
         "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_thread_id }},={{ $json.input_history_length }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.result_referenced_activities }},={{ $json.result_referenced_notes }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+          "waitForSubWorkflow": true
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
-        8576,
-        648
+        448,
+        400
       ],
-      "id": "2e8e0334-a3c1-496e-81f2-6ae0d19f3425",
-      "name": "Write Thread Response Trace",
+      "id": "query-history",
+      "name": "Query History"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Store history results and prepare north star query\nconst ctx = $json.ctx;\nconst history = ctx.db?.results || [];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        history: history.map(h => ({ role: h.role, text: h.text }))\n      },\n      db_query: {\n        sql: \"SELECT value FROM config WHERE key = 'north_star'\"\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        400
+      ],
+      "id": "store-history-prepare-north-star",
+      "name": "Store History + Prepare North Star"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        400
+      ],
+      "id": "query-north-star",
+      "name": "Query North Star"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Store north star and prepare activities query\nconst ctx = $json.ctx;\nconst northStar = ctx.db?.results?.[0]?.value || 'Not set';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        north_star: northStar\n      },\n      db_query: {\n        sql: `SELECT \n          (data->>'timestamp')::timestamptz as timestamp,\n          data->>'category' as category,\n          data->>'description' as description\n        FROM projections\n        WHERE projection_type = 'activity'\n          AND status IN ('auto_confirmed', 'confirmed')\n        ORDER BY (data->>'timestamp')::timestamptz DESC\n        LIMIT 20`\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        400
+      ],
+      "id": "store-north-star-prepare-activities",
+      "name": "Store North Star + Prepare Activities"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        400
+      ],
+      "id": "query-activities",
+      "name": "Query Activities"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Store activities and prepare notes query\nconst ctx = $json.ctx;\nconst activities = ctx.db?.results || [];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        activities: activities.map(a => ({\n          timestamp: a.timestamp,\n          category: a.category,\n          description: a.description\n        }))\n      },\n      db_query: {\n        sql: `SELECT \n          (data->>'timestamp')::timestamptz as timestamp,\n          data->>'category' as category,\n          data->>'text' as text\n        FROM projections\n        WHERE projection_type = 'note'\n          AND status IN ('auto_confirmed', 'confirmed')\n        ORDER BY (data->>'timestamp')::timestamptz DESC\n        LIMIT 10`\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        400
+      ],
+      "id": "store-activities-prepare-notes",
+      "name": "Store Activities + Prepare Notes"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1792,
+        400
+      ],
+      "id": "query-notes",
+      "name": "Query Notes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Store notes - ctx.llm now has all data for LLM\nconst ctx = $json.ctx;\nconst notes = ctx.db?.results || [];\n\n// Clear db_query and db since we're done with queries\nconst { db_query, db, ...restCtx } = ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...restCtx,\n      llm: {\n        ...ctx.llm,\n        notes: notes.map(n => ({\n          timestamp: n.timestamp,\n          category: n.category,\n          text: n.text\n        }))\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        400
+      ],
+      "id": "store-notes",
+      "name": "Store Notes"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.llm.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n**Recent Activities (Last 20)**\n{{ $json.ctx.llm.activities.map(act => `${DateTime.fromISO(act.timestamp).format(\"yyyy-MM-dd hh:mm\")} - ${act.description}`).join('\\n') }}\n\n**Recent Notes (Last 10)**\n{{ $json.ctx.llm.notes.map(n => `[${n.category}] ${n.text}`).join('\\n') }}\n\n## Instructions\n\n1. **Consider the full context**: conversation history, activities, and notes\n2. **Provide grounded insights**: Reference specific activities or notes when relevant\n3. **Be conversational**: This is an ongoing dialogue, not a new conversation\n4. **Ask clarifying questions**: Help them think deeper when appropriate\n5. **Be concise**: 3-5 sentences, respect their time\n6. **Don't force connections**: Only mention the guiding principle if it's naturally relevant to what they're asking about\n\n## Style\n- Warm and supportive\n- Natural and conversational\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Conversation History\n{{ $json.ctx.llm.history.map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n') }}\n\nUSER: {{ $json.ctx.event.clean_text }}\n\nASSISTANT:",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2240,
+        400
+      ],
+      "id": "generate-response",
+      "name": "Generate Response"
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2248,
+        624
+      ],
+      "id": "mimo-v2-flash",
+      "name": "mimo-v2-flash",
       "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2376,
+        624
+      ],
+      "id": "nemotron-nano-9b",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
         }
       }
     },
@@ -382,11 +325,81 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        7904,
-        748
+        2464,
+        400
       ],
       "id": "set-llm-completion",
       "name": "Set LLM Completion"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.guild_id }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.ctx.event.thread_id }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.ctx.llm.completion_text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        200
+      ],
+      "id": "post-to-thread",
+      "name": "Post to Thread",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare trace data after LLM inference\nconst ctx = $json.ctx || {};\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${ctx.llm?.north_star || '(not set)'}\n\n**Recent Activities (Last 20)**\n${(ctx.llm?.activities || []).map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${(ctx.llm?.notes || []).map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Conversation History\n${(ctx.llm?.history || []).map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\nUSER: ${ctx.event?.clean_text || ''}\n\nASSISTANT:`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: ctx,\n    input_text: ctx.event?.clean_text || '',\n    input_thread_id: ctx.event?.thread_id,\n    input_history_length: (ctx.llm?.history || []).length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: (ctx.llm?.activities || []).length,\n    result_referenced_notes: (ctx.llm?.notes || []).length,\n    duration_ms: durationMs,\n    event_id: ctx.event?.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        400
+      ],
+      "id": "prepare-trace-data",
+      "name": "Prepare Trace Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_response',\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'thread_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $9::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $10::integer\n    ),\n    $11::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $11::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
+        "options": {
+          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_thread_id }},={{ $json.input_history_length }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.result_referenced_activities }},={{ $json.result_referenced_notes }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2912,
+        400
+      ],
+      "id": "write-trace",
+      "name": "Write Thread Response Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
     },
     {
       "parameters": {
@@ -397,11 +410,34 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        8128,
-        624
+        3136,
+        400
       ],
-      "id": "merge-llm-result",
-      "name": "Merge LLM Result"
+      "id": "merge-trace-result",
+      "name": "Merge Trace Result"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  status,\n  data,\n  timezone\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'thread_response',\n  'auto_confirmed',\n  jsonb_build_object(\n    'thread_id', $4,\n    'response_text', $5,\n    'role', 'assistant',\n    'timestamp', $6::timestamptz\n  ),\n  $7\n)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.event_id }},={{ $json.trace_id }},={{ $json.updated_trace_chain }},={{ $json.ctx.event.thread_id }},={{ $json.ctx.llm.completion_text }},={{ $json.ctx.event.timestamp }},={{ $json.ctx.event.timezone }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        3360,
+        400
+      ],
+      "id": "store-projection",
+      "name": "Store Response Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
     }
   ],
   "connections": {
@@ -409,27 +445,12 @@
       "main": [
         [
           {
-            "node": "Get Conversation History",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get North Star",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Recent Activities",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Recent Notes",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "React with 💭",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare History Query",
             "type": "main",
             "index": 0
           },
@@ -437,80 +458,103 @@
             "node": "Remove 🔵 Reaction",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Wait for Context",
-            "type": "main",
-            "index": 2
           }
         ]
       ]
     },
-    "Get Conversation History": {
+    "Prepare History Query": {
       "main": [
         [
           {
-            "node": "Wait for Context",
+            "node": "Query History",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get North Star": {
+    "Query History": {
       "main": [
         [
           {
-            "node": "Wait for Context",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Get Recent Activities": {
-      "main": [
-        [
-          {
-            "node": "Wait for Context",
-            "type": "main",
-            "index": 3
-          }
-        ]
-      ]
-    },
-    "Get Recent Notes": {
-      "main": [
-        [
-          {
-            "node": "Wait for Context",
-            "type": "main",
-            "index": 4
-          }
-        ]
-      ]
-    },
-    "Wait for Context": {
-      "main": [
-        [
-          {
-            "node": "Build Context",
+            "node": "Store History + Prepare North Star",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Context": {
+    "Store History + Prepare North Star": {
+      "main": [
+        [
+          {
+            "node": "Query North Star",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query North Star": {
+      "main": [
+        [
+          {
+            "node": "Store North Star + Prepare Activities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store North Star + Prepare Activities": {
+      "main": [
+        [
+          {
+            "node": "Query Activities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Activities": {
+      "main": [
+        [
+          {
+            "node": "Store Activities + Prepare Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Activities + Prepare Notes": {
+      "main": [
+        [
+          {
+            "node": "Query Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Notes": {
+      "main": [
+        [
+          {
+            "node": "Store Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Notes": {
       "main": [
         [
           {
             "node": "Generate Response",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Merge LLM Result",
             "type": "main",
             "index": 0
           }
@@ -550,16 +594,16 @@
         ]
       ]
     },
-    "Post to Thread": {
-      "main": [
-        []
-      ]
-    },
-    "Merge Trace Result": {
+    "Set LLM Completion": {
       "main": [
         [
           {
-            "node": "Store Response Projection",
+            "node": "Post to Thread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Trace Data",
             "type": "main",
             "index": 0
           }
@@ -593,27 +637,11 @@
         ]
       ]
     },
-    "Set LLM Completion": {
+    "Merge Trace Result": {
       "main": [
         [
           {
-            "node": "Merge LLM Result",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge LLM Result": {
-      "main": [
-        [
-          {
-            "node": "Prepare Trace Data",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Post to Thread",
+            "node": "Store Response Projection",
             "type": "main",
             "index": 0
           }

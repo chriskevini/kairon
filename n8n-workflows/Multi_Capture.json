@@ -194,7 +194,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Collect results for logging with standard emojis\nconst parseResult = $('Parse Response').first().json;\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '🔲'\n};\n\n// Map capture types to standard emojis\nconst emojis = parseResult.captures.map(c => typeEmojis[c.type] || '📦');\n\nreturn [{\n  json: {\n    ctx: parseResult.ctx,\n    emojis: emojis,\n    duration_ms: parseResult.duration_ms,\n    projection_count: parseResult.total_captures\n  }\n}];"
+        "jsCode": "// Collect results for logging with standard emojis\n// Also prepare db_query for verbose setting lookup\nconst parseResult = $('Parse Response').first().json;\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '🔲'\n};\n\n// Map capture types to standard emojis\nconst emojis = parseResult.captures.map(c => typeEmojis[c.type] || '📦');\n\nreturn [{\n  json: {\n    ctx: {\n      ...parseResult.ctx,\n      db_query: {\n        sql: \"SELECT value FROM config WHERE key = 'verbose'\"\n      }\n    },\n    emojis: emojis,\n    duration_ms: parseResult.duration_ms,\n    projection_count: parseResult.total_captures\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -310,24 +310,29 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'verbose'",
-        "options": {}
+        "workflowId": {
+          "__rl": true,
+          "value": "PLACEHOLDER_QUERY_DB_WORKFLOW_ID",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
         -352,
         1032
       ],
       "id": "query-verbose-setting",
-      "name": "Query Verbose Setting",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "name": "Query Verbose Setting"
     },
     {
       "parameters": {
@@ -335,15 +340,15 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
               "id": "f55070f3-80b6-4076-a05d-6799052b6555",
-              "leftValue": "={{ $json.ctx.verbose }}",
-              "rightValue": true,
+              "leftValue": "={{ $json.ctx.db.results[0]?.value }}",
+              "rightValue": "true",
               "operator": {
-                "type": "boolean",
+                "type": "string",
                 "operation": "equals"
               }
             }
@@ -355,7 +360,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        96,
+        -128,
         1032
       ],
       "id": "if-verbose-true",
@@ -381,24 +386,11 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        320,
+        96,
         1032
       ],
       "id": "trigger-show-details",
       "name": "Trigger Show Details"
-    },
-    {
-      "parameters": {
-        "jsCode": "const ctx = $('Collect Results').first().json.ctx;\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      verbose: $json.value === 'true' || $json.value === true\n    }\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -128,
-        1032
-      ],
-      "id": "merge-ctx-verbose",
-      "name": "Merge Ctx for Verbose"
     }
   ],
   "connections": {
@@ -580,7 +572,7 @@
       "main": [
         [
           {
-            "node": "Merge Ctx for Verbose",
+            "node": "If Verbose True",
             "index": 0,
             "type": "main"
           }
@@ -592,17 +584,6 @@
         [
           {
             "node": "Trigger Show Details",
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Merge Ctx for Verbose": {
-      "main": [
-        [
-          {
-            "node": "If Verbose True",
             "index": 0,
             "type": "main"
           }
