@@ -254,7 +254,7 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "={{ $json.original.guild_id }}",
+          "value": "={{ $json.ctx.event.guild_id }}",
           "mode": "id"
         },
         "channelId": {
