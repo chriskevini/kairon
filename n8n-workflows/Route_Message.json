@@ -16,6 +16,28 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Reset next_pulse to NOW so proactive agent can respond after user activity\nUPDATE config \nSET value = NOW()::text, updated_at = NOW()\nWHERE key = 'next_pulse';\n\n-- Insert if not exists\nINSERT INTO config (key, value)\nVALUES ('next_pulse', NOW()::text)\nON CONFLICT (key) DO NOTHING;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -12624,
+        8400
+      ],
+      "id": "reset-next-pulse",
+      "name": "Reset Next Pulse",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
         "resource": "message",
         "operation": "react",
         "guildId": {
@@ -485,6 +507,11 @@
           },
           {
             "node": "In Thread?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reset Next Pulse",
             "type": "main",
             "index": 0
           }
