@@ -19,6 +19,7 @@ This document explains how to configure environment variables for the Kairon wor
 | `DISCORD_CHANNEL_ARCANE_SHELL` | #arcane-shell channel ID | `123456789012345678` |
 | `DISCORD_CHANNEL_KAIRON_LOGS` | #kairon-logs channel ID | `123456789012345678` |
 | `DISCORD_CHANNEL_OBSIDIAN_BOARD` | #obsidian-board channel ID | `123456789012345678` |
+| `EMBEDDING_SERVICE_URL` | Embedding service URL for RAG | `http://embedding-service:5001` |
 
 ---
 
