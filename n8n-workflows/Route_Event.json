@@ -89,34 +89,47 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT key, value FROM config WHERE key IN ('summary_time', 'last_summary_date');",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        -544,
-        544
-      ],
-      "id": "get-summary-config",
-      "name": "Get Summary Config",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Check if we should run summary (time matches AND not already run today)\nconst currentHour = $now.hour;\nconst todayDate = $now.toFormat('yyyy-MM-dd');\nconst inputItems = $input.all();\n\n// Extract config values\nlet targetHour = 20; // default\nlet lastSummaryDate = null;\n\nfor (const item of inputItems) {\n  if (item.json.key === 'summary_time') {\n    const configTime = item.json.value;\n    if (configTime.includes(':')) {\n      targetHour = parseInt(configTime.split(':')[0]);\n    } else {\n      targetHour = parseInt(configTime);\n    }\n  } else if (item.json.key === 'last_summary_date') {\n    lastSummaryDate = item.json.value;\n  }\n}\n\n// Check 1: Is it the right hour?\nif (currentHour !== targetHour) {\n  return [];\n}\n\n// Check 2: Already ran today?\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - time matches and not run today\nreturn [{ json: { should_run: true, today: todayDate, trigger_reason: 'cron' } }];"
+        "jsCode": "// Build query for summary config\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'summary_config',\n        sql: `SELECT key, value FROM config WHERE key IN ('summary_time', 'last_summary_date');`,\n        params: []\n      }]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
+        -544,
+        544
+      ],
+      "id": "build-summary-config-query",
+      "name": "Build Summary Config Query"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
         -320,
+        544
+      ],
+      "id": "get-summary-config",
+      "name": "Get Summary Config"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if we should run summary (time matches AND not already run today)\nconst ctx = $json.ctx;\nconst configRows = ctx.db?.summary_config?.rows || [];\nconst currentHour = $now.hour;\nconst todayDate = $now.toFormat('yyyy-MM-dd');\n\n// Extract config values\nlet targetHour = 20; // default\nlet lastSummaryDate = null;\n\nfor (const item of configRows) {\n  if (item.key === 'summary_time') {\n    const configTime = item.value;\n    if (configTime.includes(':')) {\n      targetHour = parseInt(configTime.split(':')[0]);\n    } else {\n      targetHour = parseInt(configTime);\n    }\n  } else if (item.key === 'last_summary_date') {\n    lastSummaryDate = item.value;\n  }\n}\n\n// Check 1: Is it the right hour?\nif (currentHour !== targetHour) {\n  return [];\n}\n\n// Check 2: Already ran today?\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - time matches and not run today\nreturn [{ json: { should_run: true, today: todayDate, trigger_reason: 'cron' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
         544
       ],
       "id": "check-summary-time",
@@ -146,7 +159,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -96,
+        128,
         544
       ],
       "id": "execute-summary-cron",
@@ -234,60 +247,82 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_message',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;",
-        "options": {
-          "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ 'https://discord.com/channels/' + $json.guild_id + '/' + $json.channel_id + '/' + $json.message_id }},={{ $json.author.login }},={{ $json.thread_id || null }},={{ $json.content }},={{ $json.clean_text }},={{ $json.tag || null }},={{ $json.timestamp }}"
-        }
-      },
-      "id": "22b228b1-5999-4f45-8dc4-498385ad6aa9",
-      "name": "Store Message Event",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        -96,
-        160
-      ],
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nRETURNING *;",
-        "options": {
-          "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ $json.user?.login || $json.user_id }},={{ $json.thread_id || null }},={{ $json.emoji }},={{ $json.extraction_index }},={{ $json.action }},={{ $json.synthetic_id }}"
-        }
-      },
-      "id": "a6bdb18b-71f2-4c8f-afce-c269250fb9ac",
-      "name": "Store Reaction Event",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        -96,
-        352
-      ],
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Message').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build store message query for Execute_Queries\nconst parsed = $json;\nconst body = $('Discord Webhook Entry').item.json.body;\n\nconst messageUrl = `https://discord.com/channels/${body.guild_id}/${body.channel_id}/${body.message_id}`;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_message',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          messageUrl,\n          body.author?.login || body.author_login,\n          body.thread_id || null,\n          body.content,\n          parsed.clean_text,\n          parsed.tag || null,\n          body.timestamp\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
+        -96,
+        160
+      ],
+      "id": "build-message-event-query",
+      "name": "Build Message Event Query"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
         128,
+        160
+      ],
+      "id": "store-message-event",
+      "name": "Store Message Event"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build store reaction query for Execute_Queries\nconst parsed = $json;\nconst body = $('Discord Webhook Entry').item.json.body;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          body.user?.login || body.user_id,\n          body.thread_id || null,\n          parsed.emoji,\n          parsed.extraction_index,\n          body.action,\n          parsed.synthetic_id\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        352
+      ],
+      "id": "build-reaction-event-query",
+      "name": "Build Reaction Event Query"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        352
+      ],
+      "id": "store-reaction-event",
+      "name": "Store Reaction Event"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhook = $('Build Message Event Query').first().json.webhook;\nconst parsed = $('Build Message Event Query').first().json.parsed;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
         160
       ],
       "id": "ebc352f8-4d54-4ecd-9aee-d6e36d191099",
@@ -295,12 +330,12 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Reaction').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhook = $('Build Reaction Event Query').first().json.webhook;\nconst parsed = $('Build Reaction Event Query').first().json.parsed;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        128,
+        352,
         352
       ],
       "id": "9377cd32-3d33-458d-9cb9-bca0ffb63490",
@@ -329,7 +364,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        352,
+        576,
         352
       ],
       "id": "a03ea0a9-a9d2-4ce7-bb70-3a12397a5719",
@@ -358,7 +393,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        352,
+        576,
         160
       ],
       "id": "29f4a14c-4ba5-481b-9ac0-7d8200241a40",
@@ -402,6 +437,17 @@
       ]
     },
     "Summary Cron (Every 5 Min)": {
+      "main": [
+        [
+          {
+            "node": "Build Summary Config Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Summary Config Query": {
       "main": [
         [
           {
@@ -456,7 +502,29 @@
       "main": [
         [
           {
-            "node": "Store Reaction Event",
+            "node": "Build Reaction Event Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Build Message Event Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Message Event Query": {
+      "main": [
+        [
+          {
+            "node": "Store Message Event",
             "type": "main",
             "index": 0
           }
@@ -468,6 +536,17 @@
         [
           {
             "node": "Initialize Message Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reaction Event Query": {
+      "main": [
+        [
+          {
+            "node": "Store Reaction Event",
             "type": "main",
             "index": 0
           }
@@ -501,17 +580,6 @@
         [
           {
             "node": "Route Reaction",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Message": {
-      "main": [
-        [
-          {
-            "node": "Store Message Event",
             "type": "main",
             "index": 0
           }
