@@ -1,0 +1,138 @@
+{
+  "name": "Smoke_Test",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smoke-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "smoke-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "smoke-test-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const runId = 'smoke-' + Date.now();\nreturn [{ json: { run_id: runId, tests: [] } }];"
+      },
+      "id": "smoke-init",
+      "name": "Initialize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO config (key, value) VALUES ($1, $2)\nON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value\nRETURNING key, value",
+        "options": {
+          "queryReplacement": "={{ ['smoke_test_' + $json.run_id, 'test_' + Date.now()] }}"
+        }
+      },
+      "id": "smoke-db",
+      "name": "DB Round-Trip",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [440, 0],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "smoke-merge",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nlet state = items.find(i => i.json.run_id)?.json || { run_id: 'unknown', tests: [] };\nlet dbResult = items.find(i => i.json.key)?.json;\n\nconst dbPassed = dbResult && dbResult.key && dbResult.key.startsWith('smoke_test_');\nstate.tests.push({ name: 'db_roundtrip', passed: dbPassed, details: dbPassed ? 'OK' : 'Failed' });\n\n// ctx pattern test\nconst ctx = { event: { event_id: 'test', trace_chain: ['a'] }, db: {} };\nconst ctxOk = ctx.event?.trace_chain?.length > 0;\nstate.tests.push({ name: 'ctx_pattern', passed: ctxOk, details: ctxOk ? 'OK' : 'Failed' });\n\nreturn [{ json: state }];"
+      },
+      "id": "smoke-eval",
+      "name": "Evaluate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM config WHERE key LIKE 'smoke_test_%'",
+        "options": {}
+      },
+      "id": "smoke-cleanup",
+      "name": "Cleanup",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1100, 0],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $('Evaluate').first().json;\nconst passed = state.tests.filter(t => t.passed).length;\nconst failed = state.tests.filter(t => !t.passed).length;\nreturn [{ json: {\n  success: failed === 0,\n  message: failed === 0 ? `All ${passed} tests passed` : `${failed} failed`,\n  run_id: state.run_id,\n  summary: { total: state.tests.length, passed, failed },\n  tests: state.tests\n}}];"
+      },
+      "id": "smoke-compile",
+      "name": "Compile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "smoke-respond",
+      "name": "Return",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1540, 0]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{"node": "Initialize", "type": "main", "index": 0}]]
+    },
+    "Initialize": {
+      "main": [[
+        {"node": "DB Round-Trip", "type": "main", "index": 0},
+        {"node": "Merge", "type": "main", "index": 1}
+      ]]
+    },
+    "DB Round-Trip": {
+      "main": [[{"node": "Merge", "type": "main", "index": 0}]]
+    },
+    "Merge": {
+      "main": [[{"node": "Evaluate", "type": "main", "index": 0}]]
+    },
+    "Evaluate": {
+      "main": [[{"node": "Cleanup", "type": "main", "index": 0}]]
+    },
+    "Cleanup": {
+      "main": [[{"node": "Compile", "type": "main", "index": 0}]]
+    },
+    "Compile": {
+      "main": [[{"node": "Return", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

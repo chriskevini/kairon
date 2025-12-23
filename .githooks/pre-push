@@ -1,0 +1,43 @@
+#!/bin/bash
+# Pre-push hook - deploy to dev and run smoke tests before allowing push
+#
+# Install: ln -sf ../../.githooks/pre-push .git/hooks/pre-push
+# Or: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+echo "========================================"
+echo "Pre-push: Running dev deployment + smoke tests"
+echo "========================================"
+echo ""
+
+# Check if any workflow files are being pushed
+WORKFLOW_CHANGES=$(git diff --name-only HEAD @{upstream} 2>/dev/null | grep -c "n8n-workflows/" || true)
+
+if [ "$WORKFLOW_CHANGES" -eq 0 ]; then
+    echo "No workflow changes detected, skipping smoke tests"
+    exit 0
+fi
+
+echo "Detected $WORKFLOW_CHANGES workflow file(s) changed"
+echo ""
+
+# Deploy to dev and run smoke tests
+"$REPO_ROOT/scripts/deploy.sh" dev
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "========================================"
+    echo "PUSH BLOCKED: Dev smoke tests failed"
+    echo "========================================"
+    echo ""
+    echo "Fix the issues and try again."
+    exit 1
+fi
+
+echo ""
+echo "========================================"
+echo "Pre-push checks passed"
+echo "========================================"

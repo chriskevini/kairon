@@ -1,0 +1,117 @@
+#!/bin/bash
+# n8n-push-local.sh - Push workflows to a local n8n instance via API
+#
+# Usage:
+#   WORKFLOW_DIR=/path/to/workflows N8N_API_URL=http://localhost:5679 N8N_API_KEY=xxx ./n8n-push-local.sh
+#
+# This is a simplified version for local dev deployment (no SSH)
+
+set -eo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Allow override of workflow directory (for transformed workflows)
+WORKFLOW_DIR="${WORKFLOW_DIR:-$REPO_ROOT/n8n-workflows}"
+N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
+N8N_API_KEY="${N8N_API_KEY:-}"
+
+if [ -z "$N8N_API_KEY" ]; then
+    echo "Error: N8N_API_KEY not set"
+    exit 1
+fi
+
+# Initialize associative array
+declare -A WORKFLOW_IDS=()
+
+echo "Pushing workflows to $N8N_API_URL"
+echo "   Source: $WORKFLOW_DIR"
+echo ""
+
+# Fetch existing workflows
+echo "Fetching existing workflows..."
+REMOTE_WORKFLOWS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows?limit=100" | jq -r '.data')
+
+if [ -z "$REMOTE_WORKFLOWS" ] || [ "$REMOTE_WORKFLOWS" = "null" ]; then
+    echo "Error: Failed to fetch workflows. Check API key and connectivity."
+    exit 1
+fi
+
+# Build lookup map: name -> id
+if [ "$REMOTE_WORKFLOWS" != "[]" ]; then
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        id=$(echo "$line" | jq -r '.id')
+        name=$(echo "$line" | jq -r '.name')
+        [ "$id" != "null" ] && [ "$name" != "null" ] && WORKFLOW_IDS["$name"]="$id"
+    done < <(echo "$REMOTE_WORKFLOWS" | jq -c '.[]')
+fi
+
+echo "   Found ${#WORKFLOW_IDS[@]} existing workflows"
+echo ""
+
+# Process each workflow file
+CREATED=0
+UPDATED=0
+FAILED=0
+
+for json_file in "$WORKFLOW_DIR"/*.json; do
+    [ -f "$json_file" ] || continue
+    
+    name=$(jq -r '.name' "$json_file")
+    if [ -z "$name" ] || [ "$name" = "null" ]; then
+        echo "   Warning: Skipping $(basename "$json_file"): missing 'name' field"
+        continue
+    fi
+    
+    # Clean workflow JSON - only include fields the API accepts
+    cleaned=$(jq '{
+        name: .name,
+        nodes: .nodes,
+        connections: .connections,
+        settings: (.settings // {})
+    }' "$json_file")
+    
+    existing_id="${WORKFLOW_IDS[$name]:-}"
+    
+    if [ -n "$existing_id" ]; then
+        # Update existing workflow
+        result=$(echo "$cleaned" | curl -s -X PUT \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id" \
+            -d @-)
+        
+        if echo "$result" | jq -e '.id' > /dev/null 2>&1; then
+            echo "   Updated: $name"
+            UPDATED=$((UPDATED + 1))
+        else
+            echo "   Failed to update: $name"
+            echo "     Error: $(echo "$result" | jq -r '.message // .')"
+            FAILED=$((FAILED + 1))
+        fi
+    else
+        # Create new workflow
+        result=$(echo "$cleaned" | curl -s -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            "$N8N_API_URL/api/v1/workflows" \
+            -d @-)
+        
+        new_id=$(echo "$result" | jq -r '.id // empty')
+        if [ -n "$new_id" ]; then
+            echo "   Created: $name (id: $new_id)"
+            CREATED=$((CREATED + 1))
+        else
+            echo "   Failed to create: $name"
+            echo "     Error: $(echo "$result" | jq -r '.message // .')"
+            FAILED=$((FAILED + 1))
+        fi
+    fi
+done
+
+echo ""
+echo "Push complete: $CREATED created, $UPDATED updated, $FAILED failed"
+
+[ $FAILED -gt 0 ] && exit 1
+exit 0
