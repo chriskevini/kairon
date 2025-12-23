@@ -1,8 +1,15 @@
 #!/bin/bash
-# n8n-push-prod.sh - Two-pass deployment with automatic ID remapping
+# n8n-push-prod.sh - Three-pass deployment with automatic ID remapping
+#
+# The "Ultimate Deployer" - handles all workflow deployment needs:
+#   - Pass 1: Initial deployment (create/update workflows)
+#   - Pass 2: Fix workflow ID references (via cachedResultName)
+#   - Pass 3: Fix credential ID references (via DB lookup)
+#
+# MUST run on the server (requires docker exec for credential DB access)
 #
 # Usage:
-#   N8N_API_URL=http://localhost:5678 N8N_API_KEY=xxx ./n8n-push-prod.sh
+#   N8N_API_URL=http://localhost:5678 N8N_API_KEY=xxx WORKFLOW_DIR=/path/to/workflows ./n8n-push-prod.sh
 
 set -eo pipefail
 
@@ -17,6 +24,34 @@ if [ -z "$N8N_API_KEY" ]; then
     echo "Error: N8N_API_KEY not set"
     exit 1
 fi
+
+# Sanitize workflows before deployment
+echo "=========================================="
+echo "SANITIZATION: Cleaning workflow files"
+echo "=========================================="
+echo ""
+echo "Removing pinData and credential IDs from workflows..."
+
+for file in "$WORKFLOW_DIR"/*.json; do
+  [ -f "$file" ] || continue
+  filename=$(basename "$file")
+  
+  # Remove pinData section (test execution data with real IDs)
+  if jq -e '.pinData' "$file" > /dev/null 2>&1; then
+    jq 'del(.pinData)' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+    echo "   Cleaned pinData from: $filename"
+  fi
+
+  # Remove credential IDs (forces deployment to look them up by name)
+  if jq -e '.nodes[].credentials' "$file" > /dev/null 2>&1; then
+    jq '.nodes |= map(if .credentials then .credentials |= with_entries(.value |= del(.id)) else . end)' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+    echo "   Cleaned credential IDs from: $filename"
+  fi
+done
+
+echo ""
+echo "✅ Sanitization complete"
+echo ""
 
 echo "=========================================="
 echo "PASS 1: Initial deployment"

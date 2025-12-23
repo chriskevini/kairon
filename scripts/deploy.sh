@@ -1,6 +1,14 @@
 #!/bin/bash
 # deploy.sh - Deploy workflows to dev and prod with testing
 #
+# This is the MAIN ENTRY POINT for n8n workflow deployment.
+# Use this for CI/CD and manual deployments.
+#
+# Architecture:
+#   - This script orchestrates the deployment pipeline
+#   - For dev: 2-pass deployment with transform_for_dev.py
+#   - For prod: delegates to n8n-push-prod.sh (3-pass deployment with ID fixing)
+#
 # Usage:
 #   ./scripts/deploy.sh           # Full pipeline: dev → test → prod
 #   ./scripts/deploy.sh dev       # Deploy to dev only + run smoke tests
@@ -226,13 +234,33 @@ deploy_prod() {
     fi
     
     # Determine if we're on the remote server or local machine
-    if [ -n "${N8N_DEV_SSH_HOST:-}" ] && command -v rdev &> /dev/null; then
-        # Local machine - use rdev which handles SSH tunneling
-        echo "Pushing workflows to prod n8n via rdev (SSH tunnel)..."
-        rdev n8n push
+    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        # Local machine - sync files to server and run n8n-push-prod.sh there
+        echo "Syncing workflows to $N8N_DEV_SSH_HOST..."
+        
+        # Sync workflow files to remote
+        rsync -av --delete \
+            --exclude '.git' \
+            "$WORKFLOW_DIR/" \
+            "$N8N_DEV_SSH_HOST:/opt/kairon/n8n-workflows/"
+        
+        # Sync deployment script
+        rsync -av \
+            "$SCRIPT_DIR/workflows/n8n-push-prod.sh" \
+            "$N8N_DEV_SSH_HOST:/opt/kairon/scripts/workflows/"
+        
+        echo ""
+        echo "Running 3-pass deployment on server..."
+        # Run the sophisticated 3-pass deployment script ON THE SERVER
+        # This is critical because it needs docker exec access to query credentials
+        ssh "$N8N_DEV_SSH_HOST" "cd /opt/kairon && \
+            N8N_API_URL='${N8N_API_URL:-http://localhost:5678}' \
+            N8N_API_KEY='$N8N_API_KEY' \
+            WORKFLOW_DIR='/opt/kairon/n8n-workflows' \
+            bash /opt/kairon/scripts/workflows/n8n-push-prod.sh"
     else
-        # On server or rdev not available - use direct API access
-        echo "Pushing workflows to prod n8n (direct API)..."
+        # On server - run directly with full 3-pass deployment
+        echo "Running 3-pass deployment (on server)..."
         N8N_API_URL="${N8N_API_URL:-http://localhost:5678}" \
         N8N_API_KEY="$N8N_API_KEY" \
         WORKFLOW_DIR="$WORKFLOW_DIR" \
