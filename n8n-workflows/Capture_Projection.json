@@ -349,6 +349,64 @@
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract text for embedding from projection data\n// Activity uses 'description', Note/Todo use 'text'\nconst projection = $json;\nconst data = projection.data || {};\nconst embeddingText = data.description || data.text || '';\n\nreturn [{\n  json: {\n    projection_id: projection.id,\n    embedding_text: embeddingText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        496
+      ],
+      "id": "prepare-embedding-text",
+      "name": "Prepare Embedding Text"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EMBEDDING_SERVICE_URL }}/embed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"texts\": [{{ JSON.stringify($json.embedding_text || '') }}]\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        320,
+        496
+      ],
+      "id": "embed-projection-text",
+      "name": "Embed Projection Text",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert embedding for the projection (fire-and-forget)\nINSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding)\nSELECT \n  $1::uuid,\n  'all-MiniLM-L6-v2',\n  '{}',\n  $2,\n  $3::vector\nWHERE $3 IS NOT NULL\nON CONFLICT DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ $('Prepare Embedding Text').first().json.projection_id }},={{ $('Prepare Embedding Text').first().json.embedding_text }},={{ $json.embeddings && $json.embeddings[0] ? '[' + $json.embeddings[0].join(',') + ']' : null }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        544,
+        496
+      ],
+      "id": "insert-embedding",
+      "name": "Insert Embedding",
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
     }
   ],
   "connections": {
@@ -476,6 +534,33 @@
         [
           {
             "node": "Log to Kairon Logs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Embedding Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Embedding Text": {
+      "main": [
+        [
+          {
+            "node": "Embed Projection Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Projection Text": {
+      "main": [
+        [
+          {
+            "node": "Insert Embedding",
             "type": "main",
             "index": 0
           }
