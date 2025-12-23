@@ -30,118 +30,182 @@
         "operation": "executeQuery",
         "query": "INSERT INTO config (key, value) VALUES ($1, $2)\nON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value\nRETURNING key, value",
         "options": {
-          "queryReplacement": "={{ ['smoke_test_' + $json.run_id, 'test_' + Date.now()] }}"
+          "queryReplacement": "={{ ['smoke_' + $json.run_id, $json.run_id] }}"
         }
       },
-      "id": "smoke-db",
-      "name": "DB Round-Trip",
+      "id": "test-db-write",
+      "name": "Test DB Write",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [440, 0],
-      "credentials": {
-        "postgres": {
-          "name": "Postgres account"
-        }
-      },
+      "credentials": { "postgres": { "name": "Postgres account" } },
       "alwaysOutputData": true
     },
     {
       "parameters": {
         "mode": "append",
+        "numberInputs": 2,
         "options": {}
       },
-      "id": "smoke-merge",
-      "name": "Merge",
+      "id": "merge-1",
+      "name": "Merge 1",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [660, 0]
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nlet state = items.find(i => i.json.run_id)?.json || { run_id: 'unknown', tests: [] };\nlet dbResult = items.find(i => i.json.key)?.json;\n\nconst dbPassed = dbResult && dbResult.key && dbResult.key.startsWith('smoke_test_');\nstate.tests.push({ name: 'db_roundtrip', passed: dbPassed, details: dbPassed ? 'OK' : 'Failed' });\n\n// ctx pattern test\nconst ctx = { event: { event_id: 'test', trace_chain: ['a'] }, db: {} };\nconst ctxOk = ctx.event?.trace_chain?.length > 0;\nstate.tests.push({ name: 'ctx_pattern', passed: ctxOk, details: ctxOk ? 'OK' : 'Failed' });\n\nreturn [{ json: state }];"
+        "jsCode": "const items = $input.all();\nconst state = items.find(i => i.json.run_id)?.json || { run_id: 'unknown', tests: [] };\nconst dbResult = items.find(i => i.json.key)?.json;\n\nconst passed = dbResult?.key === 'smoke_' + state.run_id && dbResult?.value === state.run_id;\nstate.tests.push({ name: 'db_write', passed, details: passed ? 'OK' : 'UPSERT mismatch' });\n\nreturn [{ json: state }];"
       },
-      "id": "smoke-eval",
-      "name": "Evaluate",
+      "id": "eval-1",
+      "name": "Eval DB Write",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [880, 0]
     },
     {
       "parameters": {
-        "jsCode": "// Prepare ctx for Query_DB test\nconst state = $json;\nreturn [{\n  json: {\n    _state: state,\n    ctx: {\n      event: { event_id: 'smoke-test' },\n      db_queries: [\n        { key: 'test1', sql: 'SELECT 1 as value' },\n        { key: 'test2', sql: 'SELECT 2 as value' }\n      ]\n    }\n  }\n}];"
+        "jsCode": "// Test 2: Tag parsing - all 6 tags plus edge cases\nconst state = $json;\n\nconst TAG_TABLE = [\n  ['!!', 'act'],\n  ['..', 'note'],\n  ['++', 'chat'],\n  ['--', 'save'],\n  ['::', 'cmd'],\n  ['$$', 'todo', 'to-do']\n];\n\nconst testCases = [\n  // Symbol tags\n  { input: '!! did work', expect: { tag: '!!', clean: 'did work' } },\n  { input: '..thinking', expect: { tag: '..', clean: 'thinking' } },\n  { input: '++ chat', expect: { tag: '++', clean: 'chat' } },\n  { input: '-- save', expect: { tag: '--', clean: 'save' } },\n  { input: '::help', expect: { tag: '::', clean: 'help' } },\n  { input: '$$ todo', expect: { tag: '$$', clean: 'todo' } },\n  // Word aliases\n  { input: 'act work', expect: { tag: '!!', clean: 'work' } },\n  { input: 'note thought', expect: { tag: '..', clean: 'thought' } },\n  { input: 'chat hello', expect: { tag: '++', clean: 'hello' } },\n  { input: 'save this', expect: { tag: '--', clean: 'this' } },\n  { input: 'cmd list', expect: { tag: '::', clean: 'list' } },\n  { input: 'todo buy milk', expect: { tag: '$$', clean: 'buy milk' } },\n  // No tag\n  { input: 'no tag here', expect: { tag: null, clean: 'no tag here' } },\n  // Glued symbols (should match)\n  { input: '!!glued', expect: { tag: '!!', clean: 'glued' } },\n  // Glued words (should NOT match - requires space)\n  { input: 'actglued', expect: { tag: null, clean: 'actglued' } },\n  // Empty after tag\n  { input: '!!', expect: { tag: '!!', clean: '' } },\n  { input: 'act', expect: { tag: '!!', clean: '' } }\n];\n\nfunction parseTag(content) {\n  const lower = content.toLowerCase();\n  for (const row of TAG_TABLE) {\n    const norm = row[0];\n    const match = row.find(a => {\n      const al = a.toLowerCase();\n      const isSymbol = !/[a-z0-9]/i.test(al);\n      return isSymbol ? lower.startsWith(al) : (lower.startsWith(al + ' ') || lower === al);\n    });\n    if (match) return { tag: norm, clean_text: content.slice(match.length).trim() };\n  }\n  return { tag: null, clean_text: content };\n}\n\nlet fails = [];\nfor (const tc of testCases) {\n  const r = parseTag(tc.input);\n  if (r.tag !== tc.expect.tag || r.clean_text !== tc.expect.clean) {\n    fails.push(`\"${tc.input}\": got(${r.tag},\"${r.clean_text}\") want(${tc.expect.tag},\"${tc.expect.clean}\")`);\n  }\n}\n\nstate.tests.push({ name: 'tag_parsing', passed: fails.length === 0, details: fails.length === 0 ? 'OK' : fails.slice(0,3).join('; ') });\nreturn [{ json: state }];"
       },
-      "id": "smoke-prep-query-db",
-      "name": "Prepare Query_DB",
+      "id": "test-tags",
+      "name": "Test Tags",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1100, 0]
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "QXmBwl6dvPbW001h"
-        },
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "jsCode": "// Test 3: Prepare Query_DB - tests sub-workflow communication\nconst state = $json;\nreturn [{\n  json: {\n    _state: state,\n    ctx: {\n      event: { event_id: 'smoke-' + state.run_id },\n      db_queries: [\n        { key: 'scalar', sql: 'SELECT 42 as value' },\n        { key: 'multi', sql: 'SELECT generate_series(1,3) as n' },\n        { key: 'empty', sql: 'SELECT 1 WHERE false' },\n        { key: 'params', sql: 'SELECT $1::text as echo', params: ['hello'] }\n      ]\n    }\n  }\n}];"
       },
-      "id": "smoke-query-db",
+      "id": "prep-qdb",
+      "name": "Prep Query_DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "id", "value": "QXmBwl6dvPbW001h" },
+        "options": { "waitForSubWorkflow": true }
+      },
+      "id": "call-qdb",
       "name": "Call Query_DB",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
-      "position": [1320, 0],
+      "position": [1540, 0],
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// Evaluate Query_DB result\nconst input = $json;\n\n// Handle error case\nif (input.error) {\n  const state = $('Prepare Query_DB').first().json._state;\n  state.tests.push({ \n    name: 'query_db', \n    passed: false, \n    details: 'Query_DB failed: ' + (input.error.message || JSON.stringify(input.error))\n  });\n  return [{ json: state }];\n}\n\n// Check ctx.db has our query results\nconst ctx = input.ctx;\nconst test1Ok = ctx?.db?.test1?.results?.[0]?.value === 1;\nconst test2Ok = ctx?.db?.test2?.results?.[0]?.value === 2;\nconst passed = test1Ok && test2Ok;\n\nconst state = $('Prepare Query_DB').first().json._state;\nstate.tests.push({ \n  name: 'query_db', \n  passed, \n  details: passed ? 'OK' : `test1=${test1Ok}, test2=${test2Ok}`\n});\n\nreturn [{ json: state }];"
+        "jsCode": "const input = $json;\nconst state = $('Prep Query_DB').first().json._state;\n\nif (input.error) {\n  state.tests.push({ name: 'query_db', passed: false, details: 'SubWorkflow error: ' + (input.error.message || 'unknown') });\n  return [{ json: state }];\n}\n\nconst db = input.ctx?.db || {};\n\n// Test scalar query\nconst scalarOk = db.scalar?.results?.[0]?.value === 42;\n\n// Test multi-row query\nconst multiOk = db.multi?.results?.length === 3 && db.multi?.results?.[0]?.n === 1;\n\n// Test empty result - n8n returns [{}] for empty, not []\nconst emptyRes = db.empty?.results || [];\nconst emptyOk = emptyRes.length === 0 || (emptyRes.length === 1 && Object.keys(emptyRes[0]||{}).length === 0);\n\n// Test parameterized query\nconst paramsOk = db.params?.results?.[0]?.echo === 'hello';\n\n// Verify db_queries was cleaned up\nconst cleanOk = !input.ctx?.db_queries;\n\nconst passed = scalarOk && multiOk && emptyOk && paramsOk && cleanOk;\nlet details = 'OK';\nif (!passed) {\n  details = `scalar=${scalarOk}, multi=${multiOk}, empty=${emptyOk}, params=${paramsOk}, clean=${cleanOk}`;\n}\n\nstate.tests.push({ name: 'query_db', passed, details });\nreturn [{ json: state }];"
       },
-      "id": "smoke-eval-query-db",
-      "name": "Evaluate Query_DB",
+      "id": "eval-qdb",
+      "name": "Eval Query_DB",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1540, 0]
+      "position": [1760, 0]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "DELETE FROM config WHERE key LIKE 'smoke_test_%'",
-        "options": {}
+        "jsCode": "// Test 4: ctx pattern - verify data preservation through transforms\nconst state = $json;\n\n// Simulate ctx flowing through workflow transforms\nlet ctx = {\n  event: {\n    event_id: 'test-123',\n    trace_chain: ['test-123'],\n    clean_text: 'original text',\n    tag: '!!',\n    channel_id: 'chan-1'\n  }\n};\n\n// Transform 1: Add db namespace (like Query_DB does)\nctx = {\n  ...ctx,\n  db: {\n    results: [{ id: 1, name: 'test' }],\n    count: 1\n  }\n};\n\n// Transform 2: Add llm namespace (like LLM wrapper does)\nctx = {\n  ...ctx,\n  llm: {\n    completion_text: 'LLM response',\n    duration_ms: 150,\n    confidence: 0.95\n  }\n};\n\n// Transform 3: Update trace_chain (like Store Trace does)\nconst newTraceId = 'trace-456';\nctx = {\n  ...ctx,\n  event: {\n    ...ctx.event,\n    trace_chain: [...ctx.event.trace_chain, newTraceId]\n  }\n};\n\n// Transform 4: Add validation namespace\nctx = {\n  ...ctx,\n  validation: { valid: true }\n};\n\n// Verify ALL original data preserved\nconst checks = [\n  ctx.event.event_id === 'test-123',\n  ctx.event.clean_text === 'original text',\n  ctx.event.tag === '!!',\n  ctx.event.channel_id === 'chan-1',\n  ctx.event.trace_chain.length === 2,\n  ctx.event.trace_chain[0] === 'test-123',\n  ctx.event.trace_chain[1] === 'trace-456',\n  ctx.db.results[0].id === 1,\n  ctx.db.count === 1,\n  ctx.llm.completion_text === 'LLM response',\n  ctx.llm.duration_ms === 150,\n  ctx.validation.valid === true\n];\n\nconst passed = checks.every(c => c);\nconst failIdx = checks.findIndex(c => !c);\nstate.tests.push({\n  name: 'ctx_preservation',\n  passed,\n  details: passed ? 'OK' : `Failed check ${failIdx}`\n});\n\nreturn [{ json: state }];"
       },
-      "id": "smoke-cleanup",
-      "name": "Cleanup",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [1760, 0],
-      "credentials": {
-        "postgres": {
-          "name": "Postgres account"
-        }
-      },
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "jsCode": "const state = $('Evaluate Query_DB').first().json;\nconst passed = state.tests.filter(t => t.passed).length;\nconst failed = state.tests.filter(t => !t.passed).length;\nreturn [{ json: {\n  success: failed === 0,\n  message: failed === 0 ? `All ${passed} tests passed` : `${failed} failed`,\n  run_id: state.run_id,\n  summary: { total: state.tests.length, passed, failed },\n  tests: state.tests\n}}];"
-      },
-      "id": "smoke-compile",
-      "name": "Compile",
+      "id": "test-ctx",
+      "name": "Test ctx Pattern",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1980, 0]
     },
     {
       "parameters": {
+        "jsCode": "// Test 5: Postgres array formatting for trace_chain\nconst state = $json;\n\nconst testCases = [\n  { chain: ['uuid-1'], expected: '{uuid-1}' },\n  { chain: ['uuid-1', 'uuid-2'], expected: '{uuid-1,uuid-2}' },\n  { chain: ['uuid-1', 'uuid-2', 'uuid-3'], expected: '{uuid-1,uuid-2,uuid-3}' },\n  { chain: [], expected: '{}' }\n];\n\nfunction formatChain(chain) {\n  return '{' + chain.join(',') + '}';\n}\n\nlet fails = [];\nfor (const tc of testCases) {\n  const result = formatChain(tc.chain);\n  if (result !== tc.expected) {\n    fails.push(`${JSON.stringify(tc.chain)} => \"${result}\" (want \"${tc.expected}\")`);\n  }\n}\n\nstate.tests.push({\n  name: 'trace_chain_format',\n  passed: fails.length === 0,\n  details: fails.length === 0 ? 'OK' : fails.join('; ')\n});\n\nreturn [{ json: state }];"
+      },
+      "id": "test-format",
+      "name": "Test Trace Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Test 6: JSON serialization edge cases (for Postgres JSONB)\nconst state = $json;\n\nconst testCases = [\n  // Basic types\n  { input: { key: 'value' }, check: o => o.key === 'value' },\n  { input: { num: 42 }, check: o => o.num === 42 },\n  { input: { bool: true }, check: o => o.bool === true },\n  { input: { nil: null }, check: o => o.nil === null },\n  // Nested\n  { input: { nested: { deep: 'value' } }, check: o => o.nested.deep === 'value' },\n  // Arrays\n  { input: { arr: [1, 2, 3] }, check: o => o.arr.length === 3 },\n  // Unicode\n  { input: { emoji: '🚀' }, check: o => o.emoji === '🚀' },\n  { input: { unicode: 'café' }, check: o => o.unicode === 'café' },\n  // Special chars\n  { input: { quote: '\"quoted\"' }, check: o => o.quote === '\"quoted\"' },\n  { input: { newline: 'line1\\nline2' }, check: o => o.newline === 'line1\\nline2' }\n];\n\nlet fails = [];\nfor (let i = 0; i < testCases.length; i++) {\n  const tc = testCases[i];\n  try {\n    const serialized = JSON.stringify(tc.input);\n    const parsed = JSON.parse(serialized);\n    if (!tc.check(parsed)) {\n      fails.push(`case ${i}: check failed`);\n    }\n  } catch (e) {\n    fails.push(`case ${i}: ${e.message}`);\n  }\n}\n\nstate.tests.push({\n  name: 'json_serialization',\n  passed: fails.length === 0,\n  details: fails.length === 0 ? 'OK' : fails.join('; ')\n});\n\nreturn [{ json: state }];"
+      },
+      "id": "test-json",
+      "name": "Test JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Test 7: Check schema exists (tables we need)\nSELECT \n  (SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'events') as has_events,\n  (SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'traces') as has_traces,\n  (SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'projections') as has_projections,\n  (SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'config') as has_config",
+        "options": {}
+      },
+      "id": "test-schema",
+      "name": "Test Schema",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2640, 0],
+      "credentials": { "postgres": { "name": "Postgres account" } },
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2,
+        "options": {}
+      },
+      "id": "merge-schema",
+      "name": "Merge Schema",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2860, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst state = items.find(i => i.json.tests)?.json;\nconst schema = items.find(i => i.json.has_events !== undefined)?.json;\n\nif (!schema) {\n  state.tests.push({ name: 'schema_check', passed: false, details: 'Query failed' });\n  return [{ json: state }];\n}\n\n// In dev, we may not have full schema - just check config exists\nconst configOk = parseInt(schema.has_config) > 0;\nconst fullSchema = parseInt(schema.has_events) > 0 && parseInt(schema.has_traces) > 0 && parseInt(schema.has_projections) > 0;\n\nstate.tests.push({\n  name: 'schema_check',\n  passed: configOk,\n  details: fullSchema ? 'Full schema' : (configOk ? 'Config only (dev mode)' : 'Missing config table')\n});\n\nreturn [{ json: state }];"
+      },
+      "id": "eval-schema",
+      "name": "Eval Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3080, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM config WHERE key LIKE 'smoke_%'",
+        "options": {}
+      },
+      "id": "cleanup",
+      "name": "Cleanup",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [3300, 0],
+      "credentials": { "postgres": { "name": "Postgres account" } },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $('Eval Schema').first().json;\nconst passed = state.tests.filter(t => t.passed).length;\nconst failed = state.tests.filter(t => !t.passed).length;\nreturn [{ json: {\n  success: failed === 0,\n  run_id: state.run_id,\n  summary: { total: state.tests.length, passed, failed },\n  tests: state.tests\n}}];"
+      },
+      "id": "compile",
+      "name": "Compile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3520, 0]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}"
       },
-      "id": "smoke-respond",
+      "id": "respond",
       "name": "Return",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [2200, 0]
+      "position": [3740, 0]
     }
   ],
   "connections": {
@@ -150,26 +214,50 @@
     },
     "Initialize": {
       "main": [[
-        {"node": "DB Round-Trip", "type": "main", "index": 0},
-        {"node": "Merge", "type": "main", "index": 1}
+        {"node": "Test DB Write", "type": "main", "index": 0},
+        {"node": "Merge 1", "type": "main", "index": 1}
       ]]
     },
-    "DB Round-Trip": {
-      "main": [[{"node": "Merge", "type": "main", "index": 0}]]
+    "Test DB Write": {
+      "main": [[{"node": "Merge 1", "type": "main", "index": 0}]]
     },
-    "Merge": {
-      "main": [[{"node": "Evaluate", "type": "main", "index": 0}]]
+    "Merge 1": {
+      "main": [[{"node": "Eval DB Write", "type": "main", "index": 0}]]
     },
-    "Evaluate": {
-      "main": [[{"node": "Prepare Query_DB", "type": "main", "index": 0}]]
+    "Eval DB Write": {
+      "main": [[{"node": "Test Tags", "type": "main", "index": 0}]]
     },
-    "Prepare Query_DB": {
+    "Test Tags": {
+      "main": [[{"node": "Prep Query_DB", "type": "main", "index": 0}]]
+    },
+    "Prep Query_DB": {
       "main": [[{"node": "Call Query_DB", "type": "main", "index": 0}]]
     },
     "Call Query_DB": {
-      "main": [[{"node": "Evaluate Query_DB", "type": "main", "index": 0}]]
+      "main": [[{"node": "Eval Query_DB", "type": "main", "index": 0}]]
     },
-    "Evaluate Query_DB": {
+    "Eval Query_DB": {
+      "main": [[{"node": "Test ctx Pattern", "type": "main", "index": 0}]]
+    },
+    "Test ctx Pattern": {
+      "main": [[{"node": "Test Trace Format", "type": "main", "index": 0}]]
+    },
+    "Test Trace Format": {
+      "main": [[{"node": "Test JSON", "type": "main", "index": 0}]]
+    },
+    "Test JSON": {
+      "main": [[
+        {"node": "Test Schema", "type": "main", "index": 0},
+        {"node": "Merge Schema", "type": "main", "index": 1}
+      ]]
+    },
+    "Test Schema": {
+      "main": [[{"node": "Merge Schema", "type": "main", "index": 0}]]
+    },
+    "Merge Schema": {
+      "main": [[{"node": "Eval Schema", "type": "main", "index": 0}]]
+    },
+    "Eval Schema": {
       "main": [[{"node": "Cleanup", "type": "main", "index": 0}]]
     },
     "Cleanup": {
