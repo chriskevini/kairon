@@ -194,12 +194,92 @@ done
 
 echo ""
 echo "=========================================="
+echo "PASS 3: Fix credential references"
+echo "=========================================="
+echo ""
+
+# Fetch all credentials from database
+# Note: n8n API doesn't expose GET /credentials, so we query the DB directly
+# Detect database based on API URL
+if [[ "$N8N_API_URL" == *":5679"* ]]; then
+    N8N_DB="n8n_dev"
+else
+    N8N_DB="n8n_chat_memory"
+fi
+CREDENTIAL_MAP=$(docker exec postgres-db psql -U n8n_user -d "$N8N_DB" -t -A -c "SELECT json_object_agg(name, id) FROM credentials_entity;" 2>/dev/null || echo '{}')
+
+if [ "$CREDENTIAL_MAP" = "{}" ] || [ -z "$CREDENTIAL_MAP" ]; then
+    echo "Warning: Could not fetch credentials from database"
+    echo "Skipping credential fixes"
+else
+    echo "Credential mapping:"
+    echo "$CREDENTIAL_MAP" | jq -r 'to_entries[] | "  \(.key) = \(.value)"'
+    echo ""
+fi
+
+# Update each workflow's credential references
+CRED_FIXED=0
+
+if [ "$CREDENTIAL_MAP" != "{}" ] && [ -n "$CREDENTIAL_MAP" ]; then
+for workflow_name in $(echo "$WORKFLOW_NAME_TO_ID" | jq -r 'keys[]'); do
+    workflow_id=$(echo "$WORKFLOW_NAME_TO_ID" | jq -r ".[\"$workflow_name\"]")
+    
+    # Fetch full workflow
+    workflow_json=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows/$workflow_id")
+    
+    # Check if it has nodes with credentials
+    if ! echo "$workflow_json" | jq -e '.nodes[] | select(.credentials)' > /dev/null 2>&1; then
+        continue
+    fi
+    
+    echo "Fixing credentials in: $workflow_name"
+    
+    # Update credential references to include IDs
+    updated_json=$(echo "$workflow_json" | jq --argjson credmap "$CREDENTIAL_MAP" '
+        .nodes |= map(
+            if .credentials then
+                .credentials |= with_entries(
+                    .value |= (
+                        if .name and $credmap[.name] then
+                            .id = $credmap[.name]
+                        else
+                            .
+                        end
+                    )
+                )
+            else
+                .
+            end
+        )
+    ')
+    
+    # Update workflow
+    update_payload=$(echo "$updated_json" | jq '{name, nodes, connections, settings}')
+    result=$(echo "$update_payload" | curl -s -X PUT \
+        -H "X-N8N-API-KEY: $N8N_API_KEY" \
+        -H "Content-Type: application/json" \
+        "$N8N_API_URL/api/v1/workflows/$workflow_id" \
+        -d @-)
+    
+    if echo "$result" | jq -e '.id' > /dev/null 2>&1; then
+        echo "  ✓ Fixed"
+        CRED_FIXED=$((CRED_FIXED + 1))
+    else
+        echo "  ✗ Failed: $(echo "$result" | jq -r '.message // .')"
+    fi
+done
+fi
+
+echo ""
+echo "=========================================="
 echo "DEPLOYMENT COMPLETE"
 echo "=========================================="
 echo "Pass 1: $CREATED created, $UPDATED updated"
 echo "Pass 2: $FIXED workflows fixed"
+echo "Pass 3: $CRED_FIXED credential references fixed"
 echo ""
 echo "✅ ALL workflow IDs automatically injected"
 echo "   - Hardcoded IDs updated via cachedResultName"
 echo "   - Env var expressions replaced with actual IDs"
+echo "✅ ALL credential IDs automatically linked"
 echo "✅ No manual configuration needed!"

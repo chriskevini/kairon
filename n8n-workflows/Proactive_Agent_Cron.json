@@ -114,8 +114,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "list"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Proactive_Agent"
         },
         "options": {
           "waitForSubWorkflow": false

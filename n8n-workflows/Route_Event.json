@@ -61,8 +61,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "59PoRBQyv8eCroDh",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Generate_Nudge"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -105,7 +106,8 @@
         "workflowId": {
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "id"
+          "mode": "list",
+          "cachedResultName": "Query_DB"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -139,8 +141,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "cIROQISrYEAKML84",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Generate_Daily_Summary"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -234,7 +237,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = body.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = body.message_id;\nconst userId = body.user?.id || body.user_id;\nconst timestamp = Date.now();\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${timestamp}`;\n\nreturn [{\n  json: {\n    ...body,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
+        "jsCode": "const body = $json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = body.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = body.message_id;\nconst userId = body.user?.id || body.user_id;\nconst timestamp = Date.now();\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${timestamp}`;\n\nreturn [{\n  json: {\n    ...body,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -263,7 +266,8 @@
         "workflowId": {
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "id"
+          "mode": "list",
+          "cachedResultName": "Query_DB"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -298,7 +302,8 @@
         "workflowId": {
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "id"
+          "mode": "list",
+          "cachedResultName": "Query_DB"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",

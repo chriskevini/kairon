@@ -68,7 +68,8 @@
         "workflowId": {
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "id"
+          "mode": "list",
+          "cachedResultName": "Query_DB"
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -127,7 +128,8 @@
         "workflowId": {
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "id"
+          "mode": "list",
+          "cachedResultName": "Query_DB"
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -205,7 +207,8 @@
         "workflowId": {
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "id"
+          "mode": "list",
+          "cachedResultName": "Query_DB"
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
