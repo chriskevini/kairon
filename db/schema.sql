@@ -96,6 +96,27 @@ CREATE TABLE IF NOT EXISTS embeddings (
 
 CREATE INDEX IF NOT EXISTS idx_embeddings_projection_id ON embeddings(projection_id);
 
+-- Prompt modules: Composable prompt building blocks for the proactive agent
+CREATE TABLE IF NOT EXISTS prompt_modules (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL UNIQUE,
+  content TEXT NOT NULL,
+  module_type TEXT NOT NULL,
+  tags TEXT[] DEFAULT '{}',
+  priority INTEGER DEFAULT 50,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  CONSTRAINT valid_module_type CHECK (
+    module_type IN ('persona', 'technique', 'guardrail', 'format', 'context')
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_modules_type ON prompt_modules(module_type);
+CREATE INDEX IF NOT EXISTS idx_prompt_modules_active ON prompt_modules(active) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_prompt_modules_tags ON prompt_modules USING GIN(tags);
+
 --------------------------------------------------------------------------------
 -- CONVENIENCE VIEWS
 --------------------------------------------------------------------------------
