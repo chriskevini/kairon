@@ -206,9 +206,7 @@
             }
           ]
         },
-        "options": {
-          "fallbackOutput": 2
-        }
+        "options": {}
       },
       "id": "1c5b0871-58a8-457f-8b94-c1225e4e38b7",
       "name": "Route by Event Type",
@@ -221,7 +219,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = body.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = body.message_id;\nconst userId = body.user?.id || body.user_id;\nconst timestamp = Date.now();\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${timestamp}`;\n\nreturn [{\n  json: {\n    ...body,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
+        "jsCode": "const reaction = $json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst timestamp = Date.now();\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${timestamp}`;\n\nreturn [{\n  json: {\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -235,9 +233,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_message',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;",
+        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ 'https://discord.com/channels/' + $json.guild_id + '/' + $json.channel_id + '/' + $json.message_id }},={{ $json.author.login }},={{ $json.thread_id || null }},={{ $json.content }},={{ $json.clean_text }},={{ $json.tag || null }},={{ $json.timestamp }}"
+          "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ 'https://discord.com/channels/' + $json.guild_id + '/' + $json.channel_id + '/' + $json.message_id }},={{ $json.author.login }},={{ $json.thread_id || null }},={{ $json.content }},={{ $('Parse Message').item.json.clean_text }},={{ $('Parse Message').item.json.tag || null }},={{ $json.timestamp }}"
         }
       },
       "id": "22b228b1-5999-4f45-8dc4-498385ad6aa9",
@@ -259,9 +257,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nRETURNING *;",
+        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9\n)\nRETURNING *;",
         "options": {
-          "queryReplacement": "={{ $json.guild_id }},={{ $json.channel_id }},={{ $json.message_id }},={{ $json.user?.login || $json.user_id }},={{ $json.thread_id || null }},={{ $json.emoji }},={{ $json.extraction_index }},={{ $json.action }},={{ $json.synthetic_id }}"
+          "queryReplacement": "={{ $json.body.guild_id }},={{ $json.body.channel_id }},={{ $json.body.message_id }},={{ $json.body.user?.login || $json.body.user_id }},={{ $json.body.thread_id || null }},={{ $('Parse Reaction').item.json.emoji }},={{ $('Parse Reaction').item.json.extraction_index }},={{ $json.body.action }},={{ $('Parse Reaction').item.json.synthetic_id }}"
         }
       },
       "id": "a6bdb18b-71f2-4c8f-afce-c269250fb9ac",
@@ -282,7 +280,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Message').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Message').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -295,7 +293,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Reaction').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Reaction').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
