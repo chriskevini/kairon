@@ -31,8 +31,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries"
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -90,7 +91,6 @@
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
           "name": "OpenRouter account"
         }
       }
@@ -112,7 +112,6 @@
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
           "name": "OpenRouter account"
         }
       }
@@ -147,7 +146,6 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       }
@@ -183,7 +181,6 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
@@ -210,7 +207,6 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
@@ -233,8 +229,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries"
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",

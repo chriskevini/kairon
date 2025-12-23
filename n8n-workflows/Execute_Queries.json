@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate input and initialize loop state\n// Execute_Queries: Unified sub-workflow for all database operations\n// - Executes queries sequentially (supports chaining via $results)\n// - Preserves ctx throughout\n// - Stores results in ctx.db[key] = { row, rows, count }\n\nconst ctx = $json.ctx;\n\nif (!ctx?.db_queries || !Array.isArray(ctx.db_queries) || ctx.db_queries.length === 0) {\n  throw new Error('Execute_Queries requires ctx.db_queries array with at least one query');\n}\n\n// Validate each query has required fields\nfor (let i = 0; i < ctx.db_queries.length; i++) {\n  const q = ctx.db_queries[i];\n  if (!q.key) {\n    throw new Error(`Execute_Queries: Query at index ${i} missing 'key' field`);\n  }\n  if (!q.sql) {\n    throw new Error(`Execute_Queries: Query '${q.key}' at index ${i} missing 'sql' field`);\n  }\n}\n\n// Initialize loop state\nreturn [{\n  json: {\n    original_ctx: ctx,\n    queries: ctx.db_queries,\n    current_index: 0,\n    results: {}  // Will accumulate {key: {row, rows, count}}\n  }\n}];"
+        "jsCode": "// Validate input and initialize loop state\n// Execute_Queries: Unified sub-workflow for all database operations\n// - Executes queries sequentially (supports chaining via $results)\n// - Preserves ctx throughout\n// - Stores results in ctx.db[key] = { row, rows, count }\n\nconst ctx = $json.ctx;\n\n// If no queries or empty array, return state that will skip the loop gracefully\nif (!ctx?.db_queries || !Array.isArray(ctx.db_queries) || ctx.db_queries.length === 0) {\n  return [{\n    json: {\n      original_ctx: ctx || {},\n      queries: [],\n      current_index: 0,\n      results: {},\n      has_more: false\n    }\n  }];\n}\n\n// Validate each query has required fields\nfor (let i = 0; i < ctx.db_queries.length; i++) {\n  const q = ctx.db_queries[i];\n  if (!q.key) {\n    throw new Error(`Execute_Queries: Query at index ${i} missing 'key' field`);\n  }\n  if (!q.sql) {\n    throw new Error(`Execute_Queries: Query '${q.key}' at index ${i} missing 'sql' field`);\n  }\n}\n\n// Initialize loop state\nreturn [{\n  json: {\n    original_ctx: ctx,\n    queries: ctx.db_queries,\n    current_index: 0,\n    results: {},\n    has_more: true\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -26,6 +26,39 @@
       ],
       "id": "initialize-loop",
       "name": "Initialize Loop"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-queries",
+              "leftValue": "={{ $json.queries.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "larger"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        330,
+        -100
+      ],
+      "id": "has-queries",
+      "name": "Has Queries?"
     },
     {
       "parameters": {
@@ -58,7 +91,7 @@
       "name": "Execute Query",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       },
       "alwaysOutputData": true
@@ -154,7 +187,25 @@
       "main": [
         [
           {
+            "node": "Has Queries?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Queries?": {
+      "main": [
+        [
+          {
             "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Context",
             "type": "main",
             "index": 0
           }

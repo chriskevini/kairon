@@ -12,7 +12,10 @@
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "webhookId": "smoke-test-webhook"
     },
     {
@@ -23,7 +26,10 @@
       "name": "Initialize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, 0]
+      "position": [
+        220,
+        0
+      ]
     },
     {
       "parameters": {
@@ -37,8 +43,15 @@
       "name": "Test DB Write",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [440, 0],
-      "credentials": { "postgres": { "name": "Postgres account" } },
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p2SIY25QglSNcDnj"
+        }
+      },
       "alwaysOutputData": true
     },
     {
@@ -51,7 +64,10 @@
       "name": "Merge 1",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [660, 0]
+      "position": [
+        660,
+        0
+      ]
     },
     {
       "parameters": {
@@ -61,7 +77,10 @@
       "name": "Eval DB Write",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [880, 0]
+      "position": [
+        880,
+        0
+      ]
     },
     {
       "parameters": {
@@ -71,7 +90,10 @@
       "name": "Test Tags",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 0]
+      "position": [
+        1100,
+        0
+      ]
     },
     {
       "parameters": {
@@ -81,18 +103,30 @@
       "name": "Prep Execute_Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1320, 0]
+      "position": [
+        1320,
+        0
+      ]
     },
     {
       "parameters": {
-        "workflowId": { "__rl": true, "mode": "id", "value": "QXmBwl6dvPbW001h" },
-        "options": { "waitForSubWorkflow": true }
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "QXmBwl6dvPbW001h"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
       },
       "id": "call-qdb",
       "name": "Call Execute_Queries",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
-      "position": [1540, 0],
+      "position": [
+        1540,
+        0
+      ],
       "continueOnFail": true
     },
     {
@@ -103,7 +137,10 @@
       "name": "Eval Execute_Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1760, 0]
+      "position": [
+        1760,
+        0
+      ]
     },
     {
       "parameters": {
@@ -113,7 +150,10 @@
       "name": "Test ctx Pattern",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1980, 0]
+      "position": [
+        1980,
+        0
+      ]
     },
     {
       "parameters": {
@@ -123,17 +163,23 @@
       "name": "Test Trace Format",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2200, 0]
+      "position": [
+        2200,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Test 6: JSON serialization edge cases (for Postgres JSONB)\nconst state = $json;\n\nconst testCases = [\n  // Basic types\n  { input: { key: 'value' }, check: o => o.key === 'value' },\n  { input: { num: 42 }, check: o => o.num === 42 },\n  { input: { bool: true }, check: o => o.bool === true },\n  { input: { nil: null }, check: o => o.nil === null },\n  // Nested\n  { input: { nested: { deep: 'value' } }, check: o => o.nested.deep === 'value' },\n  // Arrays\n  { input: { arr: [1, 2, 3] }, check: o => o.arr.length === 3 },\n  // Unicode\n  { input: { emoji: '🚀' }, check: o => o.emoji === '🚀' },\n  { input: { unicode: 'café' }, check: o => o.unicode === 'café' },\n  // Special chars\n  { input: { quote: '\"quoted\"' }, check: o => o.quote === '\"quoted\"' },\n  { input: { newline: 'line1\\nline2' }, check: o => o.newline === 'line1\\nline2' }\n];\n\nlet fails = [];\nfor (let i = 0; i < testCases.length; i++) {\n  const tc = testCases[i];\n  try {\n    const serialized = JSON.stringify(tc.input);\n    const parsed = JSON.parse(serialized);\n    if (!tc.check(parsed)) {\n      fails.push(`case ${i}: check failed`);\n    }\n  } catch (e) {\n    fails.push(`case ${i}: ${e.message}`);\n  }\n}\n\nstate.tests.push({\n  name: 'json_serialization',\n  passed: fails.length === 0,\n  details: fails.length === 0 ? 'OK' : fails.join('; ')\n});\n\nreturn [{ json: state }];"
+        "jsCode": "// Test 6: JSON serialization edge cases (for Postgres JSONB)\nconst state = $json;\n\nconst testCases = [\n  // Basic types\n  { input: { key: 'value' }, check: o => o.key === 'value' },\n  { input: { num: 42 }, check: o => o.num === 42 },\n  { input: { bool: true }, check: o => o.bool === true },\n  { input: { nil: null }, check: o => o.nil === null },\n  // Nested\n  { input: { nested: { deep: 'value' } }, check: o => o.nested.deep === 'value' },\n  // Arrays\n  { input: { arr: [1, 2, 3] }, check: o => o.arr.length === 3 },\n  // Unicode\n  { input: { emoji: '\ud83d\ude80' }, check: o => o.emoji === '\ud83d\ude80' },\n  { input: { unicode: 'caf\u00e9' }, check: o => o.unicode === 'caf\u00e9' },\n  // Special chars\n  { input: { quote: '\"quoted\"' }, check: o => o.quote === '\"quoted\"' },\n  { input: { newline: 'line1\\nline2' }, check: o => o.newline === 'line1\\nline2' }\n];\n\nlet fails = [];\nfor (let i = 0; i < testCases.length; i++) {\n  const tc = testCases[i];\n  try {\n    const serialized = JSON.stringify(tc.input);\n    const parsed = JSON.parse(serialized);\n    if (!tc.check(parsed)) {\n      fails.push(`case ${i}: check failed`);\n    }\n  } catch (e) {\n    fails.push(`case ${i}: ${e.message}`);\n  }\n}\n\nstate.tests.push({\n  name: 'json_serialization',\n  passed: fails.length === 0,\n  details: fails.length === 0 ? 'OK' : fails.join('; ')\n});\n\nreturn [{ json: state }];"
       },
       "id": "test-json",
       "name": "Test JSON",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2420, 0]
+      "position": [
+        2420,
+        0
+      ]
     },
     {
       "parameters": {
@@ -145,8 +191,15 @@
       "name": "Test Schema",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2640, 0],
-      "credentials": { "postgres": { "name": "Postgres account" } },
+      "position": [
+        2640,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p2SIY25QglSNcDnj"
+        }
+      },
       "alwaysOutputData": true,
       "continueOnFail": true
     },
@@ -160,7 +213,10 @@
       "name": "Merge Schema",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [2860, 0]
+      "position": [
+        2860,
+        0
+      ]
     },
     {
       "parameters": {
@@ -170,7 +226,10 @@
       "name": "Eval Schema",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3080, 0]
+      "position": [
+        3080,
+        0
+      ]
     },
     {
       "parameters": {
@@ -182,8 +241,15 @@
       "name": "Cleanup",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [3300, 0],
-      "credentials": { "postgres": { "name": "Postgres account" } },
+      "position": [
+        3300,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p2SIY25QglSNcDnj"
+        }
+      },
       "continueOnFail": true
     },
     {
@@ -194,7 +260,10 @@
       "name": "Compile",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3520, 0]
+      "position": [
+        3520,
+        0
+      ]
     },
     {
       "parameters": {
@@ -205,75 +274,209 @@
       "name": "Return",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [3740, 0]
+      "position": [
+        3740,
+        0
+      ]
     }
   ],
   "connections": {
     "Webhook Trigger": {
-      "main": [[{"node": "Initialize", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Initialize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Initialize": {
-      "main": [[
-        {"node": "Test DB Write", "type": "main", "index": 0},
-        {"node": "Merge 1", "type": "main", "index": 1}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Test DB Write",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge 1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
     },
     "Test DB Write": {
-      "main": [[{"node": "Merge 1", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Merge 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Merge 1": {
-      "main": [[{"node": "Eval DB Write", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Eval DB Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Eval DB Write": {
-      "main": [[{"node": "Test Tags", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Test Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Test Tags": {
-      "main": [[{"node": "Prep Execute_Queries", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Prep Query_DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Prep Execute_Queries": {
-      "main": [[{"node": "Call Execute_Queries", "type": "main", "index": 0}]]
+    "Prep Query_DB": {
+      "main": [
+        [
+          {
+            "node": "Call Query_DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Call Execute_Queries": {
-      "main": [[{"node": "Eval Execute_Queries", "type": "main", "index": 0}]]
+    "Call Query_DB": {
+      "main": [
+        [
+          {
+            "node": "Eval Query_DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Eval Execute_Queries": {
-      "main": [[{"node": "Test ctx Pattern", "type": "main", "index": 0}]]
-    },
-    "Prep Execute_Queries": {
-      "main": [[{"node": "Call Execute_Queries", "type": "main", "index": 0}]]
-    },
-    "Call Execute_Queries": {
-      "main": [[{"node": "Eval Execute_Queries", "type": "main", "index": 0}]]
-    },
-    "Eval Execute_Queries": {
-      "main": [[{"node": "Test ctx Pattern", "type": "main", "index": 0}]]
+    "Eval Query_DB": {
+      "main": [
+        [
+          {
+            "node": "Test ctx Pattern",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Test ctx Pattern": {
-      "main": [[{"node": "Test Trace Format", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Test Trace Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Test Trace Format": {
-      "main": [[{"node": "Test JSON", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Test JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Test JSON": {
-      "main": [[
-        {"node": "Test Schema", "type": "main", "index": 0},
-        {"node": "Merge Schema", "type": "main", "index": 1}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Test Schema",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Schema",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
     },
     "Test Schema": {
-      "main": [[{"node": "Merge Schema", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Merge Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Merge Schema": {
-      "main": [[{"node": "Eval Schema", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Eval Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Eval Schema": {
-      "main": [[{"node": "Cleanup", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Cleanup": {
-      "main": [[{"node": "Compile", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Compile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Compile": {
-      "main": [[{"node": "Return", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Return",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
