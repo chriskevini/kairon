@@ -267,30 +267,35 @@
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "list",
-          "cachedResultName": "Execute_Queries"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "ctx": "={{ $json.ctx }}"
-          }
-        },
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "operation": "executeQuery",
+        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  $11,\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;",
+        "values": [
+          "={{$json.ctx.db_queries[0].params[0]}}",
+          "={{$json.ctx.db_queries[0].params[1]}}",
+          "={{$json.ctx.db_queries[0].params[2]}}",
+          "={{$json.ctx.db_queries[0].params[3]}}",
+          "={{$json.ctx.db_queries[0].params[4]}}",
+          "={{$json.ctx.db_queries[0].params[5]}}",
+          "={{$json.ctx.db_queries[0].params[6]}}",
+          "={{$json.ctx.db_queries[0].params[7]}}",
+          "={{$json.ctx.db_queries[0].params[8]}}",
+          "={{$json.ctx.db_queries[0].params[9]}}",
+          "={{$json.ctx.db_queries[0].params[10]}}"
+        ]
       },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
       "position": [
         128,
         160
       ],
       "id": "store-message-event",
-      "name": "StoreMessageEvent"
+      "name": "StoreMessageEvent",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres DB"
+        }
+      }
     },
     {
       "parameters": {
@@ -334,7 +339,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhook = $('BuildMessageEventQuery').first().json.webhook;\nconst parsed = $('BuildMessageEventQuery').first().json.parsed;\n\nif (!dbResult) {\n  throw new Error('Database result (event) not found in ctx.db.event.row');\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: dbResult.event_type,\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $('StoreMessageEvent').first().json;\nconst webhook = $('BuildMessageEventQuery').first().json.webhook;\nconst parsed = $('BuildMessageEventQuery').first().json.parsed;\n\nif (!dbResult || !dbResult.id) {\n  throw new Error('Database result (event) not found from StoreMessageEvent');\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: dbResult.event_type,\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
