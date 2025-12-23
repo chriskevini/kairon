@@ -355,6 +355,48 @@ curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
 | `fix_json_files.py` | Fix control characters in workflow JSON |
 | `test_json_files.py` | Test and fix broken workflow JSON files |
 
+## Testing Workflows
+
+### Unit Test Framework
+
+All workflows undergo structural and functional testing before deployment.
+
+```bash
+# Run all tests (structural + functional)
+./scripts/deploy.sh dev  # Runs STAGE 0: Unit Tests automatically
+
+# Run tests manually
+python3 scripts/workflows/unit_test_framework.py --all  # Structural
+pytest n8n-workflows/tests/                             # Functional
+
+# Test specific workflow
+python3 scripts/workflows/unit_test_framework.py n8n-workflows/Route_Message.json
+pytest n8n-workflows/tests/test_Route_Message.py
+
+# Generate test template for new workflow
+python3 scripts/workflows/unit_test_framework.py --generate New_Workflow.json
+```
+
+### Writing Tests
+
+**Tier 1 workflows** (high risk/importance) must have both structural and functional tests.
+
+**Test checklist for new workflows**:
+- [ ] **Structural**: No orphan nodes, consistent connection naming, trigger presence.
+- [ ] **ctx Pattern**: Ensure nodes read from/write to `ctx` correctly.
+- [ ] **Logic**: Verify JS code logic (regex, aliases, mappings) using `pytest`.
+- [ ] **Integration**: Verify database operations (`executeQuery`) and subworkflow calls.
+
+Example functional test pattern:
+```python
+def test_ctx_preservation(self):
+    workflow = load_workflow()
+    nodes = workflow.get("nodes", [])
+    prep_node = next((n for n in nodes if n["name"] == "Prepare Context"), None)
+    assert prep_node is not None
+    assert "ctx:" in prep_node["parameters"]["jsCode"]
+```
+
 ### Database Health Scripts
 
 SQL scripts in `scripts/db/` for checking database state:
