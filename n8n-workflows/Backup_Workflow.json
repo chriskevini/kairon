@@ -69,7 +69,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "postgres-db",
           "name": "Postgres DB"
         }
       },
@@ -99,7 +98,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "postgres-db",
           "name": "Postgres DB"
         }
       },
@@ -109,7 +107,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n\ud83d\udcc1 Backup Directory: ${backupDir}\\n\u2705 Successfully backed up: ${successCount} items\\n\u274c Failed to backup: ${errorCount} items\\n\u26a0\ufe0f  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n}];"
+        "functionCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n📁 Backup Directory: ${backupDir}\\n✅ Successfully backed up: ${successCount} items\\n❌ Failed to backup: ${errorCount} items\\n⚠️  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n}];"
       },
       "id": "5",
       "name": "Format Success Message",
@@ -173,7 +171,6 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "postgres-db",
           "name": "Postgres DB"
         }
       },

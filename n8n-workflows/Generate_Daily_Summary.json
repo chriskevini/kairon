@@ -44,9 +44,7 @@
       "id": "insert-event",
       "name": "insert_event",
       "credentials": {
-        "postgres": {
-          "id": "p2SIY25QglSNcDnj"
-        }
+        "postgres": {}
       }
     },
     {

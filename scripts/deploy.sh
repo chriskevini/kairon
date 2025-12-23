@@ -76,6 +76,10 @@ deploy_dev() {
     TEMP_DIR=$(mktemp -d)
     trap "rm -rf $TEMP_DIR" EXIT
     
+    # Capture output for diagnostics
+    local OUTPUT_FILE=$(mktemp)
+    trap "rm -rf $TEMP_DIR $OUTPUT_FILE" EXIT
+    
     # Wrap actual deployment in a block to capture output
     {
         # Pass 1
@@ -94,7 +98,7 @@ deploy_dev() {
         fi
         
         WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
-            "$SCRIPT_DIR/workflows/n8n-push-local.sh" > /dev/null
+            "$SCRIPT_DIR/workflows/n8n-push-local.sh" > "$OUTPUT_FILE" 2>&1
         
         # Pass 2
         DEV_WORKFLOW_IDS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
@@ -133,9 +137,12 @@ deploy_dev() {
         fi
         
         WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
-            "$SCRIPT_DIR/workflows/n8n-push-local.sh" > /dev/null
+            "$SCRIPT_DIR/workflows/n8n-push-local.sh" >> "$OUTPUT_FILE" 2>&1
     } || {
         echo "❌ FAILED"
+        echo "----------------------------------------"
+        cat "$OUTPUT_FILE"
+        echo "----------------------------------------"
         return 1
     }
     
@@ -190,6 +197,10 @@ deploy_prod() {
         exit 1
     fi
     
+    # Capture output for diagnostics
+    local OUTPUT_FILE=$(mktemp)
+    trap "rm -f $OUTPUT_FILE" EXIT
+    
     {
         # Determine if we're on the remote server or local machine
         if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
@@ -207,15 +218,18 @@ deploy_prod() {
                 N8N_API_URL='${N8N_API_URL:-http://localhost:5678}' \
                 N8N_API_KEY='$N8N_API_KEY' \
                 WORKFLOW_DIR='/opt/kairon/n8n-workflows' \
-                bash /opt/kairon/scripts/workflows/n8n-push-prod.sh" > /dev/null
+                bash /opt/kairon/scripts/workflows/n8n-push-prod.sh" > "$OUTPUT_FILE" 2>&1
         else
             N8N_API_URL="${N8N_API_URL:-http://localhost:5678}" \
             N8N_API_KEY="$N8N_API_KEY" \
             WORKFLOW_DIR="$WORKFLOW_DIR" \
-                "$SCRIPT_DIR/workflows/n8n-push-prod.sh" > /dev/null
+                "$SCRIPT_DIR/workflows/n8n-push-prod.sh" > "$OUTPUT_FILE" 2>&1
         fi
     } || {
         echo "❌ FAILED"
+        echo "----------------------------------------"
+        cat "$OUTPUT_FILE"
+        echo "----------------------------------------"
         return 1
     }
     
