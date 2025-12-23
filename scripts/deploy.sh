@@ -225,14 +225,19 @@ deploy_prod() {
         exit 1
     fi
     
-    # Use rdev which handles SSH-based API access
-    if ! command -v rdev &> /dev/null; then
-        echo "Error: rdev not found. Install from ~/.local/bin/rdev"
-        exit 1
+    # Determine if we're on the remote server or local machine
+    if [ -n "${N8N_DEV_SSH_HOST:-}" ] && command -v rdev &> /dev/null; then
+        # Local machine - use rdev which handles SSH tunneling
+        echo "Pushing workflows to prod n8n via rdev (SSH tunnel)..."
+        rdev n8n push
+    else
+        # On server or rdev not available - use direct API access
+        echo "Pushing workflows to prod n8n (direct API)..."
+        N8N_API_URL="${N8N_API_URL:-http://localhost:5678}" \
+        N8N_API_KEY="$N8N_API_KEY" \
+        WORKFLOW_DIR="$WORKFLOW_DIR" \
+            "$SCRIPT_DIR/workflows/n8n-push-prod.sh"
     fi
-    
-    echo "Pushing workflows to prod n8n via rdev..."
-    rdev n8n push
     
     echo ""
     echo "PROD deployment complete"

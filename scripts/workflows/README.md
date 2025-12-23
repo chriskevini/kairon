@@ -63,32 +63,30 @@ export N8N_PROD_API_KEY="your-prod-api-key"
 
 ```bash
 cd /root/kairon
-./scripts/workflows/n8n-deploy.sh
+./scripts/deploy.sh
 ```
 
 **Flow:**
 1. Deploy to dev (localhost:5679)
 2. Run smoke tests on dev
-3. Prompt for prod deployment
-4. Deploy to prod (n8n.chrisirineo.com)
-5. Run smoke tests on prod
+3. Deploy to prod (n8n.chrisirineo.com)
+
+**Note:** `deploy.sh` automatically detects the environment:
+- Local machine with `rdev`: Uses SSH tunneling
+- Server or no `rdev`: Uses direct API access
 
 ### Dev Only
 
 ```bash
 cd /root/kairon
-N8N_API_URL=http://localhost:5679 \
-N8N_API_KEY="$N8N_DEV_API_KEY" \
-./scripts/workflows/n8n-push-prod.sh
+./scripts/deploy.sh dev
 ```
 
 ### Prod Only (Not Recommended)
 
 ```bash
 cd /root/kairon
-N8N_API_URL=http://localhost:5678 \
-N8N_API_KEY="$N8N_PROD_API_KEY" \
-./scripts/workflows/n8n-push-prod.sh
+./scripts/deploy.sh prod
 ```
 
 ## How It Works
@@ -214,9 +212,12 @@ N8N_API_KEY="$N8N_PROD_API_KEY" \
 2. Ensure executeWorkflow nodes use `mode: "list"` with `cachedResultName`
 3. Test locally:
    ```bash
-   ./scripts/workflows/n8n-deploy.sh
+   ./scripts/deploy.sh dev
    ```
-4. If dev tests pass, approve prod deployment
+4. If dev tests pass, deploy to prod:
+   ```bash
+   ./scripts/deploy.sh prod
+   ```
 5. Commit changes
 
 ### Adding New Workflows
@@ -251,21 +252,26 @@ chmod 600 ~/.n8n_credentials.env
 
 ## Scripts
 
-- `n8n-deploy.sh` - Full dev→prod deployment pipeline
-- `n8n-push-prod.sh` - Deploy to single environment
+- `../deploy.sh` - Main deployment script (works locally and on server)
+- `n8n-push-local.sh` - Push to local/dev n8n via direct API
+- `n8n-push-prod.sh` - 3-pass deployment (workflow IDs, credentials, references)
 - `setup-dev-n8n.sh` - Set up dev n8n instance
+- `validate_workflows.sh` - Validate workflow JSON files
+- `sanitize_workflows.sh` - Remove pinData from workflow exports
 
 ## Environment Variables
 
 ```bash
-# Required for n8n-deploy.sh
+# Required (add to .env in project root)
 N8N_DEV_API_KEY="dev-api-key"
-N8N_PROD_API_KEY="prod-api-key"
+N8N_API_KEY="prod-api-key"
+REMOTE_HOST="DigitalOcean"              # SSH host for rdev
+N8N_DEV_SSH_HOST="DigitalOcean"         # SSH host for dev tunneling
 
 # Optional (defaults shown)
-N8N_DEV_URL="http://localhost:5679"
-N8N_PROD_URL="http://localhost:5678"
-WORKFLOW_DIR="/root/kairon/n8n-workflows"
+N8N_DEV_API_URL="http://localhost:5679"
+N8N_API_URL="http://localhost:5678"
+WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
 ```
 
 ## Database Info
