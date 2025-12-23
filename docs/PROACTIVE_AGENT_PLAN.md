@@ -2,7 +2,25 @@
 
 **System:** Kairon Life-Tracking Agent  
 **Stack:** n8n, PostgreSQL, Docker, OpenRouter, Python embedding sidecar  
-**Status:** Design Document
+**Status:** Active Implementation (Progress: 75%)
+
+---
+
+## 0. Current Implementation Progress (2025-12-22)
+
+### ✅ Completed
+- **Phase 1: Prompt Modules**: Table created (`prompt_modules`), initial modules seeded, and `Proactive_Agent.json` uses tag-based assembly.
+- **Phase 2: Embedding Service**: Python sidecar is live, `pgvector` enabled, and `Save_Extraction` posts to the embedding service.
+- **Phase 4 (Infrastructure): Intelligent Scheduling**: `next_pulse` exists in `config`, `Proactive_Agent_Cron.json` respects it, and `Route_Message.json` resets it on user activity.
+
+### ⚠️ In Progress / Partial
+- **Phase 3: Semantic Selection**: `prompt_modules` table has an `embedding` column, but the `Proactive_Agent` workflow does not yet perform vector similarity searches to select coaching techniques. It still relies on tags.
+- **Phase 4 (Logic): Dynamic Scheduling**: The `Proactive_Agent` LLM prompt hasn't been fully tuned to return structured `next_pulse` values, so the cron currently falls back to a default 2-hour interval.
+
+### 🚀 Next Steps
+1. **Implement Semantic Selection**: Update `Proactive_Agent.json` to query `prompt_modules` using vector cosine similarity based on recent user activity.
+2. **Tune Agent Scheduling**: Update the proactive agent's prompt to return a JSON object containing both the `message` and a calculated `next_pulse` timestamp.
+3. **Automate Embedding Backfills**: Ensure the `backfill_embeddings.py` script runs periodically or after missed saves.
 
 ---
 
