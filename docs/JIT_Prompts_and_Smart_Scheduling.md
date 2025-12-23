@@ -118,6 +118,16 @@ def health():
 
 Leaves ~1GB headroom for OS and spikes.
 
+### Environment Variables
+
+```bash
+# .env additions for Phase 2
+EMBEDDING_SERVICE_URL=http://embedding-service:5001
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+```
+
+Workflows use `{{ $env.EMBEDDING_SERVICE_URL }}` following existing patterns.
+
 ### Deployment
 
 ```yaml
@@ -144,12 +154,16 @@ CREATE TABLE IF NOT EXISTS prompt_modules (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL UNIQUE,
   content TEXT NOT NULL,
-  module_type TEXT NOT NULL,  -- 'persona', 'technique', 'guardrail', 'format', 'context'
+  module_type TEXT NOT NULL,
   tags TEXT[] DEFAULT '{}',   -- For filtering: ['coaching', 'morning', 'emotional']
   priority INTEGER DEFAULT 50, -- Assembly order (lower = earlier in prompt)
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  CONSTRAINT valid_module_type CHECK (
+    module_type IN ('persona', 'technique', 'guardrail', 'format', 'context')
+  )
 );
 
 CREATE INDEX IF NOT EXISTS idx_prompt_modules_type ON prompt_modules(module_type);
@@ -163,6 +177,20 @@ CREATE INDEX IF NOT EXISTS idx_prompt_modules_tags ON prompt_modules USING GIN(t
 
 ```sql
 -- Migration: 023_enable_pgvector.sql
+-- Prerequisites:
+--   1. pgvector extension installed on PostgreSQL server
+--   2. Database user has CREATE EXTENSION privilege
+
+BEGIN;
+
+-- Check if pgvector is available
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector') THEN
+    RAISE EXCEPTION 'pgvector extension not available. Install: apt install postgresql-15-pgvector';
+  END IF;
+END $$;
+
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Add embedding column to prompt_modules
@@ -174,12 +202,15 @@ CREATE INDEX IF NOT EXISTS idx_prompt_modules_embedding
   WITH (lists = 10);
 
 -- Add vector column to existing embeddings table
+-- Note: embedding_data (JSONB) remains for metadata
 ALTER TABLE embeddings 
   ADD COLUMN IF NOT EXISTS embedding VECTOR(384);
 
 CREATE INDEX IF NOT EXISTS idx_embeddings_vector 
   ON embeddings USING ivfflat (embedding vector_cosine_ops) 
   WITH (lists = 100);
+
+COMMIT;
 ```
 
 ### Why Split Migrations?
@@ -430,10 +461,24 @@ WHERE key = 'next_pulse';
 4. Backfill embeddings for existing projections
 5. Add embedding generation to save workflows
 
+**Embedding in Save Workflows:**
+- Modify `Save_Extraction` to POST to embedding service after insert
+- Use fire-and-forget pattern: don't block save on embedding failure
+- Log warning if embedding service is down, projection still saves
+
+**Backfill Script:**
+```bash
+# scripts/db/backfill_embeddings.py
+# 1. Query projections without embeddings (LEFT JOIN embeddings WHERE NULL)
+# 2. Batch texts (32 at a time) to POST /embed
+# 3. INSERT into embeddings table
+# 4. Progress logging for large datasets
+```
+
 **Deliverables:**
 - [ ] `embedding-service/` directory with Dockerfile
 - [ ] Migration file
-- [ ] Backfill script
+- [ ] Backfill script (`scripts/db/backfill_embeddings.py`)
 - [ ] Modified Save_Extraction workflow
 
 ### Phase 3: Semantic Selection
@@ -455,10 +500,16 @@ WHERE key = 'next_pulse';
 3. Agent returns next_pulse in response
 4. User messages reset next_pulse
 
+**Cron Workflow Design:**
+- n8n Cron node triggers every 5 minutes
+- Query `config` for `next_pulse`
+- If `NOW() >= next_pulse`: Execute Proactive Agent workflow
+- Agent response includes `next_pulse` (e.g., morning → +24h, stuck todo → +2h)
+
 **Deliverables:**
-- [ ] Modified cron workflow
-- [ ] Agent prompt update for scheduling
-- [ ] Message handler update
+- [ ] `Proactive_Agent_Cron.json` workflow (cron trigger → check next_pulse → Execute Workflow)
+- [ ] Modified `Route_Message` workflow (reset next_pulse on user message)
+- [ ] Agent prompt includes scheduling logic (returns next_pulse in response)
 
 ---
 
@@ -476,3 +527,32 @@ prompts/
 ```
 
 The proactive agent uses **database-stored modules** for flexibility. Reactive workflows can continue using static files until there's a reason to migrate them.
+
+---
+
+## 10. Testing Strategy
+
+### Phase 1: Prompt Modules
+- [ ] Seed initial modules via migration
+- [ ] Test tag-based selection (morning, evening, stuck_todo)
+- [ ] Verify priority-based assembly order
+- [ ] Test active flag toggling (disabled modules excluded)
+
+### Phase 2: Embedding Service
+- [ ] Health check endpoint returns 200
+- [ ] Embed single text (latency < 100ms on CPU)
+- [ ] Embed batch (32 texts)
+- [ ] Backfill script completes without errors
+- [ ] Save workflow continues if embedding service is down
+
+### Phase 3: Semantic Selection
+- [ ] Similarity search returns reasonable matches
+- [ ] Top-k parameter works correctly
+- [ ] RAG retrieval respects time window (30 days)
+- [ ] Assembled prompt includes retrieved context
+
+### Phase 4: Intelligent Scheduling
+- [ ] Cron respects next_pulse (skips if `NOW() < next_pulse`)
+- [ ] Agent sets appropriate next_pulse values
+- [ ] User message resets next_pulse to NOW()
+- [ ] No duplicate messages (proper idempotency)
