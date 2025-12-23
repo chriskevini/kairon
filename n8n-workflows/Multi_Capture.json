@@ -133,7 +133,7 @@
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
           "mode": "list",
-          "cachedResultName": "Query_DB"
+          "cachedResultName": "Execute_Queries"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -169,7 +169,7 @@
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
           "mode": "list",
-          "cachedResultName": "Query_DB"
+          "cachedResultName": "Execute_Queries"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -308,7 +308,7 @@
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
           "mode": "list",
-          "cachedResultName": "Query_DB"
+          "cachedResultName": "Execute_Queries"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -450,7 +450,7 @@
           "__rl": true,
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
           "mode": "list",
-          "cachedResultName": "Query_DB"
+          "cachedResultName": "Execute_Queries"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
