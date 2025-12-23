@@ -7,7 +7,10 @@
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [-400, 300],
+      "position": [
+        -400,
+        300
+      ],
       "id": "trigger-quality-rating",
       "name": "Receive Event"
     },
@@ -17,7 +20,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-180, 300],
+      "position": [
+        -180,
+        300
+      ],
       "id": "parse-quality",
       "name": "Parse Quality Rating"
     },
@@ -31,7 +37,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [40, 300],
+      "position": [
+        40,
+        300
+      ],
       "id": "update-quality-score",
       "name": "Update Quality Score",
       "alwaysOutputData": true,
@@ -48,7 +57,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [260, 300],
+      "position": [
+        260,
+        300
+      ],
       "id": "format-response",
       "name": "Format Response"
     },
@@ -72,7 +84,10 @@
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
-      "position": [480, 300],
+      "position": [
+        480,
+        300
+      ],
       "id": "send-response",
       "name": "Send Response",
       "webhookId": "quality-rating-response",
