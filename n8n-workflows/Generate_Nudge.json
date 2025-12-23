@@ -52,7 +52,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\nconst prepareData = $(\"Prepare Event\").first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"nudge\",\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id]\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx with event_id and prepare batch database queries\nconst eventResult = $json;\nconst prepareData = $(\"Prepare Event\").first().json;\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '4 hours'\n          ORDER BY (p.data->>'timestamp')::timestamptz DESC`\n  },\n  {\n    key: 'last_note',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (p.data->>'timestamp')::timestamptz DESC\n          LIMIT 1`\n  },\n  {\n    key: 'timezone',\n    sql: `SELECT value as timezone FROM config WHERE key = 'timezone'`\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"nudge\",\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id]\n      },\n      db_queries\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -65,114 +65,29 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'north_star';",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        896,
-        -192
-      ],
-      "id": "get-north-star",
-      "name": "Get North Star",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+        "workflowId": {
+          "__rl": true,
+          "value": "UpiUvzlgVuMdYsnp",
+          "mode": "id"
         }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'description' as description\nFROM projections p\nWHERE p.projection_type = 'activity'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '4 hours'\nORDER BY (p.data->>'timestamp')::timestamptz DESC;",
-        "options": {}
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         896,
         0
       ],
-      "id": "get-recent-activities",
-      "name": "Get Recent Activities (4h)",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "execute-query-db",
+      "name": "Query_DB"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'text' as text\nFROM projections p\nWHERE p.projection_type = 'note'\n  AND p.status IN ('auto_confirmed', 'confirmed')\nORDER BY (p.data->>'timestamp')::timestamptz DESC\nLIMIT 1;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        896,
-        192
-      ],
-      "id": "get-last-note",
-      "name": "Get Last Note",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT value as timezone FROM config WHERE key = 'timezone';",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        896,
-        384
-      ],
-      "id": "get-timezone",
-      "name": "Get Timezone",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 5
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        1120,
-        0
-      ],
-      "id": "merge-query-results",
-      "name": "Merge Query Results"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Build LLM prompt context\nconst allItems = $input.all();\n\n// Extract ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\n// Extract timezone (default to UTC if not set)\nlet timezone = 'UTC';\nconst tzItems = allItems.filter(item => item.json.timezone !== undefined);\nif (tzItems.length > 0 && tzItems[0].json.timezone) {\n  timezone = tzItems[0].json.timezone;\n}\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    // Fallback if timezone is invalid\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\n// Extract north star (fallback to introspection prompt)\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = allItems.filter(item => item.json.value !== undefined);\nif (northStarItems.length > 0 && northStarItems[0].json.value) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities (has 'description' field)\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract last note (has 'text' field but not 'description')\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  !item.json.error\n);\n\n// Format activities list with user's timezone\nlet activitiesList = '';\nlet noActivities = true;\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  noActivities = false;\n  activityItems.forEach(item => {\n    const time = formatTime(item.json.timestamp);\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format last note with user's timezone\nlet lastNote = '(None)';\nif (noteItems.length > 0 && noteItems[0].json.text) {\n  const note = noteItems[0].json;\n  const time = formatTime(note.timestamp);\n  lastNote = `${time} [${note.category}] ${note.text}`;\n}\n\n// Current time in user's timezone for prompt\nlet currentTime;\ntry {\n  currentTime = new Date().toLocaleString('en-US', {\n    timeZone: timezone,\n    weekday: 'short',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n} catch (e) {\n  currentTime = new Date().toLocaleString('en-US', {\n    weekday: 'short',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n}\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList,\n    no_activities: noActivities,\n    last_note: lastNote,\n    timestamp: currentTime,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n}];\n"
+        "jsCode": "// Build LLM prompt context from Query_DB results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract timezone from db results, fallback to event timezone or UTC\nconst timezone = db.timezone?.results?.[0]?.timezone || ctx.event.timezone || 'UTC';\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    // Fallback if timezone is invalid\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\n// Extract north star (fallback to introspection prompt)\nconst northStar = db.north_star?.results?.[0]?.value || 'To determine my north star from deep introspection';\n\n// Extract activities from db results\nconst activityItems = db.activities?.results || [];\n\n// Extract last note from db results\nconst noteItems = db.last_note?.results || [];\n\n// Format activities list with user's timezone\nlet activitiesList = '';\nlet noActivities = true;\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  noActivities = false;\n  activityItems.forEach(item => {\n    const time = formatTime(item.timestamp);\n    activitiesList += `- ${time}: [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format last note\nlet lastNoteText = '(No recent notes)';\nif (noteItems.length > 0) {\n  const note = noteItems[0];\n  const time = formatTime(note.timestamp);\n  lastNoteText = `${time}: [${note.category}] ${note.text}`;\n}\n\n// Get current time in user's timezone\nlet currentTime;\ntry {\n  currentTime = new Date().toLocaleString('en-US', {\n    timeZone: timezone,\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n} catch (e) {\n  currentTime = new Date().toLocaleString('en-US', {\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n}\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList.trim(),\n    last_note: lastNoteText,\n    timestamp: currentTime,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1344,
+        1120,
         0
       ],
       "id": "prepare-prompt-data",
@@ -449,67 +364,14 @@
       "main": [
         [
           {
-            "node": "Get North Star",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Recent Activities (4h)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Last Note",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Merge Query Results",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Timezone",
+            "node": "Query_DB",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get North Star": {
-      "main": [
-        [
-          {
-            "node": "Merge Query Results",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Get Recent Activities (4h)": {
-      "main": [
-        [
-          {
-            "node": "Merge Query Results",
-            "type": "main",
-            "index": 2
-          }
-        ]
-      ]
-    },
-    "Get Last Note": {
-      "main": [
-        [
-          {
-            "node": "Merge Query Results",
-            "type": "main",
-            "index": 3
-          }
-        ]
-      ]
-    },
-    "Merge Query Results": {
+    "Query_DB": {
       "main": [
         [
           {
@@ -638,17 +500,6 @@
             "node": "Generate Nudge with LLM",
             "type": "ai_languageModel",
             "index": 1
-          }
-        ]
-      ]
-    },
-    "Get Timezone": {
-      "main": [
-        [
-          {
-            "node": "Merge Query Results",
-            "type": "main",
-            "index": 4
           }
         ]
       ]
