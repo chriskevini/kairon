@@ -61,4 +61,25 @@ if [ $has_pindata -eq 1 ]; then
 fi
 
 echo ""
+echo "Running structural validation..."
+has_structural_errors=0
+for file in $STAGED_WORKFLOWS; do
+    if ! python3 "$REPO_ROOT/scripts/workflows/inspect_workflow.py" "$REPO_ROOT/$file" --validate >/dev/null 2>&1; then
+        echo "  ❌ Structural validation failed: $file"
+        has_structural_errors=1
+    else
+        echo "  ✓ $file"
+    fi
+done
+
+if [ $has_structural_errors -eq 1 ]; then
+    echo ""
+    echo "❌ Commit aborted: Structural validation failed"
+    echo ""
+    echo "Run this command to check the issues:"
+    echo "  ./scripts/workflows/inspect_workflow.py workflow.json --validate"
+    exit 1
+fi
+
+echo ""
 echo "✅ All workflow checks passed!"

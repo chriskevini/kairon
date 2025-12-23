@@ -19,7 +19,7 @@
         0
       ],
       "id": "cron-trigger",
-      "name": "Every 15 Minutes"
+      "name": "cron-trigger"
     },
     {
       "parameters": {
@@ -34,7 +34,7 @@
         -100
       ],
       "id": "find-missing-embeddings",
-      "name": "Find Missing Embeddings",
+      "name": "find-missing-embeddings",
       "credentials": {
         "postgres": {
           "name": "Postgres account"
@@ -52,7 +52,7 @@
         -100
       ],
       "id": "loop-embeddings",
-      "name": "Loop Embeddings",
+      "name": "loop-embeddings",
       "continueOnFail": true
     },
     {
@@ -73,7 +73,7 @@
         -100
       ],
       "id": "embed-text",
-      "name": "Embed Text",
+      "name": "embed-text",
       "continueOnFail": true
     },
     {
@@ -97,7 +97,7 @@
         -100
       ],
       "id": "insert-embedding",
-      "name": "Insert Embedding",
+      "name": "insert-embedding",
       "continueOnFail": true
     },
     {
@@ -111,7 +111,7 @@
         50
       ],
       "id": "prepare-embedding-query",
-      "name": "Prepare Embedding Query"
+      "name": "prepare-embedding-query"
     },
     {
       "parameters": {
@@ -126,7 +126,7 @@
         300
       ],
       "id": "find-incomplete-traces",
-      "name": "Find Incomplete Traces",
+      "name": "find-incomplete-traces",
       "credentials": {
         "postgres": {
           "name": "Postgres account"
@@ -144,7 +144,7 @@
         300
       ],
       "id": "parse-missing-projections",
-      "name": "Parse Missing Projections"
+      "name": "parse-missing-projections",
     },
     {
       "parameters": {
@@ -167,7 +167,7 @@
         300
       ],
       "id": "insert-missing-projections",
-      "name": "Insert Projections",
+      "name": "insert-missing-projections",
       "continueOnFail": true
     },
     {
@@ -181,7 +181,7 @@
         450
       ],
       "id": "prepare-projection-query",
-      "name": "Prepare Projection Query"
+      "name": "prepare-projection-query"
     }
   ],
   "connections": {

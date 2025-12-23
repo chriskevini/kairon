@@ -34,6 +34,15 @@ if [ -n "${1:-}" ]; then
     # Validate specific file
     if [ -f "$1" ]; then
         validate_json "$1" || has_errors=1
+        # Run structural validation
+        echo ""
+        echo "Running structural validation..."
+        if ! python3 "$REPO_ROOT/scripts/workflows/inspect_workflow.py" "$1" --validate >/dev/null 2>&1; then
+            echo -e "${RED}✗$1${NC} - Structural validation failed"
+            has_errors=1
+        else
+            echo -e "${GREEN}✓${NC} $1 - Structural validation passed"
+        fi
     else
         echo -e "${RED}File not found: $1${NC}"
         exit 1
@@ -46,6 +55,15 @@ else
     for f in "$WORKFLOW_DIR"/*.json; do
         if [ -f "$f" ]; then
             validate_json "$f" || has_errors=1
+            # Run structural validation
+            echo ""
+            echo "Running structural validation for $f..."
+            if ! python3 "$REPO_ROOT/scripts/workflows/inspect_workflow.py" "$f" --validate >/dev/null 2>&1; then
+                echo -e "${RED}✗$f${NC} - Structural validation failed"
+                has_errors=1
+            else
+                echo -e "${GREEN}✓${NC} $f - Structural validation passed"
+            fi
         fi
     done
     
