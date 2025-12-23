@@ -159,11 +159,100 @@
     },
     {
       "parameters": {
-        "jsCode": "// Assemble prompt from modules and context\nconst allItems = $input.all();\n\n// Extract ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\nconst formatDate = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      timeZone: timezone, \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  }\n};\n\n// Get current hour in user's timezone\nconst now = new Date();\nlet currentHour;\ntry {\n  currentHour = parseInt(now.toLocaleTimeString('en-US', { \n    timeZone: timezone, \n    hour: 'numeric', \n    hour12: false \n  }));\n} catch (e) {\n  currentHour = now.getHours();\n}\n\n// Determine time of day for technique selection\nconst isMorning = currentHour >= 6 && currentHour <= 9;\nconst isEvening = currentHour >= 20 && currentHour <= 23;\n\n// Extract prompt modules\nconst modules = allItems.filter(item => \n  item.json.module_type !== undefined\n);\n\n// Extract north star\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = allItems.filter(item => \n  item.json.value !== undefined && \n  item.json.module_type === undefined\n);\nif (northStarItems.length > 0 && northStarItems[0].json.value) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract notes\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  item.json.days_pending === undefined &&\n  !item.json.error\n);\n\n// Extract todos\nconst todoItems = allItems.filter(item => \n  item.json.days_pending !== undefined && \n  !item.json.error\n);\n\n// Check for stuck todos (pending > 3 days)\nconst stuckTodos = todoItems.filter(t => t.json.days_pending > 3);\nconst hasStuckTodos = stuckTodos.length > 0;\n\n// Assemble prompt from modules\nconst promptParts = [];\n\n// 1. Always include persona modules (priority 0-10)\nconst personaModules = modules.filter(m => m.json.module_type === 'persona');\npersonaModules.forEach(m => promptParts.push(m.json.content));\n\n// 2. Select technique based on context\nlet selectedTechnique = null;\nif (isMorning) {\n  selectedTechnique = modules.find(m => \n    m.json.name === 'technique_morning'\n  );\n} else if (isEvening) {\n  selectedTechnique = modules.find(m => \n    m.json.name === 'technique_evening'\n  );\n} else if (hasStuckTodos) {\n  selectedTechnique = modules.find(m => \n    m.json.name === 'technique_stuck_todo'\n  );\n}\n\nif (selectedTechnique) {\n  promptParts.push(selectedTechnique.json.content);\n}\n\n// 3. Build context section\nlet contextSection = '## Current Context\\n\\n';\ncontextSection += `**Time:** ${formatDate(now.toISOString())} ${formatTime(now.toISOString())}\\n`;\ncontextSection += `**North Star:** ${northStar}\\n\\n`;\n\n// Format activities\ncontextSection += '### Recent Activities (last 24h)\\n';\nif (activityItems.length === 0) {\n  contextSection += '(No logged activity)\\n';\n} else {\n  activityItems.slice(0, 10).forEach(item => {\n    const time = formatTime(item.json.timestamp);\n    contextSection += `- ${time}: ${item.json.description} [${item.json.category}]\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format notes\ncontextSection += '### Recent Notes\\n';\nif (noteItems.length === 0) {\n  contextSection += '(No recent notes)\\n';\n} else {\n  noteItems.forEach(item => {\n    const date = formatDate(item.json.timestamp);\n    const preview = item.json.text.substring(0, 100) + (item.json.text.length > 100 ? '...' : '');\n    contextSection += `- ${date}: ${preview}\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format todos\ncontextSection += '### Pending Todos\\n';\nif (todoItems.length === 0) {\n  contextSection += '(No pending todos)\\n';\n} else {\n  todoItems.forEach(item => {\n    const daysStr = item.json.days_pending > 0 ? ` (${Math.floor(item.json.days_pending)} days)` : '';\n    contextSection += `- ${item.json.text}${daysStr}\\n`;\n  });\n}\n\npromptParts.push(contextSection);\n\n// 4. Include format module\nconst formatModule = modules.find(m => m.json.module_type === 'format');\nif (formatModule) {\n  promptParts.push(formatModule.json.content);\n}\n\n// 5. Always include guardrail modules (priority 200+)\nconst guardrailModules = modules.filter(m => m.json.module_type === 'guardrail');\nguardrailModules.forEach(m => promptParts.push(m.json.content));\n\n// Assemble final prompt\nconst assembledPrompt = promptParts.join('\\n\\n---\\n\\n');\n\n// Determine the context description for the agent\nlet contextDescription = 'general check-in';\nif (isMorning) contextDescription = 'morning check-in';\nelse if (isEvening) contextDescription = 'evening reflection';\nelse if (hasStuckTodos) contextDescription = 'stuck todo nudge';\nelse if (activityItems.length === 0) contextDescription = 'no recent activity';\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    assembled_prompt: assembledPrompt,\n    context_description: contextDescription,\n    technique_used: selectedTechnique?.json.name || 'none',\n    inference_start: Date.now(),\n    trace_chain_pg: traceChainPg,\n    // Metadata for trace storage\n    input_summary: {\n      activity_count: activityItems.length,\n      note_count: noteItems.length,\n      todo_count: todoItems.length,\n      stuck_todo_count: stuckTodos.length,\n      current_hour: currentHour,\n      is_morning: isMorning,\n      is_evening: isEvening\n    }\n  }\n}];"
+        "jsCode": "// Build context summary for semantic module selection\nconst allItems = $input.all();\n\n// Extract ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\n// Extract activities, notes, todos\nconst activities = allItems.filter(item => \n  item.json.description !== undefined && !item.json.error\n);\nconst notes = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  item.json.days_pending === undefined &&\n  !item.json.error\n);\nconst todos = allItems.filter(item => \n  item.json.days_pending !== undefined && !item.json.error\n);\n\n// Extract technique modules for semantic selection\nconst techniques = allItems.filter(item => \n  item.json.module_type === 'technique'\n).map(item => item.json.content);\n\n// Check for stuck todos (pending > 3 days)\nconst stuckTodos = todos.filter(t => t.json.days_pending > 3);\n\n// Build a context summary for semantic search\nconst summaryParts = [];\n\nif (activities.length > 0) {\n  const recentActivities = activities.slice(0, 3).map(a => a.json.description).join(', ');\n  summaryParts.push(`Recent activities: ${recentActivities}`);\n}\n\nif (notes.length > 0) {\n  const recentNotes = notes.slice(0, 2).map(n => n.json.text.substring(0, 100)).join('; ');\n  summaryParts.push(`Notes: ${recentNotes}`);\n}\n\nif (stuckTodos.length > 0) {\n  summaryParts.push(`Stuck todos: ${stuckTodos.map(t => t.json.text).join(', ')}`);\n} else if (todos.length > 0) {\n  summaryParts.push(`Pending todos: ${todos.slice(0, 3).map(t => t.json.text).join(', ')}`);\n}\n\nif (summaryParts.length === 0) {\n  summaryParts.push('No recent activity logged. User may need a gentle check-in.');\n}\n\nconst contextSummary = summaryParts.join('. ');\n\n// Pass through all items plus the context summary\nreturn [{\n  json: {\n    ctx,\n    context_summary: contextSummary,\n    technique_candidates: techniques,\n    has_stuck_todos: stuckTodos.length > 0,\n    has_activities: activities.length > 0,\n    has_notes: notes.length > 0,\n    all_items: allItems.map(i => i.json)\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1344, 0],
+      "id": "build-context-summary",
+      "name": "Build Context Summary"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EMBEDDING_SERVICE_URL }}/similarity",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": {{ JSON.stringify($json.context_summary) }},\n  \"candidates\": {{ JSON.stringify($json.technique_candidates) }},\n  \"top_k\": 2\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1568, 0],
+      "id": "semantic-select-techniques",
+      "name": "Semantic Select Techniques",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EMBEDDING_SERVICE_URL }}/embed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"texts\": [{{ JSON.stringify($json.context_summary) }}]\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1568, 192],
+      "id": "embed-context-for-rag",
+      "name": "Embed Context for RAG",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare embedding for pgvector query\nconst contextData = $('Build Context Summary').first().json;\nconst embedResult = $json;\n\n// Extract the embedding vector\nlet embedding = null;\nif (embedResult.embeddings && embedResult.embeddings.length > 0) {\n  embedding = embedResult.embeddings[0];\n}\n\n// Format as pgvector array string\nlet embeddingPg = null;\nif (embedding) {\n  embeddingPg = '[' + embedding.join(',') + ']';\n}\n\nreturn [{\n  json: {\n    ctx: contextData.ctx,\n    context_summary: contextData.context_summary,\n    all_items: contextData.all_items,\n    embedding_pg: embeddingPg,\n    has_embedding: embedding !== null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1792, 192],
+      "id": "prepare-embedding-for-rag",
+      "name": "Prepare Embedding for RAG"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- RAG: Find similar projections using pgvector\nSELECT \n  p.projection_type,\n  COALESCE(p.data->>'description', p.data->>'text') as content,\n  p.data->>'category' as category,\n  (p.data->>'timestamp')::timestamptz as timestamp,\n  e.embedding <=> $1::vector as distance\nFROM embeddings e\nJOIN projections p ON e.projection_id = p.id\nWHERE p.status IN ('auto_confirmed', 'confirmed')\n  AND p.created_at > NOW() - INTERVAL '30 days'\n  AND p.projection_type IN ('activity', 'note')\n  AND e.embedding IS NOT NULL\nORDER BY e.embedding <=> $1::vector\nLIMIT 5;",
+        "options": {
+          "queryReplacement": "{{ $json.embedding_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2016, 192],
+      "id": "rag-similar-projections",
+      "name": "RAG Similar Projections",
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1792, 96],
+      "id": "merge-semantic-results",
+      "name": "Merge Semantic Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble prompt from modules and context with semantic selection\nconst allItems = $input.all();\n\n// Find the context summary item (has ctx and all_items)\nlet contextData = null;\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.all_items) {\n    contextData = item.json;\n    break;\n  }\n}\n\nif (!contextData) {\n  throw new Error('Context data not found in merged items');\n}\n\nconst ctx = contextData.ctx;\nconst originalItems = contextData.all_items;\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Extract semantic selection results\nlet semanticMatches = [];\nfor (const item of allItems) {\n  if (item.json.matches) {\n    semanticMatches = item.json.matches;\n    break;\n  }\n}\n\n// Extract RAG results (similar projections)\nlet ragResults = [];\nfor (const item of allItems) {\n  if (item.json.projection_type !== undefined && item.json.distance !== undefined) {\n    ragResults.push(item.json);\n  }\n}\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\nconst formatDate = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      timeZone: timezone, \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  }\n};\n\n// Get current hour in user's timezone\nconst now = new Date();\nlet currentHour;\ntry {\n  currentHour = parseInt(now.toLocaleTimeString('en-US', { \n    timeZone: timezone, \n    hour: 'numeric', \n    hour12: false \n  }));\n} catch (e) {\n  currentHour = now.getHours();\n}\n\n// Determine time of day for fallback technique selection\nconst isMorning = currentHour >= 6 && currentHour <= 9;\nconst isEvening = currentHour >= 20 && currentHour <= 23;\n\n// Extract prompt modules from original items\nconst modules = originalItems.filter(item => \n  item.module_type !== undefined\n);\n\n// Extract north star\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = originalItems.filter(item => \n  item.value !== undefined && \n  item.module_type === undefined\n);\nif (northStarItems.length > 0 && northStarItems[0].value) {\n  northStar = northStarItems[0].value;\n}\n\n// Extract activities\nconst activityItems = originalItems.filter(item => \n  item.description !== undefined && \n  !item.error\n);\n\n// Extract notes\nconst noteItems = originalItems.filter(item => \n  item.text !== undefined && \n  item.description === undefined &&\n  item.days_pending === undefined &&\n  !item.error\n);\n\n// Extract todos\nconst todoItems = originalItems.filter(item => \n  item.days_pending !== undefined && \n  !item.error\n);\n\n// Check for stuck todos (pending > 3 days)\nconst stuckTodos = todoItems.filter(t => t.days_pending > 3);\nconst hasStuckTodos = stuckTodos.length > 0;\n\n// Assemble prompt from modules\nconst promptParts = [];\n\n// 1. Always include persona modules (priority 0-10)\nconst personaModules = modules.filter(m => m.module_type === 'persona');\npersonaModules.forEach(m => promptParts.push(m.content));\n\n// 2. Select technique - prefer semantic matches, fall back to time/context based\nlet selectedTechniques = [];\nlet techniqueSource = 'none';\n\nif (semanticMatches.length > 0 && semanticMatches[0].score > 0.3) {\n  // Use semantically selected techniques (top 2 with score > 0.3)\n  selectedTechniques = semanticMatches\n    .filter(m => m.score > 0.3)\n    .slice(0, 2)\n    .map(m => m.text);\n  techniqueSource = 'semantic';\n} else {\n  // Fallback to time-based selection\n  if (isMorning) {\n    const morningTechnique = modules.find(m => m.name === 'technique_morning');\n    if (morningTechnique) selectedTechniques.push(morningTechnique.content);\n    techniqueSource = 'morning';\n  } else if (isEvening) {\n    const eveningTechnique = modules.find(m => m.name === 'technique_evening');\n    if (eveningTechnique) selectedTechniques.push(eveningTechnique.content);\n    techniqueSource = 'evening';\n  } else if (hasStuckTodos) {\n    const stuckTechnique = modules.find(m => m.name === 'technique_stuck_todo');\n    if (stuckTechnique) selectedTechniques.push(stuckTechnique.content);\n    techniqueSource = 'stuck_todo';\n  }\n}\n\nselectedTechniques.forEach(t => promptParts.push(t));\n\n// 3. Build context section\nlet contextSection = '## Current Context\\n\\n';\ncontextSection += `**Time:** ${formatDate(now.toISOString())} ${formatTime(now.toISOString())}\\n`;\ncontextSection += `**North Star:** ${northStar}\\n\\n`;\n\n// Format activities\ncontextSection += '### Recent Activities (last 24h)\\n';\nif (activityItems.length === 0) {\n  contextSection += '(No logged activity)\\n';\n} else {\n  activityItems.slice(0, 10).forEach(item => {\n    const time = formatTime(item.timestamp);\n    contextSection += `- ${time}: ${item.description} [${item.category}]\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format notes\ncontextSection += '### Recent Notes\\n';\nif (noteItems.length === 0) {\n  contextSection += '(No recent notes)\\n';\n} else {\n  noteItems.forEach(item => {\n    const date = formatDate(item.timestamp);\n    const preview = item.text.substring(0, 100) + (item.text.length > 100 ? '...' : '');\n    contextSection += `- ${date}: ${preview}\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format todos\ncontextSection += '### Pending Todos\\n';\nif (todoItems.length === 0) {\n  contextSection += '(No pending todos)\\n';\n} else {\n  todoItems.forEach(item => {\n    const daysStr = item.days_pending > 0 ? ` (${Math.floor(item.days_pending)} days)` : '';\n    contextSection += `- ${item.text}${daysStr}\\n`;\n  });\n}\n\n// 4. Add RAG context if available (similar past entries)\nif (ragResults.length > 0) {\n  contextSection += '\\n### Related Past Entries (for context)\\n';\n  ragResults.slice(0, 3).forEach(item => {\n    const date = item.timestamp ? formatDate(item.timestamp) : 'Unknown';\n    const content = item.content?.substring(0, 80) || 'No content';\n    contextSection += `- ${date}: ${content}${item.content?.length > 80 ? '...' : ''} [${item.projection_type}]\\n`;\n  });\n}\n\npromptParts.push(contextSection);\n\n// 5. Include format module\nconst formatModule = modules.find(m => m.module_type === 'format');\nif (formatModule) {\n  promptParts.push(formatModule.content);\n}\n\n// 6. Always include guardrail modules (priority 200+)\nconst guardrailModules = modules.filter(m => m.module_type === 'guardrail');\nguardrailModules.forEach(m => promptParts.push(m.content));\n\n// Assemble final prompt\nconst assembledPrompt = promptParts.join('\\n\\n---\\n\\n');\n\n// Determine the context description for the agent\nlet contextDescription = 'general check-in';\nif (isMorning) contextDescription = 'morning check-in';\nelse if (isEvening) contextDescription = 'evening reflection';\nelse if (hasStuckTodos) contextDescription = 'stuck todo nudge';\nelse if (activityItems.length === 0) contextDescription = 'no recent activity';\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    assembled_prompt: assembledPrompt,\n    context_description: contextDescription,\n    technique_source: techniqueSource,\n    techniques_used: selectedTechniques.length,\n    semantic_scores: semanticMatches.map(m => m.score),\n    rag_count: ragResults.length,\n    inference_start: Date.now(),\n    trace_chain_pg: traceChainPg,\n    // Metadata for trace storage\n    input_summary: {\n      activity_count: activityItems.length,\n      note_count: noteItems.length,\n      todo_count: todoItems.length,\n      stuck_todo_count: stuckTodos.length,\n      current_hour: currentHour,\n      is_morning: isMorning,\n      is_evening: isEvening,\n      technique_source: techniqueSource,\n      semantic_match_count: semanticMatches.length,\n      rag_result_count: ragResults.length\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2016, 96],
       "id": "assemble-prompt",
       "name": "Assemble Prompt"
     },
@@ -176,7 +265,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
-      "position": [1568, 0],
+      "position": [2240, 96],
       "id": "generate-message-llm",
       "name": "Generate Message with LLM"
     },
@@ -187,7 +276,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
-      "position": [1576, 224],
+      "position": [2248, 320],
       "id": "nemotron-nano-9b",
       "name": "nemotron-nano-9b",
       "credentials": {
@@ -204,7 +293,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
-      "position": [1704, 224],
+      "position": [2376, 320],
       "id": "mimo-v2-flash",
       "name": "mimo-v2-flash",
       "credentials": {
@@ -216,25 +305,25 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM response\nconst assembleData = $('Assemble Prompt').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - assembleData.inference_start;\nconst ctx = assembleData.ctx;\n\n// Clean up the message (remove any markdown code blocks or preamble)\nlet message = llmText;\n\n// Remove common LLM artifacts\nif (message.startsWith('```')) {\n  message = message.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '');\n}\n\n// Trim any leading/trailing whitespace\nmessage = message.trim();\n\n// Check if message is empty or too short\nconst isEmpty = !message || message.length < 10;\n\nreturn [{\n  json: {\n    ctx,\n    message: message,\n    is_empty: isEmpty,\n    duration_ms: durationMs,\n    trace_chain_pg: assembleData.trace_chain_pg,\n    llm_response: llmText,\n    assembled_prompt: assembleData.assembled_prompt,\n    context_description: assembleData.context_description,\n    technique_used: assembleData.technique_used,\n    input_summary: assembleData.input_summary\n  }\n}];"
+        "jsCode": "// Parse LLM response\nconst assembleData = $('Assemble Prompt').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - assembleData.inference_start;\nconst ctx = assembleData.ctx;\n\n// Clean up the message (remove any markdown code blocks or preamble)\nlet message = llmText;\n\n// Remove common LLM artifacts\nif (message.startsWith('```')) {\n  message = message.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '');\n}\n\n// Trim any leading/trailing whitespace\nmessage = message.trim();\n\n// Check if message is empty or too short\nconst isEmpty = !message || message.length < 10;\n\nreturn [{\n  json: {\n    ctx,\n    message: message,\n    is_empty: isEmpty,\n    duration_ms: durationMs,\n    trace_chain_pg: assembleData.trace_chain_pg,\n    llm_response: llmText,\n    assembled_prompt: assembleData.assembled_prompt,\n    context_description: assembleData.context_description,\n    technique_source: assembleData.technique_source,\n    input_summary: assembleData.input_summary\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1792, 0],
+      "position": [2464, 96],
       "id": "parse-llm-response",
       "name": "Parse LLM Response"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'proactive_agent',\n  jsonb_build_object(\n    'prompt', $2,\n    'completion', $3,\n    'context_description', $4,\n    'technique_used', $5,\n    'input_summary', $6::jsonb,\n    'duration_ms', $7::integer\n  ),\n  $8::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
+        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'proactive_agent',\n  jsonb_build_object(\n    'prompt', $2,\n    'completion', $3,\n    'context_description', $4,\n    'technique_source', $5,\n    'input_summary', $6::jsonb,\n    'duration_ms', $7::integer\n  ),\n  $8::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
         "options": {
-          "queryReplacement": "{{ $json.ctx.event.event_id }},{{ $json.assembled_prompt }},{{ $json.llm_response }},{{ $json.context_description }},{{ $json.technique_used }},{{ JSON.stringify($json.input_summary) }},{{ $json.duration_ms }},{{ $json.trace_chain_pg }}"
+          "queryReplacement": "{{ $json.ctx.event.event_id }},{{ $json.assembled_prompt }},{{ $json.llm_response }},{{ $json.context_description }},{{ $json.technique_source }},{{ JSON.stringify($json.input_summary) }},{{ $json.duration_ms }},{{ $json.trace_chain_pg }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2016, 0],
+      "position": [2688, 96],
       "id": "store-trace",
       "name": "Store Trace",
       "credentials": {
@@ -246,11 +335,11 @@
     },
     {
       "parameters": {
-        "jsCode": "// Merge trace result with parsed LLM data\nconst traceResult = $json;\nconst parseData = $('Parse LLM Response').first().json;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// Pre-stringify projection data for Postgres\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  text: parseData.message,\n  context_description: parseData.context_description,\n  technique_used: parseData.technique_used\n};\n\nreturn [{\n  json: {\n    ctx: parseData.ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    message: parseData.message,\n    is_empty: parseData.is_empty,\n    projection_data_json: JSON.stringify(projectionData)\n  }\n}];"
+        "jsCode": "// Merge trace result with parsed LLM data\nconst traceResult = $json;\nconst parseData = $('Parse LLM Response').first().json;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// Pre-stringify projection data for Postgres\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  text: parseData.message,\n  context_description: parseData.context_description,\n  technique_source: parseData.technique_source\n};\n\nreturn [{\n  json: {\n    ctx: parseData.ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    message: parseData.message,\n    is_empty: parseData.is_empty,\n    projection_data_json: JSON.stringify(projectionData)\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2240, 0],
+      "position": [2912, 96],
       "id": "merge-trace-result",
       "name": "Merge Trace Result"
     },
@@ -281,7 +370,7 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [2464, 0],
+      "position": [3136, 96],
       "id": "if-empty",
       "name": "If Empty Message"
     },
@@ -295,7 +384,7 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2688, 80],
+      "position": [3360, 176],
       "id": "store-projection",
       "name": "Store Projection",
       "credentials": {
@@ -311,7 +400,7 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2912, 80],
+      "position": [3584, 176],
       "id": "merge-for-discord",
       "name": "Merge for Discord"
     },
@@ -333,7 +422,7 @@
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
-      "position": [3136, 80],
+      "position": [3808, 176],
       "id": "send-message",
       "name": "Send Message",
       "credentials": {
@@ -356,7 +445,7 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [3360, 80],
+      "position": [4032, 176],
       "id": "update-projection-message-id",
       "name": "Update Projection with Message ID",
       "credentials": {
@@ -493,6 +582,77 @@
       ]
     },
     "Merge Query Results": {
+      "main": [
+        [
+          {
+            "node": "Build Context Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Context Summary": {
+      "main": [
+        [
+          {
+            "node": "Semantic Select Techniques",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Embed Context for RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Context for RAG": {
+      "main": [
+        [
+          {
+            "node": "Prepare Embedding for RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Embedding for RAG": {
+      "main": [
+        [
+          {
+            "node": "RAG Similar Projections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Semantic Select Techniques": {
+      "main": [
+        [
+          {
+            "node": "Merge Semantic Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Similar Projections": {
+      "main": [
+        [
+          {
+            "node": "Merge Semantic Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Semantic Results": {
       "main": [
         [
           {
