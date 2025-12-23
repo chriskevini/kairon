@@ -6,6 +6,31 @@
 
 ---
 
+## 0. Phase 3 Design Decisions & Progress
+
+### 1. Vector Search Orchestration
+Update `embedding-service` with a `/search` endpoint to handle `pgvector` queries internally. This simplifies the n8n workflow by removing the need to handle raw vector arrays and complex SQL formatting for cosine similarity.
+
+### 2. Context Definition (Search Query vs. Prompt Context)
+*   **Search Query:** The semantic search for a technique uses a **runtime-generated summary** of the last 24h activities, recent notes, and stuck todos (see `Build Context Summary` node logic). This summary is optionally appended with the user's last message if they replied to the previous nudge.
+*   **Prompt Context:** The last 3 **nudge projections** (previous agent messages) are retrieved from the database and injected into the `## Current Context` section of the final prompt. This ensures the LLM sees the conversation history without polluting the semantic search for the next coaching tool.
+
+### 3. Selection Logic (Relevance)
+Only the **single highest-relevance** coaching technique will be included in the prompt assembly. If the top semantic match score is below a defined threshold (e.g., 0.3), the system falls back to time-based (Morning/Evening) or context-triggered (Stuck Todo) modules.
+
+### 4. Empty State Handling
+If no activities, notes, or todos exist, the search query falls back to a placeholder: **"No Recently Recorded Activity"**.
+
+### 5. Prompt Construction (Priority-Based)
+The prompt is assembled by concatenating modules in priority order:
+1.  **Persona (0)**: Core identity.
+2.  **Technique (50)**: The single semantic match or fallback.
+3.  **Context (75)**: Dynamic user data (North Star, Activities, Notes, Todos, and **Last 3 Nudges**).
+4.  **Format (100)**: Response structure rules.
+5.  **Guardrails (200)**: Safety and professional boundaries.
+
+---
+
 ## 0. Current Implementation Progress (2025-12-22)
 
 ### ✅ Completed
