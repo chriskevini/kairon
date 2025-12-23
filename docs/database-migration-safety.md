@@ -16,6 +16,27 @@ Before running ANY migration:
 - [ ] **Schedule during low-usage time** (if production)
 - [ ] **Have rollback plan ready** (tested on copy)
 
+### Additional Steps for Postgres Container Changes
+
+If changing the postgres container (image upgrade, recreation, etc.):
+
+- [ ] **Document current n8n credential IDs:**
+  ```bash
+  docker exec -i postgres-db psql -U n8n_user -d n8n_chat_memory -c \
+    "SELECT id, name FROM credentials_entity WHERE type='postgres';"
+  ```
+- [ ] **Test n8n credential connectivity** (run `scripts/verify_n8n_credentials.sh`)
+- [ ] **Note all workflows using each credential**
+- [ ] **Plan for credential recreation if needed** (n8n credentials may become invalid after container recreation)
+- [ ] **Run post-migration smoke test:**
+  ```bash
+  curl -s -X POST "http://localhost:5678/webhook/asoiaf92746087" \
+    -H "Content-Type: application/json" \
+    -d '{"event_type":"message","guild_id":"test","channel_id":"test","message_id":"smoke_test","content":"::ping","author":{"login":"test"},"timestamp":"'$(date -Iseconds)'"}'
+  ```
+
+> **Lesson from 2025-12-22 incident:** Container recreation can invalidate n8n credentials even if data volume is preserved. See `postmortem-2025-12-22-postgres-migration.md` for details.
+
 ---
 
 ## Backup Commands
