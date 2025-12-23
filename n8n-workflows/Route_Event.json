@@ -270,17 +270,17 @@
         "operation": "executeQuery",
         "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  $11,\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;",
         "values": [
-          "={{$json.ctx.db_queries[0].params[0]}}",
-          "={{$json.ctx.db_queries[0].params[1]}}",
-          "={{$json.ctx.db_queries[0].params[2]}}",
-          "={{$json.ctx.db_queries[0].params[3]}}",
-          "={{$json.ctx.db_queries[0].params[4]}}",
-          "={{$json.ctx.db_queries[0].params[5]}}",
-          "={{$json.ctx.db_queries[0].params[6]}}",
-          "={{$json.ctx.db_queries[0].params[7]}}",
-          "={{$json.ctx.db_queries[0].params[8]}}",
-          "={{$json.ctx.db_queries[0].params[9]}}",
-          "={{$json.ctx.db_queries[0].params[10]}}"
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[0]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[1]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[2]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[3]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[4]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[5]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[6]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[7]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[8]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[9]}}",
+          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[10]}}"
         ]
       },
       "type": "n8n-nodes-base.postgres",
