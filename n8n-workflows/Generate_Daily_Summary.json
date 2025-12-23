@@ -12,7 +12,7 @@
         1856
       ],
       "id": "workflow-trigger",
-      "name": "When Called by Another Workflow"
+      "name": "when_called_by_another_workflow"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         1856
       ],
       "id": "prepare-event-data",
-      "name": "Prepare Event Data"
+      "name": "prepare_event_data"
     },
     {
       "parameters": {
@@ -42,7 +42,7 @@
         1856
       ],
       "id": "insert-event",
-      "name": "Insert Event",
+      "name": "insert_event",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -60,7 +60,7 @@
         1856
       ],
       "id": "init-ctx",
-      "name": "Initialize ctx"
+      "name": "initialize_ctx"
     },
     {
       "parameters": {
@@ -78,7 +78,7 @@
         1856
       ],
       "id": "execute-query-db",
-      "name": "Execute_Queries (Read)"
+      "name": "execute_queries_(read)"
     },
     {
       "parameters": {
@@ -91,7 +91,7 @@
         1856
       ],
       "id": "e29ca6f7-efbc-418c-b9cd-e61fa111e178",
-      "name": "Prepare Summary Data"
+      "name": "prepare_summary_data"
     },
     {
       "parameters": {
@@ -107,7 +107,7 @@
         1856
       ],
       "id": "4c73ad0b-072b-41c5-a6a7-5e3069f63663",
-      "name": "Generate Summary with LLM"
+      "name": "generate_summary_with_llm"
     },
     {
       "parameters": {
@@ -120,7 +120,7 @@
         1856
       ],
       "id": "parse-llm-response",
-      "name": "Prepare Write Queries"
+      "name": "prepare_write_queries"
     },
     {
       "parameters": {
@@ -138,7 +138,7 @@
         1856
       ],
       "id": "execute-write-queries",
-      "name": "Execute_Queries (Write)"
+      "name": "execute_queries_(write)"
     },
     {
       "parameters": {
@@ -151,7 +151,7 @@
         1856
       ],
       "id": "prepare-for-discord",
-      "name": "Prepare for Discord"
+      "name": "prepare_for_discord"
     },
     {
       "parameters": {
@@ -176,7 +176,7 @@
         1856
       ],
       "id": "2d3ec420-6f75-49e0-8851-af9ba845977d",
-      "name": "Post to #obsidian-board",
+      "name": "post_to_#obsidian_board",
       "webhookId": "58ab7668-0a2a-4b1e-8245-a70e0ae0054d",
       "retryOnFail": true,
       "maxTries": 3,
@@ -198,7 +198,7 @@
         1856
       ],
       "id": "prepare-final-updates",
-      "name": "Prepare Final Updates"
+      "name": "prepare_final_updates"
     },
     {
       "parameters": {
@@ -216,7 +216,7 @@
         1856
       ],
       "id": "execute-final-updates",
-      "name": "Execute_Queries (Final)"
+      "name": "execute_queries_(final)"
     },
     {
       "parameters": {
@@ -230,7 +230,7 @@
         2080
       ],
       "id": "c8b0b429-e702-4351-8fdd-72d096e1898b",
-      "name": "nemotron-nano-9b",
+      "name": "nemotron_nano_9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -249,7 +249,7 @@
         2080
       ],
       "id": "e496385a-60a2-4122-a8b3-ede7452fc36d",
-      "name": "mimo-v2-flash",
+      "name": "mimo_v2_flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -258,154 +258,154 @@
     }
   ],
   "connections": {
-    "When Called by Another Workflow": {
+    "when_called_by_another_workflow": {
       "main": [
         [
           {
-            "node": "Prepare Event Data",
+            "node": "prepare_event_data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Event Data": {
+    "prepare_event_data": {
       "main": [
         [
           {
-            "node": "Insert Event",
+            "node": "insert_event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Insert Event": {
+    "insert_event": {
       "main": [
         [
           {
-            "node": "Initialize ctx",
+            "node": "initialize_ctx",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Initialize ctx": {
+    "initialize_ctx": {
       "main": [
         [
           {
-            "node": "Execute_Queries (Read)",
+            "node": "execute_queries_(read)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute_Queries (Read)": {
+    "execute_queries_(read)": {
       "main": [
         [
           {
-            "node": "Prepare Summary Data",
+            "node": "prepare_summary_data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Summary Data": {
+    "prepare_summary_data": {
       "main": [
         [
           {
-            "node": "Generate Summary with LLM",
+            "node": "generate_summary_with_llm",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Summary with LLM": {
+    "generate_summary_with_llm": {
       "main": [
         [
           {
-            "node": "Prepare Write Queries",
+            "node": "prepare_write_queries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Write Queries": {
+    "prepare_write_queries": {
       "main": [
         [
           {
-            "node": "Execute_Queries (Write)",
+            "node": "execute_queries_(write)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute_Queries (Write)": {
+    "execute_queries_(write)": {
       "main": [
         [
           {
-            "node": "Prepare for Discord",
+            "node": "prepare_for_discord",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare for Discord": {
+    "prepare_for_discord": {
       "main": [
         [
           {
-            "node": "Post to #obsidian-board",
+            "node": "post_to_#obsidian_board",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Post to #obsidian-board": {
+    "post_to_#obsidian_board": {
       "main": [
         [
           {
-            "node": "Prepare Final Updates",
+            "node": "prepare_final_updates",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Final Updates": {
+    "prepare_final_updates": {
       "main": [
         [
           {
-            "node": "Execute_Queries (Final)",
+            "node": "execute_queries_(final)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "nemotron-nano-9b": {
+    "nemotron_nano_9b": {
       "ai_languageModel": [
         [
           {
-            "node": "Generate Summary with LLM",
+            "node": "generate_summary_with_llm",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "mimo-v2-flash": {
+    "mimo_v2_flash": {
       "ai_languageModel": [
         [
           {
-            "node": "Generate Summary with LLM",
+            "node": "generate_summary_with_llm",
             "type": "ai_languageModel",
             "index": 1
           }

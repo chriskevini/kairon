@@ -12,7 +12,7 @@
         300
       ],
       "id": "trigger-quality-rating",
-      "name": "Receive Event"
+      "name": "receive_event"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         300
       ],
       "id": "parse-quality",
-      "name": "Parse Quality Rating"
+      "name": "parse_quality_rating"
     },
     {
       "parameters": {
@@ -42,7 +42,7 @@
         300
       ],
       "id": "update-quality-score",
-      "name": "Update Quality Score",
+      "name": "update_quality_score",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -61,7 +61,7 @@
         300
       ],
       "id": "format-response",
-      "name": "Format Response"
+      "name": "format_response"
     },
     {
       "parameters": {
@@ -88,7 +88,7 @@
         300
       ],
       "id": "send-response",
-      "name": "Send Response",
+      "name": "send_response",
       "webhookId": "quality-rating-response",
       "retryOnFail": true,
       "maxTries": 3,
@@ -101,44 +101,44 @@
     }
   ],
   "connections": {
-    "Receive Event": {
+    "receive_event": {
       "main": [
         [
           {
-            "node": "Parse Quality Rating",
+            "node": "parse_quality_rating",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Quality Rating": {
+    "parse_quality_rating": {
       "main": [
         [
           {
-            "node": "Update Quality Score",
+            "node": "update_quality_score",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Quality Score": {
+    "update_quality_score": {
       "main": [
         [
           {
-            "node": "Format Response",
+            "node": "format_response",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Response": {
+    "format_response": {
       "main": [
         [
           {
-            "node": "Send Response",
+            "node": "send_response",
             "type": "main",
             "index": 0
           }

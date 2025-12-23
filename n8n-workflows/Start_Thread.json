@@ -12,7 +12,7 @@
         -2320
       ],
       "id": "a929c09f-94de-42dc-a2ff-923accc5e9ab",
-      "name": "Execute Workflow Trigger"
+      "name": "execute_workflow_trigger"
     },
     {
       "parameters": {
@@ -32,7 +32,7 @@
         -2320
       ],
       "id": "85fce562-824f-47c1-83cf-ea4d7e807ea4",
-      "name": "Create Discord Thread",
+      "name": "create_discord_thread",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -45,7 +45,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.db.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $json.ctx.event.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) → Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) → Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that's conversational and specific, not generic\n\nRespond to their initial message now.",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.db.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $json.ctx.event.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) \u2192 Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) \u2192 Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that's conversational and specific, not generic\n\nRespond to their initial message now.",
         "needsFallback": true,
         "batching": {}
       },
@@ -56,7 +56,7 @@
         -2320
       ],
       "id": "f6f390a8-c453-4cee-8d6d-2b9a415e3a29",
-      "name": "Generate Initial Response"
+      "name": "generate_initial_response"
     },
     {
       "parameters": {
@@ -72,7 +72,7 @@
         -2096
       ],
       "id": "0c6a309d-86ff-4aa3-b02f-33230ae4f092",
-      "name": "nemotron-nano-9b",
+      "name": "nemotron_nano_9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -93,7 +93,7 @@
         -2096
       ],
       "id": "60963dec-c78a-4918-8b32-12e1a0f25d8b",
-      "name": "mimo-v2-flash",
+      "name": "mimo_v2_flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -111,7 +111,7 @@
         -2320
       ],
       "id": "prepare-write-queries",
-      "name": "Prepare Write Queries"
+      "name": "prepare_write_queries"
     },
     {
       "parameters": {
@@ -136,7 +136,7 @@
         -2320
       ],
       "id": "a5785f29-feef-42f4-8da5-d5eaeb9fd055",
-      "name": "Send Response to Thread",
+      "name": "send_response_to_thread",
       "webhookId": "b265fcc0-4670-437b-9913-59b5d32bc95b",
       "retryOnFail": true,
       "maxTries": 3,
@@ -162,7 +162,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=🗨️"
+        "emoji": "=\ud83d\udde8\ufe0f"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -171,7 +171,7 @@
         -2560
       ],
       "id": "1e7b0d2a-54ee-4607-bcd9-7872585cb7c1",
-      "name": "React with 🗨️",
+      "name": "react_with_\ud83d\udde8\ufe0f",
       "webhookId": "d9babcdf-8243-4adb-83c8-bbaf038fbfc7",
       "retryOnFail": true,
       "maxTries": 3,
@@ -186,7 +186,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -198,7 +198,7 @@
         -2080
       ],
       "id": "remove-blue-reaction-start-chat",
-      "name": "Remove 🔵 Reaction",
+      "name": "remove_\ud83d\udd35_reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -225,7 +225,7 @@
         -2320
       ],
       "id": "execute-write-queries",
-      "name": "Execute_Queries (Write)"
+      "name": "execute_queries_(write)"
     },
     {
       "parameters": {
@@ -238,7 +238,7 @@
         -2320
       ],
       "id": "prepare-read-queries",
-      "name": "Prepare Read Queries"
+      "name": "prepare_read_queries"
     },
     {
       "parameters": {
@@ -256,7 +256,7 @@
         -2320
       ],
       "id": "execute-read-queries",
-      "name": "Execute_Queries (Read)"
+      "name": "execute_queries_(read)"
     },
     {
       "parameters": {
@@ -269,7 +269,7 @@
         -2320
       ],
       "id": "build-llm-context",
-      "name": "Build LLM Context"
+      "name": "build_llm_context"
     },
     {
       "parameters": {
@@ -282,145 +282,145 @@
         -2320
       ],
       "id": "set-llm-response",
-      "name": "Set LLM Response"
+      "name": "set_llm_response"
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": {
+    "execute_workflow_trigger": {
       "main": [
         [
           {
-            "node": "Create Discord Thread",
+            "node": "create_discord_thread",
             "type": "main",
             "index": 0
           },
           {
-            "node": "React with 🗨️",
+            "node": "react_with_\ud83d\udde8\ufe0f",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove 🔵 Reaction",
+            "node": "remove_\ud83d\udd35_reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Discord Thread": {
+    "create_discord_thread": {
       "main": [
         [
           {
-            "node": "Prepare Read Queries",
+            "node": "prepare_read_queries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Read Queries": {
+    "prepare_read_queries": {
       "main": [
         [
           {
-            "node": "Execute_Queries (Read)",
+            "node": "execute_queries_(read)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute_Queries (Read)": {
+    "execute_queries_(read)": {
       "main": [
         [
           {
-            "node": "Build LLM Context",
+            "node": "build_llm_context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build LLM Context": {
+    "build_llm_context": {
       "main": [
         [
           {
-            "node": "Generate Initial Response",
+            "node": "generate_initial_response",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Initial Response": {
+    "generate_initial_response": {
       "main": [
         [
           {
-            "node": "Set LLM Response",
+            "node": "set_llm_response",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set LLM Response": {
+    "set_llm_response": {
       "main": [
         [
           {
-            "node": "Send Response to Thread",
+            "node": "send_response_to_thread",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Response to Thread": {
+    "send_response_to_thread": {
       "main": [
         [
           {
-            "node": "Prepare Write Queries",
+            "node": "prepare_write_queries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Write Queries": {
+    "prepare_write_queries": {
       "main": [
         [
           {
-            "node": "Execute_Queries (Write)",
+            "node": "execute_queries_(write)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "React with 🗨️": {
+    "react_with_\ud83d\udde8\ufe0f": {
       "main": [
         []
       ]
     },
-    "Remove 🔵 Reaction": {
+    "remove_\ud83d\udd35_reaction": {
       "main": [
         []
       ]
     },
-    "nemotron-nano-9b": {
+    "nemotron_nano_9b": {
       "ai_languageModel": [
         [
           {
-            "node": "Generate Initial Response",
+            "node": "generate_initial_response",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "mimo-v2-flash": {
+    "mimo_v2_flash": {
       "ai_languageModel": [
         [
           {
-            "node": "Generate Initial Response",
+            "node": "generate_initial_response",
             "type": "ai_languageModel",
             "index": 1
           }

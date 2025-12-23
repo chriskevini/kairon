@@ -12,7 +12,7 @@
         0
       ],
       "id": "trigger-execute-queries",
-      "name": "Execute Workflow Trigger"
+      "name": "execute_workflow_trigger"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         0
       ],
       "id": "initialize-loop",
-      "name": "Initialize Loop"
+      "name": "initialize_loop"
     },
     {
       "parameters": {
@@ -58,7 +58,7 @@
         -100
       ],
       "id": "has-queries",
-      "name": "Has Queries?"
+      "name": "has_queries?"
     },
     {
       "parameters": {
@@ -71,7 +71,7 @@
         0
       ],
       "id": "prepare-query",
-      "name": "Prepare Query"
+      "name": "prepare_query"
     },
     {
       "parameters": {
@@ -88,7 +88,7 @@
         0
       ],
       "id": "execute-postgres-query",
-      "name": "Execute Query",
+      "name": "execute_query",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -109,7 +109,7 @@
         0
       ],
       "id": "merge-results",
-      "name": "Merge Results"
+      "name": "merge_results"
     },
     {
       "parameters": {
@@ -122,7 +122,7 @@
         0
       ],
       "id": "collect-results",
-      "name": "Collect Results"
+      "name": "collect_results"
     },
     {
       "parameters": {
@@ -155,7 +155,7 @@
         0
       ],
       "id": "check-more-queries",
-      "name": "More Queries?"
+      "name": "more_queries?"
     },
     {
       "parameters": {
@@ -168,111 +168,111 @@
         100
       ],
       "id": "finalize-context",
-      "name": "Finalize Context"
+      "name": "finalize_context"
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": {
+    "execute_workflow_trigger": {
       "main": [
         [
           {
-            "node": "Initialize Loop",
+            "node": "initialize_loop",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Initialize Loop": {
+    "initialize_loop": {
       "main": [
         [
           {
-            "node": "Has Queries?",
+            "node": "has_queries?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Has Queries?": {
+    "has_queries?": {
       "main": [
         [
           {
-            "node": "Prepare Query",
+            "node": "prepare_query",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Finalize Context",
+            "node": "finalize_context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Query": {
+    "prepare_query": {
       "main": [
         [
           {
-            "node": "Execute Query",
+            "node": "execute_query",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Merge Results",
+            "node": "merge_results",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "Execute Query": {
+    "execute_query": {
       "main": [
         [
           {
-            "node": "Merge Results",
+            "node": "merge_results",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge Results": {
+    "merge_results": {
       "main": [
         [
           {
-            "node": "Collect Results",
+            "node": "collect_results",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Collect Results": {
+    "collect_results": {
       "main": [
         [
           {
-            "node": "More Queries?",
+            "node": "more_queries?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "More Queries?": {
+    "more_queries?": {
       "main": [
         [
           {
-            "node": "Prepare Query",
+            "node": "prepare_query",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Finalize Context",
+            "node": "finalize_context",
             "type": "main",
             "index": 0
           }

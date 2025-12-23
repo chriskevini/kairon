@@ -31,7 +31,7 @@ class TestExecute_Queries:
         """Test the loop initialization and empty array handling"""
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
-        init_node = next((n for n in nodes if n["name"] == "Initialize Loop"), None)
+        init_node = next((n for n in nodes if n["name"] == "initialize_loop"), None)
         assert init_node is not None
 
         code = init_node["parameters"]["jsCode"]
@@ -44,7 +44,7 @@ class TestExecute_Queries:
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
         finalize_node = next(
-            (n for n in nodes if n["name"] == "Finalize Context"), None
+            (n for n in nodes if n["name"] == "finalize_context"), None
         )
         assert finalize_node is not None
 

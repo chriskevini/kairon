@@ -12,7 +12,7 @@
         0
       ],
       "id": "workflow-trigger",
-      "name": "When Called by Another Workflow"
+      "name": "when_called_by_another_workflow"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         0
       ],
       "id": "prepare-event",
-      "name": "Prepare Event"
+      "name": "prepare_event"
     },
     {
       "parameters": {
@@ -42,7 +42,7 @@
         0
       ],
       "id": "insert-event",
-      "name": "Insert Event",
+      "name": "insert_event",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -60,7 +60,7 @@
         0
       ],
       "id": "init-ctx",
-      "name": "Initialize ctx"
+      "name": "initialize_ctx"
     },
     {
       "parameters": {
@@ -78,7 +78,7 @@
         0
       ],
       "id": "execute-query-db",
-      "name": "Execute_Queries (Read)"
+      "name": "execute_queries_(read)"
     },
     {
       "parameters": {
@@ -91,7 +91,7 @@
         0
       ],
       "id": "prepare-prompt-data",
-      "name": "Prepare Prompt Data"
+      "name": "prepare_prompt_data"
     },
     {
       "parameters": {
@@ -107,7 +107,7 @@
         0
       ],
       "id": "generate-nudge-llm",
-      "name": "Generate Nudge with LLM"
+      "name": "generate_nudge_with_llm"
     },
     {
       "parameters": {
@@ -121,7 +121,7 @@
         224
       ],
       "id": "nemotron-nano-9b",
-      "name": "nemotron-nano-9b",
+      "name": "nemotron_nano_9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -140,7 +140,7 @@
         224
       ],
       "id": "mimo-v2-flash",
-      "name": "mimo-v2-flash",
+      "name": "mimo_v2_flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -158,7 +158,7 @@
         0
       ],
       "id": "prepare-trace-query",
-      "name": "Prepare Trace Query"
+      "name": "prepare_trace_query"
     },
     {
       "parameters": {
@@ -192,7 +192,7 @@
         0
       ],
       "id": "if-should-skip",
-      "name": "If Should Skip"
+      "name": "if_should_skip"
     },
     {
       "parameters": {
@@ -217,7 +217,7 @@
         80
       ],
       "id": "send-nudge",
-      "name": "Send Nudge",
+      "name": "send_nudge",
       "credentials": {
         "discordBotApi": {
           "name": "Discord Bot account"
@@ -243,7 +243,7 @@
         0
       ],
       "id": "execute-trace-query",
-      "name": "Execute_Queries (Trace)"
+      "name": "execute_queries_(trace)"
     },
     {
       "parameters": {
@@ -256,7 +256,7 @@
         0
       ],
       "id": "check-skip",
-      "name": "Check Skip"
+      "name": "check_skip"
     },
     {
       "parameters": {
@@ -269,7 +269,7 @@
         80
       ],
       "id": "prepare-projection-query",
-      "name": "Prepare Projection Query"
+      "name": "prepare_projection_query"
     },
     {
       "parameters": {
@@ -287,7 +287,7 @@
         80
       ],
       "id": "execute-projection-query",
-      "name": "Execute_Queries (Projection)"
+      "name": "execute_queries_(projection)"
     },
     {
       "parameters": {
@@ -300,7 +300,7 @@
         80
       ],
       "id": "prepare-for-discord",
-      "name": "Prepare for Discord"
+      "name": "prepare_for_discord"
     },
     {
       "parameters": {
@@ -313,7 +313,7 @@
         80
       ],
       "id": "prepare-final-update",
-      "name": "Prepare Final Update"
+      "name": "prepare_final_update"
     },
     {
       "parameters": {
@@ -331,203 +331,203 @@
         80
       ],
       "id": "execute-final-update",
-      "name": "Execute_Queries (Final)"
+      "name": "execute_queries_(final)"
     }
   ],
   "connections": {
-    "When Called by Another Workflow": {
+    "when_called_by_another_workflow": {
       "main": [
         [
           {
-            "node": "Prepare Event",
+            "node": "prepare_event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Event": {
+    "prepare_event": {
       "main": [
         [
           {
-            "node": "Insert Event",
+            "node": "insert_event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Insert Event": {
+    "insert_event": {
       "main": [
         [
           {
-            "node": "Initialize ctx",
+            "node": "initialize_ctx",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Initialize ctx": {
+    "initialize_ctx": {
       "main": [
         [
           {
-            "node": "Execute_Queries (Read)",
+            "node": "execute_queries_(read)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute_Queries (Read)": {
+    "execute_queries_(read)": {
       "main": [
         [
           {
-            "node": "Prepare Prompt Data",
+            "node": "prepare_prompt_data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Prompt Data": {
+    "prepare_prompt_data": {
       "main": [
         [
           {
-            "node": "Generate Nudge with LLM",
+            "node": "generate_nudge_with_llm",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Nudge with LLM": {
+    "generate_nudge_with_llm": {
       "main": [
         [
           {
-            "node": "Prepare Trace Query",
+            "node": "prepare_trace_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Trace Query": {
+    "prepare_trace_query": {
       "main": [
         [
           {
-            "node": "Execute_Queries (Trace)",
+            "node": "execute_queries_(trace)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute_Queries (Trace)": {
+    "execute_queries_(trace)": {
       "main": [
         [
           {
-            "node": "Check Skip",
+            "node": "check_skip",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Skip": {
+    "check_skip": {
       "main": [
         [
           {
-            "node": "If Should Skip",
+            "node": "if_should_skip",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "If Should Skip": {
+    "if_should_skip": {
       "main": [
         [],
         [
           {
-            "node": "Prepare Projection Query",
+            "node": "prepare_projection_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Projection Query": {
+    "prepare_projection_query": {
       "main": [
         [
           {
-            "node": "Execute_Queries (Projection)",
+            "node": "execute_queries_(projection)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute_Queries (Projection)": {
+    "execute_queries_(projection)": {
       "main": [
         [
           {
-            "node": "Prepare for Discord",
+            "node": "prepare_for_discord",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare for Discord": {
+    "prepare_for_discord": {
       "main": [
         [
           {
-            "node": "Send Nudge",
+            "node": "send_nudge",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Nudge": {
+    "send_nudge": {
       "main": [
         [
           {
-            "node": "Prepare Final Update",
+            "node": "prepare_final_update",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Final Update": {
+    "prepare_final_update": {
       "main": [
         [
           {
-            "node": "Execute_Queries (Final)",
+            "node": "execute_queries_(final)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "nemotron-nano-9b": {
+    "nemotron_nano_9b": {
       "ai_languageModel": [
         [
           {
-            "node": "Generate Nudge with LLM",
+            "node": "generate_nudge_with_llm",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "mimo-v2-flash": {
+    "mimo_v2_flash": {
       "ai_languageModel": [
         [
           {
-            "node": "Generate Nudge with LLM",
+            "node": "generate_nudge_with_llm",
             "type": "ai_languageModel",
             "index": 1
           }

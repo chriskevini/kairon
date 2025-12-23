@@ -239,7 +239,7 @@ const historyItems = $('Get Conversation History').all(); // Intentional - need 
 
 ```javascript
 // Get event and conversation
-const event = $('Execute Workflow Trigger').first().json.event;
+const event = $('execute_workflow_trigger').first().json.event;
 const conversation = $('Get Conversation').first().json;
 
 // Get history (reversed for chronological order)

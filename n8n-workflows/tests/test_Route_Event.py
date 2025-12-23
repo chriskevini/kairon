@@ -40,7 +40,7 @@ class TestRoute_Event:
         """Test that tag parsing logic is correct and handles aliases"""
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
-        parse_node = next((n for n in nodes if n["name"] == "Parse Message"), None)
+        parse_node = next((n for n in nodes if n["name"] == "parse_message"), None)
         assert parse_node is not None
 
         code = parse_node["parameters"]["jsCode"]
@@ -56,7 +56,7 @@ class TestRoute_Event:
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
         init_node = next(
-            (n for n in nodes if n["name"] == "Initialize Message Context"), None
+            (n for n in nodes if n["name"] == "initialize_message_context"), None
         )
         assert init_node is not None
 
@@ -72,7 +72,7 @@ class TestRoute_Event:
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
         switch_node = next(
-            (n for n in nodes if n["name"] == "Route by Event Type"), None
+            (n for n in nodes if n["name"] == "route_by_event_type"), None
         )
         assert switch_node is not None
 

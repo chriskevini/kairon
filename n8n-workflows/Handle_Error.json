@@ -10,7 +10,7 @@
         216
       ],
       "id": "error-trigger-handle-error",
-      "name": "Error Trigger"
+      "name": "error_trigger"
     },
     {
       "parameters": {
@@ -23,7 +23,7 @@
         216
       ],
       "id": "filter-duplicates-handle-error",
-      "name": "Filter Duplicate Errors"
+      "name": "filter_duplicate_errors"
     },
     {
       "parameters": {
@@ -38,7 +38,7 @@
         216
       ],
       "id": "get-recent-event-handle-error",
-      "name": "Get Recent Event",
+      "name": "get_recent_event",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -57,7 +57,7 @@
         216
       ],
       "id": "format-error-handle-error",
-      "name": "Format Error Message"
+      "name": "format_error_message"
     },
     {
       "parameters": {
@@ -90,7 +90,7 @@
         216
       ],
       "id": "check-can-react-handle-error",
-      "name": "Can React?"
+      "name": "can_react?"
     },
     {
       "parameters": {
@@ -107,7 +107,7 @@
         144
       ],
       "id": "add-error-reaction-handle-error",
-      "name": "Add \u274c Reaction",
+      "name": "add_\u274c_reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -133,7 +133,7 @@
         144
       ],
       "id": "remove-blue-reaction-handle-error",
-      "name": "Remove \ud83d\udd35 Reaction",
+      "name": "remove_\ud83d\udd35_reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -167,7 +167,7 @@
         216
       ],
       "id": "send-error-discord-handle-error",
-      "name": "Send Error to Logs",
+      "name": "send_error_to_logs",
       "webhookId": "error-notification-webhook",
       "retryOnFail": true,
       "maxTries": 3,
@@ -190,99 +190,99 @@
         216
       ],
       "id": "merge-paths-handle-error",
-      "name": "Merge Paths"
+      "name": "merge_paths"
     }
   ],
   "connections": {
-    "Error Trigger": {
+    "error_trigger": {
       "main": [
         [
           {
-            "node": "Filter Duplicate Errors",
+            "node": "filter_duplicate_errors",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filter Duplicate Errors": {
+    "filter_duplicate_errors": {
       "main": [
         [
           {
-            "node": "Get Recent Event",
+            "node": "get_recent_event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Recent Event": {
+    "get_recent_event": {
       "main": [
         [
           {
-            "node": "Format Error Message",
+            "node": "format_error_message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Error Message": {
+    "format_error_message": {
       "main": [
         [
           {
-            "node": "Can React?",
+            "node": "can_react?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Can React?": {
+    "can_react?": {
       "main": [
         [
           {
-            "node": "Add \u274c Reaction",
+            "node": "add_\u274c_reaction",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Merge Paths",
+            "node": "merge_paths",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "Add \u274c Reaction": {
+    "add_\u274c_reaction": {
       "main": [
         [
           {
-            "node": "Remove \ud83d\udd35 Reaction",
+            "node": "remove_\ud83d\udd35_reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Remove \ud83d\udd35 Reaction": {
+    "remove_\ud83d\udd35_reaction": {
       "main": [
         [
           {
-            "node": "Merge Paths",
+            "node": "merge_paths",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge Paths": {
+    "merge_paths": {
       "main": [
         [
           {
-            "node": "Send Error to Logs",
+            "node": "send_error_to_logs",
             "type": "main",
             "index": 0
           }

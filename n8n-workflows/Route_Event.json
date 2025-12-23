@@ -8,7 +8,7 @@
         "options": {}
       },
       "id": "cd624af2-2b2d-4c54-a6f2-c16f72817ee4",
-      "name": "Discord Webhook Entry",
+      "name": "discord_webhook_entry",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
@@ -35,7 +35,7 @@
         -128
       ],
       "id": "cron-nudge",
-      "name": "Nudge Cron (Every 15 Min)"
+      "name": "nudge_cron_(every_15_min)"
     },
     {
       "parameters": {
@@ -55,7 +55,7 @@
         544
       ],
       "id": "cron-summary",
-      "name": "Summary Cron (Every 5 Min)"
+      "name": "summary_cron_(every_5_min)"
     },
     {
       "parameters": {
@@ -86,7 +86,7 @@
         -128
       ],
       "id": "execute-nudge-cron",
-      "name": "Execute Generate_Nudge"
+      "name": "execute_generate_nudge"
     },
     {
       "parameters": {
@@ -99,7 +99,7 @@
         544
       ],
       "id": "build-summary-config-query",
-      "name": "Build Summary Config Query"
+      "name": "build_summary_config_query"
     },
     {
       "parameters": {
@@ -122,7 +122,7 @@
         544
       ],
       "id": "get-summary-config",
-      "name": "Get Summary Config"
+      "name": "get_summary_config"
     },
     {
       "parameters": {
@@ -135,7 +135,7 @@
         544
       ],
       "id": "check-summary-time",
-      "name": "Check Should Run Summary"
+      "name": "check_should_run_summary"
     },
     {
       "parameters": {
@@ -166,7 +166,7 @@
         544
       ],
       "id": "execute-summary-cron",
-      "name": "Execute Generate_Daily_Summary"
+      "name": "execute_generate_daily_summary"
     },
     {
       "parameters": {
@@ -227,7 +227,7 @@
         }
       },
       "id": "1c5b0871-58a8-457f-8b94-c1225e4e38b7",
-      "name": "Route by Event Type",
+      "name": "route_by_event_type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
@@ -246,7 +246,7 @@
         352
       ],
       "id": "1ffa970a-a79d-4d92-ad89-666e68c48276",
-      "name": "Parse Reaction"
+      "name": "parse_reaction"
     },
     {
       "parameters": {
@@ -259,7 +259,7 @@
         160
       ],
       "id": "build-message-event-query",
-      "name": "Build Message Event Query"
+      "name": "build_message_event_query"
     },
     {
       "parameters": {
@@ -282,7 +282,7 @@
         160
       ],
       "id": "store-message-event",
-      "name": "Store Message Event"
+      "name": "store_message_event"
     },
     {
       "parameters": {
@@ -295,7 +295,7 @@
         352
       ],
       "id": "build-reaction-event-query",
-      "name": "Build Reaction Event Query"
+      "name": "build_reaction_event_query"
     },
     {
       "parameters": {
@@ -318,7 +318,7 @@
         352
       ],
       "id": "store-reaction-event",
-      "name": "Store Reaction Event"
+      "name": "store_reaction_event"
     },
     {
       "parameters": {
@@ -331,11 +331,11 @@
         160
       ],
       "id": "ebc352f8-4d54-4ecd-9aee-d6e36d191099",
-      "name": "Initialize Message Context"
+      "name": "initialize_message_context"
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhook = $('Build Reaction Event Query').first().json.webhook;\nconst parsed = $('Build Reaction Event Query').first().json.parsed;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhookQuery = $('Build Reaction Event Query').first().json;\nconst webhook = webhookQuery.webhook;\nconst parsed = webhookQuery.parsed;\n\nif (!dbResult) {\n  throw new Error('Database result (event) not found in ctx.db.event.row');\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -344,7 +344,7 @@
         352
       ],
       "id": "9377cd32-3d33-458d-9cb9-bca0ffb63490",
-      "name": "Initialize Reaction Context"
+      "name": "initialize_reaction_context"
     },
     {
       "parameters": {
@@ -373,7 +373,7 @@
         352
       ],
       "id": "a03ea0a9-a9d2-4ce7-bb70-3a12397a5719",
-      "name": "Route Reaction"
+      "name": "route_reaction"
     },
     {
       "parameters": {
@@ -402,7 +402,7 @@
         160
       ],
       "id": "29f4a14c-4ba5-481b-9ac0-7d8200241a40",
-      "name": "Route Message"
+      "name": "route_message"
     },
     {
       "parameters": {
@@ -415,176 +415,176 @@
         160
       ],
       "id": "5f108e4e-41d7-4284-be7e-dcd784e855e6",
-      "name": "Parse Message"
+      "name": "parse_message"
     }
   ],
   "connections": {
-    "Discord Webhook Entry": {
+    "discord_webhook_entry": {
       "main": [
         [
           {
-            "node": "Route by Event Type",
+            "node": "route_by_event_type",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Nudge Cron (Every 15 Min)": {
+    "nudge_cron_(every_15_min)": {
       "main": [
         [
           {
-            "node": "Execute Generate_Nudge",
+            "node": "execute_generate_nudge",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Summary Cron (Every 5 Min)": {
+    "summary_cron_(every_5_min)": {
       "main": [
         [
           {
-            "node": "Build Summary Config Query",
+            "node": "build_summary_config_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Summary Config Query": {
+    "build_summary_config_query": {
       "main": [
         [
           {
-            "node": "Get Summary Config",
+            "node": "get_summary_config",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Summary Config": {
+    "get_summary_config": {
       "main": [
         [
           {
-            "node": "Check Should Run Summary",
+            "node": "check_should_run_summary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Should Run Summary": {
+    "check_should_run_summary": {
       "main": [
         [
           {
-            "node": "Execute Generate_Daily_Summary",
+            "node": "execute_generate_daily_summary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Route by Event Type": {
+    "route_by_event_type": {
       "main": [
         [
           {
-            "node": "Parse Message",
+            "node": "parse_message",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Parse Reaction",
+            "node": "parse_reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Reaction": {
+    "parse_reaction": {
       "main": [
         [
           {
-            "node": "Build Reaction Event Query",
+            "node": "build_reaction_event_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Message": {
+    "parse_message": {
       "main": [
         [
           {
-            "node": "Build Message Event Query",
+            "node": "build_message_event_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Message Event Query": {
+    "build_message_event_query": {
       "main": [
         [
           {
-            "node": "Store Message Event",
+            "node": "store_message_event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Message Event": {
+    "store_message_event": {
       "main": [
         [
           {
-            "node": "Initialize Message Context",
+            "node": "initialize_message_context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Reaction Event Query": {
+    "build_reaction_event_query": {
       "main": [
         [
           {
-            "node": "Store Reaction Event",
+            "node": "store_reaction_event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Reaction Event": {
+    "store_reaction_event": {
       "main": [
         [
           {
-            "node": "Initialize Reaction Context",
+            "node": "initialize_reaction_context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Initialize Message Context": {
+    "initialize_message_context": {
       "main": [
         [
           {
-            "node": "Route Message",
+            "node": "route_message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Initialize Reaction Context": {
+    "initialize_reaction_context": {
       "main": [
         [
           {
-            "node": "Route Reaction",
+            "node": "route_reaction",
             "type": "main",
             "index": 0
           }

@@ -12,11 +12,11 @@
         704
       ],
       "id": "trigger-capture-projection",
-      "name": "Execute Workflow Trigger"
+      "name": "execute_workflow_trigger"
     },
     {
       "parameters": {
-        "jsCode": "// Determine emoji based on projection type and prepare for routing\nconst ctx = $json.ctx;\nconst projectionType = ctx.projection?.type || 'note';\n\nconst emojiMap = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '✅'\n};\n\nconst emoji = emojiMap[projectionType] || '📝';\n\nreturn [{\n  json: {\n    ctx: ctx,\n    projection_type: projectionType,\n    emoji: emoji,\n    inference_start: Date.now()\n  }\n}];"
+        "jsCode": "// Determine emoji based on projection type and prepare for routing\nconst ctx = $json.ctx;\nconst projectionType = ctx.projection?.type || 'note';\n\nconst emojiMap = {\n  'activity': '\ud83d\udd18',\n  'note': '\ud83d\udcdd',\n  'todo': '\u2705'\n};\n\nconst emoji = emojiMap[projectionType] || '\ud83d\udcdd';\n\nreturn [{\n  json: {\n    ctx: ctx,\n    projection_type: projectionType,\n    emoji: emoji,\n    inference_start: Date.now()\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -25,12 +25,12 @@
         704
       ],
       "id": "prepare-routing",
-      "name": "Prepare Routing"
+      "name": "prepare_routing"
     },
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -42,7 +42,7 @@
         912
       ],
       "id": "remove-blue-reaction",
-      "name": "Remove 🔵 Reaction",
+      "name": "remove_\ud83d\udd35_reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -68,7 +68,7 @@
         496
       ],
       "id": "add-type-reaction",
-      "name": "Add Type Reaction",
+      "name": "add_type_reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -162,7 +162,7 @@
         }
       },
       "id": "route-by-type",
-      "name": "Route by Type",
+      "name": "route_by_type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
@@ -173,7 +173,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an activity classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each category. Scores must add up to exactly 100.\n\n## Categories\n\nwork → Productive, focused effort on projects, coding, building, debugging, refining systems, testing, or task-oriented development.\nleisure → Relaxed, non-productive enjoyment: scrolling, watching videos, browsing, casual reading, coffee breaks.\nstudy → Intentional learning or skill-building not directly tied to immediate project work.\nhealth → Physical or mental self-care: exercise, eating meals, hygiene, mindfulness.\nsleep → Going to bed, waking up, napping, or sleep transitions.\nrelationships → Social interaction: chatting with friends/family/partners, or personal/social AI conversations.\nadmin → Organizational/maintenance tasks: planning schedules, managing todos, fixing tools/setup, meta work on tracking system.\n\n## Key Guidelines\n- Heavily favor the most dominant theme.\n- Sleep-related messages → give sleep the highest score.\n- Project-related AI chats → work.\n- Eating/drinking → health (split with leisure if combined).\n- Meta work on tracking system → admin (or work if core building).\n- Omit any category with score ≤5 (treat as 0).\n\nOutput ONLY lines for categories with score >5, in any order:\ncategory_name|X\n\n(Printed scores must sum to exactly 100, integers only)\n\n## Examples\nworking on the router agent implementation\nwork|98\nadmin|2\n\nsipping coffee while scrolling social media\nleisure|88\nhealth|12\n\ngoing to bed after a long day\nsleep|93\nhealth|7\n\nhaving lunch\nhealth|92\nleisure|8\n\n## Message to classify:\n{{ $json.ctx.event.clean_text }}",
+        "text": "=You are an activity classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each category. Scores must add up to exactly 100.\n\n## Categories\n\nwork \u2192 Productive, focused effort on projects, coding, building, debugging, refining systems, testing, or task-oriented development.\nleisure \u2192 Relaxed, non-productive enjoyment: scrolling, watching videos, browsing, casual reading, coffee breaks.\nstudy \u2192 Intentional learning or skill-building not directly tied to immediate project work.\nhealth \u2192 Physical or mental self-care: exercise, eating meals, hygiene, mindfulness.\nsleep \u2192 Going to bed, waking up, napping, or sleep transitions.\nrelationships \u2192 Social interaction: chatting with friends/family/partners, or personal/social AI conversations.\nadmin \u2192 Organizational/maintenance tasks: planning schedules, managing todos, fixing tools/setup, meta work on tracking system.\n\n## Key Guidelines\n- Heavily favor the most dominant theme.\n- Sleep-related messages \u2192 give sleep the highest score.\n- Project-related AI chats \u2192 work.\n- Eating/drinking \u2192 health (split with leisure if combined).\n- Meta work on tracking system \u2192 admin (or work if core building).\n- Omit any category with score \u22645 (treat as 0).\n\nOutput ONLY lines for categories with score >5, in any order:\ncategory_name|X\n\n(Printed scores must sum to exactly 100, integers only)\n\n## Examples\nworking on the router agent implementation\nwork|98\nadmin|2\n\nsipping coffee while scrolling social media\nleisure|88\nhealth|12\n\ngoing to bed after a long day\nsleep|93\nhealth|7\n\nhaving lunch\nhealth|92\nleisure|8\n\n## Message to classify:\n{{ $json.ctx.event.clean_text }}",
         "needsFallback": true,
         "batching": {}
       },
@@ -184,12 +184,12 @@
         496
       ],
       "id": "activity-classifier",
-      "name": "Activity Classifier"
+      "name": "activity_classifier"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are a note classifier for a life-tracking system.\n\nClassify notes into exactly 2 categories. Assign probability scores (0-100) that add up to exactly 100.\n\n# Categories\n\nfact → External, objective, declarative knowledge about the world or people (birthdays, preferences, allergies, likes/dislikes, factual statements about others).\n\nreflection → Internal, subjective knowledge (insights, decisions, observations, realizations, thoughts, self-analysis, patterns, emotional states, personal commitments).\n\n# The Core Distinction\n- fact = \"Things about the world/others\" (external reality)\n- reflection = \"Things about me/my mind\" (internal experience)\n\n# Key Guidelines\n- Declarative statements about others → fact (\"John loves coffee\", \"Sarah is allergic to nuts\")\n- Dates, birthdays, preferences of others → fact\n- Personal insights, realizations → reflection (\"I work better in mornings\")\n- Decisions, commitments → reflection (\"decided to switch to async\")\n- Self-observations → reflection (\"I've been more focused lately\")\n- When in doubt: Is it about THEM or about ME? → fact vs reflection\n\nOutput format (only lines with score >5):\ncategory_name|score\n\n(Scores must sum to exactly 100, integers only)\n\n# Examples\n\nJohn loves dark roast coffee\nfact|95\nreflection|5\n\nMom's birthday is June 12\nfact|98\nreflection|2\n\nnoticed an interesting pattern in my productivity\nreflection|94\nfact|6\n\nI work better in the mornings\nreflection|88\nfact|12\n\n## Message to classify:\n{{ $json.ctx.event.clean_text }}",
+        "text": "=You are a note classifier for a life-tracking system.\n\nClassify notes into exactly 2 categories. Assign probability scores (0-100) that add up to exactly 100.\n\n# Categories\n\nfact \u2192 External, objective, declarative knowledge about the world or people (birthdays, preferences, allergies, likes/dislikes, factual statements about others).\n\nreflection \u2192 Internal, subjective knowledge (insights, decisions, observations, realizations, thoughts, self-analysis, patterns, emotional states, personal commitments).\n\n# The Core Distinction\n- fact = \"Things about the world/others\" (external reality)\n- reflection = \"Things about me/my mind\" (internal experience)\n\n# Key Guidelines\n- Declarative statements about others \u2192 fact (\"John loves coffee\", \"Sarah is allergic to nuts\")\n- Dates, birthdays, preferences of others \u2192 fact\n- Personal insights, realizations \u2192 reflection (\"I work better in mornings\")\n- Decisions, commitments \u2192 reflection (\"decided to switch to async\")\n- Self-observations \u2192 reflection (\"I've been more focused lately\")\n- When in doubt: Is it about THEM or about ME? \u2192 fact vs reflection\n\nOutput format (only lines with score >5):\ncategory_name|score\n\n(Scores must sum to exactly 100, integers only)\n\n# Examples\n\nJohn loves dark roast coffee\nfact|95\nreflection|5\n\nMom's birthday is June 12\nfact|98\nreflection|2\n\nnoticed an interesting pattern in my productivity\nreflection|94\nfact|6\n\nI work better in the mornings\nreflection|88\nfact|12\n\n## Message to classify:\n{{ $json.ctx.event.clean_text }}",
         "needsFallback": true,
         "batching": {}
       },
@@ -200,12 +200,12 @@
         704
       ],
       "id": "note-classifier",
-      "name": "Note Classifier"
+      "name": "note_classifier"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are a todo priority classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each priority level. Scores must add up to exactly 100.\n\n# Priority Levels\n\nhigh → Urgent, time-sensitive, blocking other work, or has significant consequences if delayed.\nmedium → Important but not urgent, should be done soon, normal priority.\nlow → Nice to have, can be deferred, no immediate impact if delayed.\n\n# Key Guidelines\n- Explicit urgency words (\"ASAP\", \"urgent\", \"today\", \"now\") → high\n- Deadlines mentioned → high if soon, medium if later\n- \"Should\", \"need to\", \"have to\" without urgency → medium\n- \"Maybe\", \"sometime\", \"eventually\", \"would be nice\" → low\n- Bug fixes, blockers → high\n- Regular tasks, maintenance → medium\n- Ideas, improvements, \"someday\" items → low\n\nOutput format (only lines with score >5):\npriority_name|score\n\n(Scores must sum to exactly 100, integers only)\n\n# Examples\n\nneed to fix the auth bug before demo tomorrow\nhigh|92\nmedium|8\n\nshould update the documentation\nmedium|85\nlow|15\n\nmaybe add dark mode someday\nlow|88\nmedium|12\n\nurgent: server is down\nhigh|98\nmedium|2\n\n## Message to classify:\n{{ $json.ctx.event.clean_text }}",
+        "text": "=You are a todo priority classifier for a life-tracking system.\n\nAssign probability scores (0-100) to each priority level. Scores must add up to exactly 100.\n\n# Priority Levels\n\nhigh \u2192 Urgent, time-sensitive, blocking other work, or has significant consequences if delayed.\nmedium \u2192 Important but not urgent, should be done soon, normal priority.\nlow \u2192 Nice to have, can be deferred, no immediate impact if delayed.\n\n# Key Guidelines\n- Explicit urgency words (\"ASAP\", \"urgent\", \"today\", \"now\") \u2192 high\n- Deadlines mentioned \u2192 high if soon, medium if later\n- \"Should\", \"need to\", \"have to\" without urgency \u2192 medium\n- \"Maybe\", \"sometime\", \"eventually\", \"would be nice\" \u2192 low\n- Bug fixes, blockers \u2192 high\n- Regular tasks, maintenance \u2192 medium\n- Ideas, improvements, \"someday\" items \u2192 low\n\nOutput format (only lines with score >5):\npriority_name|score\n\n(Scores must sum to exactly 100, integers only)\n\n# Examples\n\nneed to fix the auth bug before demo tomorrow\nhigh|92\nmedium|8\n\nshould update the documentation\nmedium|85\nlow|15\n\nmaybe add dark mode someday\nlow|88\nmedium|12\n\nurgent: server is down\nhigh|98\nmedium|2\n\n## Message to classify:\n{{ $json.ctx.event.clean_text }}",
         "needsFallback": true,
         "batching": {}
       },
@@ -216,7 +216,7 @@
         896
       ],
       "id": "todo-classifier",
-      "name": "Todo Classifier"
+      "name": "todo_classifier"
     },
     {
       "parameters": {
@@ -232,7 +232,7 @@
         1296
       ],
       "id": "mimo-v2-flash",
-      "name": "mimo-v2-flash",
+      "name": "mimo_v2_flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -253,7 +253,7 @@
         1232
       ],
       "id": "nemotron-nano-9b",
-      "name": "nemotron-nano-9b",
+      "name": "nemotron_nano_9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -272,7 +272,7 @@
         688
       ],
       "id": "merge-classifiers",
-      "name": "Merge Classifiers"
+      "name": "merge_classifiers"
     },
     {
       "parameters": {
@@ -285,7 +285,7 @@
         704
       ],
       "id": "parse-classification",
-      "name": "Parse Classification"
+      "name": "parse_classification"
     },
     {
       "parameters": {
@@ -308,7 +308,7 @@
         704
       ],
       "id": "store-projection",
-      "name": "Store Projection"
+      "name": "store_projection"
     },
     {
       "parameters": {
@@ -333,7 +333,7 @@
         704
       ],
       "id": "log-to-kairon-logs",
-      "name": "Log to Kairon Logs",
+      "name": "log_to_kairon_logs",
       "webhookId": "capture-projection-log",
       "retryOnFail": true,
       "maxTries": 3,
@@ -356,7 +356,7 @@
         496
       ],
       "id": "prepare-embedding-text",
-      "name": "Prepare Embedding Text"
+      "name": "prepare_embedding_text"
     },
     {
       "parameters": {
@@ -376,7 +376,7 @@
         496
       ],
       "id": "embed-projection-text",
-      "name": "Embed Projection Text",
+      "name": "embed_projection_text",
       "continueOnFail": true
     },
     {
@@ -390,7 +390,7 @@
         496
       ],
       "id": "build-embedding-query",
-      "name": "Build Embedding Query"
+      "name": "build_embedding_query"
     },
     {
       "parameters": {
@@ -413,223 +413,223 @@
         496
       ],
       "id": "insert-embedding",
-      "name": "Insert Embedding",
+      "name": "insert_embedding",
       "continueOnFail": true
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": {
+    "execute_workflow_trigger": {
       "main": [
         [
           {
-            "node": "Prepare Routing",
+            "node": "prepare_routing",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Routing": {
+    "prepare_routing": {
       "main": [
         [
           {
-            "node": "Route by Type",
+            "node": "route_by_type",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Add Type Reaction",
+            "node": "add_type_reaction",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove 🔵 Reaction",
+            "node": "remove_\ud83d\udd35_reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Route by Type": {
+    "route_by_type": {
       "main": [
         [
           {
-            "node": "Activity Classifier",
+            "node": "activity_classifier",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Note Classifier",
+            "node": "note_classifier",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Todo Classifier",
+            "node": "todo_classifier",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Note Classifier",
+            "node": "note_classifier",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Activity Classifier": {
+    "activity_classifier": {
       "main": [
         [
           {
-            "node": "Merge Classifiers",
+            "node": "merge_classifiers",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Note Classifier": {
+    "note_classifier": {
       "main": [
         [
           {
-            "node": "Merge Classifiers",
+            "node": "merge_classifiers",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "Todo Classifier": {
+    "todo_classifier": {
       "main": [
         [
           {
-            "node": "Merge Classifiers",
+            "node": "merge_classifiers",
             "type": "main",
             "index": 2
           }
         ]
       ]
     },
-    "Merge Classifiers": {
+    "merge_classifiers": {
       "main": [
         [
           {
-            "node": "Parse Classification",
+            "node": "parse_classification",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Classification": {
+    "parse_classification": {
       "main": [
         [
           {
-            "node": "Store Projection",
+            "node": "store_projection",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Projection": {
+    "store_projection": {
       "main": [
         [
           {
-            "node": "Log to Kairon Logs",
+            "node": "log_to_kairon_logs",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Prepare Embedding Text",
+            "node": "prepare_embedding_text",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Embedding Text": {
+    "prepare_embedding_text": {
       "main": [
         [
           {
-            "node": "Embed Projection Text",
+            "node": "embed_projection_text",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Embed Projection Text": {
+    "embed_projection_text": {
       "main": [
         [
           {
-            "node": "Build Embedding Query",
+            "node": "build_embedding_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Embedding Query": {
+    "build_embedding_query": {
       "main": [
         [
           {
-            "node": "Insert Embedding",
+            "node": "insert_embedding",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "mimo-v2-flash": {
+    "mimo_v2_flash": {
       "ai_languageModel": [
         [
           {
-            "node": "Activity Classifier",
+            "node": "activity_classifier",
             "type": "ai_languageModel",
             "index": 0
           }
         ],
         [
           {
-            "node": "Note Classifier",
+            "node": "note_classifier",
             "type": "ai_languageModel",
             "index": 0
           }
         ],
         [
           {
-            "node": "Todo Classifier",
+            "node": "todo_classifier",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "nemotron-nano-9b": {
+    "nemotron_nano_9b": {
       "ai_languageModel": [
         [
           {
-            "node": "Activity Classifier",
+            "node": "activity_classifier",
             "type": "ai_languageModel",
             "index": 1
           }
         ],
         [
           {
-            "node": "Note Classifier",
+            "node": "note_classifier",
             "type": "ai_languageModel",
             "index": 1
           }
         ],
         [
           {
-            "node": "Todo Classifier",
+            "node": "todo_classifier",
             "type": "ai_languageModel",
             "index": 1
           }

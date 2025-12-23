@@ -12,7 +12,7 @@
         8080
       ],
       "id": "91f732dd-8250-4342-ae01-365e0b336809",
-      "name": "Receive Event"
+      "name": "receive_event"
     },
     {
       "parameters": {
@@ -27,7 +27,7 @@
         8400
       ],
       "id": "reset-next-pulse",
-      "name": "Reset Next Pulse",
+      "name": "reset_next_pulse",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -59,7 +59,7 @@
         7984
       ],
       "id": "476cc1ef-8e72-4df6-ab57-42bda8f06403",
-      "name": "React with \ud83d\udd35",
+      "name": "react_with_\ud83d\udd35",
       "webhookId": "react-processing",
       "retryOnFail": true,
       "maxTries": 3,
@@ -103,7 +103,7 @@
         8400
       ],
       "id": "c3c18343-a082-4961-8b41-20c2af7240dc",
-      "name": "Has Tag?"
+      "name": "has_tag?"
     },
     {
       "parameters": {
@@ -137,7 +137,7 @@
         8176
       ],
       "id": "6f431c36-8c0b-4d84-9d44-a78ab41eadd1",
-      "name": "In Thread?"
+      "name": "in_thread?"
     },
     {
       "parameters": {
@@ -150,7 +150,7 @@
         8080
       ],
       "id": "a1b2c3d4-prep-proj-type-node",
-      "name": "Prepare Projection"
+      "name": "prepare_projection"
     },
     {
       "parameters": {
@@ -178,7 +178,7 @@
         8080
       ],
       "id": "e5f6g7h8-capture-projection-node",
-      "name": "Capture Projection"
+      "name": "capture_projection"
     },
     {
       "parameters": {
@@ -206,7 +206,7 @@
         8272
       ],
       "id": "4f5dbc85-1925-42ca-9d48-7cfdb8bc862f",
-      "name": "Start Thread"
+      "name": "start_thread"
     },
     {
       "parameters": {
@@ -234,7 +234,7 @@
         8464
       ],
       "id": "be0f00ad-4e2f-4338-bfef-8816cee4777f",
-      "name": "Execute Command"
+      "name": "execute_command"
     },
     {
       "parameters": {
@@ -262,7 +262,7 @@
         7840
       ],
       "id": "15a4061b-cde3-4fce-89b9-8d2864c1ad53",
-      "name": "Capture Thread"
+      "name": "capture_thread"
     },
     {
       "parameters": {
@@ -290,7 +290,7 @@
         8032
       ],
       "id": "c2a931b5-275e-4fbc-bd3c-4ad40bfcca18",
-      "name": "Continue Thread"
+      "name": "continue_thread"
     },
     {
       "parameters": {
@@ -318,7 +318,7 @@
         8512
       ],
       "id": "multi-extract-node",
-      "name": "Multi Capture"
+      "name": "multi_capture"
     },
     {
       "parameters": {
@@ -352,7 +352,7 @@
         7936
       ],
       "id": "aebd154b-14e4-4927-b668-9adf8d7107f4",
-      "name": "Tag is --"
+      "name": "tag_is"
     },
     {
       "parameters": {
@@ -485,7 +485,7 @@
         }
       },
       "id": "52b76dff-86bf-4376-896a-ffd61ade887b",
-      "name": "Route by Tag",
+      "name": "route_by_tag",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
@@ -495,132 +495,132 @@
     }
   ],
   "connections": {
-    "Receive Event": {
+    "receive_event": {
       "main": [
         [
           {
-            "node": "React with \ud83d\udd35",
+            "node": "react_with_\ud83d\udd35",
             "type": "main",
             "index": 0
           },
           {
-            "node": "In Thread?",
+            "node": "in_thread?",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Reset Next Pulse",
+            "node": "reset_next_pulse",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Has Tag?": {
+    "has_tag?": {
       "main": [
         [
           {
-            "node": "Route by Tag",
+            "node": "route_by_tag",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Multi Capture",
+            "node": "multi_capture",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "In Thread?": {
+    "in_thread?": {
       "main": [
         [
           {
-            "node": "Tag is --",
+            "node": "tag_is",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Has Tag?",
+            "node": "has_tag?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Projection": {
+    "prepare_projection": {
       "main": [
         [
           {
-            "node": "Capture Projection",
+            "node": "capture_projection",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Tag is --": {
+    "tag_is": {
       "main": [
         [
           {
-            "node": "Capture Thread",
+            "node": "capture_thread",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Continue Thread",
+            "node": "continue_thread",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Route by Tag": {
+    "route_by_tag": {
       "main": [
         [
           {
-            "node": "Prepare Projection",
+            "node": "prepare_projection",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Prepare Projection",
+            "node": "prepare_projection",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Prepare Projection",
+            "node": "prepare_projection",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Start Thread",
+            "node": "start_thread",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Execute Command",
+            "node": "execute_command",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Multi Capture",
+            "node": "multi_capture",
             "type": "main",
             "index": 0
           }

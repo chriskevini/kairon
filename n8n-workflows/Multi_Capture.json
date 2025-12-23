@@ -12,7 +12,7 @@
         936
       ],
       "id": "trigger-multi-extract",
-      "name": "Execute Workflow Trigger"
+      "name": "execute_workflow_trigger"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         840
       ],
       "id": "prepare-extraction",
-      "name": "Prepare Capture"
+      "name": "prepare_capture"
     },
     {
       "parameters": {
@@ -42,7 +42,7 @@
         1032
       ],
       "id": "remove-blue-reaction",
-      "name": "Remove \ud83d\udd35 Reaction",
+      "name": "remove_\ud83d\udd35_reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -67,7 +67,7 @@
         840
       ],
       "id": "multi-extractor",
-      "name": "Multi Capturer"
+      "name": "multi_capturer"
     },
     {
       "parameters": {
@@ -83,7 +83,7 @@
         1064
       ],
       "id": "mimo-v2-flash",
-      "name": "mimo-v2-flash",
+      "name": "mimo_v2_flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -104,7 +104,7 @@
         1064
       ],
       "id": "nemotron-nano-9b",
-      "name": "nemotron-nano-9b",
+      "name": "nemotron_nano_9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -122,7 +122,7 @@
         840
       ],
       "id": "parse-and-split",
-      "name": "Parse Response"
+      "name": "parse_response"
     },
     {
       "parameters": {
@@ -145,7 +145,7 @@
         840
       ],
       "id": "store-llm-trace",
-      "name": "Store LLM Trace"
+      "name": "store_llm_trace"
     },
     {
       "parameters": {
@@ -158,7 +158,7 @@
         840
       ],
       "id": "prepare-projections",
-      "name": "Split Captures"
+      "name": "split_captures"
     },
     {
       "parameters": {
@@ -181,7 +181,7 @@
         840
       ],
       "id": "store-projection",
-      "name": "Store Projection"
+      "name": "store_projection"
     },
     {
       "parameters": {
@@ -194,7 +194,7 @@
         1032
       ],
       "id": "collect-results",
-      "name": "Collect Results"
+      "name": "collect_results"
     },
     {
       "parameters": {
@@ -211,7 +211,7 @@
         528
       ],
       "id": "add-emoji-reactions",
-      "name": "Add Emoji Reactions",
+      "name": "add_emoji_reactions",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -245,7 +245,7 @@
         1224
       ],
       "id": "log-to-kairon-logs",
-      "name": "Log to Kairon Logs",
+      "name": "log_to_kairon_logs",
       "webhookId": "multi-capture-log",
       "retryOnFail": true,
       "maxTries": 3,
@@ -268,7 +268,7 @@
         552
       ],
       "id": "wait-rate-limit",
-      "name": "Wait 1s",
+      "name": "wait_1s",
       "webhookId": "471830ad-77d3-4266-9eca-bf75cfee85a2"
     },
     {
@@ -282,7 +282,7 @@
         552
       ],
       "id": "2741faa1-e8ab-4588-b3b5-bc67839680a3",
-      "name": "Loop Over Items"
+      "name": "loop_over_items"
     },
     {
       "parameters": {
@@ -295,7 +295,7 @@
         552
       ],
       "id": "prepare-emoji-items",
-      "name": "Prepare Emoji Items"
+      "name": "prepare_emoji_items"
     },
     {
       "parameters": {
@@ -318,7 +318,7 @@
         1032
       ],
       "id": "query-verbose-setting",
-      "name": "Query Verbose Setting"
+      "name": "query_verbose_setting"
     },
     {
       "parameters": {
@@ -350,7 +350,7 @@
         1032
       ],
       "id": "if-verbose-true",
-      "name": "If Verbose True"
+      "name": "if_verbose_true"
     },
     {
       "parameters": {
@@ -377,7 +377,7 @@
         1032
       ],
       "id": "trigger-show-details",
-      "name": "Trigger Show Details"
+      "name": "trigger_show_details"
     },
     {
       "parameters": {
@@ -390,7 +390,7 @@
         1032
       ],
       "id": "merge-ctx-verbose",
-      "name": "Merge Ctx for Verbose"
+      "name": "merge_ctx_for_verbose"
     },
     {
       "parameters": {
@@ -403,7 +403,7 @@
         840
       ],
       "id": "prepare-embedding-text",
-      "name": "Prepare Embedding Text"
+      "name": "prepare_embedding_text"
     },
     {
       "parameters": {
@@ -423,7 +423,7 @@
         840
       ],
       "id": "embed-projection-text",
-      "name": "Embed Projection Text",
+      "name": "embed_projection_text",
       "continueOnFail": true
     },
     {
@@ -437,7 +437,7 @@
         840
       ],
       "id": "build-embedding-query",
-      "name": "Build Embedding Query"
+      "name": "build_embedding_query"
     },
     {
       "parameters": {
@@ -460,7 +460,7 @@
         840
       ],
       "id": "insert-embedding",
-      "name": "Insert Embedding",
+      "name": "insert_embedding",
       "continueOnFail": true
     },
     {
@@ -474,273 +474,273 @@
         840
       ],
       "id": "projection-loop",
-      "name": "Projection Loop"
+      "name": "projection_loop"
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": {
+    "execute_workflow_trigger": {
       "main": [
         [
           {
-            "node": "Prepare Capture",
+            "node": "prepare_capture",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove \ud83d\udd35 Reaction",
+            "node": "remove_\ud83d\udd35_reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Capture": {
+    "prepare_capture": {
       "main": [
         [
           {
-            "node": "Multi Capturer",
+            "node": "multi_capturer",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Multi Capturer": {
+    "multi_capturer": {
       "main": [
         [
           {
-            "node": "Parse Response",
+            "node": "parse_response",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store LLM Trace": {
+    "store_llm_trace": {
       "main": [
         [
           {
-            "node": "Split Captures",
+            "node": "split_captures",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Projection": {
+    "store_projection": {
       "main": [
         [
           {
-            "node": "Prepare Embedding Text",
+            "node": "prepare_embedding_text",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Embedding Text": {
+    "prepare_embedding_text": {
       "main": [
         [
           {
-            "node": "Embed Projection Text",
+            "node": "embed_projection_text",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Embed Projection Text": {
+    "embed_projection_text": {
       "main": [
         [
           {
-            "node": "Build Embedding Query",
+            "node": "build_embedding_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Embedding Query": {
+    "build_embedding_query": {
       "main": [
         [
           {
-            "node": "Insert Embedding",
+            "node": "insert_embedding",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Collect Results": {
+    "collect_results": {
       "main": [
         [
           {
-            "node": "Log to Kairon Logs",
+            "node": "log_to_kairon_logs",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Verbose Setting",
+            "node": "query_verbose_setting",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Add Emoji Reactions": {
+    "add_emoji_reactions": {
       "main": [
         [
           {
-            "node": "Wait 1s",
+            "node": "wait_1s",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "mimo-v2-flash": {
+    "mimo_v2_flash": {
       "ai_languageModel": [
         [
           {
-            "node": "Multi Capturer",
+            "node": "multi_capturer",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "nemotron-nano-9b": {
+    "nemotron_nano_9b": {
       "ai_languageModel": [
         [
           {
-            "node": "Multi Capturer",
+            "node": "multi_capturer",
             "type": "ai_languageModel",
             "index": 1
           }
         ]
       ]
     },
-    "Wait 1s": {
+    "wait_1s": {
       "main": [
         [
           {
-            "node": "Loop Over Items",
+            "node": "loop_over_items",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Loop Over Items": {
+    "loop_over_items": {
       "main": [
         [],
         [
           {
-            "node": "Add Emoji Reactions",
+            "node": "add_emoji_reactions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Response": {
+    "parse_response": {
       "main": [
         [
           {
-            "node": "Store LLM Trace",
+            "node": "store_llm_trace",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Collect Results",
+            "node": "collect_results",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Prepare Emoji Items",
+            "node": "prepare_emoji_items",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Split Captures": {
+    "split_captures": {
       "main": [
         [
           {
-            "node": "Projection Loop",
+            "node": "projection_loop",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Emoji Items": {
+    "prepare_emoji_items": {
       "main": [
         [
           {
-            "node": "Loop Over Items",
+            "node": "loop_over_items",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log to Kairon Logs": {
+    "log_to_kairon_logs": {
       "main": [
         []
       ]
     },
-    "Query Verbose Setting": {
+    "query_verbose_setting": {
       "main": [
         [
           {
-            "node": "Merge Ctx for Verbose",
+            "node": "merge_ctx_for_verbose",
             "index": 0,
             "type": "main"
           }
         ]
       ]
     },
-    "If Verbose True": {
+    "if_verbose_true": {
       "main": [
         [
           {
-            "node": "Trigger Show Details",
+            "node": "trigger_show_details",
             "index": 0,
             "type": "main"
           }
         ]
       ]
     },
-    "Merge Ctx for Verbose": {
+    "merge_ctx_for_verbose": {
       "main": [
         [
           {
-            "node": "If Verbose True",
+            "node": "if_verbose_true",
             "index": 0,
             "type": "main"
           }
         ]
       ]
     },
-    "Projection Loop": {
+    "projection_loop": {
       "main": [
         [],
         [
           {
-            "node": "Store Projection",
+            "node": "store_projection",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Insert Embedding": {
+    "insert_embedding": {
       "main": [
         [
           {
-            "node": "Projection Loop",
+            "node": "projection_loop",
             "type": "main",
             "index": 0
           }

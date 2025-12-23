@@ -337,7 +337,7 @@ return [{
   json: {
     activities_context: activities,
     notes_context: notes,
-    ...($('Prepare Context').item.json)
+    ...($('prepare_context').item.json)
   }
 }];
 ```

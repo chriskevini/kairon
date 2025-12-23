@@ -13,7 +13,7 @@ Usage:
     ./inspect_workflow.py workflow.json --find "pattern" # Find nodes/code matching pattern
 
 Examples:
-    ./inspect_workflow.py n8n-workflows/Execute_Command.json --node "Validate Get"
+    ./inspect_workflow.py n8n-workflows/Execute_Command.json --node "validate_get"
     ./inspect_workflow.py n8n-workflows/Route_Message.json --code
     ./inspect_workflow.py n8n-workflows/Multi_Capture.json --sql
     ./inspect_workflow.py n8n-workflows/*.json --find "ctx.event"

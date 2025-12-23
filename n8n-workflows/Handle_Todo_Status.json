@@ -12,7 +12,7 @@
         400
       ],
       "id": "trigger-todo-status",
-      "name": "Execute Workflow Trigger"
+      "name": "execute_workflow_trigger"
     },
     {
       "parameters": {
@@ -37,7 +37,7 @@
         400
       ],
       "id": "send-wip-message",
-      "name": "Send WIP Message",
+      "name": "send_wip_message",
       "webhookId": "todo-status-wip",
       "retryOnFail": true,
       "maxTries": 3,
@@ -51,11 +51,11 @@
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": {
+    "execute_workflow_trigger": {
       "main": [
         [
           {
-            "node": "Send WIP Message",
+            "node": "send_wip_message",
             "type": "main",
             "index": 0
           }

@@ -88,8 +88,8 @@ The audit identified 8 distinct ctx namespaces across workflows:
 
 #### Error 1 & 2: Empty Merge Node Parameters
 **Location**: 
-- `Handle_Error.json` → "Merge Paths" node
-- `Save_Extraction.json` → "After Promote" node
+- `Handle_Error.json` → "merge_paths" node
+- `Save_Extraction.json` → "after_promote" node
 
 **Issue**: Merge nodes have empty parameters, missing required `mode` and `numberInputs`
 
@@ -107,16 +107,16 @@ The audit identified 8 distinct ctx namespaces across workflows:
 
 #### Error 3 & 4: Node References Without ctx
 **Location**: `Route_Event.json`
-- "Store Message Event" node
-- "Store Reaction Event" node
+- "store_message_event" node
+- "store_reaction_event" node
 
-**Issue**: Uses `$('Parse Message').item.json.clean_text` instead of `$json.ctx.event.clean_text`
+**Issue**: Uses `$('parse_message').item.json.clean_text` instead of `$json.ctx.event.clean_text`
 
 **Impact**: Breaks ctx pattern, creates tight coupling, violates documented best practices
 
 **Current (Wrong)**:
 ```javascript
-={{ $('Parse Message').item.json.clean_text }}
+={{ $('parse_message').item.json.clean_text }}
 ```
 
 **Should Be**:
@@ -146,21 +146,21 @@ The audit identified 8 distinct ctx namespaces across workflows:
 **Fix**: Add `"mode": "append"` to parameters
 
 #### Missing Switch Fallback Outputs (2 instances)
-- `Execute_Command.json` → "Switch Generate Type"
-- `Route_Event.json` → "Route by Event Type"
+- `Execute_Command.json` → "switch_generate_type"
+- `Route_Event.json` → "route_by_event_type"
 
 **Impact**: Unmatched cases produce no output, causing silent failures
 
 **Fix**: Add `"fallbackOutput": 3` or similar to options
 
 #### Inconsistent ctx Initialization (3 instances)
-- `Generate_Daily_Summary.json` → "Prepare Event Data" doesn't initialize ctx
-- `Generate_Nudge.json` → "Prepare Event" doesn't initialize ctx
+- `Generate_Daily_Summary.json` → "prepare_event_data" doesn't initialize ctx
+- `Generate_Nudge.json` → "prepare_event" doesn't initialize ctx
 - Workflows that use Set nodes vs Code nodes inconsistently
 
 #### Flat Data Access (4 instances)
 - `Multi_Capture.json` → "Parse & Split" may access flat data
-- `Generate_Daily_Summary.json` → "Parse LLM Response" uses prepareData.ctx
+- `Generate_Daily_Summary.json` → "parse_llm_response" uses prepareData.ctx
 - Discord content fields accessing flat $json instead of $json.ctx
 
 ## Recommendations

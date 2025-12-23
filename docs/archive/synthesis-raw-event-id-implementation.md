@@ -177,7 +177,7 @@ WHERE n.id = :note_id;
 
 ### 1. Route_Reaction Workflow
 
-**Add "Store Reaction Event" node before "Parse Emoji Save":**
+**Add "store_reaction_event" node before "Parse Emoji Save":**
 
 ```javascript
 // Node: Store Reaction Event
@@ -273,7 +273,7 @@ SELECT
 RETURNING *;
 ```
 
-**Key change:** Pass the `raw_event_id` from the "Store Reaction Event" node output.
+**Key change:** Pass the `raw_event_id` from the "store_reaction_event" node output.
 
 ## Benefits of This Approach
 
@@ -361,7 +361,7 @@ This enables queries like: "Show all conversation messages that contributed to t
 
 ## Implementation Checklist
 
-- [ ] Add "Store Reaction Event" node to Route_Reaction workflow
+- [ ] Add "store_reaction_event" node to Route_Reaction workflow
 - [ ] Update Save_Extraction to accept `raw_event_id` parameter
 - [ ] Test idempotency: same reaction twice → one note
 - [ ] Test multi-user: two users save same extraction → two notes

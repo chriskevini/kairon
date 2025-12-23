@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+
+"""
+Script to create the Backup_Workflow.json workflow file.
+This script generates a workflow that can backup n8n workflows and configurations.
+"""
+
+import os
+import json
+
+
+def create_backup_workflow():
+    """Create the Backup workflow JSON."""
+
+    workflow = {
+        "name": "Backup_Workflow",
+        "nodes": [
+            {
+                "parameters": {"cronExpression": "0 2 * * *", "timezone": "UTC"},
+                "id": "1",
+                "name": "Cron",
+                "type": "n8n-nodes-base.cron",
+                "typeVersion": 1,
+                "position": [-600, 0],
+                "notesInExecutionOrder": [
+                    {
+                        "name": "Backup Schedule",
+                        "description": "Runs daily at 2 AM UTC to backup n8n workflows and configurations.",
+                    }
+                ],
+            },
+            {
+                "parameters": {
+                    "functionCode": "const fs = require('fs');\nconst path = require('path');\nconst { execSync } = require('child_process');\n\n// Get current timestamp\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-');\nconst backupDir = `/tmp/n8n-backup-${timestamp}`;\n\n// Ensure backup directory exists\nexecSync(`mkdir -p ${backupDir}`);\n\n// Files to backup\nconst files = [\n  'n8n-workflows',\n  'n8n-workflows-dev',\n  'scripts',\n  '.env',\n  'DEPLOYMENT.md',\n  'README.md'\n];\n\nconst results = [];\n\nfor (const file of files) {\n  try {\n    if (fs.existsSync(file)) {\n      const dest = path.join(backupDir, file);\n      execSync(`cp -r ${file} ${dest}`);\n      results.push({ file, status: 'success', path: dest });\n    } else {\n      results.push({ file, status: 'not_found' });\n    }\n  } catch (error) {\n    results.push({ file, status: 'error', error: error.message });\n  }\n}\n\n// Create backup info file\nconst backupInfo = {\n  timestamp,\n  backupDir,\n  results,\n  createdAt: new Date().toISOString()\n};\n\nfs.writeFileSync(path.join(backupDir, 'backup-info.json'), JSON.stringify(backupInfo, null, 2));\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: $json.id || 'backup-' + timestamp,\n        event_type: 'backup_workflow',\n        clean_text: 'Backup workflow execution',\n        trace_chain: [timestamp],\n        author_login: 'system',\n        timestamp: new Date().toISOString()\n      },\n      backup: {\n        results,\n        backupDir,\n        timestamp\n      }\n    }\n  }\n}];"
+                },
+                "id": "2",
+                "name": "Create Backup",
+                "type": "n8n-nodes-base.function",
+                "typeVersion": 1,
+                "position": [-400, 0],
+                "notesInExecutionOrder": [
+                    {
+                        "name": "Backup Creation",
+                        "description": "Creates a timestamped backup of n8n workflows, scripts, and configuration files.",
+                    }
+                ],
+            },
+            {
+                "parameters": {
+                    "operation": "executeQuery",
+                    "query": "INSERT INTO traces (event_id, event_type, trace_chain, author_login, timestamp, duration_ms, model, completion_text, confidence, prompt, response, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
+                    "values": [
+                        "={{$json.ctx.event.event_id}}",
+                        "backup_workflow",
+                        "={{JSON.stringify($json.ctx.event.trace_chain)}}",
+                        "system",
+                        "={{$json.ctx.event.timestamp}}",
+                        0,
+                        "system",
+                        "Backup created successfully",
+                        1.0,
+                        "Create backup",
+                        "Backup completed",
+                        "completed",
+                    ],
+                },
+                "id": "3",
+                "name": "Store Trace",
+                "type": "n8n-nodes-base.postgres",
+                "typeVersion": 1,
+                "position": [-200, 0],
+                "credentials": {
+                    "postgres": {"id": "postgres-db", "name": "Postgres DB"}
+                },
+                "options": {"includeOtherFields": True},
+            },
+            {
+                "parameters": {
+                    "operation": "executeQuery",
+                    "query": "INSERT INTO projections (trace_id, projection_type, projection_data, confidence, category) VALUES ($1, $2, $3, $4, $5)",
+                    "values": [
+                        "={{$json.ctx.db.trace.id}}",
+                        "backup",
+                        "={{JSON.stringify($json.ctx.backup)}}",
+                        1.0,
+                        "system",
+                    ],
+                },
+                "id": "4",
+                "name": "Store Backup Projection",
+                "type": "n8n-nodes-base.postgres",
+                "typeVersion": 1,
+                "position": [0, 0],
+                "credentials": {
+                    "postgres": {"id": "postgres-db", "name": "Postgres DB"}
+                },
+                "options": {"includeOtherFields": True},
+            },
+            {
+                "parameters": {
+                    "functionCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n📁 Backup Directory: ${backupDir}\\n✅ Successfully backed up: ${successCount} items\\n❌ Failed to backup: ${errorCount} items\\n⚠️  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n}];"
+                },
+                "id": "5",
+                "name": "Format Success Message",
+                "type": "n8n-nodes-base.function",
+                "typeVersion": 1,
+                "position": [200, 0],
+            },
+            {
+                "parameters": {
+                    "functionCode": "const message = $json.ctx.message;\n\n// Send success message to Discord\nconst webhookUrl = process.env.DISCORD_WEBHOOK_URL;\nif (webhookUrl) {\n  const payload = {\n    content: message,\n    username: 'Kairon Backup Bot',\n    avatar_url: 'https://cdn.discordapp.com/emojis/123456789012345678.png' // Kairon logo\n  };\n  \n  await $node['HTTP Request'].run({\n    method: 'POST',\n    url: webhookUrl,\n    body: JSON.stringify(payload),\n    headers: {\n      'Content-Type': 'application/json'\n    }\n  });\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      discord_sent: true\n    }\n  }\n}];"
+                },
+                "id": "6",
+                "name": "Send Discord Success",
+                "type": "n8n-nodes-base.function",
+                "typeVersion": 1,
+                "position": [400, 0],
+            },
+            {
+                "parameters": {
+                    "url": "={{$json.ctx.discord_sent ? '' : ''}}",
+                    "method": "POST",
+                    "jsonParameters": True,
+                    "options": {},
+                },
+                "id": "7",
+                "name": "HTTP Request",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 2,
+                "position": [400, 200],
+            },
+            {
+                "parameters": {
+                    "operation": "executeQuery",
+                    "query": "INSERT INTO events (idempotency_key, event_type, clean_text, author_login, timestamp, channel_id, message_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (idempotency_key) DO NOTHING RETURNING id",
+                    "values": [
+                        "={{'backup-' + new Date().toISOString().replace(/[:.]/g, '-')}}",
+                        "backup_workflow",
+                        "Backup workflow executed successfully",
+                        "system",
+                        "={{$json.ctx.event.timestamp}}",
+                        "system",
+                        "backup",
+                    ],
+                },
+                "id": "8",
+                "name": "Log Event",
+                "type": "n8n-nodes-base.postgres",
+                "typeVersion": 1,
+                "position": [-200, -200],
+                "credentials": {
+                    "postgres": {"id": "postgres-db", "name": "Postgres DB"}
+                },
+                "options": {"includeOtherFields": True},
+            },
+        ],
+        "connections": {
+            "Cron": {"main": [[{"node": "Create Backup", "type": "main", "index": 0}]]},
+            "Create Backup": {
+                "main": [[{"node": "Store Trace", "type": "main", "index": 0}]]
+            },
+            "Store Trace": {
+                "main": [
+                    [{"node": "Store Backup Projection", "type": "main", "index": 0}]
+                ]
+            },
+            "Store Backup Projection": {
+                "main": [
+                    [{"node": "Format Success Message", "type": "main", "index": 0}]
+                ]
+            },
+            "Format Success Message": {
+                "main": [[{"node": "Send Discord Success", "type": "main", "index": 0}]]
+            },
+            "Send Discord Success": {
+                "main": [[{"node": "HTTP Request", "type": "main", "index": 0}]]
+            },
+        },
+        "active": False,
+        "settings": {},
+        "id": "backup-workflow-id",
+    }
+
+    return workflow
+
+
+def main():
+    """Generate and save the backup workflow."""
+    workflow = create_backup_workflow()
+
+    # Save to n8n-workflows directory
+    output_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "n8n-workflows",
+        "Backup_Workflow.json",
+    )
+
+    with open(output_path, "w") as f:
+        json.dump(workflow, f, indent=2)
+
+    print(f"Backup workflow created at: {output_path}")
+    print("Workflow includes:")
+    print("- Daily cron trigger at 2 AM UTC")
+    print("- Backup creation for n8n workflows and configurations")
+    print("- Database logging of backup operations")
+    print("- Discord notification on completion")
+    print("- Structured ctx pattern compliance")
+
+
+if __name__ == "__main__":
+    main()

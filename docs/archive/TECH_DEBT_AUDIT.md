@@ -57,7 +57,7 @@ This audit identifies technical debt across the Kairon codebase, organized by pr
 #### 1.7 ~~Missing ctx Initialization~~ RESOLVED
 ~~Some workflows don't initialize `ctx.event` in the first node, especially system-triggered ones like `Generate_Daily_Summary`.~~
 
-**Status:** RESOLVED (Dec 2025) - Workflow linter confirms all workflows pass ctx pattern validation. System-triggered workflows (`Generate_Daily_Summary`, `Generate_Nudge`) have dedicated "Initialize ctx" Code nodes. Sub-workflows (`Handle_Todo_Status`, `Route_Message`, etc.) receive ctx from parent workflows via `executeWorkflowTrigger`.
+**Status:** RESOLVED (Dec 2025) - Workflow linter confirms all workflows pass ctx pattern validation. System-triggered workflows (`Generate_Daily_Summary`, `Generate_Nudge`) have dedicated "initialize_ctx" Code nodes. Sub-workflows (`Handle_Todo_Status`, `Route_Message`, etc.) receive ctx from parent workflows via `executeWorkflowTrigger`.
 
 #### 1.8 Timezone in Projections
 Migration 019 added `timezone` columns to projections. All workflows should populate this field.

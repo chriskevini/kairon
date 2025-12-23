@@ -35,13 +35,13 @@ class TestRoute_Message:
             n for n in nodes if n.get("type") == "n8n-nodes-base.executeWorkflowTrigger"
         ]
         assert len(triggers) == 1
-        assert triggers[0]["name"] == "Receive Event"
+        assert triggers[0]["name"] == "receive_event"
 
     def test_tag_routing_rules(self):
         """Test that all required tags are routed"""
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
-        route_node = next((n for n in nodes if n["name"] == "Route by Tag"), None)
+        route_node = next((n for n in nodes if n["name"] == "route_by_tag"), None)
         assert route_node is not None
 
         rules = route_node["parameters"]["rules"]["values"]
@@ -57,7 +57,7 @@ class TestRoute_Message:
         """Test that projection type is correctly prepared"""
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
-        prep_node = next((n for n in nodes if n["name"] == "Prepare Projection"), None)
+        prep_node = next((n for n in nodes if n["name"] == "prepare_projection"), None)
         assert prep_node is not None
 
         code = prep_node["parameters"]["jsCode"]
@@ -75,10 +75,10 @@ class TestRoute_Message:
             if n.get("type") == "n8n-nodes-base.executeWorkflow"
         ]
 
-        assert "Multi Capture" in subworkflows
-        assert "Capture Projection" in subworkflows
-        assert "Execute Command" in subworkflows
-        assert "Start Thread" in subworkflows
+        assert "multi_capture" in subworkflows
+        assert "capture_projection" in subworkflows
+        assert "execute_command" in subworkflows
+        assert "start_thread" in subworkflows
 
 
 if __name__ == "__main__":

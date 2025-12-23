@@ -12,7 +12,7 @@
         400
       ],
       "id": "trigger-correction",
-      "name": "Execute Workflow Trigger"
+      "name": "execute_workflow_trigger"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         400
       ],
       "id": "build-lookup-query",
-      "name": "Build Lookup Query"
+      "name": "build_lookup_query"
     },
     {
       "parameters": {
@@ -48,7 +48,7 @@
         400
       ],
       "id": "lookup-original-event",
-      "name": "Lookup Original Event"
+      "name": "lookup_original_event"
     },
     {
       "parameters": {
@@ -61,7 +61,7 @@
         400
       ],
       "id": "prepare-correction",
-      "name": "Prepare Correction"
+      "name": "prepare_correction"
     },
     {
       "parameters": {
@@ -95,7 +95,7 @@
         400
       ],
       "id": "has-original-check",
-      "name": "Has Original?"
+      "name": "has_original?"
     },
     {
       "parameters": {
@@ -108,7 +108,7 @@
         336
       ],
       "id": "build-correction-queries",
-      "name": "Build Correction Queries"
+      "name": "build_correction_queries"
     },
     {
       "parameters": {
@@ -131,11 +131,11 @@
         336
       ],
       "id": "execute-correction-queries",
-      "name": "Execute Correction Queries"
+      "name": "execute_correction_queries"
     },
     {
       "parameters": {
-        "jsCode": "// Build list of emojis to remove based on voided projection types\nconst ctx = $json.ctx;\nconst original = $('Build Correction Queries').first().json.original;\nconst channelId = original.channel_id;\nconst messageId = original.message_id;\n\n// Get voided projection types from Execute_Queries result\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedTypes = voidedRows.map(item => item.projection_type).filter(Boolean);\n\n// Map projection types to their emojis\nconst typeToEmoji = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '✅'\n};\n\n// Only remove emojis for the projection types that were actually voided\nconst emojisToRemove = [...new Set(voidedTypes.map(t => typeToEmoji[t]).filter(Boolean))];\n\nif (emojisToRemove.length === 0) {\n  // No emojis to remove, return skip marker\n  return [{ json: { skip: true, ctx } }];\n}\n\nreturn emojisToRemove.map(emoji => ({\n  json: {\n    channel_id: channelId,\n    message_id: messageId,\n    emoji: emoji,\n    encoded_emoji: encodeURIComponent(emoji),\n    skip: false,\n    ctx\n  }\n}));"
+        "jsCode": "// Build list of emojis to remove based on voided projection types\nconst ctx = $json.ctx;\nconst original = $('Build Correction Queries').first().json.original;\nconst channelId = original.channel_id;\nconst messageId = original.message_id;\n\n// Get voided projection types from Execute_Queries result\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedTypes = voidedRows.map(item => item.projection_type).filter(Boolean);\n\n// Map projection types to their emojis\nconst typeToEmoji = {\n  'activity': '\ud83d\udd18',\n  'note': '\ud83d\udcdd',\n  'todo': '\u2705'\n};\n\n// Only remove emojis for the projection types that were actually voided\nconst emojisToRemove = [...new Set(voidedTypes.map(t => typeToEmoji[t]).filter(Boolean))];\n\nif (emojisToRemove.length === 0) {\n  // No emojis to remove, return skip marker\n  return [{ json: { skip: true, ctx } }];\n}\n\nreturn emojisToRemove.map(emoji => ({\n  json: {\n    channel_id: channelId,\n    message_id: messageId,\n    emoji: emoji,\n    encoded_emoji: encodeURIComponent(emoji),\n    skip: false,\n    ctx\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -144,7 +144,7 @@
         336
       ],
       "id": "build-emoji-remove-list",
-      "name": "Build Emoji Remove List"
+      "name": "build_emoji_remove_list"
     },
     {
       "parameters": {
@@ -178,7 +178,7 @@
         336
       ],
       "id": "filter-skip",
-      "name": "Has Emoji to Remove?"
+      "name": "has_emoji_to_remove?"
     },
     {
       "parameters": {
@@ -195,7 +195,7 @@
         272
       ],
       "id": "remove-bot-emojis",
-      "name": "Remove Bot Emojis",
+      "name": "remove_bot_emojis",
       "retryOnFail": false,
       "credentials": {
         "discordBotApi": {
@@ -215,7 +215,7 @@
         336
       ],
       "id": "check-reextract",
-      "name": "Check Re-extract"
+      "name": "check_re_extract"
     },
     {
       "parameters": {
@@ -249,7 +249,7 @@
         336
       ],
       "id": "should-reextract-check",
-      "name": "Should Re-extract?"
+      "name": "should_re_extract?"
     },
     {
       "parameters": {
@@ -262,7 +262,7 @@
         272
       ],
       "id": "build-capture-ctx",
-      "name": "Build Capture ctx"
+      "name": "build_capture_ctx"
     },
     {
       "parameters": {
@@ -287,7 +287,7 @@
         272
       ],
       "id": "execute-capture",
-      "name": "Execute Capture_Projection"
+      "name": "execute_capture_projection"
     },
     {
       "parameters": {
@@ -312,7 +312,7 @@
         464
       ],
       "id": "log-correction",
-      "name": "Log Correction",
+      "name": "log_correction",
       "webhookId": "correction-log",
       "retryOnFail": true,
       "maxTries": 3,
@@ -347,7 +347,7 @@
         560
       ],
       "id": "log-no-original",
-      "name": "Log No Original",
+      "name": "log_no_original",
       "webhookId": "no-original-log",
       "retryOnFail": true,
       "maxTries": 3,
@@ -361,164 +361,164 @@
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": {
+    "execute_workflow_trigger": {
       "main": [
         [
           {
-            "node": "Build Lookup Query",
+            "node": "build_lookup_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Lookup Query": {
+    "build_lookup_query": {
       "main": [
         [
           {
-            "node": "Lookup Original Event",
+            "node": "lookup_original_event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Lookup Original Event": {
+    "lookup_original_event": {
       "main": [
         [
           {
-            "node": "Prepare Correction",
+            "node": "prepare_correction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Correction": {
+    "prepare_correction": {
       "main": [
         [
           {
-            "node": "Has Original?",
+            "node": "has_original?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Has Original?": {
+    "has_original?": {
       "main": [
         [
           {
-            "node": "Build Correction Queries",
+            "node": "build_correction_queries",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Log No Original",
+            "node": "log_no_original",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Correction Queries": {
+    "build_correction_queries": {
       "main": [
         [
           {
-            "node": "Execute Correction Queries",
+            "node": "execute_correction_queries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Execute Correction Queries": {
+    "execute_correction_queries": {
       "main": [
         [
           {
-            "node": "Build Emoji Remove List",
+            "node": "build_emoji_remove_list",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Emoji Remove List": {
+    "build_emoji_remove_list": {
       "main": [
         [
           {
-            "node": "Has Emoji to Remove?",
+            "node": "has_emoji_to_remove?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Has Emoji to Remove?": {
+    "has_emoji_to_remove?": {
       "main": [
         [
           {
-            "node": "Remove Bot Emojis",
+            "node": "remove_bot_emojis",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Check Re-extract",
+            "node": "check_re_extract",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Remove Bot Emojis": {
+    "remove_bot_emojis": {
       "main": [
         [
           {
-            "node": "Check Re-extract",
+            "node": "check_re_extract",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Re-extract": {
+    "check_re_extract": {
       "main": [
         [
           {
-            "node": "Should Re-extract?",
+            "node": "should_re_extract?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Should Re-extract?": {
+    "should_re_extract?": {
       "main": [
         [
           {
-            "node": "Build Capture ctx",
+            "node": "build_capture_ctx",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Log Correction",
+            "node": "log_correction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Capture ctx": {
+    "build_capture_ctx": {
       "main": [
         [
           {
-            "node": "Execute Capture_Projection",
+            "node": "execute_capture_projection",
             "type": "main",
             "index": 0
           }

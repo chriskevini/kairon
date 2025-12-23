@@ -12,7 +12,7 @@
         480
       ],
       "id": "trigger-node",
-      "name": "Receive Event"
+      "name": "receive_event"
     },
     {
       "parameters": {
@@ -45,7 +45,7 @@
         480
       ],
       "id": "check-action",
-      "name": "Is Add Reaction?"
+      "name": "is_add_reaction?"
     },
     {
       "parameters": {
@@ -60,7 +60,7 @@
         480
       ],
       "id": "get-emoji-config",
-      "name": "Get Emoji Config",
+      "name": "get_emoji_config",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -69,7 +69,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Determine route based on emoji_mapping config\nconst ctx = $('Receive Event').first().json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Parse config - Postgres returns JSON as string\nconst rawValue = $json.value;\nconst config = typeof rawValue === 'string' ? JSON.parse(rawValue) : (rawValue || {});\n\n// Extraction emojis (number selections + dismiss)\n// These are hardcoded because they're tied to display order logic\nconst extractionEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '❌'];\n\n// Info emojis (show details about the projection)\n// ❔ = simple view (just projections)\n// ❓ = detailed view (full prompts, timing)\nconst infoEmojis = ['❓', '❔'];\n\n// Quality rating emojis (rate projection quality)\nconst qualityEmojis = ['👍', '👎'];\n\n// Get correction emojis from config (type corrections + void)\nconst corrections = config.corrections || [];\n\n// Get todo status emojis from config\nconst statusEmojis = Object.keys(config.status || {});\n\n// Determine route\nlet route = 'unknown';\n\nif (extractionEmojis.includes(emoji)) {\n  route = 'extraction';\n} else if (infoEmojis.includes(emoji)) {\n  route = 'info';\n} else if (qualityEmojis.includes(emoji)) {\n  route = 'quality';\n} else if (corrections.includes(emoji)) {\n  route = 'correction';\n} else if (statusEmojis.includes(emoji)) {\n  route = 'todo_status';\n}\n\nreturn {\n  ctx,\n  route,\n  emoji,\n  config\n};"
+        "jsCode": "// Determine route based on emoji_mapping config\nconst ctx = $('Receive Event').first().json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Parse config - Postgres returns JSON as string\nconst rawValue = $json.value;\nconst config = typeof rawValue === 'string' ? JSON.parse(rawValue) : (rawValue || {});\n\n// Extraction emojis (number selections + dismiss)\n// These are hardcoded because they're tied to display order logic\nconst extractionEmojis = ['1\ufe0f\u20e3', '2\ufe0f\u20e3', '3\ufe0f\u20e3', '4\ufe0f\u20e3', '5\ufe0f\u20e3', '6\ufe0f\u20e3', '7\ufe0f\u20e3', '8\ufe0f\u20e3', '9\ufe0f\u20e3', '\ud83d\udd1f', '\u274c'];\n\n// Info emojis (show details about the projection)\n// \u2754 = simple view (just projections)\n// \u2753 = detailed view (full prompts, timing)\nconst infoEmojis = ['\u2753', '\u2754'];\n\n// Quality rating emojis (rate projection quality)\nconst qualityEmojis = ['\ud83d\udc4d', '\ud83d\udc4e'];\n\n// Get correction emojis from config (type corrections + void)\nconst corrections = config.corrections || [];\n\n// Get todo status emojis from config\nconst statusEmojis = Object.keys(config.status || {});\n\n// Determine route\nlet route = 'unknown';\n\nif (extractionEmojis.includes(emoji)) {\n  route = 'extraction';\n} else if (infoEmojis.includes(emoji)) {\n  route = 'info';\n} else if (qualityEmojis.includes(emoji)) {\n  route = 'quality';\n} else if (corrections.includes(emoji)) {\n  route = 'correction';\n} else if (statusEmojis.includes(emoji)) {\n  route = 'todo_status';\n}\n\nreturn {\n  ctx,\n  route,\n  emoji,\n  config\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -78,7 +78,7 @@
         480
       ],
       "id": "determine-route",
-      "name": "Determine Route"
+      "name": "determine_route"
     },
     {
       "parameters": {
@@ -217,7 +217,7 @@
         480
       ],
       "id": "route-by-emoji",
-      "name": "Route by Emoji"
+      "name": "route_by_emoji"
     },
     {
       "parameters": {
@@ -240,7 +240,7 @@
         320
       ],
       "id": "save-extraction",
-      "name": "Save Extraction"
+      "name": "save_extraction"
     },
     {
       "parameters": {
@@ -265,7 +265,7 @@
         480
       ],
       "id": "handle-correction",
-      "name": "Handle Correction"
+      "name": "handle_correction"
     },
     {
       "parameters": {
@@ -290,7 +290,7 @@
         640
       ],
       "id": "handle-todo-status",
-      "name": "Handle Todo Status"
+      "name": "handle_todo_status"
     },
     {
       "parameters": {
@@ -303,7 +303,7 @@
         1040
       ],
       "id": "unknown-emoji-error",
-      "name": "Unknown Emoji Error"
+      "name": "unknown_emoji_error"
     },
     {
       "parameters": {
@@ -328,7 +328,7 @@
         800
       ],
       "id": "show-projection-details",
-      "name": "Show Projection Details"
+      "name": "show_projection_details"
     },
     {
       "parameters": {
@@ -353,94 +353,94 @@
         880
       ],
       "id": "handle-quality-rating",
-      "name": "Handle Quality Rating"
+      "name": "handle_quality_rating"
     }
   ],
   "connections": {
-    "Receive Event": {
+    "receive_event": {
       "main": [
         [
           {
-            "node": "Is Add Reaction?",
+            "node": "is_add_reaction?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Add Reaction?": {
+    "is_add_reaction?": {
       "main": [
         [
           {
-            "node": "Get Emoji Config",
+            "node": "get_emoji_config",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Emoji Config": {
+    "get_emoji_config": {
       "main": [
         [
           {
-            "node": "Determine Route",
+            "node": "determine_route",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Determine Route": {
+    "determine_route": {
       "main": [
         [
           {
-            "node": "Route by Emoji",
+            "node": "route_by_emoji",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Route by Emoji": {
+    "route_by_emoji": {
       "main": [
         [
           {
-            "node": "Save Extraction",
+            "node": "save_extraction",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Show Projection Details",
+            "node": "show_projection_details",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle Quality Rating",
+            "node": "handle_quality_rating",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle Correction",
+            "node": "handle_correction",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle Todo Status",
+            "node": "handle_todo_status",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Unknown Emoji Error",
+            "node": "unknown_emoji_error",
             "type": "main",
             "index": 0
           }

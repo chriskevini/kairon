@@ -19,7 +19,7 @@
         0
       ],
       "id": "cron-trigger",
-      "name": "cron-trigger"
+      "name": "cron_trigger"
     },
     {
       "parameters": {
@@ -34,7 +34,7 @@
         -100
       ],
       "id": "find-missing-embeddings",
-      "name": "find-missing-embeddings",
+      "name": "find_missing_embeddings",
       "credentials": {
         "postgres": {
           "name": "Postgres account"
@@ -52,7 +52,7 @@
         -100
       ],
       "id": "loop-embeddings",
-      "name": "loop-embeddings",
+      "name": "loop_embeddings",
       "continueOnFail": true
     },
     {
@@ -73,7 +73,7 @@
         -100
       ],
       "id": "embed-text",
-      "name": "embed-text",
+      "name": "embed_text",
       "continueOnFail": true
     },
     {
@@ -97,7 +97,7 @@
         -100
       ],
       "id": "insert-embedding",
-      "name": "insert-embedding",
+      "name": "insert_embedding",
       "continueOnFail": true
     },
     {
@@ -111,7 +111,7 @@
         50
       ],
       "id": "prepare-embedding-query",
-      "name": "prepare-embedding-query"
+      "name": "prepare_embedding_query"
     },
     {
       "parameters": {
@@ -126,7 +126,7 @@
         300
       ],
       "id": "find-incomplete-traces",
-      "name": "find-incomplete-traces",
+      "name": "find_incomplete_traces",
       "credentials": {
         "postgres": {
           "name": "Postgres account"
@@ -144,7 +144,7 @@
         300
       ],
       "id": "parse-missing-projections",
-      "name": "parse-missing-projections"
+      "name": "parse_missing_projections"
     },
     {
       "parameters": {
@@ -167,7 +167,7 @@
         300
       ],
       "id": "insert-missing-projections",
-      "name": "insert-missing-projections",
+      "name": "insert_missing_projections",
       "continueOnFail": true
     },
     {
@@ -181,109 +181,109 @@
         450
       ],
       "id": "prepare-projection-query",
-      "name": "prepare-projection-query"
+      "name": "prepare_projection_query"
     }
   ],
   "connections": {
-    "cron-trigger": {
+    "cron_trigger": {
       "main": [
         [
           {
-            "node": "find-missing-embeddings",
+            "node": "find_missing_embeddings",
             "type": "main",
             "index": 0
           },
           {
-            "node": "find-incomplete-traces",
+            "node": "find_incomplete_traces",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "find-missing-embeddings": {
+    "find_missing_embeddings": {
       "main": [
         [
           {
-            "node": "loop-embeddings",
+            "node": "loop_embeddings",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "loop-embeddings": {
+    "loop_embeddings": {
       "main": [
         [],
         [
           {
-            "node": "embed-text",
+            "node": "embed_text",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "embed-text": {
+    "embed_text": {
       "main": [
         [
           {
-            "node": "prepare-embedding-query",
+            "node": "prepare_embedding_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare-embedding-query": {
+    "prepare_embedding_query": {
       "main": [
         [
           {
-            "node": "insert-embedding",
+            "node": "insert_embedding",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "insert-embedding": {
+    "insert_embedding": {
       "main": [
         [
           {
-            "node": "loop-embeddings",
+            "node": "loop_embeddings",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "find-incomplete-traces": {
+    "find_incomplete_traces": {
       "main": [
         [
           {
-            "node": "parse-missing-projections",
+            "node": "parse_missing_projections",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "parse-missing-projections": {
+    "parse_missing_projections": {
       "main": [
         [
           {
-            "node": "prepare-projection-query",
+            "node": "prepare_projection_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare-projection-query": {
+    "prepare_projection_query": {
       "main": [
         [
           {
-            "node": "insert-missing-projections",
+            "node": "insert_missing_projections",
             "type": "main",
             "index": 0
           }

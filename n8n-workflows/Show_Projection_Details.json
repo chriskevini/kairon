@@ -18,7 +18,7 @@
         240
       ],
       "id": "trigger-projection-details",
-      "name": "Receive Event"
+      "name": "receive_event"
     },
     {
       "parameters": {
@@ -35,7 +35,7 @@
         240
       ],
       "id": "lookup-projection-chain",
-      "name": "Lookup Projection Chain",
+      "name": "lookup_projection_chain",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -54,7 +54,7 @@
         240
       ],
       "id": "merge-ctx-db",
-      "name": "Merge Ctx + DB"
+      "name": "merge_ctx_+_db"
     },
     {
       "parameters": {
@@ -67,7 +67,7 @@
         240
       ],
       "id": "format-details",
-      "name": "Format Details"
+      "name": "format_details"
     },
     {
       "parameters": {
@@ -92,7 +92,7 @@
         240
       ],
       "id": "send-details",
-      "name": "Send Details",
+      "name": "send_details",
       "webhookId": "projection-details-response",
       "retryOnFail": true,
       "maxTries": 3,
@@ -114,7 +114,7 @@
         240
       ],
       "id": "restore-ctx",
-      "name": "Restore Ctx"
+      "name": "restore_ctx"
     },
     {
       "parameters": {
@@ -156,7 +156,7 @@
         240
       ],
       "id": "if-last-message",
-      "name": "If Last Message"
+      "name": "if_last_message"
     },
     {
       "parameters": {
@@ -173,7 +173,7 @@
         240
       ],
       "id": "remove-info-reaction",
-      "name": "Remove Info Reaction",
+      "name": "remove_info_reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -186,77 +186,77 @@
     }
   ],
   "connections": {
-    "Receive Event": {
+    "receive_event": {
       "main": [
         [
           {
-            "node": "Lookup Projection Chain",
+            "node": "lookup_projection_chain",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Lookup Projection Chain": {
+    "lookup_projection_chain": {
       "main": [
         [
           {
-            "node": "Merge Ctx + DB",
+            "node": "merge_ctx_+_db",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge Ctx + DB": {
+    "merge_ctx_+_db": {
       "main": [
         [
           {
-            "node": "Format Details",
+            "node": "format_details",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Details": {
+    "format_details": {
       "main": [
         [
           {
-            "node": "Send Details",
+            "node": "send_details",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Details": {
+    "send_details": {
       "main": [
         [
           {
-            "node": "Restore Ctx",
+            "node": "restore_ctx",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Restore Ctx": {
+    "restore_ctx": {
       "main": [
         [
           {
-            "node": "If Last Message",
+            "node": "if_last_message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "If Last Message": {
+    "if_last_message": {
       "main": [
         [
           {
-            "node": "Remove Info Reaction",
+            "node": "remove_info_reaction",
             "type": "main",
             "index": 0
           }

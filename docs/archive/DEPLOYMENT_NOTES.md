@@ -35,7 +35,7 @@
 
 ### 3. Save_Thread Workflow Updates Needed
 
-**Add before "Send a message" node:**
+**Add before "send_a_message" node:**
 
 ```sql
 -- Get old summary message ID
@@ -51,7 +51,7 @@ LIMIT 1;
 DELETE https://discord.com/api/v10/channels/{parent_id}/messages/{old_summary_message_id}
 ```
 
-**Update "Send a message" node:**
+**Update "send_a_message" node:**
 - Change `channel_id` from `{{ $json.channel_id }}` to `{{ $json.parent_id }}`
 - This posts to channel root instead of inside thread
 

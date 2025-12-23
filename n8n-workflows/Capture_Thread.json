@@ -12,7 +12,7 @@
         640
       ],
       "id": "eab3a9d4-6d3a-4560-8e60-612e6f5c9df3",
-      "name": "Execute Workflow Trigger"
+      "name": "execute_workflow_trigger"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         544
       ],
       "id": "build-thread-history-query",
-      "name": "Build Thread History Query"
+      "name": "build_thread_history_query"
     },
     {
       "parameters": {
@@ -43,7 +43,7 @@
         544
       ],
       "id": "execute-thread-history",
-      "name": "Get Thread History"
+      "name": "get_thread_history"
     },
     {
       "parameters": {
@@ -56,12 +56,12 @@
         544
       ],
       "id": "eb096fdc-babc-49e4-9213-36f22ae98b6e",
-      "name": "Prepare Context"
+      "name": "prepare_context"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.ctx.db.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom's birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom's birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus (tentative insight)\n\n**Bad Examples (Do NOT do these):**\n- ❌ `reflection|Send the report by Friday` (action = todo, not reflection)\n- ❌ `fact|I realized I work best in the morning` (user insight = reflection, not fact)\n- ❌ `todo|Dad prefers calls in the evening` (info about another person = fact, not todo)\n- ❌ Including both a reflection AND a todo for the same item\n- ❌ Creating tasks that are vague or not actionable (e.g., \"think about...\")\n\n## Output Format\nReturn one line per item:\n`type|text`\n\nReturn ONLY the categorized items, no explanations.",
+        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.ctx.db.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom's birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom's birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus (tentative insight)\n\n**Bad Examples (Do NOT do these):**\n- \u274c `reflection|Send the report by Friday` (action = todo, not reflection)\n- \u274c `fact|I realized I work best in the morning` (user insight = reflection, not fact)\n- \u274c `todo|Dad prefers calls in the evening` (info about another person = fact, not todo)\n- \u274c Including both a reflection AND a todo for the same item\n- \u274c Creating tasks that are vague or not actionable (e.g., \"think about...\")\n\n## Output Format\nReturn one line per item:\n`type|text`\n\nReturn ONLY the categorized items, no explanations.",
         "needsFallback": true,
         "batching": {}
       },
@@ -72,7 +72,7 @@
         544
       ],
       "id": "f10c50b2-ae2f-463b-8378-6b36c12d2b21",
-      "name": "Extract Items LLM"
+      "name": "extract_items_llm"
     },
     {
       "parameters": {
@@ -85,7 +85,7 @@
         544
       ],
       "id": "93bcf029-9040-466f-957c-2a9c8d87a451",
-      "name": "Parse Extractions"
+      "name": "parse_extractions"
     },
     {
       "parameters": {
@@ -119,7 +119,7 @@
         544
       ],
       "id": "3a3d0695-4532-4b46-bbd1-6fc531e8ad12",
-      "name": "Has Extractions?"
+      "name": "has_extractions?"
     },
     {
       "parameters": {
@@ -132,7 +132,7 @@
         544
       ],
       "id": "prepare-trace-data-save-chat",
-      "name": "Prepare Trace Data"
+      "name": "prepare_trace_data"
     },
     {
       "parameters": {
@@ -150,7 +150,7 @@
         448
       ],
       "id": "write-thread-extraction-trace",
-      "name": "Write Thread Extraction Trace"
+      "name": "write_thread_extraction_trace"
     },
     {
       "parameters": {
@@ -163,7 +163,7 @@
         448
       ],
       "id": "6f856663-e8d6-4f8c-9c9c-41a6eab0d27b",
-      "name": "Build Insert Query"
+      "name": "build_insert_query"
     },
     {
       "parameters": {
@@ -181,11 +181,11 @@
         448
       ],
       "id": "48cebe42-d9c8-4de1-a10a-d1e09935ad25",
-      "name": "Save Extractions to DB"
+      "name": "save_extractions_to_db"
     },
     {
       "parameters": {
-        "jsCode": "// Build Discord summary message\nconst ctx = $json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '📊 **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '💡 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '📋 **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '❌ Dismiss • 🗑️ Delete thread';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        summary_content: content,\n        emoji_count: extractions.length\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build Discord summary message\nconst ctx = $json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1\ufe0f\u20e3', '2\ufe0f\u20e3', '3\ufe0f\u20e3', '4\ufe0f\u20e3', '5\ufe0f\u20e3', '6\ufe0f\u20e3', '7\ufe0f\u20e3', '8\ufe0f\u20e3', '9\ufe0f\u20e3', '\ud83d\udd1f'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '\ud83d\udcca **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '\ud83d\udca1 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '\u2022';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '\ud83d\udccb **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '\u2022';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '\u274c Dismiss \u2022 \ud83d\uddd1\ufe0f Delete thread';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        summary_content: content,\n        emoji_count: extractions.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -194,11 +194,11 @@
         448
       ],
       "id": "8cfff2da-39dd-4c84-abab-f5a723655499",
-      "name": "Build Summary Message"
+      "name": "build_summary_message"
     },
     {
       "parameters": {
-        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst ctx = $('Build Summary Message').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '❌'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '🗑️'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ctx: ctx,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
+        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst ctx = $('Build Summary Message').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1\ufe0f\u20e3', '2\ufe0f\u20e3', '3\ufe0f\u20e3', '4\ufe0f\u20e3', '5\ufe0f\u20e3', '6\ufe0f\u20e3', '7\ufe0f\u20e3', '8\ufe0f\u20e3', '9\ufe0f\u20e3', '\ud83d\udd1f'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '\u274c'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '\ud83d\uddd1\ufe0f'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ctx: ctx,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -207,7 +207,7 @@
         448
       ],
       "id": "d7ff0aa4-b3d1-42f5-a10d-37aad4ec2f56",
-      "name": "Prepare Emoji Reactions"
+      "name": "prepare_emoji_reactions"
     },
     {
       "parameters": {
@@ -224,7 +224,7 @@
         448
       ],
       "id": "124efe0a-5911-42ba-bd1f-4478da67fdff",
-      "name": "Add Emoji Reactions",
+      "name": "add_emoji_reactions",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -246,7 +246,7 @@
         256
       ],
       "id": "build-update-summary-query",
-      "name": "Build Update Summary Query"
+      "name": "build_update_summary_query"
     },
     {
       "parameters": {
@@ -264,12 +264,12 @@
         256
       ],
       "id": "cc84e221-84fb-49bb-b72b-e0589a531893",
-      "name": "Update Summary Message ID"
+      "name": "update_summary_message_id"
     },
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Build Summary Message').first().json.ctx.event.channel_id }}/messages/{{ $('Build Summary Message').first().json.ctx.event.message_id }}/reactions/💭/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Build Summary Message').first().json.ctx.event.channel_id }}/messages/{{ $('Build Summary Message').first().json.ctx.event.message_id }}/reactions/\ud83d\udcad/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -281,7 +281,7 @@
         928
       ],
       "id": "3a889796-3250-4fef-af78-7b779e545595",
-      "name": "Remove 💭 Reaction",
+      "name": "remove_\ud83d\udcad_reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -305,7 +305,7 @@
           "value": "={{ $json.ctx.event.thread_id }}",
           "mode": "id"
         },
-        "content": "❌ No items extracted from this thread. You must have had quite an interesting conversation.",
+        "content": "\u274c No items extracted from this thread. You must have had quite an interesting conversation.",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -315,7 +315,7 @@
         640
       ],
       "id": "db0c5fb7-27f3-460d-b931-d0610a934431",
-      "name": "Post No Extractions Message",
+      "name": "post_no_extractions_message",
       "webhookId": "no-extractions-webhook",
       "retryOnFail": true,
       "maxTries": 3,
@@ -330,7 +330,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -342,7 +342,7 @@
         736
       ],
       "id": "remove-blue-reaction-save-chat-no-extract",
-      "name": "Remove 🔵 Reaction (No Extract)",
+      "name": "remove_\ud83d\udd35_reaction_(no_extract)",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -367,7 +367,7 @@
         768
       ],
       "id": "1021e602-7ef3-4c22-bc16-74a99d6e8c30",
-      "name": "nemotron-nano-9b",
+      "name": "nemotron_nano_9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -388,7 +388,7 @@
         768
       ],
       "id": "aff3ef03-d804-40a6-98d9-b498298f4b69",
-      "name": "mimo-v2-flash",
+      "name": "mimo_v2_flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -410,7 +410,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "💭"
+        "emoji": "\ud83d\udcad"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -419,7 +419,7 @@
         352
       ],
       "id": "ee2bc94f-b03b-4d5c-a04e-3e80e8e3acf1",
-      "name": "React with 💭",
+      "name": "react_with_\ud83d\udcad",
       "webhookId": "2af02bbb-3f0b-490a-b0c9-234c0e9013ae",
       "retryOnFail": true,
       "maxTries": 3,
@@ -454,7 +454,7 @@
         448
       ],
       "id": "59068362-0e97-4e90-90c3-98373b60e25f",
-      "name": "Send a message",
+      "name": "send_a_message",
       "webhookId": "b9ec412c-e54b-4542-a3ad-41a388512da2",
       "retryOnFail": true,
       "maxTries": 3,
@@ -476,7 +476,7 @@
         448
       ],
       "id": "ebfeb17a-a211-4a67-adf9-ec9c26e418cc",
-      "name": "Loop Over Items"
+      "name": "loop_over_items"
     },
     {
       "parameters": {
@@ -489,7 +489,7 @@
         520
       ],
       "id": "9a504ad1-2ee7-435b-9c81-ff106ef75821",
-      "name": "Wait 1 s",
+      "name": "wait_1_s",
       "webhookId": "1803ab0e-bd94-42cf-8843-a2178b590fa6"
     },
     {
@@ -514,286 +514,286 @@
         544
       ],
       "id": "set-inference-start-save-chat",
-      "name": "Set Inference Start"
+      "name": "set_inference_start"
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": {
+    "execute_workflow_trigger": {
       "main": [
         [
           {
-            "node": "Build Thread History Query",
+            "node": "build_thread_history_query",
             "type": "main",
             "index": 0
           },
           {
-            "node": "React with 💭",
+            "node": "react_with_\ud83d\udcad",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove 💭 Reaction",
+            "node": "remove_\ud83d\udcad_reaction",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove 🔵 Reaction (No Extract)",
+            "node": "remove_\ud83d\udd35_reaction_(no_extract)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Thread History Query": {
+    "build_thread_history_query": {
       "main": [
         [
           {
-            "node": "Get Thread History",
+            "node": "get_thread_history",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Thread History": {
+    "get_thread_history": {
       "main": [
         [
           {
-            "node": "Prepare Context",
+            "node": "prepare_context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Context": {
+    "prepare_context": {
       "main": [
         [
           {
-            "node": "Set Inference Start",
+            "node": "set_inference_start",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Items LLM": {
+    "extract_items_llm": {
       "main": [
         [
           {
-            "node": "Parse Extractions",
+            "node": "parse_extractions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Extractions": {
+    "parse_extractions": {
       "main": [
         [
           {
-            "node": "Prepare Trace Data",
+            "node": "prepare_trace_data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Trace Data": {
+    "prepare_trace_data": {
       "main": [
         [
           {
-            "node": "Has Extractions?",
+            "node": "has_extractions?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Has Extractions?": {
+    "has_extractions?": {
       "main": [
         [
           {
-            "node": "Write Thread Extraction Trace",
+            "node": "write_thread_extraction_trace",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Post No Extractions Message",
+            "node": "post_no_extractions_message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Write Thread Extraction Trace": {
+    "write_thread_extraction_trace": {
       "main": [
         [
           {
-            "node": "Build Insert Query",
+            "node": "build_insert_query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Insert Query": {
+    "build_insert_query": {
       "main": [
         [
           {
-            "node": "Save Extractions to DB",
+            "node": "save_extractions_to_db",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Save Extractions to DB": {
+    "save_extractions_to_db": {
       "main": [
         [
           {
-            "node": "Build Summary Message",
+            "node": "build_summary_message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Summary Message": {
+    "build_summary_message": {
       "main": [
         [
           {
-            "node": "Send a message",
+            "node": "send_a_message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Emoji Reactions": {
+    "prepare_emoji_reactions": {
       "main": [
         [
           {
-            "node": "Loop Over Items",
+            "node": "loop_over_items",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Add Emoji Reactions": {
+    "add_emoji_reactions": {
       "main": [
         [
           {
-            "node": "Wait 1 s",
+            "node": "wait_1_s",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Summary Message ID": {
+    "update_summary_message_id": {
       "main": [
         []
       ]
     },
-    "Remove 💭 Reaction": {
+    "remove_\ud83d\udcad_reaction": {
       "main": [
         []
       ]
     },
-    "nemotron-nano-9b": {
+    "nemotron_nano_9b": {
       "ai_languageModel": [
         [
           {
-            "node": "Extract Items LLM",
+            "node": "extract_items_llm",
             "type": "ai_languageModel",
             "index": 1
           }
         ]
       ]
     },
-    "mimo-v2-flash": {
+    "mimo_v2_flash": {
       "ai_languageModel": [
         [
           {
-            "node": "Extract Items LLM",
+            "node": "extract_items_llm",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "React with 💭": {
+    "react_with_\ud83d\udcad": {
       "main": [
         []
       ]
     },
-    "Send a message": {
+    "send_a_message": {
       "main": [
         [
           {
-            "node": "Prepare Emoji Reactions",
+            "node": "prepare_emoji_reactions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Loop Over Items": {
+    "loop_over_items": {
       "main": [
         [
           {
-            "node": "Build Update Summary Query",
+            "node": "build_update_summary_query",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Add Emoji Reactions",
+            "node": "add_emoji_reactions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Update Summary Query": {
+    "build_update_summary_query": {
       "main": [
         [
           {
-            "node": "Update Summary Message ID",
+            "node": "update_summary_message_id",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Wait 1 s": {
+    "wait_1_s": {
       "main": [
         [
           {
-            "node": "Loop Over Items",
+            "node": "loop_over_items",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Inference Start": {
+    "set_inference_start": {
       "main": [
         [
           {
-            "node": "Extract Items LLM",
+            "node": "extract_items_llm",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Post No Extractions Message": {
+    "post_no_extractions_message": {
       "main": [
         []
       ]
