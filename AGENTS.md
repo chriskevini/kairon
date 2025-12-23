@@ -303,9 +303,7 @@ Tags are parsed at the start of messages. See `docs/tag-parsing-reference.md` fo
 
 ## Deployment
 
-### Main Deployment Script
-
-Use `scripts/deploy.sh` for all deployments. This script works both locally and on the remote server.
+Use `scripts/deploy.sh` for all workflow deployments:
 
 ```bash
 # Full pipeline: dev → smoke tests → prod
@@ -314,39 +312,15 @@ Use `scripts/deploy.sh` for all deployments. This script works both locally and 
 # Dev environment only (with smoke tests)
 ./scripts/deploy.sh dev
 
-# Prod environment only (skip dev/tests - not recommended)
+# Prod environment only (not recommended - skip tests)
 ./scripts/deploy.sh prod
 ```
 
-### How It Works
+The script automatically detects whether it's running locally or on the server and uses the appropriate deployment method.
 
-The deployment script automatically detects the environment:
+**Pre-push hook:** Workflow changes trigger automatic deployment. Skip with `git push --no-verify` if needed.
 
-**Local Machine:**
-- Detects `rdev` availability and `N8N_DEV_SSH_HOST` in .env
-- Uses `rdev n8n push` for prod deployment (handles SSH tunneling)
-- Opens SSH tunnels for dev deployment (localhost:5679 → remote dev n8n)
-
-**Remote Server:**
-- No `rdev` or no `N8N_DEV_SSH_HOST` configured
-- Uses `scripts/workflows/n8n-push-prod.sh` for direct API access
-- Runs locally without SSH tunneling
-
-### Pre-Push Hook
-
-The pre-push git hook (`.githooks/pre-push`) automatically runs the full deployment pipeline when pushing changes to n8n workflow files. It's installed at `.git/hooks/pre-push`.
-
-**Behavior:**
-- Detects workflow changes in `n8n-workflows/` directory
-- Runs `scripts/deploy.sh` (full dev → test → prod pipeline)
-- Blocks push if deployment or tests fail
-
-**To skip the hook:**
-```bash
-git push --no-verify
-```
-
-### Dev Environment Deployment Details
+### Deployment Process
 
 When deploying to dev:
 ### Dev Environment Deployment Details
