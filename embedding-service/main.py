@@ -8,6 +8,7 @@ import logging
 from contextlib import asynccontextmanager
 
 import numpy as np
+import psycopg2
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
@@ -19,6 +20,12 @@ logger = logging.getLogger(__name__)
 # Model configuration
 MODEL_NAME = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 model: SentenceTransformer = None
+
+# Database configuration
+DB_HOST = os.getenv("POSTGRES_HOST", "postgres-db")
+DB_NAME = os.getenv("POSTGRES_DB", "kairon")
+DB_USER = os.getenv("POSTGRES_USER", "n8n_user")
+DB_PASS = os.getenv("POSTGRES_PASSWORD", "password")
 
 
 @asynccontextmanager
@@ -65,6 +72,26 @@ class SimilarityMatch(BaseModel):
 
 class SimilarityResponse(BaseModel):
     matches: list[SimilarityMatch]
+    model: str
+
+
+class SearchRequest(BaseModel):
+    query: str
+    table: str = "prompt_modules"
+    filter: dict | None = None
+    top_k: int = 1
+
+
+class SearchResult(BaseModel):
+    id: str
+    name: str | None = None
+    content: str
+    score: float
+    metadata: dict
+
+
+class SearchResponse(BaseModel):
+    results: list[SearchResult]
     model: str
 
 
@@ -145,6 +172,95 @@ def similarity(req: SimilarityRequest):
     ]
 
     return SimilarityResponse(matches=matches, model=MODEL_NAME)
+
+
+@app.post("/search", response_model=SearchResponse)
+def search(req: SearchRequest):
+    """Perform vector search in the database."""
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    logger.info(f"Searching in {req.table} for query: {req.query[:50]}...")
+
+    # 1. Generate embedding for query
+    query_embedding = model.encode([req.query], normalize_embeddings=True)[0].tolist()
+
+    # 2. Connect to database
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS
+        )
+        cur = conn.cursor()
+
+        # 3. Construct and execute query
+        # Using cosine distance (<=> operator in pgvector)
+        # 1 - (embedding <=> query) = cosine similarity
+        if req.table == "prompt_modules":
+            sql = """
+                SELECT id, name, content, 1 - (embedding <=> %s::vector) as score, 
+                       jsonb_build_object('module_type', module_type, 'tags', tags, 'priority', priority) as metadata
+                FROM prompt_modules
+                WHERE active = true
+            """
+            params = [query_embedding]
+
+            if req.filter and req.filter.get("module_type"):
+                sql += " AND module_type = %s"
+                params.append(req.filter["module_type"])
+
+            sql += " ORDER BY embedding <=> %s::vector LIMIT %s"
+            params.extend([query_embedding, req.top_k])
+
+        elif req.table == "projections":
+            sql = """
+                SELECT p.id, NULL as name, 
+                       COALESCE(p.data->>'description', p.data->>'text') as content, 
+                       1 - (e.embedding <=> %s::vector) as score,
+                       jsonb_build_object('projection_type', p.projection_type, 'category', p.data->>'category', 'timestamp', p.data->>'timestamp') as metadata
+                FROM embeddings e
+                JOIN projections p ON e.projection_id = p.id
+                WHERE p.status IN ('auto_confirmed', 'confirmed')
+                  AND e.embedding IS NOT NULL
+            """
+            params = [query_embedding]
+
+            if req.filter and req.filter.get("projection_type"):
+                sql += " AND p.projection_type = %s"
+                params.append(req.filter["projection_type"])
+
+            if req.filter and req.filter.get("days"):
+                sql += " AND p.created_at > NOW() - INTERVAL '%s days'"
+                params.append(req.filter["days"])
+
+            sql += " ORDER BY e.embedding <=> %s::vector LIMIT %s"
+            params.extend([query_embedding, req.top_k])
+        else:
+            raise HTTPException(
+                status_code=400, detail=f"Unsupported table: {req.table}"
+            )
+
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+
+        results = [
+            SearchResult(
+                id=str(row[0]),
+                name=row[1],
+                content=row[2],
+                score=float(row[3]),
+                metadata=row[4],
+            )
+            for row in rows
+        ]
+
+        cur.close()
+        conn.close()
+
+        return SearchResponse(results=results, model=MODEL_NAME)
+
+    except Exception as e:
+        logger.error(f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
 if __name__ == "__main__":
