@@ -52,7 +52,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id for downstream nodes\nconst eventResult = $json;\nconst checkResult = $(\"Prepare Event Data\").first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"daily_summary\",\n        trigger_reason: checkResult.trigger_reason,\n        today: checkResult.today,\n        trace_chain: [eventResult.id]\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx with event_id and prepare db_queries for Query_DB\nconst eventResult = $json;\nconst checkResult = $(\"Prepare Event Data\").first().json;\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n  },\n  {\n    key: 'notes',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n  },\n  {\n    key: 'breakdown',\n    sql: `SELECT \n            p.data->>'category' as category,\n            COUNT(*) as count\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          GROUP BY p.data->>'category'\n          ORDER BY count DESC`\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"daily_summary\",\n        trigger_reason: checkResult.trigger_reason,\n        today: checkResult.today,\n        trace_chain: [eventResult.id]\n      },\n      db_queries\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -65,114 +65,29 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'north_star';",
-        "options": {}
+        "workflowId": {
+          "__rl": true,
+          "value": "UpiUvzlgVuMdYsnp",
+          "mode": "id"
+        }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         1040,
-        1568
+        1856
       ],
-      "id": "03b962d9-8335-4f8e-927a-b88324ffb5de",
-      "name": "Get North Star",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "execute-query-db",
+      "name": "Query_DB"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'description' as description\nFROM projections p\nWHERE p.projection_type = 'activity'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\nORDER BY (p.data->>'timestamp')::timestamptz;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        1040,
-        1760
-      ],
-      "id": "61db4575-cc50-4b14-b340-559a9d98bb4c",
-      "name": "Get Today's Activities",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'text' as text\nFROM projections p\nWHERE p.projection_type = 'note'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\nORDER BY (p.data->>'timestamp')::timestamptz;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        1040,
-        1952
-      ],
-      "id": "1336a366-b325-47a5-8926-663031f808d8",
-      "name": "Get Today's Notes",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  p.data->>'category' as category,\n  COUNT(*) as count\nFROM projections p\nWHERE p.projection_type = 'activity'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\nGROUP BY p.data->>'category'\nORDER BY count DESC;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        1040,
-        2144
-      ],
-      "id": "1878c56b-6b40-4588-a17b-2a041bcff537",
-      "name": "Get Category Breakdown",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 5
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        1264,
-        1824
-      ],
-      "id": "f2d0c053-bb7d-48c1-bc8b-ab1a7f62dfee",
-      "name": "Merge All Query Results"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Safely merge all data for LLM summarization\n// Handles empty results and errors gracefully\n\nconst allItems = $input.all();\n\n// First item should be ctx from Initialize ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItems = allItems.filter(item => item.json.value !== undefined && !item.json.error);\nif (northStarItems.length > 0) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities (has 'description' field)\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract notes (has 'text' field but not 'description')\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  !item.json.error\n);\n\n// Extract breakdown (has 'count' field and 'category' but not description/text)\nconst breakdownItems = allItems.filter(item => \n  item.json.count !== undefined && \n  item.json.category !== undefined &&\n  item.json.description === undefined &&\n  item.json.text === undefined &&\n  !item.json.error\n);\n\n// Format activities list\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activityItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.json.category}] ${item.json.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (noteItems.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  noteItems.forEach(item => {\n    const time = new Date(item.json.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    notesList += `- ${time} [${item.json.category}] ${item.json.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet categoryBreakdown = '';\nif (breakdownItems.length === 0) {\n  categoryBreakdown = '(No data)';\n} else {\n  breakdownItems.forEach(item => {\n    categoryBreakdown += `- ${item.json.category}: ${item.json.count}\\n`;\n  });\n}\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    activities_list: activitiesList,\n    notes_list: notesList,\n    category_breakdown: categoryBreakdown,\n    activity_count: activityItems.length,\n    note_count: noteItems.length,\n    inference_start: Date.now(),\n    llm_input: {\n      north_star: northStar,\n      activity_count: activityItems.length,\n      note_count: noteItems.length\n    }\n  }\n}];"
+        "jsCode": "// Build LLM context from Query_DB results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract north star\nconst northStar = db.north_star?.results?.[0]?.value || 'Not set';\n\n// Extract activities\nconst activityItems = db.activities?.results || [];\n\n// Extract notes\nconst noteItems = db.notes?.results || [];\n\n// Extract breakdown\nconst breakdownItems = db.breakdown?.results || [];\n\n// Format activities list\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activityItems.forEach(item => {\n    const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (noteItems.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  noteItems.forEach(item => {\n    const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    notesList += `- ${time} [${item.category}] ${item.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet categoryBreakdown = '';\nif (breakdownItems.length === 0) {\n  categoryBreakdown = '(No data)';\n} else {\n  breakdownItems.forEach(item => {\n    categoryBreakdown += `- ${item.category}: ${item.count}\\n`;\n  });\n}\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    activities_list: activitiesList,\n    notes_list: notesList,\n    category_breakdown: categoryBreakdown,\n    activity_count: activityItems.length,\n    note_count: noteItems.length,\n    inference_start: Date.now(),\n    llm_input: {\n      north_star: northStar,\n      activity_count: activityItems.length,\n      note_count: noteItems.length\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1488,
+        1264,
         1856
       ],
       "id": "e29ca6f7-efbc-418c-b9cd-e61fa111e178",
@@ -188,7 +103,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        1712,
+        1488,
         1856
       ],
       "id": "4c73ad0b-072b-41c5-a6a7-5e3069f63663",
@@ -201,7 +116,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1936,
+        1712,
         1856
       ],
       "id": "parse-llm-response",
@@ -218,7 +133,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2160,
+        1936,
         1856
       ],
       "id": "store-trace",
@@ -237,7 +152,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2384,
+        2160,
         1856
       ],
       "id": "prepare-projection",
@@ -254,7 +169,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2608,
+        2384,
         1856
       ],
       "id": "store-projection",
@@ -273,7 +188,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2832,
+        2608,
         1856
       ],
       "id": "merge-for-discord",
@@ -298,7 +213,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        3056,
+        2832,
         1856
       ],
       "id": "2d3ec420-6f75-49e0-8851-af9ba845977d",
@@ -325,7 +240,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        3280,
+        3056,
         1856
       ],
       "id": "update-projection-message-id",
@@ -348,7 +263,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        3504,
+        3280,
         1856
       ],
       "id": "3a056015-e868-4fbc-b433-cadee441431d",
@@ -368,7 +283,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1720,
+        1496,
         2080
       ],
       "id": "c8b0b429-e702-4351-8fdd-72d096e1898b",
@@ -388,7 +303,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1848,
+        1624,
         2080
       ],
       "id": "e496385a-60a2-4122-a8b3-ede7452fc36d",
@@ -439,78 +354,14 @@
       "main": [
         [
           {
-            "node": "Get North Star",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Today's Activities",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Today's Notes",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Category Breakdown",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Merge All Query Results",
+            "node": "Query_DB",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get North Star": {
-      "main": [
-        [
-          {
-            "node": "Merge All Query Results",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Get Today's Activities": {
-      "main": [
-        [
-          {
-            "node": "Merge All Query Results",
-            "type": "main",
-            "index": 2
-          }
-        ]
-      ]
-    },
-    "Get Today's Notes": {
-      "main": [
-        [
-          {
-            "node": "Merge All Query Results",
-            "type": "main",
-            "index": 3
-          }
-        ]
-      ]
-    },
-    "Get Category Breakdown": {
-      "main": [
-        [
-          {
-            "node": "Merge All Query Results",
-            "type": "main",
-            "index": 4
-          }
-        ]
-      ]
-    },
-    "Merge All Query Results": {
+    "Query_DB": {
       "main": [
         [
           {
