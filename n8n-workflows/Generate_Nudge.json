@@ -67,7 +67,7 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "UpiUvzlgVuMdYsnp",
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
           "mode": "id"
         }
       },
@@ -78,11 +78,11 @@
         0
       ],
       "id": "execute-query-db",
-      "name": "Query_DB"
+      "name": "Execute_Queries (Read)"
     },
     {
       "parameters": {
-        "jsCode": "// Build LLM prompt context from Query_DB results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract timezone from db results, fallback to event timezone or UTC\nconst timezone = db.timezone?.results?.[0]?.timezone || ctx.event.timezone || 'UTC';\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    // Fallback if timezone is invalid\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\n// Extract north star (fallback to introspection prompt)\nconst northStar = db.north_star?.results?.[0]?.value || 'To determine my north star from deep introspection';\n\n// Extract activities from db results\nconst activityItems = db.activities?.results || [];\n\n// Extract last note from db results\nconst noteItems = db.last_note?.results || [];\n\n// Format activities list with user's timezone\nlet activitiesList = '';\nlet noActivities = true;\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  noActivities = false;\n  activityItems.forEach(item => {\n    const time = formatTime(item.timestamp);\n    activitiesList += `- ${time}: [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format last note\nlet lastNoteText = '(No recent notes)';\nif (noteItems.length > 0) {\n  const note = noteItems[0];\n  const time = formatTime(note.timestamp);\n  lastNoteText = `${time}: [${note.category}] ${note.text}`;\n}\n\n// Get current time in user's timezone\nlet currentTime;\ntry {\n  currentTime = new Date().toLocaleString('en-US', {\n    timeZone: timezone,\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n} catch (e) {\n  currentTime = new Date().toLocaleString('en-US', {\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n}\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList.trim(),\n    last_note: lastNoteText,\n    timestamp: currentTime,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n}];"
+        "jsCode": "// Build LLM prompt context from Execute_Queries results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract timezone from db results, fallback to event timezone or UTC\nconst timezone = db.timezone?.row?.timezone || ctx.event.timezone || 'UTC';\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    // Fallback if timezone is invalid\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\n// Extract north star (fallback to introspection prompt)\nconst northStar = db.north_star?.row?.value || 'To determine my north star from deep introspection';\n\n// Extract activities from db results (use .rows for arrays)\nconst activityItems = db.activities?.rows || [];\n\n// Extract last note from db results (use .row for LIMIT 1)\nconst lastNote = db.last_note?.row;\n\n// Format activities list with user's timezone\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  activityItems.forEach(item => {\n    const time = formatTime(item.timestamp);\n    activitiesList += `- ${time}: [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format last note\nlet lastNoteText = '(No recent notes)';\nif (lastNote) {\n  const time = formatTime(lastNote.timestamp);\n  lastNoteText = `${time}: [${lastNote.category}] ${lastNote.text}`;\n}\n\n// Get current time in user's timezone\nlet currentTime;\ntry {\n  currentTime = new Date().toLocaleString('en-US', {\n    timeZone: timezone,\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n} catch (e) {\n  currentTime = new Date().toLocaleString('en-US', {\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n}\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList.trim(),\n    last_note: lastNoteText,\n    timestamp: currentTime,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -151,7 +151,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM response - determine SKIP/ENCOURAGE/REDIRECT\nconst prepareData = $('Prepare Prompt Data').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Parse the decision from first line\nconst lines = llmText.split('\\n').filter(l => l.trim());\nconst decision = (lines[0] || '').trim().toUpperCase();\n\n// Extract message (everything after first line)\nconst message = lines.slice(1).join('\\n').trim();\n\n// Determine if we should skip\nconst shouldSkip = decision === 'SKIP' || !['ENCOURAGE', 'REDIRECT'].includes(decision);\n\n// Format trace_chain for PostgreSQL (with null safety)\nconst traceChain = ctx?.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    decision: decision,\n    message: message,\n    should_skip: shouldSkip,\n    duration_ms: durationMs,\n    trace_chain_pg: traceChainPg,\n    llm_response: llmText,\n    llm_input: {\n      north_star: prepareData.north_star,\n      recent_activities: prepareData.recent_activities,\n      last_note: prepareData.last_note,\n      timestamp: prepareData.timestamp,\n      activity_count: prepareData.activity_count\n    }\n  }\n}];"
+        "jsCode": "// Parse LLM response and prepare trace write query\nconst prepareData = $('Prepare Prompt Data').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Parse the decision from first line\nconst lines = llmText.split('\\n').filter(l => l.trim());\nconst decision = (lines[0] || '').trim().toUpperCase();\n\n// Extract message (everything after first line)\nconst message = lines.slice(1).join('\\n').trim();\n\n// Determine if we should skip\nconst shouldSkip = decision === 'SKIP' || !['ENCOURAGE', 'REDIRECT'].includes(decision);\n\n// Prepare db_queries for trace INSERT\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES ($1::uuid, 'nudge',\n            jsonb_build_object(\n              'input', $2::jsonb,\n              'prompt', 'nudge-prompt',\n              'completion', $3,\n              'result', jsonb_build_object(\n                'decision', $4,\n                'message', $5,\n                'should_skip', $6::boolean\n              ),\n              'duration_ms', $7::integer\n            ), $8::uuid[])\n          RETURNING id, trace_chain || id AS updated_trace_chain`,\n    params: [\n      ctx.event.event_id,\n      {\n        north_star: prepareData.north_star,\n        recent_activities: prepareData.recent_activities,\n        last_note: prepareData.last_note,\n        timestamp: prepareData.timestamp,\n        activity_count: prepareData.activity_count\n      },\n      llmText,\n      decision,\n      message,\n      shouldSkip,\n      durationMs,\n      ctx.event.trace_chain || []\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    decision,\n    message,\n    should_skip: shouldSkip\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -159,44 +159,8 @@
         1792,
         0
       ],
-      "id": "parse-llm-response",
-      "name": "Parse LLM Response"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'nudge',\n  jsonb_build_object(\n    'input', $2::jsonb,\n    'prompt', 'nudge-prompt',\n    'completion', $3,\n    'result', jsonb_build_object(\n      'decision', $4,\n      'message', $5,\n      'should_skip', $6::boolean\n    ),\n    'duration_ms', $7::integer\n  ),\n  $8::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
-        "options": {
-          "queryReplacement": "{{ $json.ctx.event.event_id }},{{ JSON.stringify($json.llm_input) }},{{ $json.llm_response }},{{ $json.decision }},{{ $json.message }},{{ $json.should_skip }},{{ $json.duration_ms }},{{ $json.trace_chain_pg }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        2016,
-        0
-      ],
-      "id": "store-trace",
-      "name": "Store Trace",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Merge trace result with parsed LLM data\nconst traceResult = $json;\nconst parseData = $('Parse LLM Response').first().json;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// Pre-stringify projection data for Postgres\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  decision: parseData.decision,\n  text: parseData.message\n};\n\nreturn [{\n  json: {\n    ctx: parseData.ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    decision: parseData.decision,\n    message: parseData.message,\n    should_skip: parseData.should_skip,\n    projection_data_json: JSON.stringify(projectionData)\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2240,
-        0
-      ],
-      "id": "merge-trace-result",
-      "name": "Merge Trace Result"
+      "id": "prepare-trace-query",
+      "name": "Prepare Trace Query"
     },
     {
       "parameters": {
@@ -234,42 +198,6 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'nudge',\n  $4::jsonb,\n  'auto_confirmed',\n  $5\n)\nRETURNING id;",
-        "options": {
-          "queryReplacement": "{{ $json.trace_id }},{{ $json.ctx.event.event_id }},{{ $json.trace_chain_pg }},{{ $json.projection_data_json }},{{ $json.ctx.event.timezone }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        2688,
-        80
-      ],
-      "id": "store-projection",
-      "name": "Store Projection",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Merge projection result for Discord\nconst projResult = $json;\nconst mergeData = $('Merge Trace Result').first().json;\n\nreturn [{\n  json: {\n    ctx: mergeData.ctx,\n    projection_id: projResult.id,\n    message: mergeData.message,\n    decision: mergeData.decision\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2912,
-        80
-      ],
-      "id": "merge-for-discord",
-      "name": "Merge for Discord"
-    },
-    {
-      "parameters": {
         "resource": "message",
         "guildId": {
           "__rl": true,
@@ -287,7 +215,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        3136,
+        3360,
         80
       ],
       "id": "send-nudge",
@@ -304,26 +232,106 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "-- Update projection with Discord message ID for void support\nUPDATE projections \nSET data = data || jsonb_build_object(\n  'discord_message_id', $1,\n  'discord_channel_id', $2,\n  'discord_guild_id', $3\n)\nWHERE id = $4::uuid\nRETURNING id;",
-        "options": {
-          "queryReplacement": "{{ $json.id }},{{ $env.DISCORD_CHANNEL_ARCANE_SHELL }},{{ $env.DISCORD_GUILD_ID }},{{ $('Merge for Discord').first().json.projection_id }}"
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
-        3360,
+        2016,
+        0
+      ],
+      "id": "execute-trace-query",
+      "name": "Execute_Queries (Trace)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if should skip and prepare for projection branch\nconst ctx = $json.ctx;\nconst traceRow = ctx.db?.trace?.row;\nconst prepData = $('Prepare Trace Query').first().json;\n\nreturn [{\n  json: {\n    ctx,\n    trace_id: traceRow?.id,\n    updated_trace_chain: traceRow?.updated_trace_chain || [],\n    decision: prepData.decision,\n    message: prepData.message,\n    should_skip: prepData.should_skip\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        0
+      ],
+      "id": "check-skip",
+      "name": "Check Skip"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare projection + final update queries\nconst checkData = $json;\nconst ctx = checkData.ctx;\n\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  decision: checkData.decision,\n  text: checkData.message\n};\n\nconst db_queries = [\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n          VALUES ($1::uuid, $2::uuid, $3::uuid[], 'nudge', $4::jsonb, 'auto_confirmed', $5)\n          RETURNING id`,\n    params: [\n      checkData.trace_id,\n      ctx.event.event_id,\n      checkData.updated_trace_chain,\n      projectionData,\n      ctx.event.timezone\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    message: checkData.message,\n    decision: checkData.decision\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
         80
       ],
-      "id": "update-projection-message-id",
-      "name": "Update Projection with Message ID",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+      "id": "prepare-projection-query",
+      "name": "Prepare Projection Query"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
         }
-      }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2912,
+        80
+      ],
+      "id": "execute-projection-query",
+      "name": "Execute_Queries (Projection)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare for Discord post\nconst ctx = $json.ctx;\nconst projectionId = ctx.db?.projection?.row?.id;\nconst prepData = $('Prepare Projection Query').first().json;\n\nreturn [{\n  json: {\n    ctx,\n    projection_id: projectionId,\n    message: prepData.message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        80
+      ],
+      "id": "prepare-for-discord",
+      "name": "Prepare for Discord"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare final update query with Discord message ID\nconst discordResult = $json;\nconst prepData = $('Prepare for Discord').first().json;\nconst ctx = prepData.ctx;\n\nconst db_queries = [\n  {\n    key: 'update_projection',\n    sql: `UPDATE projections \n          SET data = data || jsonb_build_object(\n            'discord_message_id', $1,\n            'discord_channel_id', $2,\n            'discord_guild_id', $3\n          )\n          WHERE id = $4::uuid\n          RETURNING id`,\n    params: [\n      discordResult.id,\n      $env.DISCORD_CHANNEL_ARCANE_SHELL || '',\n      $env.DISCORD_GUILD_ID || '',\n      prepData.projection_id\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        80
+      ],
+      "id": "prepare-final-update",
+      "name": "Prepare Final Update"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3808,
+        80
+      ],
+      "id": "execute-final-update",
+      "name": "Execute_Queries (Final)"
     }
   ],
   "connections": {
@@ -364,14 +372,14 @@
       "main": [
         [
           {
-            "node": "Query_DB",
+            "node": "Execute_Queries (Read)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Query_DB": {
+    "Execute_Queries (Read)": {
       "main": [
         [
           {
@@ -397,36 +405,36 @@
       "main": [
         [
           {
-            "node": "Parse LLM Response",
+            "node": "Prepare Trace Query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse LLM Response": {
+    "Prepare Trace Query": {
       "main": [
         [
           {
-            "node": "Store Trace",
+            "node": "Execute_Queries (Trace)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Trace": {
+    "Execute_Queries (Trace)": {
       "main": [
         [
           {
-            "node": "Merge Trace Result",
+            "node": "Check Skip",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge Trace Result": {
+    "Check Skip": {
       "main": [
         [
           {
@@ -442,25 +450,36 @@
         [],
         [
           {
-            "node": "Store Projection",
+            "node": "Prepare Projection Query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Projection": {
+    "Prepare Projection Query": {
       "main": [
         [
           {
-            "node": "Merge for Discord",
+            "node": "Execute_Queries (Projection)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge for Discord": {
+    "Execute_Queries (Projection)": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for Discord": {
       "main": [
         [
           {
@@ -475,7 +494,18 @@
       "main": [
         [
           {
-            "node": "Update Projection with Message ID",
+            "node": "Prepare Final Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Update": {
+      "main": [
+        [
+          {
+            "node": "Execute_Queries (Final)",
             "type": "main",
             "index": 0
           }
