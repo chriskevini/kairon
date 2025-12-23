@@ -63,7 +63,7 @@
       "name": "Get Emoji Config",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },

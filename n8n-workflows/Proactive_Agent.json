@@ -45,7 +45,7 @@
       "name": "Insert Event",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -79,7 +79,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -100,7 +100,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -121,7 +121,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -142,7 +142,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -163,7 +163,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -269,7 +269,7 @@
       "continueOnFail": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -385,7 +385,7 @@
       "name": "Store Trace",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -454,7 +454,7 @@
       "name": "Store Projection",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -522,7 +522,7 @@
       "name": "Update Projection with Message ID",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     }

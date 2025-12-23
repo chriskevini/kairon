@@ -38,7 +38,12 @@ def transform_node(node: dict) -> dict:
 
     # Webhook Trigger → Execute Workflow Trigger
     # Allows smoke tests to invoke workflows directly without HTTP
+    # Exception: Smoke_Test entry point webhook should not be transformed
     if node_type == "n8n-nodes-base.webhook":
+        # Skip transformation for critical infrastructure nodes
+        node_name = node.get("name", "").lower()
+        if "smoke_test" in node_name or "test" in node_name:
+            return node
         node["type"] = "n8n-nodes-base.executeWorkflowTrigger"
         node["typeVersion"] = 1
         node["parameters"] = {}

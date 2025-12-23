@@ -30,7 +30,7 @@
       "name": "Reset Next Pulse",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       },
       "onError": "continueRegularOutput"
@@ -50,7 +50,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=🔵"
+        "emoji": "=\ud83d\udd35"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -59,7 +59,7 @@
         7984
       ],
       "id": "476cc1ef-8e72-4df6-ab57-42bda8f06403",
-      "name": "React with 🔵",
+      "name": "React with \ud83d\udd35",
       "webhookId": "react-processing",
       "retryOnFail": true,
       "maxTries": 3,
@@ -499,7 +499,7 @@
       "main": [
         [
           {
-            "node": "React with 🔵",
+            "node": "React with \ud83d\udd35",
             "type": "main",
             "index": 0
           },
