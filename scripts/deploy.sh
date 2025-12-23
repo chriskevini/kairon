@@ -246,7 +246,7 @@ run_unit_tests() {
     local PYTEST_CMD="pytest"
     if ! command -v pytest >/dev/null 2>&1; then PYTEST_CMD="python3 -m pytest"; fi
     
-    functional_output=$($PYTEST_CMD "$REPO_ROOT/n8n-workflows/tests" 2>&1) || {
+    functional_output=$($PYTEST_CMD -q "$REPO_ROOT/n8n-workflows/tests" 2>&1) || {
         echo "❌ FAILED"
         echo "----------------------------------------"
         echo "$functional_output"
