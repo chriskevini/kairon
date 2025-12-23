@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare batch database queries for Query_DB sub-workflow\nconst ctx = $json.ctx;\n\nconst db_queries = [\n  {\n    key: 'history',\n    sql: `SELECT timestamp, role, text FROM thread_history \n          WHERE thread_id = $1 AND NOT (role = 'user' AND text = $2) \n          ORDER BY timestamp ASC LIMIT 20`,\n    params: [ctx.event.thread_id, ctx.event.clean_text]\n  },\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (data->>'timestamp')::timestamptz as timestamp,\n            data->>'category' as category,\n            data->>'description' as description\n          FROM projections\n          WHERE projection_type = 'activity'\n            AND status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (data->>'timestamp')::timestamptz DESC\n          LIMIT 20`\n  },\n  {\n    key: 'notes',\n    sql: `SELECT \n            (data->>'timestamp')::timestamptz as timestamp,\n            data->>'category' as category,\n            data->>'text' as text\n          FROM projections\n          WHERE projection_type = 'note'\n            AND status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (data->>'timestamp')::timestamptz DESC\n          LIMIT 10`\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n}];"
+        "jsCode": "// Prepare batch database queries for Execute_Queries sub-workflow\nconst ctx = $json.ctx;\n\nconst db_queries = [\n  {\n    key: 'history',\n    sql: `SELECT timestamp, role, text FROM thread_history \n          WHERE thread_id = $1 AND NOT (role = 'user' AND text = $2) \n          ORDER BY timestamp ASC LIMIT 20`,\n    params: [ctx.event.thread_id, ctx.event.clean_text]\n  },\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (data->>'timestamp')::timestamptz as timestamp,\n            data->>'category' as category,\n            data->>'description' as description\n          FROM projections\n          WHERE projection_type = 'activity'\n            AND status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (data->>'timestamp')::timestamptz DESC\n          LIMIT 20`\n  },\n  {\n    key: 'notes',\n    sql: `SELECT \n            (data->>'timestamp')::timestamptz as timestamp,\n            data->>'category' as category,\n            data->>'text' as text\n          FROM projections\n          WHERE projection_type = 'note'\n            AND status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (data->>'timestamp')::timestamptz DESC\n          LIMIT 10`\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -31,7 +31,7 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "UpiUvzlgVuMdYsnp",
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
           "mode": "id"
         }
       },
@@ -41,12 +41,12 @@
         7104,
         624
       ],
-      "id": "execute-query-db",
-      "name": "Query_DB"
+      "id": "execute-queries-read",
+      "name": "Execute_Queries (Read)"
     },
     {
       "parameters": {
-        "jsCode": "// Build LLM context from Query_DB results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract and sort conversation history\nconst history = (db.history?.results || [])\n  .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))\n  .map(item => ({\n    role: item.role,\n    text: item.text\n  }));\n\n// Extract north star\nconst northStar = db.north_star?.results?.[0]?.value || 'Not set';\n\n// Extract activities\nconst activities = (db.activities?.results || []).map(item => ({\n  timestamp: item.timestamp,\n  category: item.category,\n  description: item.description\n}));\n\n// Extract notes  \nconst notes = (db.notes?.results || []).map(item => ({\n  timestamp: item.timestamp,\n  category: item.category,\n  text: item.text\n}));\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        north_star: northStar,\n        inference_start: Date.now(),\n        history: history,\n        activities: activities,\n        notes: notes\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build LLM context from Execute_Queries results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract and sort conversation history\nconst history = (db.history?.rows || [])\n  .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))\n  .map(item => ({\n    role: item.role,\n    text: item.text\n  }));\n\n// Extract north star\nconst northStar = db.north_star?.row?.value || 'Not set';\n\n// Extract activities\nconst activities = (db.activities?.rows || []).map(item => ({\n  timestamp: item.timestamp,\n  category: item.category,\n  description: item.description\n}));\n\n// Extract notes  \nconst notes = (db.notes?.rows || []).map(item => ({\n  timestamp: item.timestamp,\n  category: item.category,\n  text: item.text\n}));\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        north_star: northStar,\n        inference_start: Date.now(),\n        history: history,\n        activities: activities,\n        notes: notes\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -154,44 +154,6 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        8800,
-        720
-      ],
-      "id": "merge-trace-result-continue",
-      "name": "Merge Trace Result"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  status,\n  data,\n  timezone\n)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'thread_response',\n  'auto_confirmed',\n  jsonb_build_object(\n    'thread_id', $4,\n    'response_text', $5,\n    'role', 'assistant',\n    'timestamp', $6::timestamptz\n  ),\n  $7\n)\nRETURNING id;",
-        "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.trace_id }},={{ $json.updated_trace_chain }},={{ $json.ctx.event.thread_id }},={{ $json.ctx.llm.completion_text }},={{ $json.ctx.event.timestamp }},={{ $json.ctx.event.timezone }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        9024,
-        720
-      ],
-      "id": "store-response-projection-continue",
-      "name": "Store Response Projection",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "resource": "message",
         "operation": "react",
         "guildId": {
@@ -256,7 +218,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare trace data after LLM inference\n// ctx comes from Merge LLM Result\nconst ctx = $json.ctx || {};\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${ctx.llm?.north_star || '(not set)'}\n\n**Recent Activities (Last 20)**\n${(ctx.llm?.activities || []).map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${(ctx.llm?.notes || []).map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${(ctx.llm?.history || []).map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${ctx.event?.clean_text || ''}\"\n\nRespond to their message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event?.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: ctx,\n    // Trace data for query\n    input_text: ctx.event?.clean_text || '',\n    input_thread_id: ctx.event?.thread_id,\n    input_history_length: (ctx.llm?.history || []).length,\n    prompt_text: promptText,\n    completion_text: response,\n    result_response_length: response.length,\n    result_referenced_activities: (ctx.llm?.activities || []).length,\n    result_referenced_notes: (ctx.llm?.notes || []).length,\n    duration_ms: durationMs,\n    event_id: ctx.event?.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
+        "jsCode": "// Prepare write queries for Execute_Queries (trace + projection)\nconst ctx = $json.ctx || {};\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst promptText = `You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** ${ctx.llm?.north_star || '(not set)'}\n\n**Recent Activities (Last 20)**\n${(ctx.llm?.activities || []).map(act => `${act.timestamp} - ${act.description}`).join('\\n')}\n\n**Recent Notes (Last 10)**\n${(ctx.llm?.notes || []).map(n => `[${n.category}] ${n.text}`).join('\\n')}\n\n## Instructions\n...\n\n## Conversation History\n${(ctx.llm?.history || []).map(msg => `${msg.role.toUpperCase()}: ${msg.text}`).join('\\n\\n')}\n\n## Current Message\nThe user just said: \"${ctx.event?.clean_text || ''}\"\n\nRespond to their message now.`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event?.trace_chain || [];\n\n// Build write queries with chaining\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES (\n            $1::uuid,\n            'thread_response',\n            jsonb_build_object(\n              'input', jsonb_build_object(\n                'text', $2,\n                'thread_id', $3::text,\n                'history_length', $4::integer\n              ),\n              'prompt', $5,\n              'completion', $6,\n              'result', jsonb_build_object(\n                'response_length', $7::integer,\n                'referenced_activities', $8::integer,\n                'referenced_notes', $9::integer\n              ),\n              'model', 'xiaomi/mimo-v2-flash:free',\n              'duration_ms', $10::integer\n            ),\n            $11::uuid[]\n          )\n          RETURNING id, $11::uuid[] || id AS updated_trace_chain`,\n    params: [\n      ctx.event?.event_id,\n      ctx.event?.clean_text || '',\n      ctx.event?.thread_id,\n      (ctx.llm?.history || []).length,\n      promptText,\n      response,\n      response.length,\n      (ctx.llm?.activities || []).length,\n      (ctx.llm?.notes || []).length,\n      durationMs,\n      traceChain\n    ]\n  },\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (\n            event_id,\n            trace_id,\n            trace_chain,\n            projection_type,\n            status,\n            data,\n            timezone\n          )\n          VALUES (\n            $1::uuid,\n            $2::uuid,\n            $3::uuid[],\n            'thread_response',\n            'auto_confirmed',\n            jsonb_build_object(\n              'thread_id', $4,\n              'response_text', $5,\n              'role', 'assistant',\n              'timestamp', $6::timestamptz\n            ),\n            $7\n          )\n          RETURNING id`,\n    params: [\n      ctx.event?.event_id,\n      '$results.trace.row.id',\n      '$results.trace.row.updated_trace_chain',\n      ctx.event?.thread_id,\n      response,\n      ctx.event?.timestamp,\n      ctx.event?.timezone\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -264,31 +226,25 @@
         8352,
         720
       ],
-      "id": "02a979dc-1ba9-49d2-a9cd-7eff23c82510",
-      "name": "Prepare Trace Data"
+      "id": "prepare-write-queries",
+      "name": "Prepare Write Queries"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_response',\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'text', $2,\n        'thread_id', $3::text,\n        'history_length', $4::integer\n      ),\n      'prompt', $5,\n      'completion', $6,\n      'result', jsonb_build_object(\n        'response_length', $7::integer,\n        'referenced_activities', $8::integer,\n        'referenced_notes', $9::integer\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $10::integer\n    ),\n    $11::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $11::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
-        "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_text }},={{ $json.input_thread_id }},={{ $json.input_history_length }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_response_length }},={{ $json.result_referenced_activities }},={{ $json.result_referenced_notes }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         8576,
-        648
+        720
       ],
-      "id": "2e8e0334-a3c1-496e-81f2-6ae0d19f3425",
-      "name": "Write Thread Response Trace",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "execute-queries-write",
+      "name": "Execute_Queries (Write)"
     },
     {
       "parameters": {
@@ -357,14 +313,14 @@
       "main": [
         [
           {
-            "node": "Query_DB",
+            "node": "Execute_Queries (Read)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Query_DB": {
+    "Execute_Queries (Read)": {
       "main": [
         [
           {
@@ -429,42 +385,20 @@
         []
       ]
     },
-    "Merge Trace Result": {
+    "Prepare Write Queries": {
       "main": [
         [
           {
-            "node": "Store Response Projection",
+            "node": "Execute_Queries (Write)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Trace Data": {
+    "Execute_Queries (Write)": {
       "main": [
-        [
-          {
-            "node": "Write Thread Response Trace",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Merge Trace Result",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Write Thread Response Trace": {
-      "main": [
-        [
-          {
-            "node": "Merge Trace Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Set LLM Completion": {
@@ -482,7 +416,7 @@
       "main": [
         [
           {
-            "node": "Prepare Trace Data",
+            "node": "Prepare Write Queries",
             "type": "main",
             "index": 0
           },
