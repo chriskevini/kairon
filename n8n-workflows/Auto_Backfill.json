@@ -24,7 +24,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Find projections missing embeddings\nSELECT \n  p.id as projection_id,\n  p.projection_type,\n  p.data->>'description' as description,\n  p.data->>'text' as text\nFROM projections p\nLEFT JOIN embeddings e ON p.id = e.projection_id\nWHERE e.id IS NULL\nLIMIT 20;",
+        "query": "-- Find projections missing embeddings\nSELECT \n  p.id as projection_id,\n  p.projection_type,\n  p.data->>'description' as description,\n  p.data->>'text' as text\nFROM projections p\nLEFT JOIN embeddings e ON p.id = e.projection_id\nWHERE e.id IS NULL\n  AND p.status IN ('auto_confirmed', 'confirmed')\nLIMIT 20;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -52,7 +52,8 @@
         -100
       ],
       "id": "loop-embeddings",
-      "name": "Loop Embeddings"
+      "name": "Loop Embeddings",
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -101,7 +102,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const embeddings = $json.embeddings;\nif (!embeddings || !embeddings[0]) return [];\n\nconst projectionId = $(\"Loop Embeddings\").item.json.projection_id;\nconst text = $(\"Loop Embeddings\").item.json.description || $(\"Loop Embeddings\").item.json.text || \"\";\nconst vector = \"[\" + embeddings[0].join(\",\") + \"]\";\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"embedding\",\n        sql: \"INSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding) VALUES ($1, \\u0027all-MiniLM-L6-v2\\u0027, \\u0027{}\\u0027, $2, $3::vector) ON CONFLICT DO NOTHING;\",\n        params: [projectionId, text, vector]\n      }]\n    }\n  }\n}];"
+        "jsCode": "const item = $json;\nconst projectionId = item.projection_id;\nconst text = item.description || item.text || \"\";\nconst embeddings = $(\"Embed Text\").item.json.embeddings;\n\nif (!embeddings || !embeddings[0]) return [];\n\nconst vector = \"[\" + embeddings[0].join(\",\") + \"]\";\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"embedding\",\n        sql: \"INSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding) SELECT $1, \\u0027all-MiniLM-L6-v2\\u0027, \\u0027{}\\u0027, $2, $3::vector WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE projection_id = $1) ON CONFLICT DO NOTHING;\",\n        params: [projectionId, text, vector]\n      }]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -134,7 +135,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const trace = item.json;\n  let parsed;\n  try {\n    parsed = JSON.parse(trace.completion);\n  } catch (e) {\n    continue;\n  }\n\n  const types = ['activity', 'note', 'todo'];\n  for (const type of types) {\n    const data = parsed[type];\n    if (data && data.confidence >= 0.5) {\n      results.push({\n        json: {\n          trace_id: trace.trace_id,\n          event_id: trace.event_id,\n          trace_chain: trace.trace_chain,\n          timezone: trace.timezone,\n          type: type,\n          data: data\n        }\n      });\n    }\n  }\n}\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const trace = item.json;\n  let parsed;\n  try {\n    parsed = JSON.parse(trace.completion);\n  } catch (e) {\n    console.error(`Failed to parse completion for trace ${trace.trace_id}: ${e.message}`);\n    continue;\n  }\n\n  const types = ['activity', 'note', 'todo'];\n  for (const type of types) {\n    const data = parsed[type];\n    if (data && data.confidence >= 0.5) {\n      results.push({\n        json: {\n          trace_id: trace.trace_id,\n          event_id: trace.event_id,\n          trace_chain: trace.trace_chain,\n          timezone: trace.timezone,\n          type: type,\n          data: data\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
