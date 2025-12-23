@@ -271,25 +271,53 @@ deploy_prod() {
     echo "PROD deployment complete"
 }
 
+# --- UNIT TESTS ---
+run_unit_tests() {
+    echo ""
+    echo "========================================"
+    echo "STAGE 0: Unit Tests"
+    echo "========================================"
+    echo ""
+    
+    if ! command -v pytest >/dev/null 2>&1 && ! python3 -m pytest --version >/dev/null 2>&1; then
+        echo "Warning: pytest not found. Skipping unit tests."
+        return 0
+    fi
+    
+    echo "Running structural unit tests..."
+    python3 "$SCRIPT_DIR/workflows/unit_test_framework.py" --all
+    
+    echo ""
+    echo "Running functional unit tests..."
+    if command -v pytest >/dev/null 2>&1; then
+        pytest "$REPO_ROOT/n8n-workflows/tests"
+    else
+        python3 -m pytest "$REPO_ROOT/n8n-workflows/tests"
+    fi
+}
+
 # --- MAIN ---
 setup_ssh_tunnel
 
 case "$TARGET" in
     dev)
+        run_unit_tests
         deploy_dev
         run_smoke_tests
         ;;
     prod)
+        run_unit_tests
         deploy_prod
         ;;
     all|"")
+        run_unit_tests
         deploy_dev
         if run_smoke_tests; then
             deploy_prod
         else
             echo ""
             echo "========================================"
-            echo "PROD DEPLOYMENT SKIPPED - Tests failed"
+            echo "PROD DEPLOYMENT SKIPPED - Smoke tests failed"
             echo "========================================"
             exit 1
         fi
