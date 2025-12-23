@@ -17,15 +17,15 @@ class TestHandle_Correction:
 
         # Verify essential nodes exist
         node_names = [n["name"] for n in workflow["nodes"]]
-        assert "execute_workflow_trigger" in node_names
-        assert "build_lookup_query" in node_names
-        assert "prepare_correction" in node_names
-        assert "build_correction_queries" in node_names
-        assert "execute_correction_queries" in node_names
+        assert "ExecuteWorkflowTrigger" in node_names
+        assert "BuildLookupQuery" in node_names
+        assert "PrepareCorrection" in node_names
+        assert "BuildCorrectionQueries" in node_names
+        assert "ExecuteCorrectionQueries" in node_names
 
     def test_ctx_pattern_build_lookup(self):
         workflow = load_workflow()
-        node = next(n for n in workflow["nodes"] if n["name"] == "build_lookup_query")
+        node = next(n for n in workflow["nodes"] if n["name"] == "BuildLookupQuery")
         code = node["parameters"]["jsCode"]
 
         # Should read from ctx.event.message_id
@@ -36,7 +36,7 @@ class TestHandle_Correction:
 
     def test_ctx_pattern_prepare_correction(self):
         workflow = load_workflow()
-        node = next(n for n in workflow["nodes"] if n["name"] == "prepare_correction")
+        node = next(n for n in workflow["nodes"] if n["name"] == "PrepareCorrection")
         code = node["parameters"]["jsCode"]
 
         # Should read from ctx.db?.original?.row
@@ -48,7 +48,7 @@ class TestHandle_Correction:
     def test_ctx_pattern_build_correction_queries(self):
         workflow = load_workflow()
         node = next(
-            n for n in workflow["nodes"] if n["name"] == "build_correction_queries"
+            n for n in workflow["nodes"] if n["name"] == "BuildCorrectionQueries"
         )
         code = node["parameters"]["jsCode"]
 
@@ -60,7 +60,7 @@ class TestHandle_Correction:
 
     def test_ctx_pattern_build_capture_ctx(self):
         workflow = load_workflow()
-        node = next(n for n in workflow["nodes"] if n["name"] == "build_capture_ctx")
+        node = next(n for n in workflow["nodes"] if n["name"] == "BuildCaptureCtx")
         code = node["parameters"]["jsCode"]
 
         # Should build a full ctx for Capture_Projection

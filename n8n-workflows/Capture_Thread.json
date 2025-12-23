@@ -12,7 +12,7 @@
         640
       ],
       "id": "eab3a9d4-6d3a-4560-8e60-612e6f5c9df3",
-      "name": "execute_workflow_trigger"
+      "name": "ExecuteWorkflowTrigger"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         544
       ],
       "id": "build-thread-history-query",
-      "name": "build_thread_history_query"
+      "name": "BuildThreadHistoryQuery"
     },
     {
       "parameters": {
@@ -43,7 +43,7 @@
         544
       ],
       "id": "execute-thread-history",
-      "name": "get_thread_history"
+      "name": "GetThreadHistory"
     },
     {
       "parameters": {
@@ -56,7 +56,7 @@
         544
       ],
       "id": "eb096fdc-babc-49e4-9213-36f22ae98b6e",
-      "name": "prepare_context"
+      "name": "PrepareContext"
     },
     {
       "parameters": {
@@ -72,11 +72,11 @@
         544
       ],
       "id": "f10c50b2-ae2f-463b-8378-6b36c12d2b21",
-      "name": "extract_items_llm"
+      "name": "ExtractItemsLlm"
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM output in pipe format: \"type|text\"\nlet llmOutput = $input.first().json.text.trim();\nconst ctx = $('Prepare Context').first().json.ctx;\n\ntry {\n  const lines = llmOutput.split('\\n').filter(line => line.includes('|'));\n  const extractions = [];\n  let displayOrder = 1;\n  \n  lines.forEach(line => {\n    const parts = line.split('|');\n    if (parts.length < 2) return;\n    \n    const itemType = parts[0].trim();\n    const text = parts.slice(1).join('|').trim(); // Handle pipes in text\n    \n    // Validate item_type\n    if (!['reflection', 'fact', 'todo'].includes(itemType)) {\n      console.error(`Invalid item_type: ${itemType}`);\n      return;\n    }\n    \n    extractions.push({\n      thread_id: ctx.db.thread_id,\n      item_type: itemType,\n      text: text,\n      display_order: displayOrder++\n    });\n  });\n  \n  // Return ctx with llm namespace added\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: extractions,\n          has_extractions: extractions.length > 0\n        }\n      }\n    }\n  }];\n} catch (error) {\n  // On error, return empty extractions\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: [],\n          has_extractions: false,\n          parse_error: error.message\n        }\n      }\n    }\n  }];\n}"
+        "jsCode": "// Parse LLM output in pipe format: \"type|text\"\nlet llmOutput = $input.first().json.text.trim();\nconst ctx = $('PrepareContext').first().json.ctx;\n\ntry {\n  const lines = llmOutput.split('\\n').filter(line => line.includes('|'));\n  const extractions = [];\n  let displayOrder = 1;\n  \n  lines.forEach(line => {\n    const parts = line.split('|');\n    if (parts.length < 2) return;\n    \n    const itemType = parts[0].trim();\n    const text = parts.slice(1).join('|').trim(); // Handle pipes in text\n    \n    // Validate item_type\n    if (!['reflection', 'fact', 'todo'].includes(itemType)) {\n      console.error(`Invalid item_type: ${itemType}`);\n      return;\n    }\n    \n    extractions.push({\n      thread_id: ctx.db.thread_id,\n      item_type: itemType,\n      text: text,\n      display_order: displayOrder++\n    });\n  });\n  \n  // Return ctx with llm namespace added\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: extractions,\n          has_extractions: extractions.length > 0\n        }\n      }\n    }\n  }];\n} catch (error) {\n  // On error, return empty extractions\n  return [{\n    json: {\n      ctx: {\n        ...ctx,\n        llm: {\n          raw_output: llmOutput,\n          extractions: [],\n          has_extractions: false,\n          parse_error: error.message\n        }\n      }\n    }\n  }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -85,7 +85,7 @@
         544
       ],
       "id": "93bcf029-9040-466f-957c-2a9c8d87a451",
-      "name": "parse_extractions"
+      "name": "ParseExtractions"
     },
     {
       "parameters": {
@@ -119,11 +119,11 @@
         544
       ],
       "id": "3a3d0695-4532-4b46-bbd1-6fc531e8ad12",
-      "name": "has_extractions?"
+      "name": "HasExtractions?"
     },
     {
       "parameters": {
-        "jsCode": "// Build query for trace and void old extractions\nconst ctx = $('Set Inference Start').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedCtx = $input.first().json.ctx;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${ctx.db.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: {\n      ...parsedCtx,\n      db_queries: [\n        {\n          key: 'trace',\n          sql: `WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_extraction',\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'thread_history', $2,\n        'conversation_id', $3::text\n      ),\n      'prompt', $4,\n      'completion', $5,\n      'result', jsonb_build_object(\n        'extraction_count', $6::integer,\n        'has_extractions', true\n      ),\n      'model', 'nvidia/nemotron-nano-9b-v2:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $8::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;`,\n          params: [\n            ctx.event.event_id,\n            ctx.db.thread_history,\n            ctx.db.thread_id,\n            promptText,\n            llmOutput,\n            parsedCtx.llm.extractions?.length || 0,\n            durationMs,\n            traceChainPg\n          ]\n        },\n        {\n          key: 'void_old',\n          sql: `UPDATE projections SET status = 'voided', voided_at = NOW(), voided_reason = 'replaced_by_new_extraction' WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $1 AND status = 'pending';`,\n          params: [ctx.db.thread_id]\n        }\n      ]\n    }\n  }\n}];"
+        "jsCode": "// Build query for trace and void old extractions\nconst ctx = $('SetInferenceStart').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedCtx = $input.first().json.ctx;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${ctx.db.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: {\n      ...parsedCtx,\n      db_queries: [\n        {\n          key: 'trace',\n          sql: `WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_extraction',\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'thread_history', $2,\n        'conversation_id', $3::text\n      ),\n      'prompt', $4,\n      'completion', $5,\n      'result', jsonb_build_object(\n        'extraction_count', $6::integer,\n        'has_extractions', true\n      ),\n      'model', 'nvidia/nemotron-nano-9b-v2:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $8::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;`,\n          params: [\n            ctx.event.event_id,\n            ctx.db.thread_history,\n            ctx.db.thread_id,\n            promptText,\n            llmOutput,\n            parsedCtx.llm.extractions?.length || 0,\n            durationMs,\n            traceChainPg\n          ]\n        },\n        {\n          key: 'void_old',\n          sql: `UPDATE projections SET status = 'voided', voided_at = NOW(), voided_reason = 'replaced_by_new_extraction' WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $1 AND status = 'pending';`,\n          params: [ctx.db.thread_id]\n        }\n      ]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -132,7 +132,7 @@
         544
       ],
       "id": "prepare-trace-data-save-chat",
-      "name": "prepare_trace_data"
+      "name": "PrepareTraceData"
     },
     {
       "parameters": {
@@ -150,7 +150,7 @@
         448
       ],
       "id": "write-thread-extraction-trace",
-      "name": "write_thread_extraction_trace"
+      "name": "WriteThreadExtractionTrace"
     },
     {
       "parameters": {
@@ -163,7 +163,7 @@
         448
       ],
       "id": "6f856663-e8d6-4f8c-9c9c-41a6eab0d27b",
-      "name": "build_insert_query"
+      "name": "BuildInsertQuery"
     },
     {
       "parameters": {
@@ -181,7 +181,7 @@
         448
       ],
       "id": "48cebe42-d9c8-4de1-a10a-d1e09935ad25",
-      "name": "save_extractions_to_db"
+      "name": "SaveExtractionsToDb"
     },
     {
       "parameters": {
@@ -194,11 +194,11 @@
         448
       ],
       "id": "8cfff2da-39dd-4c84-abab-f5a723655499",
-      "name": "build_summary_message"
+      "name": "BuildSummaryMessage"
     },
     {
       "parameters": {
-        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst ctx = $('Build Summary Message').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1\ufe0f\u20e3', '2\ufe0f\u20e3', '3\ufe0f\u20e3', '4\ufe0f\u20e3', '5\ufe0f\u20e3', '6\ufe0f\u20e3', '7\ufe0f\u20e3', '8\ufe0f\u20e3', '9\ufe0f\u20e3', '\ud83d\udd1f'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '\u274c'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '\ud83d\uddd1\ufe0f'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ctx: ctx,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
+        "jsCode": "// Get summary message ID from Discord response\nconst summaryMessage = $input.first().json;\nconst summaryMessageId = summaryMessage.id;\n\nconst ctx = $('BuildSummaryMessage').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1\ufe0f\u20e3', '2\ufe0f\u20e3', '3\ufe0f\u20e3', '4\ufe0f\u20e3', '5\ufe0f\u20e3', '6\ufe0f\u20e3', '7\ufe0f\u20e3', '8\ufe0f\u20e3', '9\ufe0f\u20e3', '\ud83d\udd1f'];\n\n// Build emoji reaction URLs\nconst reactionUrls = [];\n\n// Add number emojis for each extraction\nextractions.forEach(ext => {\n  const emoji = numberEmojis[ext.display_order - 1];\n  if (emoji) {\n    // URL encode the emoji\n    const encoded = encodeURIComponent(emoji);\n    reactionUrls.push({\n      url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/${encoded}/@me`,\n      emoji: emoji\n    });\n  }\n});\n\n// Add control emojis\nreactionUrls.push(\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%E2%9D%8C/@me`,\n    emoji: '\u274c'\n  },\n  {\n    url: `https://discord.com/api/v10/channels/${ctx.event.channel_id}/messages/${summaryMessageId}/reactions/%F0%9F%97%91%EF%B8%8F/@me`,\n    emoji: '\ud83d\uddd1\ufe0f'\n  }\n);\n\nreturn reactionUrls.map(r => ({\n  json: {\n    ctx: ctx,\n    summary_message_id: summaryMessageId,\n    reaction_url: r.url,\n    emoji: r.emoji\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -207,7 +207,7 @@
         448
       ],
       "id": "d7ff0aa4-b3d1-42f5-a10d-37aad4ec2f56",
-      "name": "prepare_emoji_reactions"
+      "name": "PrepareEmojiReactions"
     },
     {
       "parameters": {
@@ -224,7 +224,7 @@
         448
       ],
       "id": "124efe0a-5911-42ba-bd1f-4478da67fdff",
-      "name": "add_emoji_reactions",
+      "name": "AddEmojiReactions",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -237,7 +237,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build query to update summary message ID on projections\nconst ctx = $('Prepare Emoji Reactions').first().json.ctx;\nconst summaryMessageId = $('Prepare Emoji Reactions').first().json.summary_message_id;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [{\n        key: 'update_summary',\n        sql: `UPDATE projections SET data = data || jsonb_build_object('summary_message_id', $1) WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $2 AND status = 'pending';`,\n        params: [summaryMessageId, ctx.db.thread_id]\n      }]\n    }\n  }\n}];"
+        "jsCode": "// Build query to update summary message ID on projections\nconst ctx = $('PrepareEmojiReactions').first().json.ctx;\nconst summaryMessageId = $('PrepareEmojiReactions').first().json.summary_message_id;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [{\n        key: 'update_summary',\n        sql: `UPDATE projections SET data = data || jsonb_build_object('summary_message_id', $1) WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $2 AND status = 'pending';`,\n        params: [summaryMessageId, ctx.db.thread_id]\n      }]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -246,7 +246,7 @@
         256
       ],
       "id": "build-update-summary-query",
-      "name": "build_update_summary_query"
+      "name": "BuildUpdateSummaryQuery"
     },
     {
       "parameters": {
@@ -264,7 +264,7 @@
         256
       ],
       "id": "cc84e221-84fb-49bb-b72b-e0589a531893",
-      "name": "update_summary_message_id"
+      "name": "UpdateSummaryMessageId"
     },
     {
       "parameters": {
@@ -281,7 +281,7 @@
         928
       ],
       "id": "3a889796-3250-4fef-af78-7b779e545595",
-      "name": "remove_\ud83d\udcad_reaction",
+      "name": "Remove\ud83d\udcadReaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -315,7 +315,7 @@
         640
       ],
       "id": "db0c5fb7-27f3-460d-b931-d0610a934431",
-      "name": "post_no_extractions_message",
+      "name": "PostNoExtractionsMessage",
       "webhookId": "no-extractions-webhook",
       "retryOnFail": true,
       "maxTries": 3,
@@ -342,7 +342,7 @@
         736
       ],
       "id": "remove-blue-reaction-save-chat-no-extract",
-      "name": "remove_\ud83d\udd35_reaction_(no_extract)",
+      "name": "Remove\ud83d\udd35Reaction(noExtract)",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -367,7 +367,7 @@
         768
       ],
       "id": "1021e602-7ef3-4c22-bc16-74a99d6e8c30",
-      "name": "nemotron_nano_9b",
+      "name": "NemotronNano9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -388,7 +388,7 @@
         768
       ],
       "id": "aff3ef03-d804-40a6-98d9-b498298f4b69",
-      "name": "mimo_v2_flash",
+      "name": "MimoV2Flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -419,7 +419,7 @@
         352
       ],
       "id": "ee2bc94f-b03b-4d5c-a04e-3e80e8e3acf1",
-      "name": "react_with_\ud83d\udcad",
+      "name": "ReactWith\ud83d\udcad",
       "webhookId": "2af02bbb-3f0b-490a-b0c9-234c0e9013ae",
       "retryOnFail": true,
       "maxTries": 3,
@@ -454,7 +454,7 @@
         448
       ],
       "id": "59068362-0e97-4e90-90c3-98373b60e25f",
-      "name": "send_a_message",
+      "name": "SendAMessage",
       "webhookId": "b9ec412c-e54b-4542-a3ad-41a388512da2",
       "retryOnFail": true,
       "maxTries": 3,
@@ -476,7 +476,7 @@
         448
       ],
       "id": "ebfeb17a-a211-4a67-adf9-ec9c26e418cc",
-      "name": "loop_over_items"
+      "name": "LoopOverItems"
     },
     {
       "parameters": {
@@ -489,7 +489,7 @@
         520
       ],
       "id": "9a504ad1-2ee7-435b-9c81-ff106ef75821",
-      "name": "wait_1_s",
+      "name": "Wait1S",
       "webhookId": "1803ab0e-bd94-42cf-8843-a2178b590fa6"
     },
     {
@@ -514,286 +514,286 @@
         544
       ],
       "id": "set-inference-start-save-chat",
-      "name": "set_inference_start"
+      "name": "SetInferenceStart"
     }
   ],
   "connections": {
-    "execute_workflow_trigger": {
+    "ExecuteWorkflowTrigger": {
       "main": [
         [
           {
-            "node": "build_thread_history_query",
+            "node": "BuildThreadHistoryQuery",
             "type": "main",
             "index": 0
           },
           {
-            "node": "react_with_\ud83d\udcad",
+            "node": "ReactWith\ud83d\udcad",
             "type": "main",
             "index": 0
           },
           {
-            "node": "remove_\ud83d\udcad_reaction",
+            "node": "Remove\ud83d\udcadReaction",
             "type": "main",
             "index": 0
           },
           {
-            "node": "remove_\ud83d\udd35_reaction_(no_extract)",
+            "node": "Remove\ud83d\udd35Reaction(noExtract)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_thread_history_query": {
+    "BuildThreadHistoryQuery": {
       "main": [
         [
           {
-            "node": "get_thread_history",
+            "node": "GetThreadHistory",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "get_thread_history": {
+    "GetThreadHistory": {
       "main": [
         [
           {
-            "node": "prepare_context",
+            "node": "PrepareContext",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_context": {
+    "PrepareContext": {
       "main": [
         [
           {
-            "node": "set_inference_start",
+            "node": "SetInferenceStart",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "extract_items_llm": {
+    "ExtractItemsLlm": {
       "main": [
         [
           {
-            "node": "parse_extractions",
+            "node": "ParseExtractions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "parse_extractions": {
+    "ParseExtractions": {
       "main": [
         [
           {
-            "node": "prepare_trace_data",
+            "node": "PrepareTraceData",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_trace_data": {
+    "PrepareTraceData": {
       "main": [
         [
           {
-            "node": "has_extractions?",
+            "node": "HasExtractions?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "has_extractions?": {
+    "HasExtractions?": {
       "main": [
         [
           {
-            "node": "write_thread_extraction_trace",
+            "node": "WriteThreadExtractionTrace",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "post_no_extractions_message",
+            "node": "PostNoExtractionsMessage",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "write_thread_extraction_trace": {
+    "WriteThreadExtractionTrace": {
       "main": [
         [
           {
-            "node": "build_insert_query",
+            "node": "BuildInsertQuery",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_insert_query": {
+    "BuildInsertQuery": {
       "main": [
         [
           {
-            "node": "save_extractions_to_db",
+            "node": "SaveExtractionsToDb",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "save_extractions_to_db": {
+    "SaveExtractionsToDb": {
       "main": [
         [
           {
-            "node": "build_summary_message",
+            "node": "BuildSummaryMessage",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_summary_message": {
+    "BuildSummaryMessage": {
       "main": [
         [
           {
-            "node": "send_a_message",
+            "node": "SendAMessage",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_emoji_reactions": {
+    "PrepareEmojiReactions": {
       "main": [
         [
           {
-            "node": "loop_over_items",
+            "node": "LoopOverItems",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "add_emoji_reactions": {
+    "AddEmojiReactions": {
       "main": [
         [
           {
-            "node": "wait_1_s",
+            "node": "Wait1S",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "update_summary_message_id": {
+    "UpdateSummaryMessageId": {
       "main": [
         []
       ]
     },
-    "remove_\ud83d\udcad_reaction": {
+    "Remove\ud83d\udcadReaction": {
       "main": [
         []
       ]
     },
-    "nemotron_nano_9b": {
+    "NemotronNano9b": {
       "ai_languageModel": [
         [
           {
-            "node": "extract_items_llm",
+            "node": "ExtractItemsLlm",
             "type": "ai_languageModel",
             "index": 1
           }
         ]
       ]
     },
-    "mimo_v2_flash": {
+    "MimoV2Flash": {
       "ai_languageModel": [
         [
           {
-            "node": "extract_items_llm",
+            "node": "ExtractItemsLlm",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "react_with_\ud83d\udcad": {
+    "ReactWith\ud83d\udcad": {
       "main": [
         []
       ]
     },
-    "send_a_message": {
+    "SendAMessage": {
       "main": [
         [
           {
-            "node": "prepare_emoji_reactions",
+            "node": "PrepareEmojiReactions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "loop_over_items": {
+    "LoopOverItems": {
       "main": [
         [
           {
-            "node": "build_update_summary_query",
+            "node": "BuildUpdateSummaryQuery",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "add_emoji_reactions",
+            "node": "AddEmojiReactions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_update_summary_query": {
+    "BuildUpdateSummaryQuery": {
       "main": [
         [
           {
-            "node": "update_summary_message_id",
+            "node": "UpdateSummaryMessageId",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "wait_1_s": {
+    "Wait1S": {
       "main": [
         [
           {
-            "node": "loop_over_items",
+            "node": "LoopOverItems",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "set_inference_start": {
+    "SetInferenceStart": {
       "main": [
         [
           {
-            "node": "extract_items_llm",
+            "node": "ExtractItemsLlm",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "post_no_extractions_message": {
+    "PostNoExtractionsMessage": {
       "main": [
         []
       ]

@@ -18,7 +18,7 @@
         240
       ],
       "id": "trigger-projection-details",
-      "name": "receive_event"
+      "name": "ReceiveEvent"
     },
     {
       "parameters": {
@@ -35,7 +35,7 @@
         240
       ],
       "id": "lookup-projection-chain",
-      "name": "lookup_projection_chain",
+      "name": "LookupProjectionChain",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {}
@@ -43,7 +43,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Merge ctx from trigger with db results\nconst ctx = $('Receive Event').first().json.ctx;\nconst db = $input.first()?.json || {};\n\nreturn [{\n  json: {\n    ctx,\n    db\n  }\n}];"
+        "jsCode": "// Merge ctx from trigger with db results\nconst ctx = $('ReceiveEvent').first().json.ctx;\nconst db = $input.first()?.json || {};\n\nreturn [{\n  json: {\n    ctx,\n    db\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -52,11 +52,11 @@
         240
       ],
       "id": "merge-ctx-db",
-      "name": "merge_ctx_+_db"
+      "name": "MergeCtx+Db"
     },
     {
       "parameters": {
-        "jsCode": "// Format projection chain details for Discord\n// ❔ (grey) = projections only\n// ❓ (red) = prompt message + projections message (two separate messages)\n// verbose mode = no emoji, automatic trigger, simple view\nconst ctx = $json.ctx;\nconst result = $json.db;\nconst emoji = ctx.event?.emoji || '❔'; // Default to grey for verbose mode\nconst isDetailedView = emoji === '❓';\nconst isVerboseMode = ctx.verbose === true || ctx.verbose === 'true';\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '🔘',\n  'note': '📝',\n  'command': '💻',\n  'todo': '🔲',\n  'nudge': '💡',\n  'daily_summary': '📊',\n  'thread_response': '🗨️',\n  'thread_extraction': '🔍'\n};\n\nif (!result || !result.event_id) {\n  return [{\n    json: {\n      ctx,\n      content: `${emoji} No projection data found for this message.`,\n      isLast: true\n    }\n  }];\n}\n\nconst projections = result.projections || [];\nconst validProjections = projections.filter(p => p && p.projection_id);\n\nif (validProjections.length === 0) {\n  return [{ json: { ctx, content: `${emoji} No saved projections.`, isLast: true } }];\n}\n\n// Build projections content (used by both views)\nlet projectionsContent = '';\nfor (const proj of validProjections) {\n  const projEmoji = typeEmojis[proj.projection_type] || '📦';\n  let text = '';\n  \n  if (proj.projection_type === 'activity') {\n    text = proj.data?.description || '(no description)';\n  } else if (proj.projection_type === 'note') {\n    text = proj.data?.text || '(no text)';\n  } else if (proj.projection_type === 'todo') {\n    text = proj.data?.description || proj.data?.text || '(no description)';\n  } else if (proj.projection_type === 'nudge') {\n    text = proj.data?.text || '(no text)';\n  } else if (proj.projection_type === 'daily_summary') {\n    text = '(daily summary)';\n  } else if (proj.projection_type === 'thread_response') {\n    const respText = proj.data?.response_text || '';\n    text = respText.length > 60 ? respText.slice(0, 60) + '...' : respText;\n  } else if (proj.projection_type === 'thread_extraction') {\n    text = `[${proj.data?.item_type}] ${proj.data?.text || ''}`;\n  } else {\n    text = JSON.stringify(proj.data).slice(0, 60) + '...';\n  }\n  \n  projectionsContent += `${projEmoji} ${text}\\n`;\n}\nprojectionsContent = projectionsContent.trim();\n\n// === SIMPLE VIEW (❔) - projections only ===\nif (!isDetailedView) {\n  return [{ json: { ctx, content: projectionsContent, isLast: true } }];\n}\n\n// === DETAILED VIEW (❓) - prompt + projections (two messages) ===\nconst traces = result.traces || [];\nconst messageUrl = result.message_url;\nconst validTraces = traces.filter(t => t && t.trace_id);\nconst outputs = [];\n\n// Message 1: Prompt(s)\nif (validTraces.length === 0) {\n  outputs.push({ json: { ctx, content: '(no prompt found)', isLast: false } });\n} else {\n  for (let i = 0; i < validTraces.length; i++) {\n    const trace = validTraces[i];\n    const isLastTrace = i === validTraces.length - 1;\n    \n    let content = '';\n    \n    // Show full prompt\n    if (trace.prompt) {\n      let promptText = trace.prompt;\n      \n      // Check if it's JSON (old format) or full text (new format)\n      try {\n        const parsed = JSON.parse(promptText);\n        if (parsed.text) {\n          promptText = parsed.text;\n        } else {\n          const lines = [];\n          if (parsed.timestamp) lines.push(`Time: ${parsed.timestamp}`);\n          if (parsed.north_star) lines.push(`North star: ${parsed.north_star}`);\n          if (parsed.recent_activities) lines.push(`Recent activities:\\n${parsed.recent_activities}`);\n          if (parsed.last_note) lines.push(`Last note: ${parsed.last_note}`);\n          promptText = lines.join('\\n') || JSON.stringify(parsed, null, 2);\n        }\n      } catch {\n        // Already a string (new format) - use as-is\n      }\n      \n      // Truncate if too long\n      if (promptText.length > 1800) {\n        promptText = promptText.slice(0, 1800) + '\\n... (truncated)';\n      }\n      \n      content += '```\\n' + promptText + '\\n```';\n    }\n    \n    // Duration and link after prompt\n    let footer = '';\n    if (trace.duration_ms) {\n      footer += `${trace.duration_ms}ms`;\n    }\n    if (messageUrl && i === 0) {\n      footer += footer ? ' ' : '';\n      footer += `[→](${messageUrl})`;\n    }\n    if (footer) {\n      content += '\\n' + footer;\n    }\n    \n    // This is NOT the last message - projections come after\n    outputs.push({ json: { ctx, content: content.trim(), isLast: false } });\n  }\n}\n\n// Message 2: Projections (last message)\noutputs.push({ json: { ctx, content: projectionsContent, isLast: true } });\n\nreturn outputs;"
+        "jsCode": "// Format projection chain details for Discord\n// \u2754 (grey) = projections only\n// \u2753 (red) = prompt message + projections message (two separate messages)\n// verbose mode = no emoji, automatic trigger, simple view\nconst ctx = $json.ctx;\nconst result = $json.db;\nconst emoji = ctx.event?.emoji || '\u2754'; // Default to grey for verbose mode\nconst isDetailedView = emoji === '\u2753';\nconst isVerboseMode = ctx.verbose === true || ctx.verbose === 'true';\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '\ud83d\udd18',\n  'note': '\ud83d\udcdd',\n  'command': '\ud83d\udcbb',\n  'todo': '\ud83d\udd32',\n  'nudge': '\ud83d\udca1',\n  'daily_summary': '\ud83d\udcca',\n  'thread_response': '\ud83d\udde8\ufe0f',\n  'thread_extraction': '\ud83d\udd0d'\n};\n\nif (!result || !result.event_id) {\n  return [{\n    json: {\n      ctx,\n      content: `${emoji} No projection data found for this message.`,\n      isLast: true\n    }\n  }];\n}\n\nconst projections = result.projections || [];\nconst validProjections = projections.filter(p => p && p.projection_id);\n\nif (validProjections.length === 0) {\n  return [{ json: { ctx, content: `${emoji} No saved projections.`, isLast: true } }];\n}\n\n// Build projections content (used by both views)\nlet projectionsContent = '';\nfor (const proj of validProjections) {\n  const projEmoji = typeEmojis[proj.projection_type] || '\ud83d\udce6';\n  let text = '';\n  \n  if (proj.projection_type === 'activity') {\n    text = proj.data?.description || '(no description)';\n  } else if (proj.projection_type === 'note') {\n    text = proj.data?.text || '(no text)';\n  } else if (proj.projection_type === 'todo') {\n    text = proj.data?.description || proj.data?.text || '(no description)';\n  } else if (proj.projection_type === 'nudge') {\n    text = proj.data?.text || '(no text)';\n  } else if (proj.projection_type === 'daily_summary') {\n    text = '(daily summary)';\n  } else if (proj.projection_type === 'thread_response') {\n    const respText = proj.data?.response_text || '';\n    text = respText.length > 60 ? respText.slice(0, 60) + '...' : respText;\n  } else if (proj.projection_type === 'thread_extraction') {\n    text = `[${proj.data?.item_type}] ${proj.data?.text || ''}`;\n  } else {\n    text = JSON.stringify(proj.data).slice(0, 60) + '...';\n  }\n  \n  projectionsContent += `${projEmoji} ${text}\\n`;\n}\nprojectionsContent = projectionsContent.trim();\n\n// === SIMPLE VIEW (\u2754) - projections only ===\nif (!isDetailedView) {\n  return [{ json: { ctx, content: projectionsContent, isLast: true } }];\n}\n\n// === DETAILED VIEW (\u2753) - prompt + projections (two messages) ===\nconst traces = result.traces || [];\nconst messageUrl = result.message_url;\nconst validTraces = traces.filter(t => t && t.trace_id);\nconst outputs = [];\n\n// Message 1: Prompt(s)\nif (validTraces.length === 0) {\n  outputs.push({ json: { ctx, content: '(no prompt found)', isLast: false } });\n} else {\n  for (let i = 0; i < validTraces.length; i++) {\n    const trace = validTraces[i];\n    const isLastTrace = i === validTraces.length - 1;\n    \n    let content = '';\n    \n    // Show full prompt\n    if (trace.prompt) {\n      let promptText = trace.prompt;\n      \n      // Check if it's JSON (old format) or full text (new format)\n      try {\n        const parsed = JSON.parse(promptText);\n        if (parsed.text) {\n          promptText = parsed.text;\n        } else {\n          const lines = [];\n          if (parsed.timestamp) lines.push(`Time: ${parsed.timestamp}`);\n          if (parsed.north_star) lines.push(`North star: ${parsed.north_star}`);\n          if (parsed.recent_activities) lines.push(`Recent activities:\\n${parsed.recent_activities}`);\n          if (parsed.last_note) lines.push(`Last note: ${parsed.last_note}`);\n          promptText = lines.join('\\n') || JSON.stringify(parsed, null, 2);\n        }\n      } catch {\n        // Already a string (new format) - use as-is\n      }\n      \n      // Truncate if too long\n      if (promptText.length > 1800) {\n        promptText = promptText.slice(0, 1800) + '\\n... (truncated)';\n      }\n      \n      content += '```\\n' + promptText + '\\n```';\n    }\n    \n    // Duration and link after prompt\n    let footer = '';\n    if (trace.duration_ms) {\n      footer += `${trace.duration_ms}ms`;\n    }\n    if (messageUrl && i === 0) {\n      footer += footer ? ' ' : '';\n      footer += `[\u2192](${messageUrl})`;\n    }\n    if (footer) {\n      content += '\\n' + footer;\n    }\n    \n    // This is NOT the last message - projections come after\n    outputs.push({ json: { ctx, content: content.trim(), isLast: false } });\n  }\n}\n\n// Message 2: Projections (last message)\noutputs.push({ json: { ctx, content: projectionsContent, isLast: true } });\n\nreturn outputs;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -65,7 +65,7 @@
         240
       ],
       "id": "format-details",
-      "name": "format_details"
+      "name": "FormatDetails"
     },
     {
       "parameters": {
@@ -90,7 +90,7 @@
         240
       ],
       "id": "send-details",
-      "name": "send_details",
+      "name": "SendDetails",
       "webhookId": "projection-details-response",
       "retryOnFail": true,
       "maxTries": 3,
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Restore ctx after Discord node (which overwrites $json)\nconst formatOutput = $('Format Details').all();\nconst currentIndex = $itemIndex;\nconst item = formatOutput[currentIndex]?.json || {};\nconst ctx = item.ctx || {};\n\nreturn [{\n  json: {\n    ctx: ctx,\n    isLast: item.isLast,\n    isVerboseMode: ctx.verbose === true || ctx.verbose === 'true' || !ctx.event?.emoji\n  }\n}];"
+        "jsCode": "// Restore ctx after Discord node (which overwrites $json)\nconst formatOutput = $('FormatDetails').all();\nconst currentIndex = $itemIndex;\nconst item = formatOutput[currentIndex]?.json || {};\nconst ctx = item.ctx || {};\n\nreturn [{\n  json: {\n    ctx: ctx,\n    isLast: item.isLast,\n    isVerboseMode: ctx.verbose === true || ctx.verbose === 'true' || !ctx.event?.emoji\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -112,7 +112,7 @@
         240
       ],
       "id": "restore-ctx",
-      "name": "restore_ctx"
+      "name": "RestoreCtx"
     },
     {
       "parameters": {
@@ -154,12 +154,12 @@
         240
       ],
       "id": "if-last-message",
-      "name": "if_last_message"
+      "name": "IfLastMessage"
     },
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/{{ $json.ctx.event.emoji === \"❓\" ? \"%E2%9D%93\" : \"%E2%9D%94\" }}/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/{{ $json.ctx.event.emoji === \"\u2753\" ? \"%E2%9D%93\" : \"%E2%9D%94\" }}/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -171,7 +171,7 @@
         240
       ],
       "id": "remove-info-reaction",
-      "name": "remove_info_reaction",
+      "name": "RemoveInfoReaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -184,77 +184,77 @@
     }
   ],
   "connections": {
-    "receive_event": {
+    "ReceiveEvent": {
       "main": [
         [
           {
-            "node": "lookup_projection_chain",
+            "node": "LookupProjectionChain",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "lookup_projection_chain": {
+    "LookupProjectionChain": {
       "main": [
         [
           {
-            "node": "merge_ctx_+_db",
+            "node": "MergeCtx+Db",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "merge_ctx_+_db": {
+    "MergeCtx+Db": {
       "main": [
         [
           {
-            "node": "format_details",
+            "node": "FormatDetails",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "format_details": {
+    "FormatDetails": {
       "main": [
         [
           {
-            "node": "send_details",
+            "node": "SendDetails",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "send_details": {
+    "SendDetails": {
       "main": [
         [
           {
-            "node": "restore_ctx",
+            "node": "RestoreCtx",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "restore_ctx": {
+    "RestoreCtx": {
       "main": [
         [
           {
-            "node": "if_last_message",
+            "node": "IfLastMessage",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "if_last_message": {
+    "IfLastMessage": {
       "main": [
         [
           {
-            "node": "remove_info_reaction",
+            "node": "RemoveInfoReaction",
             "type": "main",
             "index": 0
           }

@@ -12,7 +12,7 @@
         0
       ],
       "id": "trigger-execute-query",
-      "name": "execute_workflow_trigger"
+      "name": "ExecuteWorkflowTrigger"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         0
       ],
       "id": "initialize-loop",
-      "name": "initialize_loop"
+      "name": "InitializeLoop"
     },
     {
       "parameters": {
@@ -38,7 +38,7 @@
         0
       ],
       "id": "prepare-query",
-      "name": "prepare_query"
+      "name": "PrepareQuery"
     },
     {
       "parameters": {
@@ -55,7 +55,7 @@
         0
       ],
       "id": "execute-postgres-query",
-      "name": "execute_query",
+      "name": "ExecuteQuery",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -76,7 +76,7 @@
         0
       ],
       "id": "merge-results",
-      "name": "merge_results"
+      "name": "MergeResults"
     },
     {
       "parameters": {
@@ -89,7 +89,7 @@
         0
       ],
       "id": "collect-results",
-      "name": "collect_results"
+      "name": "CollectResults"
     },
     {
       "parameters": {
@@ -122,7 +122,7 @@
         0
       ],
       "id": "check-more-queries",
-      "name": "more_queries?"
+      "name": "MoreQueries?"
     },
     {
       "parameters": {
@@ -135,93 +135,93 @@
         100
       ],
       "id": "finalize-context",
-      "name": "finalize_context"
+      "name": "FinalizeContext"
     }
   ],
   "connections": {
-    "execute_workflow_trigger": {
+    "ExecuteWorkflowTrigger": {
       "main": [
         [
           {
-            "node": "initialize_loop",
+            "node": "InitializeLoop",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "initialize_loop": {
+    "InitializeLoop": {
       "main": [
         [
           {
-            "node": "prepare_query",
+            "node": "PrepareQuery",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_query": {
+    "PrepareQuery": {
       "main": [
         [
           {
-            "node": "execute_query",
+            "node": "ExecuteQuery",
             "type": "main",
             "index": 0
           },
           {
-            "node": "merge_results",
+            "node": "MergeResults",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "execute_query": {
+    "ExecuteQuery": {
       "main": [
         [
           {
-            "node": "merge_results",
+            "node": "MergeResults",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "merge_results": {
+    "MergeResults": {
       "main": [
         [
           {
-            "node": "collect_results",
+            "node": "CollectResults",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "collect_results": {
+    "CollectResults": {
       "main": [
         [
           {
-            "node": "more_queries?",
+            "node": "MoreQueries?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "more_queries?": {
+    "MoreQueries?": {
       "main": [
         [
           {
-            "node": "prepare_query",
+            "node": "PrepareQuery",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "finalize_context",
+            "node": "FinalizeContext",
             "type": "main",
             "index": 0
           }

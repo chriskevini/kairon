@@ -42,7 +42,7 @@ class TestMulti_Capture:
         """Test that ctx is preserved in key nodes"""
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
-        prep_node = next((n for n in nodes if n["name"] == "prepare_capture"), None)
+        prep_node = next((n for n in nodes if n["name"] == "PrepareCapture"), None)
         assert prep_node is not None
         assert "ctx: ctx" in prep_node["parameters"]["jsCode"]
 
@@ -50,7 +50,7 @@ class TestMulti_Capture:
         """Test the logic that splits captures into projections"""
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
-        split_node = next((n for n in nodes if n["name"] == "split_captures"), None)
+        split_node = next((n for n in nodes if n["name"] == "SplitCaptures"), None)
         assert split_node is not None
 
         code = split_node["parameters"]["jsCode"]

@@ -25,7 +25,7 @@
         0
       ],
       "id": "workflow-trigger",
-      "name": "when_called_by_another_workflow"
+      "name": "WhenCalledByAnotherWorkflow"
     },
     {
       "parameters": {
@@ -38,7 +38,7 @@
         0
       ],
       "id": "prepare-event",
-      "name": "prepare_event"
+      "name": "PrepareEvent"
     },
     {
       "parameters": {
@@ -55,7 +55,7 @@
         0
       ],
       "id": "insert-event",
-      "name": "insert_event",
+      "name": "InsertEvent",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -64,7 +64,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\nconst prepareData = $('Prepare Event').first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'proactive_agent',\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id],\n        trace_chain_pg: `{${eventResult.id}}`\n      },\n      db_queries: [{\n        key: 'history',\n        sql: `\n          (SELECT 'user' as role, payload->>'clean_text' as content, received_at as timestamp\n           FROM events \n           WHERE event_type = 'discord_message'\n           ORDER BY received_at DESC LIMIT 5)\n          UNION ALL\n          (SELECT 'assistant' as role, data->>'message' as content, created_at as timestamp\n           FROM projections\n           WHERE projection_type IN ('nudge', 'pulse')\n           ORDER BY created_at DESC LIMIT 5)\n          ORDER BY timestamp DESC\n          LIMIT 5;\n        `,\n        params: []\n      }]\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\nconst prepareData = $('PrepareEvent').first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'proactive_agent',\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id],\n        trace_chain_pg: `{${eventResult.id}}`\n      },\n      db_queries: [{\n        key: 'history',\n        sql: `\n          (SELECT 'user' as role, payload->>'clean_text' as content, received_at as timestamp\n           FROM events \n           WHERE event_type = 'discord_message'\n           ORDER BY received_at DESC LIMIT 5)\n          UNION ALL\n          (SELECT 'assistant' as role, data->>'message' as content, created_at as timestamp\n           FROM projections\n           WHERE projection_type IN ('nudge', 'pulse')\n           ORDER BY created_at DESC LIMIT 5)\n          ORDER BY timestamp DESC\n          LIMIT 5;\n        `,\n        params: []\n      }]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -73,7 +73,7 @@
         0
       ],
       "id": "init-ctx",
-      "name": "initialize_ctx"
+      "name": "InitializeCtx"
     },
     {
       "parameters": {
@@ -88,7 +88,7 @@
         -288
       ],
       "id": "get-prompt-modules",
-      "name": "fetch_history",
+      "name": "FetchHistory",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -109,7 +109,7 @@
         -96
       ],
       "id": "get-north-star",
-      "name": "get_north_star",
+      "name": "GetNorthStar",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -130,7 +130,7 @@
         96
       ],
       "id": "get-recent-activities",
-      "name": "get_recent_activities_(24h)",
+      "name": "GetRecentActivities(24h)",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -151,7 +151,7 @@
         288
       ],
       "id": "get-recent-notes",
-      "name": "get_recent_notes_(7d)",
+      "name": "GetRecentNotes(7d)",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -172,7 +172,7 @@
         480
       ],
       "id": "get-pending-todos",
-      "name": "get_pending_todos",
+      "name": "GetPendingTodos",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -192,7 +192,7 @@
         0
       ],
       "id": "merge-query-results",
-      "name": "merge_query_results"
+      "name": "MergeQueryResults"
     },
     {
       "parameters": {
@@ -205,7 +205,7 @@
         0
       ],
       "id": "build-context-summary",
-      "name": "build_context_summary"
+      "name": "BuildContextSummary"
     },
     {
       "parameters": {
@@ -225,7 +225,7 @@
         0
       ],
       "id": "semantic-select-techniques",
-      "name": "semantic_select_techniques",
+      "name": "SemanticSelectTechniques",
       "continueOnFail": true
     },
     {
@@ -246,12 +246,12 @@
         192
       ],
       "id": "embed-context-for-rag",
-      "name": "embed_context_for_rag",
+      "name": "EmbedContextForRag",
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// Prepare embedding for pgvector query\nconst contextData = $('Build Context Summary').first().json;\nconst embedResult = $json;\n\n// Extract the embedding vector\nlet embedding = null;\nif (embedResult.embeddings && embedResult.embeddings.length > 0) {\n  embedding = embedResult.embeddings[0];\n}\n\n// Format as pgvector array string\nlet embeddingPg = null;\nif (embedding) {\n  embeddingPg = '[' + embedding.join(',') + ']';\n}\n\nreturn [{\n  json: {\n    ctx: contextData.ctx,\n    context_summary: contextData.context_summary,\n    all_items: contextData.all_items,\n    embedding_pg: embeddingPg,\n    has_embedding: embedding !== null\n  }\n}];"
+        "jsCode": "// Prepare embedding for pgvector query\nconst contextData = $('BuildContextSummary').first().json;\nconst embedResult = $json;\n\n// Extract the embedding vector\nlet embedding = null;\nif (embedResult.embeddings && embedResult.embeddings.length > 0) {\n  embedding = embedResult.embeddings[0];\n}\n\n// Format as pgvector array string\nlet embeddingPg = null;\nif (embedding) {\n  embeddingPg = '[' + embedding.join(',') + ']';\n}\n\nreturn [{\n  json: {\n    ctx: contextData.ctx,\n    context_summary: contextData.context_summary,\n    all_items: contextData.all_items,\n    embedding_pg: embeddingPg,\n    has_embedding: embedding !== null\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -260,7 +260,7 @@
         192
       ],
       "id": "prepare-embedding-for-rag",
-      "name": "prepare_embedding_for_rag"
+      "name": "PrepareEmbeddingForRag"
     },
     {
       "parameters": {
@@ -277,7 +277,7 @@
         192
       ],
       "id": "rag-similar-projections",
-      "name": "rag_similar_projections",
+      "name": "RagSimilarProjections",
       "alwaysOutputData": true,
       "continueOnFail": true,
       "credentials": {
@@ -298,7 +298,7 @@
         96
       ],
       "id": "merge-semantic-results",
-      "name": "merge_semantic_results"
+      "name": "MergeSemanticResults"
     },
     {
       "parameters": {
@@ -311,7 +311,7 @@
         96
       ],
       "id": "assemble-prompt",
-      "name": "assemble_prompt"
+      "name": "AssemblePrompt"
     },
     {
       "parameters": {
@@ -327,7 +327,7 @@
         96
       ],
       "id": "generate-message-llm",
-      "name": "generate_message_with_llm"
+      "name": "GenerateMessageWithLlm"
     },
     {
       "parameters": {
@@ -341,7 +341,7 @@
         320
       ],
       "id": "nemotron-nano-9b",
-      "name": "nemotron_nano_9b",
+      "name": "NemotronNano9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -360,7 +360,7 @@
         320
       ],
       "id": "mimo-v2-flash",
-      "name": "mimo_v2_flash",
+      "name": "MimoV2Flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -369,7 +369,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM response\nconst assembleData = $('assemble_prompt').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - assembleData.inference_start;\nconst ctx = assembleData.ctx;\n\nlet message = '';\nlet nextPulseMinutes = 120;\nlet reasoning = '';\n\ntry {\n  // Extract JSON from response (handling potential markdown blocks)\n  const jsonMatch = llmText.match(/\\{[\\s\\S]*\\}/);\n  const data = JSON.parse(jsonMatch ? jsonMatch[0] : llmText);\n  message = data.message || '';\n  nextPulseMinutes = parseInt(data.next_pulse_minutes) || 120;\n  reasoning = data.reasoning || '';\n} catch (e) {\n  // Fallback for non-JSON or malformed responses\n  message = llmText.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '').trim();\n}\n\n// Check if message is empty or too short\nconst isEmpty = !message || message.length < 10;\n\nreturn [{\n  json: {\n    ctx,\n    message: message,\n    next_pulse_minutes: nextPulseMinutes,\n    reasoning: reasoning,\n    is_empty: isEmpty,\n    duration_ms: durationMs,\n    trace_chain_pg: assembleData.trace_chain_pg,\n    llm_response: llmText,\n    assembled_prompt: assembleData.assembled_prompt,\n    context_description: assembleData.context_description,\n    technique_source: assembleData.technique_source,\n    input_summary: assembleData.input_summary\n  }\n}];"
+        "jsCode": "// Parse LLM response\nconst assembleData = $('AssemblePrompt').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - assembleData.inference_start;\nconst ctx = assembleData.ctx;\n\nlet message = '';\nlet nextPulseMinutes = 120;\nlet reasoning = '';\n\ntry {\n  // Extract JSON from response (handling potential markdown blocks)\n  const jsonMatch = llmText.match(/\\{[\\s\\S]*\\}/);\n  const data = JSON.parse(jsonMatch ? jsonMatch[0] : llmText);\n  message = data.message || '';\n  nextPulseMinutes = parseInt(data.next_pulse_minutes) || 120;\n  reasoning = data.reasoning || '';\n} catch (e) {\n  // Fallback for non-JSON or malformed responses\n  message = llmText.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '').trim();\n}\n\n// Check if message is empty or too short\nconst isEmpty = !message || message.length < 10;\n\nreturn [{\n  json: {\n    ctx,\n    message: message,\n    next_pulse_minutes: nextPulseMinutes,\n    reasoning: reasoning,\n    is_empty: isEmpty,\n    duration_ms: durationMs,\n    trace_chain_pg: assembleData.trace_chain_pg,\n    llm_response: llmText,\n    assembled_prompt: assembleData.assembled_prompt,\n    context_description: assembleData.context_description,\n    technique_source: assembleData.technique_source,\n    input_summary: assembleData.input_summary\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -378,7 +378,7 @@
         96
       ],
       "id": "parse-llm-response",
-      "name": "parse_llm_response"
+      "name": "ParseLlmResponse"
     },
     {
       "parameters": {
@@ -395,7 +395,7 @@
         96
       ],
       "id": "store-trace",
-      "name": "store_trace",
+      "name": "StoreTrace",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -413,7 +413,7 @@
         96
       ],
       "id": "merge-trace-result",
-      "name": "merge_trace_result"
+      "name": "MergeTraceResult"
     },
     {
       "parameters": {
@@ -447,7 +447,7 @@
         96
       ],
       "id": "if-empty",
-      "name": "if_empty_message"
+      "name": "IfEmptyMessage"
     },
     {
       "parameters": {
@@ -464,7 +464,7 @@
         176
       ],
       "id": "store-projection",
-      "name": "store_projection",
+      "name": "StoreProjection",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -473,7 +473,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Merge projection result for Discord\nconst projResult = $json;\nconst mergeData = $('Merge Trace Result').first().json;\n\nreturn [{\n  json: {\n    ctx: mergeData.ctx,\n    projection_id: projResult.id,\n    message: mergeData.message\n  }\n}];"
+        "jsCode": "// Merge projection result for Discord\nconst projResult = $json;\nconst mergeData = $('MergeTraceResult').first().json;\n\nreturn [{\n  json: {\n    ctx: mergeData.ctx,\n    projection_id: projResult.id,\n    message: mergeData.message\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -482,7 +482,7 @@
         176
       ],
       "id": "merge-for-discord",
-      "name": "merge_for_discord"
+      "name": "MergeForDiscord"
     },
     {
       "parameters": {
@@ -507,7 +507,7 @@
         176
       ],
       "id": "send-message",
-      "name": "send_message",
+      "name": "SendMessage",
       "credentials": {
         "discordBotApi": {
           "name": "Discord Bot account"
@@ -532,7 +532,7 @@
         176
       ],
       "id": "update-projection-message-id",
-      "name": "update_projection_with_message_id",
+      "name": "UpdateProjectionWithMessageId",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -554,7 +554,7 @@
         288
       ],
       "id": "update-next-pulse",
-      "name": "update_next_pulse",
+      "name": "UpdateNextPulse",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -576,7 +576,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.id }}",
-        "emoji": "❓",
+        "emoji": "\u2753",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -586,7 +586,7 @@
         176
       ],
       "id": "add-diagnostic-reaction",
-      "name": "add_diagnostic_reaction",
+      "name": "AddDiagnosticReaction",
       "credentials": {
         "discordBotApi": {
           "name": "Discord Bot account"
@@ -606,7 +606,7 @@
         176
       ],
       "id": "check-verbose-config",
-      "name": "check_verbose_config",
+      "name": "CheckVerboseConfig",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -644,7 +644,7 @@
         176
       ],
       "id": "if-verbose",
-      "name": "if_verbose?"
+      "name": "IfVerbose?"
     },
     {
       "parameters": {
@@ -657,7 +657,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "ctx": "={{ $('Merge for Discord').first().json.ctx }}",
-            "emoji": "❓"
+            "emoji": "\u2753"
           },
           "matchingColumns": [],
           "schema": [],
@@ -675,387 +675,387 @@
         256
       ],
       "id": "trigger-show-details",
-      "name": "trigger_show_details"
+      "name": "TriggerShowDetails"
     }
   ],
   "connections": {
-    "when_called_by_another_workflow": {
+    "WhenCalledByAnotherWorkflow": {
       "main": [
         [
           {
-            "node": "prepare_event",
+            "node": "PrepareEvent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_event": {
+    "PrepareEvent": {
       "main": [
         [
           {
-            "node": "insert_event",
+            "node": "InsertEvent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "insert_event": {
+    "InsertEvent": {
       "main": [
         [
           {
-            "node": "initialize_ctx",
+            "node": "InitializeCtx",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "initialize_ctx": {
+    "InitializeCtx": {
       "main": [
         [
           {
-            "node": "fetch_history",
+            "node": "FetchHistory",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "fetch_history": {
+    "FetchHistory": {
       "main": [
         [
           {
-            "node": "get_north_star",
+            "node": "GetNorthStar",
             "type": "main",
             "index": 0
           },
           {
-            "node": "get_recent_activities_(24h)",
+            "node": "GetRecentActivities(24h)",
             "type": "main",
             "index": 0
           },
           {
-            "node": "get_recent_notes_(7d)",
+            "node": "GetRecentNotes(7d)",
             "type": "main",
             "index": 0
           },
           {
-            "node": "get_pending_todos",
+            "node": "GetPendingTodos",
             "type": "main",
             "index": 0
           },
           {
-            "node": "merge_query_results",
+            "node": "MergeQueryResults",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "get_north_star": {
+    "GetNorthStar": {
       "main": [
         [
           {
-            "node": "merge_query_results",
+            "node": "MergeQueryResults",
             "type": "main",
             "index": 2
           }
         ]
       ]
     },
-    "get_recent_activities_(24h)": {
+    "GetRecentActivities(24h)": {
       "main": [
         [
           {
-            "node": "merge_query_results",
+            "node": "MergeQueryResults",
             "type": "main",
             "index": 3
           }
         ]
       ]
     },
-    "get_recent_notes_(7d)": {
+    "GetRecentNotes(7d)": {
       "main": [
         [
           {
-            "node": "merge_query_results",
+            "node": "MergeQueryResults",
             "type": "main",
             "index": 4
           }
         ]
       ]
     },
-    "get_pending_todos": {
+    "GetPendingTodos": {
       "main": [
         [
           {
-            "node": "merge_query_results",
+            "node": "MergeQueryResults",
             "type": "main",
             "index": 5
           }
         ]
       ]
     },
-    "merge_query_results": {
+    "MergeQueryResults": {
       "main": [
         [
           {
-            "node": "build_context_summary",
+            "node": "BuildContextSummary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_context_summary": {
+    "BuildContextSummary": {
       "main": [
         [
           {
-            "node": "semantic_select_techniques",
+            "node": "SemanticSelectTechniques",
             "type": "main",
             "index": 0
           },
           {
-            "node": "embed_context_for_rag",
+            "node": "EmbedContextForRag",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "embed_context_for_rag": {
+    "EmbedContextForRag": {
       "main": [
         [
           {
-            "node": "prepare_embedding_for_rag",
+            "node": "PrepareEmbeddingForRag",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_embedding_for_rag": {
+    "PrepareEmbeddingForRag": {
       "main": [
         [
           {
-            "node": "rag_similar_projections",
+            "node": "RagSimilarProjections",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "semantic_select_techniques": {
+    "SemanticSelectTechniques": {
       "main": [
         [
           {
-            "node": "merge_semantic_results",
+            "node": "MergeSemanticResults",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "rag_similar_projections": {
+    "RagSimilarProjections": {
       "main": [
         [
           {
-            "node": "merge_semantic_results",
+            "node": "MergeSemanticResults",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "merge_semantic_results": {
+    "MergeSemanticResults": {
       "main": [
         [
           {
-            "node": "assemble_prompt",
+            "node": "AssemblePrompt",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "assemble_prompt": {
+    "AssemblePrompt": {
       "main": [
         [
           {
-            "node": "generate_message_with_llm",
+            "node": "GenerateMessageWithLlm",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "generate_message_with_llm": {
+    "GenerateMessageWithLlm": {
       "main": [
         [
           {
-            "node": "parse_llm_response",
+            "node": "ParseLlmResponse",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "parse_llm_response": {
+    "ParseLlmResponse": {
       "main": [
         [
           {
-            "node": "store_trace",
+            "node": "StoreTrace",
             "type": "main",
             "index": 0
           },
           {
-            "node": "update_next_pulse",
+            "node": "UpdateNextPulse",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "update_next_pulse": {
+    "UpdateNextPulse": {
       "main": [
         []
       ]
     },
-    "store_trace": {
+    "StoreTrace": {
       "main": [
         [
           {
-            "node": "merge_trace_result",
+            "node": "MergeTraceResult",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "merge_trace_result": {
+    "MergeTraceResult": {
       "main": [
         [
           {
-            "node": "if_empty_message",
+            "node": "IfEmptyMessage",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "if_empty_message": {
-      "main": [
-        [],
-        [
-          {
-            "node": "store_projection",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "store_projection": {
-      "main": [
-        [
-          {
-            "node": "merge_for_discord",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "merge_for_discord": {
-      "main": [
-        [
-          {
-            "node": "send_message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "send_message": {
-      "main": [
-        [
-          {
-            "node": "update_projection_with_message_id",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "update_projection_with_message_id": {
-      "main": [
-        [
-          {
-            "node": "add_diagnostic_reaction",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "add_diagnostic_reaction": {
-      "main": [
-        [
-          {
-            "node": "check_verbose_config",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "check_verbose_config": {
-      "main": [
-        [
-          {
-            "node": "if_verbose?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "if_verbose?": {
+    "IfEmptyMessage": {
       "main": [
         [],
         [
           {
-            "node": "trigger_show_details",
+            "node": "StoreProjection",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "trigger_show_details": {
+    "StoreProjection": {
+      "main": [
+        [
+          {
+            "node": "MergeForDiscord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MergeForDiscord": {
+      "main": [
+        [
+          {
+            "node": "SendMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendMessage": {
+      "main": [
+        [
+          {
+            "node": "UpdateProjectionWithMessageId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UpdateProjectionWithMessageId": {
+      "main": [
+        [
+          {
+            "node": "AddDiagnosticReaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AddDiagnosticReaction": {
+      "main": [
+        [
+          {
+            "node": "CheckVerboseConfig",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CheckVerboseConfig": {
+      "main": [
+        [
+          {
+            "node": "IfVerbose?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfVerbose?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "TriggerShowDetails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TriggerShowDetails": {
       "main": [
         []
       ]
     },
-    "nemotron_nano_9b": {
+    "NemotronNano9b": {
       "ai_languageModel": [
         [
           {
-            "node": "generate_message_with_llm",
+            "node": "GenerateMessageWithLlm",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "mimo_v2_flash": {
+    "MimoV2Flash": {
       "ai_languageModel": [
         [
           {
-            "node": "generate_message_with_llm",
+            "node": "GenerateMessageWithLlm",
             "type": "ai_languageModel",
             "index": 1
           }

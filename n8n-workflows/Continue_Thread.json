@@ -12,7 +12,7 @@
         624
       ],
       "id": "cf49146a-7b65-4fe1-8882-9190f8ac80f3",
-      "name": "execute_workflow_trigger"
+      "name": "ExecuteWorkflowTrigger"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         624
       ],
       "id": "prepare-db-queries",
-      "name": "prepare_db_queries"
+      "name": "PrepareDbQueries"
     },
     {
       "parameters": {
@@ -43,7 +43,7 @@
         624
       ],
       "id": "execute-queries-read",
-      "name": "execute_queries_(read)"
+      "name": "ExecuteQueries(read)"
     },
     {
       "parameters": {
@@ -56,7 +56,7 @@
         624
       ],
       "id": "66722f6e-f428-4136-bc15-f60097699a36",
-      "name": "build_context"
+      "name": "BuildContext"
     },
     {
       "parameters": {
@@ -72,7 +72,7 @@
         748
       ],
       "id": "4119f733-a0a8-4c97-bcf3-a67ab535c4b5",
-      "name": "generate_response"
+      "name": "GenerateResponse"
     },
     {
       "parameters": {
@@ -88,7 +88,7 @@
         972
       ],
       "id": "120ceee9-00cb-4175-8df8-57f862e218fd",
-      "name": "mimo_v2_flash",
+      "name": "MimoV2Flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -109,7 +109,7 @@
         972
       ],
       "id": "9c28edb3-a048-474e-8217-915ddee94e23",
-      "name": "nemotron_nano_9b",
+      "name": "NemotronNano9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -139,7 +139,7 @@
         528
       ],
       "id": "742d2510-b9ca-4252-9f4e-4d2c485050a9",
-      "name": "post_to_thread",
+      "name": "PostToThread",
       "webhookId": "a65d6a4d-1d64-4ef4-b3b6-a4fe185b4957",
       "retryOnFail": true,
       "maxTries": 3,
@@ -174,7 +174,7 @@
         96
       ],
       "id": "3d6f0aee-f86f-437e-aa57-0683b80c2ced",
-      "name": "react_with_\ud83d\udcad",
+      "name": "ReactWith\ud83d\udcad",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "retryOnFail": true,
       "maxTries": 3,
@@ -201,7 +201,7 @@
         1152
       ],
       "id": "remove-blue-reaction-continue-chat",
-      "name": "remove_\ud83d\udd35_reaction",
+      "name": "Remove\ud83d\udd35Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -223,7 +223,7 @@
         720
       ],
       "id": "prepare-write-queries",
-      "name": "prepare_write_queries"
+      "name": "PrepareWriteQueries"
     },
     {
       "parameters": {
@@ -241,7 +241,7 @@
         720
       ],
       "id": "execute-queries-write",
-      "name": "execute_queries_(write)"
+      "name": "ExecuteQueries(write)"
     },
     {
       "parameters": {
@@ -266,7 +266,7 @@
         748
       ],
       "id": "set-llm-completion",
-      "name": "set_llm_completion"
+      "name": "SetLlmCompletion"
     },
     {
       "parameters": {
@@ -281,144 +281,144 @@
         624
       ],
       "id": "merge-llm-result",
-      "name": "merge_llm_result"
+      "name": "MergeLlmResult"
     }
   ],
   "connections": {
-    "execute_workflow_trigger": {
+    "ExecuteWorkflowTrigger": {
       "main": [
         [
           {
-            "node": "prepare_db_queries",
+            "node": "PrepareDbQueries",
             "type": "main",
             "index": 0
           },
           {
-            "node": "react_with_\ud83d\udcad",
+            "node": "ReactWith\ud83d\udcad",
             "type": "main",
             "index": 0
           },
           {
-            "node": "remove_\ud83d\udd35_reaction",
+            "node": "Remove\ud83d\udd35Reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_db_queries": {
+    "PrepareDbQueries": {
       "main": [
         [
           {
-            "node": "execute_queries_(read)",
+            "node": "ExecuteQueries(read)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "execute_queries_(read)": {
+    "ExecuteQueries(read)": {
       "main": [
         [
           {
-            "node": "build_context",
+            "node": "BuildContext",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_context": {
+    "BuildContext": {
       "main": [
         [
           {
-            "node": "generate_response",
+            "node": "GenerateResponse",
             "type": "main",
             "index": 0
           },
           {
-            "node": "merge_llm_result",
+            "node": "MergeLlmResult",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "generate_response": {
+    "GenerateResponse": {
       "main": [
         [
           {
-            "node": "set_llm_completion",
+            "node": "SetLlmCompletion",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "mimo_v2_flash": {
+    "MimoV2Flash": {
       "ai_languageModel": [
         [
           {
-            "node": "generate_response",
+            "node": "GenerateResponse",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "nemotron_nano_9b": {
+    "NemotronNano9b": {
       "ai_languageModel": [
         [
           {
-            "node": "generate_response",
+            "node": "GenerateResponse",
             "type": "ai_languageModel",
             "index": 1
           }
         ]
       ]
     },
-    "post_to_thread": {
+    "PostToThread": {
       "main": [
         []
       ]
     },
-    "prepare_write_queries": {
+    "PrepareWriteQueries": {
       "main": [
         [
           {
-            "node": "execute_queries_(write)",
+            "node": "ExecuteQueries(write)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "execute_queries_(write)": {
+    "ExecuteQueries(write)": {
       "main": [
         []
       ]
     },
-    "set_llm_completion": {
+    "SetLlmCompletion": {
       "main": [
         [
           {
-            "node": "merge_llm_result",
+            "node": "MergeLlmResult",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "merge_llm_result": {
+    "MergeLlmResult": {
       "main": [
         [
           {
-            "node": "prepare_write_queries",
+            "node": "PrepareWriteQueries",
             "type": "main",
             "index": 0
           },
           {
-            "node": "post_to_thread",
+            "node": "PostToThread",
             "type": "main",
             "index": 0
           }

@@ -12,7 +12,7 @@
         704
       ],
       "id": "trigger-capture-projection",
-      "name": "execute_workflow_trigger"
+      "name": "ExecuteWorkflowTrigger"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         704
       ],
       "id": "prepare-routing",
-      "name": "prepare_routing"
+      "name": "PrepareRouting"
     },
     {
       "parameters": {
@@ -42,7 +42,7 @@
         912
       ],
       "id": "remove-blue-reaction",
-      "name": "remove_\ud83d\udd35_reaction",
+      "name": "Remove\ud83d\udd35Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -68,7 +68,7 @@
         496
       ],
       "id": "add-type-reaction",
-      "name": "add_type_reaction",
+      "name": "AddTypeReaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -162,7 +162,7 @@
         }
       },
       "id": "route-by-type",
-      "name": "route_by_type",
+      "name": "RouteByType",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
@@ -184,7 +184,7 @@
         496
       ],
       "id": "activity-classifier",
-      "name": "activity_classifier"
+      "name": "ActivityClassifier"
     },
     {
       "parameters": {
@@ -200,7 +200,7 @@
         704
       ],
       "id": "note-classifier",
-      "name": "note_classifier"
+      "name": "NoteClassifier"
     },
     {
       "parameters": {
@@ -216,7 +216,7 @@
         896
       ],
       "id": "todo-classifier",
-      "name": "todo_classifier"
+      "name": "TodoClassifier"
     },
     {
       "parameters": {
@@ -232,7 +232,7 @@
         1296
       ],
       "id": "mimo-v2-flash",
-      "name": "mimo_v2_flash",
+      "name": "MimoV2Flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -253,7 +253,7 @@
         1232
       ],
       "id": "nemotron-nano-9b",
-      "name": "nemotron_nano_9b",
+      "name": "NemotronNano9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -272,11 +272,11 @@
         688
       ],
       "id": "merge-classifiers",
-      "name": "merge_classifiers"
+      "name": "MergeClassifiers"
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM classification output and build query for Execute_Queries\nconst llmText = $json.text?.trim() || '';\nconst routingItem = $('Prepare Routing').first().json;\nconst ctx = routingItem.ctx;\nconst projectionType = routingItem.projection_type;\nconst inferenceStart = routingItem.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Get voided projection IDs from correction context (if this is a correction)\nconst voidedProjectionIds = ctx.correction?.voided_projection_ids || [];\nconst voidedProjectionIdsPg = voidedProjectionIds.length > 0 \n  ? '{' + voidedProjectionIds.join(',') + '}' \n  : null;\n\n// Default categories/priorities per type\nconst defaults = {\n  activity: 'work',\n  note: 'reflection',\n  todo: 'medium'\n};\n\n// Parse scores from LLM output\nconst scores = {};\nlet topResult = null;\nlet topScore = 0;\n\ntry {\n  const lines = llmText.split('\\n').filter(line => line.includes('|'));\n  lines.forEach(line => {\n    const [key, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    if (!isNaN(score)) {\n      scores[key] = score;\n      if (score > topScore) {\n        topScore = score;\n        topResult = key;\n      }\n    }\n  });\n} catch (e) {\n  // Use default on parse error\n}\n\nif (!topResult) {\n  topResult = defaults[projectionType];\n  topScore = 50;\n}\n\n// Build projection data based on type\nlet projectionData;\nif (projectionType === 'activity') {\n  projectionData = {\n    timestamp: new Date().toISOString(),\n    category: topResult,\n    description: ctx.event.clean_text,\n    message_url: ctx.event.message_url,\n    confidence: topScore / 100,\n    all_scores: scores\n  };\n} else if (projectionType === 'note') {\n  projectionData = {\n    timestamp: new Date().toISOString(),\n    category: topResult,\n    text: ctx.event.clean_text,\n    message_url: ctx.event.message_url,\n    confidence: topScore / 100,\n    all_scores: scores\n  };\n} else if (projectionType === 'todo') {\n  projectionData = {\n    timestamp: new Date().toISOString(),\n    priority: topResult,\n    description: ctx.event.clean_text,\n    message_url: ctx.event.message_url,\n    confidence: topScore / 100,\n    all_scores: scores,\n    status: 'pending'\n  };\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        result: topResult,\n        confidence: topScore / 100,\n        all_scores: scores,\n        completion_text: llmText,\n        duration_ms: durationMs\n      },\n      db_queries: [{\n        key: 'projection',\n        sql: `WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    $2 || '_classification',\n    jsonb_build_object(\n      'input', jsonb_build_object('text', $3),\n      'completion', $4,\n      'result', jsonb_build_object(\n        'value', $5,\n        'confidence', $6::numeric,\n        'all_scores', $7::jsonb\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $8::integer\n    ),\n    $9::uuid[]\n  )\n  RETURNING id, event_id\n),\nnew_projection AS (\n  INSERT INTO projections (\n    trace_id,\n    event_id,\n    trace_chain,\n    projection_type,\n    data,\n    status,\n    timezone,\n    supersedes_projection_id\n  )\n  SELECT\n    new_trace.id,\n    new_trace.event_id,\n    $9::uuid[] || new_trace.id,\n    $2,\n    $10::jsonb,\n    'auto_confirmed',\n    $11,\n    CASE WHEN $12::uuid[] IS NOT NULL AND array_length($12::uuid[], 1) > 0 THEN ($12::uuid[])[1] ELSE NULL END\n  FROM new_trace\n  RETURNING *\n),\nupdate_voided AS (\n  UPDATE projections\n  SET superseded_by_projection_id = (SELECT id FROM new_projection)\n  WHERE id = ANY($12::uuid[])\n  RETURNING id\n)\nSELECT np.*, COALESCE((SELECT array_agg(id) FROM update_voided), ARRAY[]::uuid[]) as linked_voided_ids\nFROM new_projection np;`,\n        params: [\n          ctx.event.event_id,\n          projectionType,\n          ctx.event.clean_text,\n          llmText,\n          topResult,\n          topScore / 100,\n          JSON.stringify(scores),\n          durationMs,\n          traceChainPg,\n          JSON.stringify(projectionData),\n          ctx.event.timezone,\n          voidedProjectionIdsPg\n        ]\n      }]\n    },\n    projection_type: projectionType,\n    projection_data: projectionData\n  }\n}];"
+        "jsCode": "// Parse LLM classification output and build query for Execute_Queries\nconst llmText = $json.text?.trim() || '';\nconst routingItem = $('PrepareRouting').first().json;\nconst ctx = routingItem.ctx;\nconst projectionType = routingItem.projection_type;\nconst inferenceStart = routingItem.inference_start;\nconst durationMs = Date.now() - inferenceStart;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Get voided projection IDs from correction context (if this is a correction)\nconst voidedProjectionIds = ctx.correction?.voided_projection_ids || [];\nconst voidedProjectionIdsPg = voidedProjectionIds.length > 0 \n  ? '{' + voidedProjectionIds.join(',') + '}' \n  : null;\n\n// Default categories/priorities per type\nconst defaults = {\n  activity: 'work',\n  note: 'reflection',\n  todo: 'medium'\n};\n\n// Parse scores from LLM output\nconst scores = {};\nlet topResult = null;\nlet topScore = 0;\n\ntry {\n  const lines = llmText.split('\\n').filter(line => line.includes('|'));\n  lines.forEach(line => {\n    const [key, scoreStr] = line.split('|').map(s => s.trim());\n    const score = parseInt(scoreStr);\n    if (!isNaN(score)) {\n      scores[key] = score;\n      if (score > topScore) {\n        topScore = score;\n        topResult = key;\n      }\n    }\n  });\n} catch (e) {\n  // Use default on parse error\n}\n\nif (!topResult) {\n  topResult = defaults[projectionType];\n  topScore = 50;\n}\n\n// Build projection data based on type\nlet projectionData;\nif (projectionType === 'activity') {\n  projectionData = {\n    timestamp: new Date().toISOString(),\n    category: topResult,\n    description: ctx.event.clean_text,\n    message_url: ctx.event.message_url,\n    confidence: topScore / 100,\n    all_scores: scores\n  };\n} else if (projectionType === 'note') {\n  projectionData = {\n    timestamp: new Date().toISOString(),\n    category: topResult,\n    text: ctx.event.clean_text,\n    message_url: ctx.event.message_url,\n    confidence: topScore / 100,\n    all_scores: scores\n  };\n} else if (projectionType === 'todo') {\n  projectionData = {\n    timestamp: new Date().toISOString(),\n    priority: topResult,\n    description: ctx.event.clean_text,\n    message_url: ctx.event.message_url,\n    confidence: topScore / 100,\n    all_scores: scores,\n    status: 'pending'\n  };\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        result: topResult,\n        confidence: topScore / 100,\n        all_scores: scores,\n        completion_text: llmText,\n        duration_ms: durationMs\n      },\n      db_queries: [{\n        key: 'projection',\n        sql: `WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    $2 || '_classification',\n    jsonb_build_object(\n      'input', jsonb_build_object('text', $3),\n      'completion', $4,\n      'result', jsonb_build_object(\n        'value', $5,\n        'confidence', $6::numeric,\n        'all_scores', $7::jsonb\n      ),\n      'model', 'xiaomi/mimo-v2-flash:free',\n      'duration_ms', $8::integer\n    ),\n    $9::uuid[]\n  )\n  RETURNING id, event_id\n),\nnew_projection AS (\n  INSERT INTO projections (\n    trace_id,\n    event_id,\n    trace_chain,\n    projection_type,\n    data,\n    status,\n    timezone,\n    supersedes_projection_id\n  )\n  SELECT\n    new_trace.id,\n    new_trace.event_id,\n    $9::uuid[] || new_trace.id,\n    $2,\n    $10::jsonb,\n    'auto_confirmed',\n    $11,\n    CASE WHEN $12::uuid[] IS NOT NULL AND array_length($12::uuid[], 1) > 0 THEN ($12::uuid[])[1] ELSE NULL END\n  FROM new_trace\n  RETURNING *\n),\nupdate_voided AS (\n  UPDATE projections\n  SET superseded_by_projection_id = (SELECT id FROM new_projection)\n  WHERE id = ANY($12::uuid[])\n  RETURNING id\n)\nSELECT np.*, COALESCE((SELECT array_agg(id) FROM update_voided), ARRAY[]::uuid[]) as linked_voided_ids\nFROM new_projection np;`,\n        params: [\n          ctx.event.event_id,\n          projectionType,\n          ctx.event.clean_text,\n          llmText,\n          topResult,\n          topScore / 100,\n          JSON.stringify(scores),\n          durationMs,\n          traceChainPg,\n          JSON.stringify(projectionData),\n          ctx.event.timezone,\n          voidedProjectionIdsPg\n        ]\n      }]\n    },\n    projection_type: projectionType,\n    projection_data: projectionData\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -285,7 +285,7 @@
         704
       ],
       "id": "parse-classification",
-      "name": "parse_classification"
+      "name": "ParseClassification"
     },
     {
       "parameters": {
@@ -308,7 +308,7 @@
         704
       ],
       "id": "store-projection",
-      "name": "store_projection"
+      "name": "StoreProjection"
     },
     {
       "parameters": {
@@ -333,7 +333,7 @@
         704
       ],
       "id": "log-to-kairon-logs",
-      "name": "log_to_kairon_logs",
+      "name": "LogToKaironLogs",
       "webhookId": "capture-projection-log",
       "retryOnFail": true,
       "maxTries": 3,
@@ -356,7 +356,7 @@
         496
       ],
       "id": "prepare-embedding-text",
-      "name": "prepare_embedding_text"
+      "name": "PrepareEmbeddingText"
     },
     {
       "parameters": {
@@ -376,12 +376,12 @@
         496
       ],
       "id": "embed-projection-text",
-      "name": "embed_projection_text",
+      "name": "EmbedProjectionText",
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// Build embedding insert query for Execute_Queries\nconst prepareData = $('Prepare Embedding Text').first().json;\nconst embeddings = $json.embeddings;\n\n// Check if we have a valid embedding\nif (!embeddings || !embeddings[0]) {\n  return [];  // Skip if no embedding\n}\n\nconst embeddingVector = '[' + embeddings[0].join(',') + ']';\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'embedding',\n        sql: `-- Insert embedding for the projection (fire-and-forget)\nINSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding)\nSELECT \n  $1::uuid,\n  'all-MiniLM-L6-v2',\n  '{}',\n  $2,\n  $3::vector\nWHERE $3 IS NOT NULL\nON CONFLICT DO NOTHING;`,\n        params: [\n          prepareData.projection_id,\n          prepareData.embedding_text,\n          embeddingVector\n        ]\n      }]\n    }\n  }\n}];"
+        "jsCode": "// Build embedding insert query for Execute_Queries\nconst prepareData = $('PrepareEmbeddingText').first().json;\nconst embeddings = $json.embeddings;\n\n// Check if we have a valid embedding\nif (!embeddings || !embeddings[0]) {\n  return [];  // Skip if no embedding\n}\n\nconst embeddingVector = '[' + embeddings[0].join(',') + ']';\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'embedding',\n        sql: `-- Insert embedding for the projection (fire-and-forget)\nINSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding)\nSELECT \n  $1::uuid,\n  'all-MiniLM-L6-v2',\n  '{}',\n  $2,\n  $3::vector\nWHERE $3 IS NOT NULL\nON CONFLICT DO NOTHING;`,\n        params: [\n          prepareData.projection_id,\n          prepareData.embedding_text,\n          embeddingVector\n        ]\n      }]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -390,7 +390,7 @@
         496
       ],
       "id": "build-embedding-query",
-      "name": "build_embedding_query"
+      "name": "BuildEmbeddingQuery"
     },
     {
       "parameters": {
@@ -413,223 +413,223 @@
         496
       ],
       "id": "insert-embedding",
-      "name": "insert_embedding",
+      "name": "InsertEmbedding",
       "continueOnFail": true
     }
   ],
   "connections": {
-    "execute_workflow_trigger": {
+    "ExecuteWorkflowTrigger": {
       "main": [
         [
           {
-            "node": "prepare_routing",
+            "node": "PrepareRouting",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_routing": {
+    "PrepareRouting": {
       "main": [
         [
           {
-            "node": "route_by_type",
+            "node": "RouteByType",
             "type": "main",
             "index": 0
           },
           {
-            "node": "add_type_reaction",
+            "node": "AddTypeReaction",
             "type": "main",
             "index": 0
           },
           {
-            "node": "remove_\ud83d\udd35_reaction",
+            "node": "Remove\ud83d\udd35Reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "route_by_type": {
+    "RouteByType": {
       "main": [
         [
           {
-            "node": "activity_classifier",
+            "node": "ActivityClassifier",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "note_classifier",
+            "node": "NoteClassifier",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "todo_classifier",
+            "node": "TodoClassifier",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "note_classifier",
+            "node": "NoteClassifier",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "activity_classifier": {
+    "ActivityClassifier": {
       "main": [
         [
           {
-            "node": "merge_classifiers",
+            "node": "MergeClassifiers",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "note_classifier": {
+    "NoteClassifier": {
       "main": [
         [
           {
-            "node": "merge_classifiers",
+            "node": "MergeClassifiers",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "todo_classifier": {
+    "TodoClassifier": {
       "main": [
         [
           {
-            "node": "merge_classifiers",
+            "node": "MergeClassifiers",
             "type": "main",
             "index": 2
           }
         ]
       ]
     },
-    "merge_classifiers": {
+    "MergeClassifiers": {
       "main": [
         [
           {
-            "node": "parse_classification",
+            "node": "ParseClassification",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "parse_classification": {
+    "ParseClassification": {
       "main": [
         [
           {
-            "node": "store_projection",
+            "node": "StoreProjection",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "store_projection": {
+    "StoreProjection": {
       "main": [
         [
           {
-            "node": "log_to_kairon_logs",
+            "node": "LogToKaironLogs",
             "type": "main",
             "index": 0
           },
           {
-            "node": "prepare_embedding_text",
+            "node": "PrepareEmbeddingText",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_embedding_text": {
+    "PrepareEmbeddingText": {
       "main": [
         [
           {
-            "node": "embed_projection_text",
+            "node": "EmbedProjectionText",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "embed_projection_text": {
+    "EmbedProjectionText": {
       "main": [
         [
           {
-            "node": "build_embedding_query",
+            "node": "BuildEmbeddingQuery",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_embedding_query": {
+    "BuildEmbeddingQuery": {
       "main": [
         [
           {
-            "node": "insert_embedding",
+            "node": "InsertEmbedding",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "mimo_v2_flash": {
+    "MimoV2Flash": {
       "ai_languageModel": [
         [
           {
-            "node": "activity_classifier",
+            "node": "ActivityClassifier",
             "type": "ai_languageModel",
             "index": 0
           }
         ],
         [
           {
-            "node": "note_classifier",
+            "node": "NoteClassifier",
             "type": "ai_languageModel",
             "index": 0
           }
         ],
         [
           {
-            "node": "todo_classifier",
+            "node": "TodoClassifier",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "nemotron_nano_9b": {
+    "NemotronNano9b": {
       "ai_languageModel": [
         [
           {
-            "node": "activity_classifier",
+            "node": "ActivityClassifier",
             "type": "ai_languageModel",
             "index": 1
           }
         ],
         [
           {
-            "node": "note_classifier",
+            "node": "NoteClassifier",
             "type": "ai_languageModel",
             "index": 1
           }
         ],
         [
           {
-            "node": "todo_classifier",
+            "node": "TodoClassifier",
             "type": "ai_languageModel",
             "index": 1
           }

@@ -12,11 +12,11 @@
         608
       ],
       "id": "c14595cb-2101-462a-a7f3-8179adcb9a48",
-      "name": "execute_workflow_trigger"
+      "name": "ExecuteWorkflowTrigger"
     },
     {
       "parameters": {
-        "jsCode": "// Parse emoji to determine action type\n// Input is ctx pattern from Route_Reaction\nconst ctx = $input.first().json.ctx;\nconst event = ctx.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3, '4️⃣': 4, '5️⃣': 5,\n  '6️⃣': 6, '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\n\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '❌') {\n  actionType = 'dismiss';\n} else if (emoji === '🗑️') {\n  actionType = 'delete_thread';\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      action: {\n        type: actionType,\n        display_order: displayOrder,\n        emoji: emoji\n      }\n    }\n  }\n}];"
+        "jsCode": "// Parse emoji to determine action type\n// Input is ctx pattern from Route_Reaction\nconst ctx = $input.first().json.ctx;\nconst event = ctx.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3, '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5,\n  '6\ufe0f\u20e3': 6, '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\n\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '\u274c') {\n  actionType = 'dismiss';\n} else if (emoji === '\ud83d\uddd1\ufe0f') {\n  actionType = 'delete_thread';\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      action: {\n        type: actionType,\n        display_order: displayOrder,\n        emoji: emoji\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -25,7 +25,7 @@
         608
       ],
       "id": "cf81fc06-c1a9-4b0b-9ad6-4b11f4db7f78",
-      "name": "parse_emoji_type"
+      "name": "ParseEmojiType"
     },
     {
       "parameters": {
@@ -42,7 +42,7 @@
         680
       ],
       "id": "check-summary-message",
-      "name": "check_if_summary_message",
+      "name": "CheckIfSummaryMessage",
       "alwaysOutputData": false,
       "credentials": {
         "postgres": {}
@@ -61,7 +61,7 @@
         608
       ],
       "id": "merge-after-check",
-      "name": "restore_ctx"
+      "name": "RestoreCtx"
     },
     {
       "parameters": {
@@ -152,7 +152,7 @@
         592
       ],
       "id": "17c95810-f72f-46ff-8f0e-c84eed006985",
-      "name": "what_action"
+      "name": "WhatAction"
     },
     {
       "parameters": {
@@ -169,7 +169,7 @@
         272
       ],
       "id": "b35330b9-f750-4616-9b84-ce6d19b84ab6",
-      "name": "get_extraction_item",
+      "name": "GetExtractionItem",
       "alwaysOutputData": false,
       "credentials": {
         "postgres": {}
@@ -188,7 +188,7 @@
         296
       ],
       "id": "merge-extraction-ctx",
-      "name": "merge_extraction_with_ctx"
+      "name": "MergeExtractionWithCtx"
     },
     {
       "parameters": {
@@ -231,7 +231,7 @@
         296
       ],
       "id": "70fe2723-8181-4e57-98e7-d3fc4484f4c7",
-      "name": "is_todo?"
+      "name": "IsTodo?"
     },
     {
       "parameters": {
@@ -248,7 +248,7 @@
         272
       ],
       "id": "81de3319-4c05-48cc-9cb8-f4e8278bfad9",
-      "name": "promote_to_note",
+      "name": "PromoteToNote",
       "alwaysOutputData": false,
       "credentials": {
         "postgres": {}
@@ -269,7 +269,7 @@
         536
       ],
       "id": "87dbb168-a1c3-4e8c-8547-dbcc69a33849",
-      "name": "promote_to_todo",
+      "name": "PromoteToTodo",
       "alwaysOutputData": false,
       "credentials": {
         "postgres": {}
@@ -287,7 +287,7 @@
         296
       ],
       "id": "d87f449e-a026-4d48-aa08-e9489c352b51",
-      "name": "after_promote"
+      "name": "AfterPromote"
     },
     {
       "parameters": {
@@ -307,7 +307,7 @@
         80
       ],
       "id": "embed-projection-text",
-      "name": "embed_projection_text",
+      "name": "EmbedProjectionText",
       "continueOnFail": true
     },
     {
@@ -325,7 +325,7 @@
         80
       ],
       "id": "insert-embedding",
-      "name": "insert_embedding",
+      "name": "InsertEmbedding",
       "continueOnFail": true,
       "credentials": {
         "postgres": {}
@@ -346,7 +346,7 @@
         296
       ],
       "id": "51af8a9d-7ace-4b47-a579-4efa1886e799",
-      "name": "remove_number_emoji",
+      "name": "RemoveNumberEmoji",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -372,7 +372,7 @@
         296
       ],
       "id": "6c50df92-a223-416d-87c6-7f7aa5841f48",
-      "name": "check_all_saved",
+      "name": "CheckAllSaved",
       "alwaysOutputData": false,
       "credentials": {
         "postgres": {}
@@ -386,7 +386,7 @@
         "nodeCredentialType": "discordBotApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"content\": \"✅ All items saved!\\n\\n🗑️ Delete thread • ❌ Dismiss\" } }}",
+        "jsonBody": "={{ { \"content\": \"\u2705 All items saved!\\n\\n\ud83d\uddd1\ufe0f Delete thread \u2022 \u274c Dismiss\" } }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -396,7 +396,7 @@
         296
       ],
       "id": "90af10c8-1c74-467e-ae4e-dbd793ddd892",
-      "name": "update_summary_(all_saved)",
+      "name": "UpdateSummary(allSaved)",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -422,7 +422,7 @@
         560
       ],
       "id": "8e521696-abc7-42b6-b5fd-74c679809412",
-      "name": "delete_summary_(dismiss)",
+      "name": "DeleteSummary(dismiss)",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -448,7 +448,7 @@
         752
       ],
       "id": "f0bf81d2-b00c-4009-a86b-a7f48ae744fc",
-      "name": "get_discord_thread_id",
+      "name": "GetDiscordThreadId",
       "alwaysOutputData": false,
       "credentials": {
         "postgres": {}
@@ -469,7 +469,7 @@
         944
       ],
       "id": "1b798d04-8f99-4a90-b37d-81b891a35c8b",
-      "name": "delete_discord_thread",
+      "name": "DeleteDiscordThread",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -493,7 +493,7 @@
         752
       ],
       "id": "merge-thread-ctx",
-      "name": "restore_ctx_for_thread"
+      "name": "RestoreCtxForThread"
     },
     {
       "parameters": {
@@ -508,7 +508,7 @@
         944
       ],
       "id": "merge-status-ctx",
-      "name": "restore_ctx_for_delete_msg"
+      "name": "RestoreCtxForDeleteMsg"
     },
     {
       "parameters": {
@@ -525,7 +525,7 @@
         944
       ],
       "id": "45c43642-ffd9-45a0-9c83-f10fdc226336",
-      "name": "delete_summary_message",
+      "name": "DeleteSummaryMessage",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -538,243 +538,243 @@
     }
   ],
   "connections": {
-    "execute_workflow_trigger": {
+    "ExecuteWorkflowTrigger": {
       "main": [
         [
           {
-            "node": "parse_emoji_type",
+            "node": "ParseEmojiType",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "parse_emoji_type": {
+    "ParseEmojiType": {
       "main": [
         [
           {
-            "node": "check_if_summary_message",
+            "node": "CheckIfSummaryMessage",
             "type": "main",
             "index": 0
           },
           {
-            "node": "restore_ctx",
+            "node": "RestoreCtx",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "check_if_summary_message": {
+    "CheckIfSummaryMessage": {
       "main": [
         [
           {
-            "node": "restore_ctx",
+            "node": "RestoreCtx",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "restore_ctx": {
+    "RestoreCtx": {
       "main": [
         [
           {
-            "node": "what_action",
+            "node": "WhatAction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "what_action": {
+    "WhatAction": {
       "main": [
         [
           {
-            "node": "get_extraction_item",
+            "node": "GetExtractionItem",
             "type": "main",
             "index": 0
           },
           {
-            "node": "merge_extraction_with_ctx",
+            "node": "MergeExtractionWithCtx",
             "type": "main",
             "index": 1
           }
         ],
         [
           {
-            "node": "delete_summary_(dismiss)",
+            "node": "DeleteSummary(dismiss)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "get_discord_thread_id",
+            "node": "GetDiscordThreadId",
             "type": "main",
             "index": 0
           },
           {
-            "node": "restore_ctx_for_thread",
+            "node": "RestoreCtxForThread",
             "type": "main",
             "index": 1
           },
           {
-            "node": "restore_ctx_for_delete_msg",
+            "node": "RestoreCtxForDeleteMsg",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "get_extraction_item": {
+    "GetExtractionItem": {
       "main": [
         [
           {
-            "node": "merge_extraction_with_ctx",
+            "node": "MergeExtractionWithCtx",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "merge_extraction_with_ctx": {
+    "MergeExtractionWithCtx": {
       "main": [
         [
           {
-            "node": "is_todo?",
+            "node": "IsTodo?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "is_todo?": {
+    "IsTodo?": {
       "main": [
         [
           {
-            "node": "promote_to_todo",
+            "node": "PromoteToTodo",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "promote_to_note",
+            "node": "PromoteToNote",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "promote_to_note": {
+    "PromoteToNote": {
       "main": [
         [
           {
-            "node": "after_promote",
+            "node": "AfterPromote",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "promote_to_todo": {
+    "PromoteToTodo": {
       "main": [
         [
           {
-            "node": "after_promote",
+            "node": "AfterPromote",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "after_promote": {
+    "AfterPromote": {
       "main": [
         [
           {
-            "node": "remove_number_emoji",
+            "node": "RemoveNumberEmoji",
             "type": "main",
             "index": 0
           },
           {
-            "node": "embed_projection_text",
+            "node": "EmbedProjectionText",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "embed_projection_text": {
+    "EmbedProjectionText": {
       "main": [
         [
           {
-            "node": "insert_embedding",
+            "node": "InsertEmbedding",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "remove_number_emoji": {
+    "RemoveNumberEmoji": {
       "main": [
         [
           {
-            "node": "check_all_saved",
+            "node": "CheckAllSaved",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "check_all_saved": {
+    "CheckAllSaved": {
       "main": [
         [
           {
-            "node": "update_summary_(all_saved)",
+            "node": "UpdateSummary(allSaved)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "get_discord_thread_id": {
+    "GetDiscordThreadId": {
       "main": [
         [
           {
-            "node": "delete_discord_thread",
+            "node": "DeleteDiscordThread",
             "type": "main",
             "index": 0
           },
           {
-            "node": "restore_ctx_for_thread",
+            "node": "RestoreCtxForThread",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "delete_discord_thread": {
+    "DeleteDiscordThread": {
       "main": [
         []
       ]
     },
-    "restore_ctx_for_thread": {
+    "RestoreCtxForThread": {
       "main": [
         [
           {
-            "node": "restore_ctx_for_delete_msg",
+            "node": "RestoreCtxForDeleteMsg",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "restore_ctx_for_delete_msg": {
+    "RestoreCtxForDeleteMsg": {
       "main": [
         [
           {
-            "node": "delete_summary_message",
+            "node": "DeleteSummaryMessage",
             "type": "main",
             "index": 0
           }

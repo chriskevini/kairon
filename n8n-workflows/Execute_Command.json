@@ -12,7 +12,7 @@
         9616
       ],
       "id": "de6befd4-4882-4e2c-97b1-62f920df6d66",
-      "name": "when_executed_by_another_workflow"
+      "name": "WhenExecutedByAnotherWorkflow"
     },
     {
       "parameters": {
@@ -42,7 +42,7 @@
         9616
       ],
       "id": "c204a8a7-abe4-45a8-ac75-2d842f69bbd3",
-      "name": "parse_command_and_args"
+      "name": "ParseCommandAndArgs"
     },
     {
       "parameters": {
@@ -325,7 +325,7 @@
         9504
       ],
       "id": "82eda145-e9cb-43da-a242-e7bf654ca38e",
-      "name": "switch"
+      "name": "Switch"
     },
     {
       "parameters": {
@@ -338,7 +338,7 @@
         10000
       ],
       "id": "a07e31ae-ae03-4838-b91e-13e3c2f52c86",
-      "name": "handle_ping"
+      "name": "HandlePing"
     },
     {
       "parameters": {
@@ -355,7 +355,7 @@
         8816
       ],
       "id": "c04cc95d-922c-48fb-9004-faf36ff52204",
-      "name": "query_get_config",
+      "name": "QueryGetConfig",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -378,7 +378,7 @@
         9040
       ],
       "id": "2296ca6d-1789-4986-a245-f2f16e88a92f",
-      "name": "query_set_config",
+      "name": "QuerySetConfig",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -399,7 +399,7 @@
         9616
       ],
       "id": "c1663df9-a24b-4805-aed0-9946a2e5a9cc",
-      "name": "query_stats",
+      "name": "QueryStats",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -422,7 +422,7 @@
         9232
       ],
       "id": "cdd4aab7-7649-4dd9-9574-3003796f3d3b",
-      "name": "query_recent_events",
+      "name": "QueryRecentEvents",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -443,7 +443,7 @@
         9808
       ],
       "id": "ace9000d-af6f-4eb7-90ac-6169a08148e9",
-      "name": "query_user_status",
+      "name": "QueryUserStatus",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -462,12 +462,12 @@
         10192
       ],
       "id": "08ba42dd-9ee4-40fe-bb1a-3f6bf264f200",
-      "name": "handle_help"
+      "name": "HandleHelp"
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format get command response - merge DB result into ctx\nconst ctx = $('If Valid Get').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if query returned data\nif (!result || !result.key || !result.value) {\n  const key = ctx.validation.normalized_key;\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.\\n\\nAvailable keys: north_star, summary_time, verbose`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content: `**${result.key}:** ${result.value}`\n    }\n  }\n};"
+        "jsCode": "// Format get command response - merge DB result into ctx\nconst ctx = $('IfValidGet').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if query returned data\nif (!result || !result.key || !result.value) {\n  const key = ctx.validation.normalized_key;\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.\\n\\nAvailable keys: north_star, summary_time, verbose`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content: `**${result.key}:** ${result.value}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -476,12 +476,12 @@
         8816
       ],
       "id": "ed79c164-c1c3-40b9-adfb-6cb9d3ca307d",
-      "name": "format_get_response"
+      "name": "FormatGetResponse"
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format set command response - merge DB result into ctx\nconst ctx = $('If Valid Set').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if database operation succeeded\nif (!result || !result.key) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Failed to set config value. Please try again.`\n      }\n    }\n  };\n}\n\n// Special confirmation for timezone - show current time\nlet content = `\u2705 Set **${result.key}** = ${result.value}`;\nif (result.key === 'timezone') {\n  try {\n    const now = new Date();\n    const timeStr = now.toLocaleString('en-US', { \n      timeZone: result.value, \n      hour: 'numeric', \n      minute: '2-digit',\n      hour12: true \n    });\n    content += `\\n\\n\ud83d\udd50 Current time: **${timeStr}**`;\n  } catch (e) {\n    // Timezone validation should catch this, but just in case\n  }\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content\n    }\n  }\n};"
+        "jsCode": "// Format set command response - merge DB result into ctx\nconst ctx = $('IfValidSet').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if database operation succeeded\nif (!result || !result.key) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Failed to set config value. Please try again.`\n      }\n    }\n  };\n}\n\n// Special confirmation for timezone - show current time\nlet content = `\u2705 Set **${result.key}** = ${result.value}`;\nif (result.key === 'timezone') {\n  try {\n    const now = new Date();\n    const timeStr = now.toLocaleString('en-US', { \n      timeZone: result.value, \n      hour: 'numeric', \n      minute: '2-digit',\n      hour12: true \n    });\n    content += `\\n\\n\ud83d\udd50 Current time: **${timeStr}**`;\n  } catch (e) {\n    // Timezone validation should catch this, but just in case\n  }\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { config_key: result.key, config_value: result.value },\n    response: {\n      content\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -490,7 +490,7 @@
         9040
       ],
       "id": "8e523999-62d1-4f38-8fd3-22e5708e9325",
-      "name": "format_set_response"
+      "name": "FormatSetResponse"
     },
     {
       "parameters": {
@@ -504,11 +504,11 @@
         9616
       ],
       "id": "fba83474-329f-4db6-9939-11cfe17a7a3d",
-      "name": "format_stats_response"
+      "name": "FormatStatsResponse"
     },
     {
       "parameters": {
-        "jsCode": "// Format recent items response (numbered list for easy deletion)\nconst ctx = $('If Valid Recent').first().json.ctx;\nconst items = $input.all();\nconst itemType = ctx.validation.normalized_type;\nconst MAX_LENGTH = 1900; // Discord limit is 2000, leave margin for safety\n\nif (!items || items.length === 0) {\n  const typeLabel = itemType || 'projections';\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\ud83d\udced No recent ${typeLabel} found`\n      }\n    }\n  };\n}\n\n// Determine if mixed types or single type\nconst types = [...new Set(items.map(i => i.json.type))];\nconst isMixed = types.length > 1 || itemType === '';\n\n// Icons for each type (match bot confirmation emojis)\nconst icons = { activity: '\ud83d\udd18', note: '\ud83d\udcdd', todo: '\u2705' };\nconst titles = { activity: 'Activities', note: 'Notes', todo: 'Todos' };\n\nlet title, icon;\nif (isMixed) {\n  icon = '\ud83d\udccb';\n  title = 'Recent Projections';\n} else {\n  const firstType = items[0].json.type;\n  icon = icons[firstType] || '\ud83d\udccb';\n  title = titles[firstType] || 'Items';\n}\n\nlet responseText = `${icon} **${title} (${items.length})**\n\n`;\nlet itemsShown = 0;\nlet truncated = false;\n\nfor (let i = 0; i < items.length; i++) {\n  const data = items[i].json;\n  const dt = DateTime.fromISO(data.timestamp, { zone: 'utc' }).setZone('America/Los_Angeles');\n  const dateStr = dt.toFormat('MMM d');\n  const timeStr = dt.toFormat('HH:mm');\n  \n  const text = data.text && data.text.length > 50 \n    ? data.text.substring(0, 50) + '...' \n    : (data.text || '(no text)');\n  \n  // Build Discord message link from message_url in projection data\n  let link = '';\n  if (data.message_url) {\n    link = ` [\u2197](${data.message_url})`;\n  }\n  \n  // Type indicator for mixed view\n  const typeIcon = isMixed ? `${icons[data.type] || '\u2022'} ` : '';\n  \n  const line = `${i + 1}. ${typeIcon}${dateStr} ${timeStr} - **${data.category}** - ${text}${link}\n`;\n  \n  // Check if adding this line would exceed limit\n  if (responseText.length + line.length > MAX_LENGTH - 100) {\n    truncated = true;\n    break;\n  }\n  \n  responseText += line;\n  itemsShown++;\n}\n\n// Add truncation notice if needed\nif (truncated) {\n  responseText += `\n... and ${items.length - itemsShown} more (use a smaller limit)`;\n}\n\n// Add delete hint based on type\nif (!isMixed && !truncated) {\n  const deleteType = items[0].json.type;\n  responseText += `\n\ud83d\udca1 Use \\`::delete ${deleteType} <number>\\` to delete items`;\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { recent_items: items.map(i => i.json) },\n    response: {\n      content: responseText\n    }\n  }\n};"
+        "jsCode": "// Format recent items response (numbered list for easy deletion)\nconst ctx = $('IfValidRecent').first().json.ctx;\nconst items = $input.all();\nconst itemType = ctx.validation.normalized_type;\nconst MAX_LENGTH = 1900; // Discord limit is 2000, leave margin for safety\n\nif (!items || items.length === 0) {\n  const typeLabel = itemType || 'projections';\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\ud83d\udced No recent ${typeLabel} found`\n      }\n    }\n  };\n}\n\n// Determine if mixed types or single type\nconst types = [...new Set(items.map(i => i.json.type))];\nconst isMixed = types.length > 1 || itemType === '';\n\n// Icons for each type (match bot confirmation emojis)\nconst icons = { activity: '\ud83d\udd18', note: '\ud83d\udcdd', todo: '\u2705' };\nconst titles = { activity: 'Activities', note: 'Notes', todo: 'Todos' };\n\nlet title, icon;\nif (isMixed) {\n  icon = '\ud83d\udccb';\n  title = 'Recent Projections';\n} else {\n  const firstType = items[0].json.type;\n  icon = icons[firstType] || '\ud83d\udccb';\n  title = titles[firstType] || 'Items';\n}\n\nlet responseText = `${icon} **${title} (${items.length})**\n\n`;\nlet itemsShown = 0;\nlet truncated = false;\n\nfor (let i = 0; i < items.length; i++) {\n  const data = items[i].json;\n  const dt = DateTime.fromISO(data.timestamp, { zone: 'utc' }).setZone('America/Los_Angeles');\n  const dateStr = dt.toFormat('MMM d');\n  const timeStr = dt.toFormat('HH:mm');\n  \n  const text = data.text && data.text.length > 50 \n    ? data.text.substring(0, 50) + '...' \n    : (data.text || '(no text)');\n  \n  // Build Discord message link from message_url in projection data\n  let link = '';\n  if (data.message_url) {\n    link = ` [\u2197](${data.message_url})`;\n  }\n  \n  // Type indicator for mixed view\n  const typeIcon = isMixed ? `${icons[data.type] || '\u2022'} ` : '';\n  \n  const line = `${i + 1}. ${typeIcon}${dateStr} ${timeStr} - **${data.category}** - ${text}${link}\n`;\n  \n  // Check if adding this line would exceed limit\n  if (responseText.length + line.length > MAX_LENGTH - 100) {\n    truncated = true;\n    break;\n  }\n  \n  responseText += line;\n  itemsShown++;\n}\n\n// Add truncation notice if needed\nif (truncated) {\n  responseText += `\n... and ${items.length - itemsShown} more (use a smaller limit)`;\n}\n\n// Add delete hint based on type\nif (!isMixed && !truncated) {\n  const deleteType = items[0].json.type;\n  responseText += `\n\ud83d\udca1 Use \\`::delete ${deleteType} <number>\\` to delete items`;\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { recent_items: items.map(i => i.json) },\n    response: {\n      content: responseText\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -517,7 +517,7 @@
         9232
       ],
       "id": "a38c0645-066f-4591-b097-de21fb82b1c1",
-      "name": "format_recent_response"
+      "name": "FormatRecentResponse"
     },
     {
       "parameters": {
@@ -531,7 +531,7 @@
         9808
       ],
       "id": "6e1f0ee3-6930-49e6-a76a-3a5b85d942f3",
-      "name": "format_status_response"
+      "name": "FormatStatusResponse"
     },
     {
       "parameters": {
@@ -545,7 +545,7 @@
         10384
       ],
       "id": "f76de764-c075-42cc-95e3-538852ab8b22",
-      "name": "handle_unknown_command"
+      "name": "HandleUnknownCommand"
     },
     {
       "parameters": {
@@ -562,7 +562,7 @@
         9424
       ],
       "id": "9eca4f90-6b61-48e7-8fd6-295adcdca359",
-      "name": "void_projections",
+      "name": "VoidProjections",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -572,7 +572,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format void response (index-based soft-delete)\nconst ctx = $('If Valid Delete').first().json.ctx;\nconst voided = $input.all();\nconst itemType = ctx.validation.normalized_item_type || 'activity';\nconst indices = ctx.validation.indices || [];\n\n// Check if any items were actually voided\nif (!voided || voided.length === 0) {\n  const indexStr = indices.join(', ');\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c No ${itemType}s found at position(s): ${indexStr}\\n\\nUse \\`::recent ${itemType}s\\` to see the current numbered list.`\n      }\n    }\n  };\n}\n\nif (voided.length === 1) {\n  const item = voided[0].json;\n  const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n  return {\n    ctx: {\n      ...ctx,\n      db: { voided_items: [item] },\n      response: {\n        content: `\u2705 Removed ${item.type} #${indices[0]}: \"${text}\"`\n      }\n    }\n  };\n}\n\nconst typeLabel = voided[0].json.type === 'activity' ? 'activities' : 'notes';\nreturn {\n  ctx: {\n    ...ctx,\n    db: { voided_items: voided.map(d => d.json) },\n    response: {\n      content: `\u2705 Removed ${voided.length} ${typeLabel} at positions: ${indices.join(', ')}`\n    }\n  }\n};"
+        "jsCode": "// Format void response (index-based soft-delete)\nconst ctx = $('IfValidDelete').first().json.ctx;\nconst voided = $input.all();\nconst itemType = ctx.validation.normalized_item_type || 'activity';\nconst indices = ctx.validation.indices || [];\n\n// Check if any items were actually voided\nif (!voided || voided.length === 0) {\n  const indexStr = indices.join(', ');\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c No ${itemType}s found at position(s): ${indexStr}\\n\\nUse \\`::recent ${itemType}s\\` to see the current numbered list.`\n      }\n    }\n  };\n}\n\nif (voided.length === 1) {\n  const item = voided[0].json;\n  const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n  return {\n    ctx: {\n      ...ctx,\n      db: { voided_items: [item] },\n      response: {\n        content: `\u2705 Removed ${item.type} #${indices[0]}: \"${text}\"`\n      }\n    }\n  };\n}\n\nconst typeLabel = voided[0].json.type === 'activity' ? 'activities' : 'notes';\nreturn {\n  ctx: {\n    ...ctx,\n    db: { voided_items: voided.map(d => d.json) },\n    response: {\n      content: `\u2705 Removed ${voided.length} ${typeLabel} at positions: ${indices.join(', ')}`\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -581,7 +581,7 @@
         9424
       ],
       "id": "1bc87344-c616-42bd-8fe4-8882e2174430",
-      "name": "format_void_response"
+      "name": "FormatVoidResponse"
     },
     {
       "parameters": {
@@ -594,7 +594,7 @@
         8768
       ],
       "id": "b665e2c9-44f1-48ed-a0dc-5ab2cae4e2ed",
-      "name": "validate_get"
+      "name": "ValidateGet"
     },
     {
       "parameters": {
@@ -607,7 +607,7 @@
         8960
       ],
       "id": "14603be3-d751-4be9-a5a1-46ad5f7249a7",
-      "name": "validate_set"
+      "name": "ValidateSet"
     },
     {
       "parameters": {
@@ -620,7 +620,7 @@
         9344
       ],
       "id": "99805555-a99c-4559-b170-f18f40233457",
-      "name": "validate_delete"
+      "name": "ValidateDelete"
     },
     {
       "parameters": {
@@ -633,7 +633,7 @@
         9152
       ],
       "id": "4bf45858-8e0b-4aca-8713-44bf3f9627ab",
-      "name": "validate_recent"
+      "name": "ValidateRecent"
     },
     {
       "parameters": {
@@ -667,7 +667,7 @@
         9152
       ],
       "id": "db6e02d4-93be-4ebf-b85a-96aade6217dd",
-      "name": "if_valid_recent"
+      "name": "IfValidRecent"
     },
     {
       "parameters": {
@@ -701,7 +701,7 @@
         8768
       ],
       "id": "0cb57d2d-bb81-4fd9-a1c8-6d4b3d2f8868",
-      "name": "if_valid_get"
+      "name": "IfValidGet"
     },
     {
       "parameters": {
@@ -735,7 +735,7 @@
         8960
       ],
       "id": "dbbb373a-e421-44cb-acdf-9ddd121a659d",
-      "name": "if_valid_set"
+      "name": "IfValidSet"
     },
     {
       "parameters": {
@@ -769,7 +769,7 @@
         9344
       ],
       "id": "f2b3226c-7f08-4e93-9684-8467d9fd3458",
-      "name": "if_valid_delete"
+      "name": "IfValidDelete"
     },
     {
       "parameters": {
@@ -794,7 +794,7 @@
         9664
       ],
       "id": "4ed54e00-c7e3-4db6-94c0-c525d95534e3",
-      "name": "send_response",
+      "name": "SendResponse",
       "webhookId": "26f551ce-e3bd-40ae-953b-33588a9edcd8",
       "retryOnFail": true,
       "maxTries": 3,
@@ -820,7 +820,7 @@
         9808
       ],
       "id": "remove-blue-reaction-execute-cmd",
-      "name": "remove_\ud83d\udd35_reaction",
+      "name": "Remove\ud83d\udd35Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -855,7 +855,7 @@
         9424
       ],
       "id": "e5ebd093-f037-4d4a-94a8-5830869a2dbc",
-      "name": "react_with_\ud83d\udcbb",
+      "name": "ReactWith\ud83d\udcbb",
       "webhookId": "7d6473eb-7f05-4fc7-ba61-8a8ae16deae0",
       "retryOnFail": true,
       "maxTries": 3,
@@ -878,7 +878,7 @@
         9536
       ],
       "id": "validate-generate",
-      "name": "validate_generate"
+      "name": "ValidateGenerate"
     },
     {
       "parameters": {
@@ -912,7 +912,7 @@
         9536
       ],
       "id": "if-valid-generate",
-      "name": "if_valid_generate"
+      "name": "IfValidGenerate"
     },
     {
       "parameters": {
@@ -979,7 +979,7 @@
         9536
       ],
       "id": "switch-generate-type",
-      "name": "switch_generate_type"
+      "name": "SwitchGenerateType"
     },
     {
       "parameters": {
@@ -1010,7 +1010,7 @@
         9472
       ],
       "id": "execute-nudge",
-      "name": "execute_generate_nudge"
+      "name": "ExecuteGenerateNudge"
     },
     {
       "parameters": {
@@ -1041,11 +1041,11 @@
         9600
       ],
       "id": "execute-summary",
-      "name": "execute_generate_daily_summary"
+      "name": "ExecuteGenerateDailySummary"
     },
     {
       "parameters": {
-        "jsCode": "// Format response for generate command\nconst ctx = $('If Valid Generate').first().json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'pulse';\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `\u2705 Generating ${typeLabel}...`,\n      channel_id: $env.DISCORD_CHANNEL_KAIRON_LOGS\n    }\n  }\n};"
+        "jsCode": "// Format response for generate command\nconst ctx = $('IfValidGenerate').first().json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'pulse';\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `\u2705 Generating ${typeLabel}...`,\n      channel_id: $env.DISCORD_CHANNEL_KAIRON_LOGS\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1054,7 +1054,7 @@
         9536
       ],
       "id": "format-generate-response",
-      "name": "format_generate_response"
+      "name": "FormatGenerateResponse"
     },
     {
       "parameters": {
@@ -1067,7 +1067,7 @@
         9856
       ],
       "id": "send-error-message",
-      "name": "send_error_message"
+      "name": "SendErrorMessage"
     },
     {
       "parameters": {
@@ -1082,7 +1082,7 @@
         10576
       ],
       "id": "query-list-modules",
-      "name": "query_list_modules",
+      "name": "QueryListModules",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -1101,7 +1101,7 @@
         10576
       ],
       "id": "format-modules-response",
-      "name": "format_modules_response"
+      "name": "FormatModulesResponse"
     },
     {
       "parameters": {
@@ -1192,7 +1192,7 @@
         10768
       ],
       "id": "switch-module-operation",
-      "name": "switch_module_operation"
+      "name": "SwitchModuleOperation"
     },
     {
       "parameters": {
@@ -1209,7 +1209,7 @@
         10672
       ],
       "id": "query-view-module",
-      "name": "query_view_module",
+      "name": "QueryViewModule",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -1232,7 +1232,7 @@
         10864
       ],
       "id": "query-toggle-module",
-      "name": "query_toggle_module",
+      "name": "QueryToggleModule",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -1255,7 +1255,7 @@
         11056
       ],
       "id": "query-update-module",
-      "name": "query_update_module",
+      "name": "QueryUpdateModule",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -1275,7 +1275,7 @@
         10672
       ],
       "id": "format-view-module-response",
-      "name": "format_view_module_response"
+      "name": "FormatViewModuleResponse"
     },
     {
       "parameters": {
@@ -1289,7 +1289,7 @@
         10864
       ],
       "id": "format-toggle-module-response",
-      "name": "format_toggle_module_response"
+      "name": "FormatToggleModuleResponse"
     },
     {
       "parameters": {
@@ -1303,7 +1303,7 @@
         11056
       ],
       "id": "format-update-module-response",
-      "name": "format_update_module_response"
+      "name": "FormatUpdateModuleResponse"
     },
     {
       "parameters": {
@@ -1370,7 +1370,7 @@
         8768
       ],
       "id": "switch-get-target",
-      "name": "switch_get_target"
+      "name": "SwitchGetTarget"
     },
     {
       "parameters": {
@@ -1437,633 +1437,124 @@
         8960
       ],
       "id": "switch-set-target",
-      "name": "switch_set_target"
+      "name": "SwitchSetTarget"
     }
   ],
   "connections": {
-    "when_executed_by_another_workflow": {
+    "WhenExecutedByAnotherWorkflow": {
       "main": [
         [
           {
-            "node": "parse_command_and_args",
+            "node": "ParseCommandAndArgs",
             "type": "main",
             "index": 0
           },
           {
-            "node": "remove_\ud83d\udd35_reaction",
+            "node": "Remove\ud83d\udd35Reaction",
             "type": "main",
             "index": 0
           },
           {
-            "node": "react_with_\ud83d\udcbb",
+            "node": "ReactWith\ud83d\udcbb",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "parse_command_and_args": {
+    "ParseCommandAndArgs": {
       "main": [
         [
           {
-            "node": "switch",
+            "node": "Switch",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "switch": {
+    "Switch": {
       "main": [
         [
           {
-            "node": "validate_get",
+            "node": "ValidateGet",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "validate_set",
+            "node": "ValidateSet",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "validate_recent",
+            "node": "ValidateRecent",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "validate_delete",
+            "node": "ValidateDelete",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "query_stats",
+            "node": "QueryStats",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "query_user_status",
+            "node": "QueryUserStatus",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "handle_ping",
+            "node": "HandlePing",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "validate_generate",
+            "node": "ValidateGenerate",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "validate_generate",
+            "node": "ValidateGenerate",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "handle_help",
+            "node": "HandleHelp",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "query_list_modules",
+            "node": "QueryListModules",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "handle_unknown_command",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "handle_ping": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_get_config": {
-      "main": [
-        [
-          {
-            "node": "format_get_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_set_config": {
-      "main": [
-        [
-          {
-            "node": "format_set_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_stats": {
-      "main": [
-        [
-          {
-            "node": "format_stats_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_recent_events": {
-      "main": [
-        [
-          {
-            "node": "format_recent_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_user_status": {
-      "main": [
-        [
-          {
-            "node": "format_status_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "handle_help": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_get_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_set_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_stats_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_recent_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_status_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "handle_unknown_command": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "void_projections": {
-      "main": [
-        [
-          {
-            "node": "format_void_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_void_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "validate_get": {
-      "main": [
-        [
-          {
-            "node": "if_valid_get",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "validate_set": {
-      "main": [
-        [
-          {
-            "node": "if_valid_set",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "validate_delete": {
-      "main": [
-        [
-          {
-            "node": "if_valid_delete",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "validate_recent": {
-      "main": [
-        [
-          {
-            "node": "if_valid_recent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "if_valid_recent": {
-      "main": [
-        [
-          {
-            "node": "query_recent_events",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "send_error_message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "if_valid_get": {
-      "main": [
-        [
-          {
-            "node": "switch_get_target",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "send_error_message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "if_valid_set": {
-      "main": [
-        [
-          {
-            "node": "switch_set_target",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "send_error_message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "if_valid_delete": {
-      "main": [
-        [
-          {
-            "node": "void_projections",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "send_error_message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "send_response": {
-      "main": [
-        []
-      ]
-    },
-    "send_error_message": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "validate_generate": {
-      "main": [
-        [
-          {
-            "node": "if_valid_generate",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "if_valid_generate": {
-      "main": [
-        [
-          {
-            "node": "switch_generate_type",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "send_error_message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "switch_generate_type": {
-      "main": [
-        [
-          {
-            "node": "execute_generate_nudge",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "execute_generate_daily_summary",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "execute_generate_nudge": {
-      "main": [
-        [
-          {
-            "node": "format_generate_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "execute_generate_daily_summary": {
-      "main": [
-        [
-          {
-            "node": "format_generate_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_generate_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_list_modules": {
-      "main": [
-        [
-          {
-            "node": "format_modules_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_modules_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "switch_module_operation": {
-      "main": [
-        [
-          {
-            "node": "query_view_module",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "query_toggle_module",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "query_update_module",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_view_module": {
-      "main": [
-        [
-          {
-            "node": "format_view_module_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_toggle_module": {
-      "main": [
-        [
-          {
-            "node": "format_toggle_module_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_update_module": {
-      "main": [
-        [
-          {
-            "node": "format_update_module_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_view_module_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_toggle_module_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_update_module_response": {
-      "main": [
-        [
-          {
-            "node": "send_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "switch_get_target": {
-      "main": [
-        [
-          {
-            "node": "query_get_config",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "query_view_module",
+            "node": "HandleUnknownCommand",
             "type": "main",
             "index": 0
           }
@@ -2071,18 +1562,527 @@
         []
       ]
     },
-    "switch_set_target": {
+    "HandlePing": {
       "main": [
         [
           {
-            "node": "query_set_config",
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryGetConfig": {
+      "main": [
+        [
+          {
+            "node": "FormatGetResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QuerySetConfig": {
+      "main": [
+        [
+          {
+            "node": "FormatSetResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryStats": {
+      "main": [
+        [
+          {
+            "node": "FormatStatsResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryRecentEvents": {
+      "main": [
+        [
+          {
+            "node": "FormatRecentResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryUserStatus": {
+      "main": [
+        [
+          {
+            "node": "FormatStatusResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HandleHelp": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatGetResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatSetResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatStatsResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatRecentResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatStatusResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HandleUnknownCommand": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VoidProjections": {
+      "main": [
+        [
+          {
+            "node": "FormatVoidResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatVoidResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateGet": {
+      "main": [
+        [
+          {
+            "node": "IfValidGet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateSet": {
+      "main": [
+        [
+          {
+            "node": "IfValidSet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateDelete": {
+      "main": [
+        [
+          {
+            "node": "IfValidDelete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateRecent": {
+      "main": [
+        [
+          {
+            "node": "IfValidRecent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidRecent": {
+      "main": [
+        [
+          {
+            "node": "QueryRecentEvents",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "switch_module_operation",
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidGet": {
+      "main": [
+        [
+          {
+            "node": "SwitchGetTarget",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidSet": {
+      "main": [
+        [
+          {
+            "node": "SwitchSetTarget",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidDelete": {
+      "main": [
+        [
+          {
+            "node": "VoidProjections",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendResponse": {
+      "main": [
+        []
+      ]
+    },
+    "SendErrorMessage": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateGenerate": {
+      "main": [
+        [
+          {
+            "node": "IfValidGenerate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidGenerate": {
+      "main": [
+        [
+          {
+            "node": "SwitchGenerateType",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SwitchGenerateType": {
+      "main": [
+        [
+          {
+            "node": "ExecuteGenerateNudge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ExecuteGenerateDailySummary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteGenerateNudge": {
+      "main": [
+        [
+          {
+            "node": "FormatGenerateResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteGenerateDailySummary": {
+      "main": [
+        [
+          {
+            "node": "FormatGenerateResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatGenerateResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryListModules": {
+      "main": [
+        [
+          {
+            "node": "FormatModulesResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatModulesResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SwitchModuleOperation": {
+      "main": [
+        [
+          {
+            "node": "QueryViewModule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QueryToggleModule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QueryUpdateModule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryViewModule": {
+      "main": [
+        [
+          {
+            "node": "FormatViewModuleResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryToggleModule": {
+      "main": [
+        [
+          {
+            "node": "FormatToggleModuleResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryUpdateModule": {
+      "main": [
+        [
+          {
+            "node": "FormatUpdateModuleResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatViewModuleResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatToggleModuleResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatUpdateModuleResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SwitchGetTarget": {
+      "main": [
+        [
+          {
+            "node": "QueryGetConfig",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QueryViewModule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "SwitchSetTarget": {
+      "main": [
+        [
+          {
+            "node": "QuerySetConfig",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SwitchModuleOperation",
             "type": "main",
             "index": 0
           }

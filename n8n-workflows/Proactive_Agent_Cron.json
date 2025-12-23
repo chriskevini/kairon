@@ -19,7 +19,7 @@
         0
       ],
       "id": "schedule-trigger",
-      "name": "every_5_minutes"
+      "name": "Every5Minutes"
     },
     {
       "parameters": {
@@ -34,7 +34,7 @@
         0
       ],
       "id": "check-next-pulse",
-      "name": "check_next_pulse",
+      "name": "CheckNextPulse",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -73,7 +73,7 @@
         0
       ],
       "id": "if-should-run",
-      "name": "should_run?"
+      "name": "ShouldRun?"
     },
     {
       "parameters": {
@@ -88,7 +88,7 @@
         -80
       ],
       "id": "set-next-pulse",
-      "name": "set_next_pulse_(default)",
+      "name": "SetNextPulse(default)",
       "credentials": {
         "postgres": {
           "id": "p2SIY25QglSNcDnj"
@@ -106,7 +106,7 @@
         -80
       ],
       "id": "prepare-trigger-data",
-      "name": "prepare_trigger_data"
+      "name": "PrepareTriggerData"
     },
     {
       "parameters": {
@@ -127,37 +127,37 @@
         -80
       ],
       "id": "execute-proactive-agent",
-      "name": "execute_proactive_agent"
+      "name": "ExecuteProactiveAgent"
     }
   ],
   "connections": {
-    "every_5_minutes": {
+    "Every5Minutes": {
       "main": [
         [
           {
-            "node": "check_next_pulse",
+            "node": "CheckNextPulse",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "check_next_pulse": {
+    "CheckNextPulse": {
       "main": [
         [
           {
-            "node": "should_run?",
+            "node": "ShouldRun?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "should_run?": {
+    "ShouldRun?": {
       "main": [
         [
           {
-            "node": "set_next_pulse_(default)",
+            "node": "SetNextPulse(default)",
             "type": "main",
             "index": 0
           }
@@ -165,22 +165,22 @@
         []
       ]
     },
-    "set_next_pulse_(default)": {
+    "SetNextPulse(default)": {
       "main": [
         [
           {
-            "node": "prepare_trigger_data",
+            "node": "PrepareTriggerData",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_trigger_data": {
+    "PrepareTriggerData": {
       "main": [
         [
           {
-            "node": "execute_proactive_agent",
+            "node": "ExecuteProactiveAgent",
             "type": "main",
             "index": 0
           }

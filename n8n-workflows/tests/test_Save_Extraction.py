@@ -31,7 +31,7 @@ class TestSave_Extraction:
         """Test the logic that maps emojis to actions"""
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
-        parse_node = next((n for n in nodes if n["name"] == "parse_emoji_type"), None)
+        parse_node = next((n for n in nodes if n["name"] == "ParseEmojiType"), None)
         assert parse_node is not None
 
         code = parse_node["parameters"]["jsCode"]
@@ -47,7 +47,7 @@ class TestSave_Extraction:
         """Test that it routes by action.type"""
         workflow = load_workflow()
         nodes = workflow.get("nodes", [])
-        switch_node = next((n for n in nodes if n["name"] == "what_action"), None)
+        switch_node = next((n for n in nodes if n["name"] == "WhatAction"), None)
         assert switch_node is not None
 
         rules = switch_node["parameters"]["rules"]["values"]
@@ -63,8 +63,8 @@ class TestSave_Extraction:
         merge_nodes = [n for n in nodes if n.get("type") == "n8n-nodes-base.merge"]
         assert len(merge_nodes) >= 3
 
-        # Check for standard "restore_ctx" nodes
-        restore_nodes = [n["name"] for n in merge_nodes if "restore_ctx" in n["name"]]
+        # Check for standard "RestoreCtx" nodes
+        restore_nodes = [n["name"] for n in merge_nodes if "RestoreCtx" in n["name"]]
         assert len(restore_nodes) >= 2
 
     def test_database_operations(self):
@@ -75,9 +75,9 @@ class TestSave_Extraction:
             n["name"] for n in nodes if n.get("type") == "n8n-nodes-base.postgres"
         ]
 
-        assert "promote_to_note" in pg_nodes
-        assert "promote_to_todo" in pg_nodes
-        assert "get_extraction_item" in pg_nodes
+        assert "PromoteToNote" in pg_nodes
+        assert "PromoteToTodo" in pg_nodes
+        assert "GetExtractionItem" in pg_nodes
 
 
 if __name__ == "__main__":

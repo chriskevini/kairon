@@ -12,7 +12,7 @@
         -2320
       ],
       "id": "a929c09f-94de-42dc-a2ff-923accc5e9ab",
-      "name": "execute_workflow_trigger"
+      "name": "ExecuteWorkflowTrigger"
     },
     {
       "parameters": {
@@ -32,7 +32,7 @@
         -2320
       ],
       "id": "85fce562-824f-47c1-83cf-ea4d7e807ea4",
-      "name": "create_discord_thread",
+      "name": "CreateDiscordThread",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -56,7 +56,7 @@
         -2320
       ],
       "id": "f6f390a8-c453-4cee-8d6d-2b9a415e3a29",
-      "name": "generate_initial_response"
+      "name": "GenerateInitialResponse"
     },
     {
       "parameters": {
@@ -72,7 +72,7 @@
         -2096
       ],
       "id": "0c6a309d-86ff-4aa3-b02f-33230ae4f092",
-      "name": "nemotron_nano_9b",
+      "name": "NemotronNano9b",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -93,7 +93,7 @@
         -2096
       ],
       "id": "60963dec-c78a-4918-8b32-12e1a0f25d8b",
-      "name": "mimo_v2_flash",
+      "name": "MimoV2Flash",
       "credentials": {
         "openRouterApi": {
           "name": "OpenRouter account"
@@ -111,7 +111,7 @@
         -2320
       ],
       "id": "prepare-write-queries",
-      "name": "prepare_write_queries"
+      "name": "PrepareWriteQueries"
     },
     {
       "parameters": {
@@ -136,7 +136,7 @@
         -2320
       ],
       "id": "a5785f29-feef-42f4-8da5-d5eaeb9fd055",
-      "name": "send_response_to_thread",
+      "name": "SendResponseToThread",
       "webhookId": "b265fcc0-4670-437b-9913-59b5d32bc95b",
       "retryOnFail": true,
       "maxTries": 3,
@@ -171,7 +171,7 @@
         -2560
       ],
       "id": "1e7b0d2a-54ee-4607-bcd9-7872585cb7c1",
-      "name": "react_with_\ud83d\udde8\ufe0f",
+      "name": "ReactWith\ud83d\udde8\ufe0f",
       "webhookId": "d9babcdf-8243-4adb-83c8-bbaf038fbfc7",
       "retryOnFail": true,
       "maxTries": 3,
@@ -198,7 +198,7 @@
         -2080
       ],
       "id": "remove-blue-reaction-start-chat",
-      "name": "remove_\ud83d\udd35_reaction",
+      "name": "Remove\ud83d\udd35Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -225,7 +225,7 @@
         -2320
       ],
       "id": "execute-write-queries",
-      "name": "execute_queries_(write)"
+      "name": "ExecuteQueries(write)"
     },
     {
       "parameters": {
@@ -238,7 +238,7 @@
         -2320
       ],
       "id": "prepare-read-queries",
-      "name": "prepare_read_queries"
+      "name": "PrepareReadQueries"
     },
     {
       "parameters": {
@@ -256,11 +256,11 @@
         -2320
       ],
       "id": "execute-read-queries",
-      "name": "execute_queries_(read)"
+      "name": "ExecuteQueries(read)"
     },
     {
       "parameters": {
-        "jsCode": "// Build context for LLM from thread and db results\nconst ctx = $json.ctx || {};\nconst threadData = $('Create Discord Thread').first().json;\n\n// Get north_star from Execute_Queries result\nconst northStar = ctx.db?.north_star?.row?.value || '(not set)';\n\n// Preserve all ctx.event fields and add thread + llm context\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: ctx.event?.event_id,\n        channel_id: ctx.event?.channel_id,\n        message_id: ctx.event?.message_id,\n        guild_id: ctx.event?.guild_id,\n        clean_text: ctx.event?.clean_text,\n        timestamp: ctx.event?.timestamp,\n        timezone: ctx.event?.timezone,\n        trace_chain: ctx.event?.trace_chain\n      },\n      thread: {\n        id: threadData.id\n      },\n      db: {\n        north_star: northStar\n      },\n      llm: {\n        inference_start: Date.now(),\n        north_star: northStar\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build context for LLM from thread and db results\nconst ctx = $json.ctx || {};\nconst threadData = $('CreateDiscordThread').first().json;\n\n// Get north_star from Execute_Queries result\nconst northStar = ctx.db?.north_star?.row?.value || '(not set)';\n\n// Preserve all ctx.event fields and add thread + llm context\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: ctx.event?.event_id,\n        channel_id: ctx.event?.channel_id,\n        message_id: ctx.event?.message_id,\n        guild_id: ctx.event?.guild_id,\n        clean_text: ctx.event?.clean_text,\n        timestamp: ctx.event?.timestamp,\n        timezone: ctx.event?.timezone,\n        trace_chain: ctx.event?.trace_chain\n      },\n      thread: {\n        id: threadData.id\n      },\n      db: {\n        north_star: northStar\n      },\n      llm: {\n        inference_start: Date.now(),\n        north_star: northStar\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -269,7 +269,7 @@
         -2320
       ],
       "id": "build-llm-context",
-      "name": "build_llm_context"
+      "name": "BuildLlmContext"
     },
     {
       "parameters": {
@@ -282,145 +282,145 @@
         -2320
       ],
       "id": "set-llm-response",
-      "name": "set_llm_response"
+      "name": "SetLlmResponse"
     }
   ],
   "connections": {
-    "execute_workflow_trigger": {
+    "ExecuteWorkflowTrigger": {
       "main": [
         [
           {
-            "node": "create_discord_thread",
+            "node": "CreateDiscordThread",
             "type": "main",
             "index": 0
           },
           {
-            "node": "react_with_\ud83d\udde8\ufe0f",
+            "node": "ReactWith\ud83d\udde8\ufe0f",
             "type": "main",
             "index": 0
           },
           {
-            "node": "remove_\ud83d\udd35_reaction",
+            "node": "Remove\ud83d\udd35Reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "create_discord_thread": {
+    "CreateDiscordThread": {
       "main": [
         [
           {
-            "node": "prepare_read_queries",
+            "node": "PrepareReadQueries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_read_queries": {
+    "PrepareReadQueries": {
       "main": [
         [
           {
-            "node": "execute_queries_(read)",
+            "node": "ExecuteQueries(read)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "execute_queries_(read)": {
+    "ExecuteQueries(read)": {
       "main": [
         [
           {
-            "node": "build_llm_context",
+            "node": "BuildLlmContext",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_llm_context": {
+    "BuildLlmContext": {
       "main": [
         [
           {
-            "node": "generate_initial_response",
+            "node": "GenerateInitialResponse",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "generate_initial_response": {
+    "GenerateInitialResponse": {
       "main": [
         [
           {
-            "node": "set_llm_response",
+            "node": "SetLlmResponse",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "set_llm_response": {
+    "SetLlmResponse": {
       "main": [
         [
           {
-            "node": "send_response_to_thread",
+            "node": "SendResponseToThread",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "send_response_to_thread": {
+    "SendResponseToThread": {
       "main": [
         [
           {
-            "node": "prepare_write_queries",
+            "node": "PrepareWriteQueries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_write_queries": {
+    "PrepareWriteQueries": {
       "main": [
         [
           {
-            "node": "execute_queries_(write)",
+            "node": "ExecuteQueries(write)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "react_with_\ud83d\udde8\ufe0f": {
+    "ReactWith\ud83d\udde8\ufe0f": {
       "main": [
         []
       ]
     },
-    "remove_\ud83d\udd35_reaction": {
+    "Remove\ud83d\udd35Reaction": {
       "main": [
         []
       ]
     },
-    "nemotron_nano_9b": {
+    "NemotronNano9b": {
       "ai_languageModel": [
         [
           {
-            "node": "generate_initial_response",
+            "node": "GenerateInitialResponse",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "mimo_v2_flash": {
+    "MimoV2Flash": {
       "ai_languageModel": [
         [
           {
-            "node": "generate_initial_response",
+            "node": "GenerateInitialResponse",
             "type": "ai_languageModel",
             "index": 1
           }

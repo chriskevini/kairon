@@ -13,31 +13,19 @@
       "position": [
         -600,
         0
-      ],
-      "notesInExecutionOrder": [
-        {
-          "name": "Backup Schedule",
-          "description": "Runs daily at 2 AM UTC to backup n8n workflows and configurations."
-        }
       ]
     },
     {
       "parameters": {
-        "functionCode": "const fs = require('fs');\nconst path = require('path');\nconst { execSync } = require('child_process');\n\n// Get current timestamp\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-');\nconst backupDir = `/tmp/n8n-backup-${timestamp}`;\n\n// Ensure backup directory exists\nexecSync(`mkdir -p ${backupDir}`);\n\n// Files to backup\nconst files = [\n  'n8n-workflows',\n  'n8n-workflows-dev',\n  'scripts',\n  '.env',\n  'DEPLOYMENT.md',\n  'README.md'\n];\n\nconst results = [];\n\nfor (const file of files) {\n  try {\n    if (fs.existsSync(file)) {\n      const dest = path.join(backupDir, file);\n      execSync(`cp -r ${file} ${dest}`);\n      results.push({ file, status: 'success', path: dest });\n    } else {\n      results.push({ file, status: 'not_found' });\n    }\n  } catch (error) {\n    results.push({ file, status: 'error', error: error.message });\n  }\n}\n\n// Create backup info file\nconst backupInfo = {\n  timestamp,\n  backupDir,\n  results,\n  createdAt: new Date().toISOString()\n};\n\nfs.writeFileSync(path.join(backupDir, 'backup-info.json'), JSON.stringify(backupInfo, null, 2));\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: $json.id || 'backup-' + timestamp,\n        event_type: 'backup_workflow',\n        clean_text: 'Backup workflow execution',\n        trace_chain: [timestamp],\n        author_login: 'system',\n        timestamp: new Date().toISOString()\n      },\n      backup: {\n        results,\n        backupDir,\n        timestamp\n      }\n    }\n  }\n}];"
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\nconst { execSync } = require('child_process');\n\n// Get current timestamp\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-');\nconst backupDir = `/tmp/n8n-backup-${timestamp}`;\n\n// Ensure backup directory exists\nexecSync(`mkdir -p ${backupDir}`);\n\n// Files to backup\nconst files = [\n  'n8n-workflows',\n  'n8n-workflows-dev',\n  'scripts',\n  '.env',\n  'DEPLOYMENT.md',\n  'README.md'\n];\n\nconst results = [];\n\nfor (const file of files) {\n  try {\n    if (fs.existsSync(file)) {\n      const dest = path.join(backupDir, file);\n      execSync(`cp -r ${file} ${dest}`);\n      results.push({ file, status: 'success', path: dest });\n    } else {\n      results.push({ file, status: 'not_found' });\n    }\n  } catch (error) {\n    results.push({ file, status: 'error', error: error.message });\n  }\n}\n\n// Create backup info file\nconst backupInfo = {\n  timestamp,\n  backupDir,\n  results,\n  createdAt: new Date().toISOString()\n};\n\nfs.writeFileSync(path.join(backupDir, 'backup-info.json'), JSON.stringify(backupInfo, null, 2));\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: $json.id || 'backup-' + timestamp,\n        event_type: 'backup_workflow',\n        clean_text: 'Backup workflow execution',\n        trace_chain: [timestamp],\n        author_login: 'system',\n        timestamp: new Date().toISOString()\n      },\n      backup: {\n        results,\n        backupDir,\n        timestamp\n      }\n    }\n  }\n}];"
       },
       "id": "2",
-      "name": "Create Backup",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "name": "CreateBackup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -400,
         0
-      ],
-      "notesInExecutionOrder": [
-        {
-          "name": "Backup Creation",
-          "description": "Creates a timestamped backup of n8n workflows, scripts, and configuration files."
-        }
       ]
     },
     {
@@ -60,9 +48,9 @@
         ]
       },
       "id": "3",
-      "name": "Store Trace",
+      "name": "StoreTrace",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 1,
+      "typeVersion": 2.4,
       "position": [
         -200,
         0
@@ -71,9 +59,6 @@
         "postgres": {
           "name": "Postgres DB"
         }
-      },
-      "options": {
-        "includeOtherFields": true
       }
     },
     {
@@ -89,9 +74,9 @@
         ]
       },
       "id": "4",
-      "name": "Store Backup Projection",
+      "name": "StoreBackupProjection",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 1,
+      "typeVersion": 2.4,
       "position": [
         0,
         0
@@ -100,19 +85,16 @@
         "postgres": {
           "name": "Postgres DB"
         }
-      },
-      "options": {
-        "includeOtherFields": true
       }
     },
     {
       "parameters": {
-        "functionCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n📁 Backup Directory: ${backupDir}\\n✅ Successfully backed up: ${successCount} items\\n❌ Failed to backup: ${errorCount} items\\n⚠️  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n}];"
+        "jsCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n\ud83d\udcc1 Backup Directory: ${backupDir}\\n\u2705 Successfully backed up: ${successCount} items\\n\u274c Failed to backup: ${errorCount} items\\n\u26a0\ufe0f  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n}];"
       },
       "id": "5",
-      "name": "Format Success Message",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "name": "FormatSuccessMessage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         200,
         0
@@ -120,12 +102,12 @@
     },
     {
       "parameters": {
-        "functionCode": "const message = $json.ctx.message;\n\n// Send success message to Discord\nconst webhookUrl = process.env.DISCORD_WEBHOOK_URL;\nif (webhookUrl) {\n  const payload = {\n    content: message,\n    username: 'Kairon Backup Bot',\n    avatar_url: 'https://cdn.discordapp.com/emojis/123456789012345678.png' // Kairon logo\n  };\n  \n  await $node['HTTP Request'].run({\n    method: 'POST',\n    url: webhookUrl,\n    body: JSON.stringify(payload),\n    headers: {\n      'Content-Type': 'application/json'\n    }\n  });\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      discord_sent: true\n    }\n  }\n}];"
+        "jsCode": "const message = $json.ctx.message;\n\n// Send success message to Discord\nconst webhookUrl = process.env.DISCORD_WEBHOOK_URL;\nif (webhookUrl) {\n  const payload = {\n    content: message,\n    username: 'Kairon Backup Bot',\n    avatar_url: 'https://cdn.discordapp.com/emojis/123456789012345678.png' // Kairon logo\n  };\n  \n  await $node['HTTP Request'].run({\n    method: 'POST',\n    url: webhookUrl,\n    body: JSON.stringify(payload),\n    headers: {\n      'Content-Type': 'application/json'\n    }\n  });\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      discord_sent: true\n    }\n  }\n}];"
       },
       "id": "6",
-      "name": "Send Discord Success",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "name": "SendDiscordSuccess",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         400,
         0
@@ -139,7 +121,7 @@
         "options": {}
       },
       "id": "7",
-      "name": "HTTP Request",
+      "name": "HttpRequest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 2,
       "position": [
@@ -162,9 +144,9 @@
         ]
       },
       "id": "8",
-      "name": "Log Event",
+      "name": "LogEvent",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 1,
+      "typeVersion": 2.4,
       "position": [
         -200,
         -200
@@ -173,9 +155,6 @@
         "postgres": {
           "name": "Postgres DB"
         }
-      },
-      "options": {
-        "includeOtherFields": true
       }
     }
   ],
@@ -184,62 +163,62 @@
       "main": [
         [
           {
-            "node": "Create Backup",
+            "node": "CreateBackup",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Backup": {
+    "CreateBackup": {
       "main": [
         [
           {
-            "node": "Store Trace",
+            "node": "StoreTrace",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Trace": {
+    "StoreTrace": {
       "main": [
         [
           {
-            "node": "Store Backup Projection",
+            "node": "StoreBackupProjection",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Backup Projection": {
+    "StoreBackupProjection": {
       "main": [
         [
           {
-            "node": "Format Success Message",
+            "node": "FormatSuccessMessage",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Success Message": {
+    "FormatSuccessMessage": {
       "main": [
         [
           {
-            "node": "Send Discord Success",
+            "node": "SendDiscordSuccess",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Discord Success": {
+    "SendDiscordSuccess": {
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "HttpRequest",
             "type": "main",
             "index": 0
           }

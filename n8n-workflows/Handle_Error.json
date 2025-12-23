@@ -10,7 +10,7 @@
         216
       ],
       "id": "error-trigger-handle-error",
-      "name": "error_trigger"
+      "name": "ErrorTrigger"
     },
     {
       "parameters": {
@@ -23,7 +23,7 @@
         216
       ],
       "id": "filter-duplicates-handle-error",
-      "name": "filter_duplicate_errors"
+      "name": "FilterDuplicateErrors"
     },
     {
       "parameters": {
@@ -38,7 +38,7 @@
         216
       ],
       "id": "get-recent-event-handle-error",
-      "name": "get_recent_event",
+      "name": "GetRecentEvent",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -48,7 +48,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract error details and merge with event context\nconst errorData = $('Filter Duplicate Errors').first().json;\nconst eventData = $input.first().json || {};\n\nconst execution = errorData.execution || {};\nconst workflow = errorData.workflow || {};\nconst error = execution.error || {};\n\n// Get the node that failed\nconst failedNode = error.node?.name || execution.lastNodeExecuted || 'Unknown';\nconst errorMessage = error.message || 'No error message';\n\n// Get workflow info\nconst workflowName = workflow.name || 'Unknown';\nconst executionId = execution.id || 'N/A';\n\n// Get Discord context from recent event\nconst guildId = eventData.guild_id || null;\nconst channelId = eventData.channel_id || null;\nconst messageId = eventData.message_id || null;\nconst cleanText = eventData.clean_text || '';\n\n// Try to extract from error URL if available\nlet extractedChannelId = channelId;\nlet extractedMessageId = messageId;\n\nif (!channelId && error.context?.request?.uri) {\n  const uri = error.context.request.uri;\n  // Parse: https://discord.com/api/v10/channels/{channel_id}/messages/{message_id}/...\n  const match = uri.match(/channels\\/([0-9]+)\\/messages\\/([0-9]+)/);\n  if (match) {\n    extractedChannelId = match[1];\n    extractedMessageId = match[2];\n  }\n}\n\n// Build condensed Discord message\nlet content = `\u274c **${workflowName}** \u2192 ${failedNode}\\n`;\ncontent += `${errorMessage}`;\n\nif (cleanText) {\n  const preview = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;\n  content += `\\n\ud83d\udcdd \"${preview}\"`;\n}\n\ncontent += `\\n\\`exec:${executionId}\\``;\n\n// Truncate if needed (Discord 2000 char limit)\nif (content.length > 1900) {\n  content = content.substring(0, 1900) + '...';\n}\n\nreturn [{\n  json: {\n    content: content,\n    guild_id: guildId || process.env.DISCORD_GUILD_ID,\n    channel_id: extractedChannelId,\n    message_id: extractedMessageId,\n    can_react: !!(extractedChannelId && extractedMessageId)\n  }\n}];"
+        "jsCode": "// Extract error details and merge with event context\nconst errorData = $('FilterDuplicateErrors').first().json;\nconst eventData = $input.first().json || {};\n\nconst execution = errorData.execution || {};\nconst workflow = errorData.workflow || {};\nconst error = execution.error || {};\n\n// Get the node that failed\nconst failedNode = error.node?.name || execution.lastNodeExecuted || 'Unknown';\nconst errorMessage = error.message || 'No error message';\n\n// Get workflow info\nconst workflowName = workflow.name || 'Unknown';\nconst executionId = execution.id || 'N/A';\n\n// Get Discord context from recent event\nconst guildId = eventData.guild_id || null;\nconst channelId = eventData.channel_id || null;\nconst messageId = eventData.message_id || null;\nconst cleanText = eventData.clean_text || '';\n\n// Try to extract from error URL if available\nlet extractedChannelId = channelId;\nlet extractedMessageId = messageId;\n\nif (!channelId && error.context?.request?.uri) {\n  const uri = error.context.request.uri;\n  // Parse: https://discord.com/api/v10/channels/{channel_id}/messages/{message_id}/...\n  const match = uri.match(/channels\\/([0-9]+)\\/messages\\/([0-9]+)/);\n  if (match) {\n    extractedChannelId = match[1];\n    extractedMessageId = match[2];\n  }\n}\n\n// Build condensed Discord message\nlet content = `\u274c **${workflowName}** \u2192 ${failedNode}\\n`;\ncontent += `${errorMessage}`;\n\nif (cleanText) {\n  const preview = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;\n  content += `\\n\ud83d\udcdd \"${preview}\"`;\n}\n\ncontent += `\\n\\`exec:${executionId}\\``;\n\n// Truncate if needed (Discord 2000 char limit)\nif (content.length > 1900) {\n  content = content.substring(0, 1900) + '...';\n}\n\nreturn [{\n  json: {\n    content: content,\n    guild_id: guildId || process.env.DISCORD_GUILD_ID,\n    channel_id: extractedChannelId,\n    message_id: extractedMessageId,\n    can_react: !!(extractedChannelId && extractedMessageId)\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -57,7 +57,7 @@
         216
       ],
       "id": "format-error-handle-error",
-      "name": "format_error_message"
+      "name": "FormatErrorMessage"
     },
     {
       "parameters": {
@@ -90,7 +90,7 @@
         216
       ],
       "id": "check-can-react-handle-error",
-      "name": "can_react?"
+      "name": "CanReact?"
     },
     {
       "parameters": {
@@ -107,7 +107,7 @@
         144
       ],
       "id": "add-error-reaction-handle-error",
-      "name": "add_\u274c_reaction",
+      "name": "Add\u274cReaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -133,7 +133,7 @@
         144
       ],
       "id": "remove-blue-reaction-handle-error",
-      "name": "remove_\ud83d\udd35_reaction",
+      "name": "Remove\ud83d\udd35Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -167,7 +167,7 @@
         216
       ],
       "id": "send-error-discord-handle-error",
-      "name": "send_error_to_logs",
+      "name": "SendErrorToLogs",
       "webhookId": "error-notification-webhook",
       "retryOnFail": true,
       "maxTries": 3,
@@ -190,99 +190,99 @@
         216
       ],
       "id": "merge-paths-handle-error",
-      "name": "merge_paths"
+      "name": "MergePaths"
     }
   ],
   "connections": {
-    "error_trigger": {
+    "ErrorTrigger": {
       "main": [
         [
           {
-            "node": "filter_duplicate_errors",
+            "node": "FilterDuplicateErrors",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "filter_duplicate_errors": {
+    "FilterDuplicateErrors": {
       "main": [
         [
           {
-            "node": "get_recent_event",
+            "node": "GetRecentEvent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "get_recent_event": {
+    "GetRecentEvent": {
       "main": [
         [
           {
-            "node": "format_error_message",
+            "node": "FormatErrorMessage",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "format_error_message": {
+    "FormatErrorMessage": {
       "main": [
         [
           {
-            "node": "can_react?",
+            "node": "CanReact?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "can_react?": {
+    "CanReact?": {
       "main": [
         [
           {
-            "node": "add_\u274c_reaction",
+            "node": "Add\u274cReaction",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "merge_paths",
+            "node": "MergePaths",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "add_\u274c_reaction": {
+    "Add\u274cReaction": {
       "main": [
         [
           {
-            "node": "remove_\ud83d\udd35_reaction",
+            "node": "Remove\ud83d\udd35Reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "remove_\ud83d\udd35_reaction": {
+    "Remove\ud83d\udd35Reaction": {
       "main": [
         [
           {
-            "node": "merge_paths",
+            "node": "MergePaths",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "merge_paths": {
+    "MergePaths": {
       "main": [
         [
           {
-            "node": "send_error_to_logs",
+            "node": "SendErrorToLogs",
             "type": "main",
             "index": 0
           }

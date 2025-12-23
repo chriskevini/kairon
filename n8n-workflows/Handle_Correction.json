@@ -12,7 +12,7 @@
         400
       ],
       "id": "trigger-correction",
-      "name": "execute_workflow_trigger"
+      "name": "ExecuteWorkflowTrigger"
     },
     {
       "parameters": {
@@ -25,7 +25,7 @@
         400
       ],
       "id": "build-lookup-query",
-      "name": "build_lookup_query"
+      "name": "BuildLookupQuery"
     },
     {
       "parameters": {
@@ -48,7 +48,7 @@
         400
       ],
       "id": "lookup-original-event",
-      "name": "lookup_original_event"
+      "name": "LookupOriginalEvent"
     },
     {
       "parameters": {
@@ -61,7 +61,7 @@
         400
       ],
       "id": "prepare-correction",
-      "name": "prepare_correction"
+      "name": "PrepareCorrection"
     },
     {
       "parameters": {
@@ -95,7 +95,7 @@
         400
       ],
       "id": "has-original-check",
-      "name": "has_original?"
+      "name": "HasOriginal?"
     },
     {
       "parameters": {
@@ -108,7 +108,7 @@
         336
       ],
       "id": "build-correction-queries",
-      "name": "build_correction_queries"
+      "name": "BuildCorrectionQueries"
     },
     {
       "parameters": {
@@ -131,11 +131,11 @@
         336
       ],
       "id": "execute-correction-queries",
-      "name": "execute_correction_queries"
+      "name": "ExecuteCorrectionQueries"
     },
     {
       "parameters": {
-        "jsCode": "// Build list of emojis to remove based on voided projection types\nconst ctx = $json.ctx;\nconst original = $('Build Correction Queries').first().json.original;\nconst channelId = original.channel_id;\nconst messageId = original.message_id;\n\n// Get voided projection types from Execute_Queries result\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedTypes = voidedRows.map(item => item.projection_type).filter(Boolean);\n\n// Map projection types to their emojis\nconst typeToEmoji = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '✅'\n};\n\n// Only remove emojis for the projection types that were actually voided\nconst emojisToRemove = [...new Set(voidedTypes.map(t => typeToEmoji[t]).filter(Boolean))];\n\nif (emojisToRemove.length === 0) {\n  // No emojis to remove, return skip marker\n  return [{ json: { skip: true, ctx } }];\n}\n\nreturn emojisToRemove.map(emoji => ({\n  json: {\n    channel_id: channelId,\n    message_id: messageId,\n    emoji: emoji,\n    encoded_emoji: encodeURIComponent(emoji),\n    skip: false,\n    ctx\n  }\n}));"
+        "jsCode": "// Build list of emojis to remove based on voided projection types\nconst ctx = $json.ctx;\nconst original = $('BuildCorrectionQueries').first().json.original;\nconst channelId = original.channel_id;\nconst messageId = original.message_id;\n\n// Get voided projection types from Execute_Queries result\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedTypes = voidedRows.map(item => item.projection_type).filter(Boolean);\n\n// Map projection types to their emojis\nconst typeToEmoji = {\n  'activity': '\ud83d\udd18',\n  'note': '\ud83d\udcdd',\n  'todo': '\u2705'\n};\n\n// Only remove emojis for the projection types that were actually voided\nconst emojisToRemove = [...new Set(voidedTypes.map(t => typeToEmoji[t]).filter(Boolean))];\n\nif (emojisToRemove.length === 0) {\n  // No emojis to remove, return skip marker\n  return [{ json: { skip: true, ctx } }];\n}\n\nreturn emojisToRemove.map(emoji => ({\n  json: {\n    channel_id: channelId,\n    message_id: messageId,\n    emoji: emoji,\n    encoded_emoji: encodeURIComponent(emoji),\n    skip: false,\n    ctx\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -144,7 +144,7 @@
         336
       ],
       "id": "build-emoji-remove-list",
-      "name": "build_emoji_remove_list"
+      "name": "BuildEmojiRemoveList"
     },
     {
       "parameters": {
@@ -178,7 +178,7 @@
         336
       ],
       "id": "filter-skip",
-      "name": "has_emoji_to_remove?"
+      "name": "HasEmojiToRemove?"
     },
     {
       "parameters": {
@@ -195,7 +195,7 @@
         272
       ],
       "id": "remove-bot-emojis",
-      "name": "remove_bot_emojis",
+      "name": "RemoveBotEmojis",
       "retryOnFail": false,
       "credentials": {
         "discordBotApi": {
@@ -206,7 +206,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// After removing emojis, check if we need to re-extract or just void\nconst prepareData = $('Build Correction Queries').first().json;\nconst ctx = $('Execute Correction Queries').first().json.ctx;\n\n// Get correction event ID from Execute_Queries result\nconst correctionEventId = ctx.db?.correction_event?.row?.id;\n\n// Collect voided projection IDs for linking to new projection\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedProjectionIds = voidedRows.map(item => item.id).filter(Boolean);\n\nreturn {\n  ctx,\n  original: prepareData.original,\n  correction: prepareData.correction,\n  correction_event_id: correctionEventId,\n  voided_projection_ids: voidedProjectionIds,\n  should_reextract: !prepareData.correction.is_void_only && !!prepareData.correction.type\n};"
+        "jsCode": "// After removing emojis, check if we need to re-extract or just void\nconst prepareData = $('BuildCorrectionQueries').first().json;\nconst ctx = $('ExecuteCorrectionQueries').first().json.ctx;\n\n// Get correction event ID from Execute_Queries result\nconst correctionEventId = ctx.db?.correction_event?.row?.id;\n\n// Collect voided projection IDs for linking to new projection\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedProjectionIds = voidedRows.map(item => item.id).filter(Boolean);\n\nreturn {\n  ctx,\n  original: prepareData.original,\n  correction: prepareData.correction,\n  correction_event_id: correctionEventId,\n  voided_projection_ids: voidedProjectionIds,\n  should_reextract: !prepareData.correction.is_void_only && !!prepareData.correction.type\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -215,7 +215,7 @@
         336
       ],
       "id": "check-reextract",
-      "name": "check_re_extract"
+      "name": "CheckReExtract"
     },
     {
       "parameters": {
@@ -249,7 +249,7 @@
         336
       ],
       "id": "should-reextract-check",
-      "name": "should_re_extract?"
+      "name": "ShouldReExtract?"
     },
     {
       "parameters": {
@@ -262,7 +262,7 @@
         272
       ],
       "id": "build-capture-ctx",
-      "name": "build_capture_ctx"
+      "name": "BuildCaptureCtx"
     },
     {
       "parameters": {
@@ -287,7 +287,7 @@
         272
       ],
       "id": "execute-capture",
-      "name": "execute_capture_projection"
+      "name": "ExecuteCaptureProjection"
     },
     {
       "parameters": {
@@ -312,7 +312,7 @@
         464
       ],
       "id": "log-correction",
-      "name": "log_correction",
+      "name": "LogCorrection",
       "webhookId": "correction-log",
       "retryOnFail": true,
       "maxTries": 3,
@@ -347,7 +347,7 @@
         560
       ],
       "id": "log-no-original",
-      "name": "log_no_original",
+      "name": "LogNoOriginal",
       "webhookId": "no-original-log",
       "retryOnFail": true,
       "maxTries": 3,
@@ -361,164 +361,164 @@
     }
   ],
   "connections": {
-    "execute_workflow_trigger": {
+    "ExecuteWorkflowTrigger": {
       "main": [
         [
           {
-            "node": "build_lookup_query",
+            "node": "BuildLookupQuery",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_lookup_query": {
+    "BuildLookupQuery": {
       "main": [
         [
           {
-            "node": "lookup_original_event",
+            "node": "LookupOriginalEvent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "lookup_original_event": {
+    "LookupOriginalEvent": {
       "main": [
         [
           {
-            "node": "prepare_correction",
+            "node": "PrepareCorrection",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare_correction": {
+    "PrepareCorrection": {
       "main": [
         [
           {
-            "node": "has_original?",
+            "node": "HasOriginal?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "has_original?": {
+    "HasOriginal?": {
       "main": [
         [
           {
-            "node": "build_correction_queries",
+            "node": "BuildCorrectionQueries",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "log_no_original",
+            "node": "LogNoOriginal",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_correction_queries": {
+    "BuildCorrectionQueries": {
       "main": [
         [
           {
-            "node": "execute_correction_queries",
+            "node": "ExecuteCorrectionQueries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "execute_correction_queries": {
+    "ExecuteCorrectionQueries": {
       "main": [
         [
           {
-            "node": "build_emoji_remove_list",
+            "node": "BuildEmojiRemoveList",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_emoji_remove_list": {
+    "BuildEmojiRemoveList": {
       "main": [
         [
           {
-            "node": "has_emoji_to_remove?",
+            "node": "HasEmojiToRemove?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "has_emoji_to_remove?": {
+    "HasEmojiToRemove?": {
       "main": [
         [
           {
-            "node": "remove_bot_emojis",
+            "node": "RemoveBotEmojis",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "check_re_extract",
+            "node": "CheckReExtract",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "remove_bot_emojis": {
+    "RemoveBotEmojis": {
       "main": [
         [
           {
-            "node": "check_re_extract",
+            "node": "CheckReExtract",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "check_re_extract": {
+    "CheckReExtract": {
       "main": [
         [
           {
-            "node": "should_re_extract?",
+            "node": "ShouldReExtract?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "should_re_extract?": {
+    "ShouldReExtract?": {
       "main": [
         [
           {
-            "node": "build_capture_ctx",
+            "node": "BuildCaptureCtx",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "log_correction",
+            "node": "LogCorrection",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_capture_ctx": {
+    "BuildCaptureCtx": {
       "main": [
         [
           {
-            "node": "execute_capture_projection",
+            "node": "ExecuteCaptureProjection",
             "type": "main",
             "index": 0
           }

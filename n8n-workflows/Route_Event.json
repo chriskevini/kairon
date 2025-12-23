@@ -8,7 +8,7 @@
         "options": {}
       },
       "id": "cd624af2-2b2d-4c54-a6f2-c16f72817ee4",
-      "name": "discord_webhook_entry",
+      "name": "DiscordWebhookEntry",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
@@ -35,7 +35,7 @@
         -128
       ],
       "id": "cron-nudge",
-      "name": "nudge_cron_(every_15_min)"
+      "name": "NudgeCron(every15Min)"
     },
     {
       "parameters": {
@@ -55,7 +55,7 @@
         544
       ],
       "id": "cron-summary",
-      "name": "summary_cron_(every_5_min)"
+      "name": "SummaryCron(every5Min)"
     },
     {
       "parameters": {
@@ -86,7 +86,7 @@
         -128
       ],
       "id": "execute-nudge-cron",
-      "name": "execute_generate_nudge"
+      "name": "ExecuteGenerateNudge"
     },
     {
       "parameters": {
@@ -99,7 +99,7 @@
         544
       ],
       "id": "build-summary-config-query",
-      "name": "build_summary_config_query"
+      "name": "BuildSummaryConfigQuery"
     },
     {
       "parameters": {
@@ -122,7 +122,7 @@
         544
       ],
       "id": "get-summary-config",
-      "name": "get_summary_config"
+      "name": "GetSummaryConfig"
     },
     {
       "parameters": {
@@ -135,7 +135,7 @@
         544
       ],
       "id": "check-summary-time",
-      "name": "check_should_run_summary"
+      "name": "CheckShouldRunSummary"
     },
     {
       "parameters": {
@@ -166,7 +166,7 @@
         544
       ],
       "id": "execute-summary-cron",
-      "name": "execute_generate_daily_summary"
+      "name": "ExecuteGenerateDailySummary"
     },
     {
       "parameters": {
@@ -227,7 +227,7 @@
         }
       },
       "id": "1c5b0871-58a8-457f-8b94-c1225e4e38b7",
-      "name": "route_by_event_type",
+      "name": "RouteByEventType",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
@@ -246,11 +246,11 @@
         352
       ],
       "id": "1ffa970a-a79d-4d92-ad89-666e68c48276",
-      "name": "parse_reaction"
+      "name": "ParseReaction"
     },
     {
       "parameters": {
-        "jsCode": "// Build store message query for Execute_Queries\nconst parsed = $json;\nconst body = $('discord_webhook_entry').item.json.body;\n\nconst messageUrl = `https://discord.com/channels/${body.guild_id}/${body.channel_id}/${body.message_id}`;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  $11,\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          messageUrl,\n          body.author?.login || body.author_login,\n          body.thread_id || null,\n          body.content,\n          parsed.clean_text,\n          parsed.tag || null,\n          body.timestamp,\n          parsed.event_type\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
+        "jsCode": "// Build store message query for Execute_Queries\nconst parsed = $json;\nconst body = $('DiscordWebhookEntry').item.json.body;\n\nconst messageUrl = `https://discord.com/channels/${body.guild_id}/${body.channel_id}/${body.message_id}`;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  $11,\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          messageUrl,\n          body.author?.login || body.author_login,\n          body.thread_id || null,\n          body.content,\n          parsed.clean_text,\n          parsed.tag || null,\n          body.timestamp,\n          parsed.event_type\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -259,7 +259,7 @@
         160
       ],
       "id": "build-message-event-query",
-      "name": "build_message_event_query"
+      "name": "BuildMessageEventQuery"
     },
     {
       "parameters": {
@@ -282,11 +282,11 @@
         160
       ],
       "id": "store-message-event",
-      "name": "store_message_event"
+      "name": "StoreMessageEvent"
     },
     {
       "parameters": {
-        "jsCode": "// Build store reaction query for Execute_Queries\nconst parsed = $json;\nconst body = $('discord_webhook_entry').item.json.body;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          body.user?.login || body.user_id,\n          body.thread_id || null,\n          parsed.emoji,\n          parsed.extraction_index,\n          body.action,\n          parsed.synthetic_id\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
+        "jsCode": "// Build store reaction query for Execute_Queries\nconst parsed = $json;\nconst body = $('DiscordWebhookEntry').item.json.body;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          body.user?.login || body.user_id,\n          body.thread_id || null,\n          parsed.emoji,\n          parsed.extraction_index,\n          body.action,\n          parsed.synthetic_id\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -295,7 +295,7 @@
         352
       ],
       "id": "build-reaction-event-query",
-      "name": "build_reaction_event_query"
+      "name": "BuildReactionEventQuery"
     },
     {
       "parameters": {
@@ -318,11 +318,11 @@
         352
       ],
       "id": "store-reaction-event",
-      "name": "store_reaction_event"
+      "name": "StoreReactionEvent"
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhookQuery = $('build_message_event_query').first().json;\nconst webhook = webhookQuery.webhook;\nconst parsed = webhookQuery.parsed;\n\nif (!dbResult) {\n  throw new Error('Database result (event) not found in ctx.db.event.row');\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: dbResult.event_type,\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhook = $('BuildMessageEventQuery').first().json.webhook;\nconst parsed = $('BuildMessageEventQuery').first().json.parsed;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: dbResult.event_type,\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -331,11 +331,11 @@
         160
       ],
       "id": "ebc352f8-4d54-4ecd-9aee-d6e36d191099",
-      "name": "initialize_message_context"
+      "name": "InitializeMessageContext"
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhookQuery = $('build_reaction_event_query').first().json;\nconst webhook = webhookQuery.webhook;\nconst parsed = webhookQuery.parsed;\n\nif (!dbResult) {\n  throw new Error('Database result (event) not found in ctx.db.event.row');\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhook = $('BuildReactionEventQuery').first().json.webhook;\nconst parsed = $('BuildReactionEventQuery').first().json.parsed;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -344,7 +344,7 @@
         352
       ],
       "id": "9377cd32-3d33-458d-9cb9-bca0ffb63490",
-      "name": "initialize_reaction_context"
+      "name": "InitializeReactionContext"
     },
     {
       "parameters": {
@@ -373,7 +373,7 @@
         352
       ],
       "id": "a03ea0a9-a9d2-4ce7-bb70-3a12397a5719",
-      "name": "route_reaction"
+      "name": "RouteReaction"
     },
     {
       "parameters": {
@@ -402,7 +402,7 @@
         160
       ],
       "id": "29f4a14c-4ba5-481b-9ac0-7d8200241a40",
-      "name": "route_message"
+      "name": "RouteMessage"
     },
     {
       "parameters": {
@@ -415,176 +415,176 @@
         160
       ],
       "id": "5f108e4e-41d7-4284-be7e-dcd784e855e6",
-      "name": "parse_message"
+      "name": "ParseMessage"
     }
   ],
   "connections": {
-    "discord_webhook_entry": {
+    "DiscordWebhookEntry": {
       "main": [
         [
           {
-            "node": "route_by_event_type",
+            "node": "RouteByEventType",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "nudge_cron_(every_15_min)": {
+    "NudgeCron(every15Min)": {
       "main": [
         [
           {
-            "node": "execute_generate_nudge",
+            "node": "ExecuteGenerateNudge",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "summary_cron_(every_5_min)": {
+    "SummaryCron(every5Min)": {
       "main": [
         [
           {
-            "node": "build_summary_config_query",
+            "node": "BuildSummaryConfigQuery",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_summary_config_query": {
+    "BuildSummaryConfigQuery": {
       "main": [
         [
           {
-            "node": "get_summary_config",
+            "node": "GetSummaryConfig",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "get_summary_config": {
+    "GetSummaryConfig": {
       "main": [
         [
           {
-            "node": "check_should_run_summary",
+            "node": "CheckShouldRunSummary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "check_should_run_summary": {
+    "CheckShouldRunSummary": {
       "main": [
         [
           {
-            "node": "execute_generate_daily_summary",
+            "node": "ExecuteGenerateDailySummary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "route_by_event_type": {
+    "RouteByEventType": {
       "main": [
         [
           {
-            "node": "parse_message",
+            "node": "ParseMessage",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "parse_reaction",
+            "node": "ParseReaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "parse_reaction": {
+    "ParseReaction": {
       "main": [
         [
           {
-            "node": "build_reaction_event_query",
+            "node": "BuildReactionEventQuery",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "parse_message": {
+    "ParseMessage": {
       "main": [
         [
           {
-            "node": "build_message_event_query",
+            "node": "BuildMessageEventQuery",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_message_event_query": {
+    "BuildMessageEventQuery": {
       "main": [
         [
           {
-            "node": "store_message_event",
+            "node": "StoreMessageEvent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "store_message_event": {
+    "StoreMessageEvent": {
       "main": [
         [
           {
-            "node": "initialize_message_context",
+            "node": "InitializeMessageContext",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "build_reaction_event_query": {
+    "BuildReactionEventQuery": {
       "main": [
         [
           {
-            "node": "store_reaction_event",
+            "node": "StoreReactionEvent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "store_reaction_event": {
+    "StoreReactionEvent": {
       "main": [
         [
           {
-            "node": "initialize_reaction_context",
+            "node": "InitializeReactionContext",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "initialize_message_context": {
+    "InitializeMessageContext": {
       "main": [
         [
           {
-            "node": "route_message",
+            "node": "RouteMessage",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "initialize_reaction_context": {
+    "InitializeReactionContext": {
       "main": [
         [
           {
-            "node": "route_reaction",
+            "node": "RouteReaction",
             "type": "main",
             "index": 0
           }

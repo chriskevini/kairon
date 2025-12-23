@@ -12,11 +12,11 @@
         300
       ],
       "id": "trigger-quality-rating",
-      "name": "receive_event"
+      "name": "ReceiveEvent"
     },
     {
       "parameters": {
-        "jsCode": "// Parse quality rating from emoji\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '👍': 1.0,\n  '👎': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\nreturn {\n  ctx,\n  quality_score: qualityScore,\n  emoji\n};"
+        "jsCode": "// Parse quality rating from emoji\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '\ud83d\udc4d': 1.0,\n  '\ud83d\udc4e': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\nreturn {\n  ctx,\n  quality_score: qualityScore,\n  emoji\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -25,7 +25,7 @@
         300
       ],
       "id": "parse-quality",
-      "name": "parse_quality_rating"
+      "name": "ParseQualityRating"
     },
     {
       "parameters": {
@@ -42,7 +42,7 @@
         300
       ],
       "id": "update-quality-score",
-      "name": "update_quality_score",
+      "name": "UpdateQualityScore",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {}
@@ -50,7 +50,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format response based on updated projections\nconst ctx = $('Receive Event').first().json.ctx;\nconst qualityScore = $('Parse Quality Rating').first().json.quality_score;\nconst emoji = $('Parse Quality Rating').first().json.emoji;\nconst updated = $input.all();\n\nif (!updated || updated.length === 0 || !updated[0].json.id) {\n  return {\n    ctx,\n    response: {\n      content: `${emoji} No projections found for this message to rate.`\n    },\n    updated_count: 0\n  };\n}\n\nconst count = updated.length;\nconst types = [...new Set(updated.map(u => u.json.projection_type))];\nconst typeStr = types.join(', ');\nconst scoreLabel = qualityScore === 1.0 ? 'good' : 'poor';\n\nreturn {\n  ctx,\n  response: {\n    content: `${emoji} Marked ${count} projection(s) as **${scoreLabel}** quality (${typeStr})`\n  },\n  updated_count: count\n};"
+        "jsCode": "// Format response based on updated projections\nconst ctx = $('ReceiveEvent').first().json.ctx;\nconst qualityScore = $('ParseQualityRating').first().json.quality_score;\nconst emoji = $('ParseQualityRating').first().json.emoji;\nconst updated = $input.all();\n\nif (!updated || updated.length === 0 || !updated[0].json.id) {\n  return {\n    ctx,\n    response: {\n      content: `${emoji} No projections found for this message to rate.`\n    },\n    updated_count: 0\n  };\n}\n\nconst count = updated.length;\nconst types = [...new Set(updated.map(u => u.json.projection_type))];\nconst typeStr = types.join(', ');\nconst scoreLabel = qualityScore === 1.0 ? 'good' : 'poor';\n\nreturn {\n  ctx,\n  response: {\n    content: `${emoji} Marked ${count} projection(s) as **${scoreLabel}** quality (${typeStr})`\n  },\n  updated_count: count\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -59,7 +59,7 @@
         300
       ],
       "id": "format-response",
-      "name": "format_response"
+      "name": "FormatResponse"
     },
     {
       "parameters": {
@@ -86,7 +86,7 @@
         300
       ],
       "id": "send-response",
-      "name": "send_response",
+      "name": "SendResponse",
       "webhookId": "quality-rating-response",
       "retryOnFail": true,
       "maxTries": 3,
@@ -99,44 +99,44 @@
     }
   ],
   "connections": {
-    "receive_event": {
+    "ReceiveEvent": {
       "main": [
         [
           {
-            "node": "parse_quality_rating",
+            "node": "ParseQualityRating",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "parse_quality_rating": {
+    "ParseQualityRating": {
       "main": [
         [
           {
-            "node": "update_quality_score",
+            "node": "UpdateQualityScore",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "update_quality_score": {
+    "UpdateQualityScore": {
       "main": [
         [
           {
-            "node": "format_response",
+            "node": "FormatResponse",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "format_response": {
+    "FormatResponse": {
       "main": [
         [
           {
-            "node": "send_response",
+            "node": "SendResponse",
             "type": "main",
             "index": 0
           }
