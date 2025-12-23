@@ -970,8 +970,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "59PoRBQyv8eCroDh",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Generate_Nudge"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -1000,8 +1001,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "cIROQISrYEAKML84",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Generate_Daily_Summary"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",

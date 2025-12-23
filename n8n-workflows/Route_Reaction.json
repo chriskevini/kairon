@@ -224,8 +224,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "po34MNNwDBJKdf4N",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Save_Extraction"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -246,8 +247,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "dV0xdkTd3aDbEVZH",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Handle_Correction"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -270,8 +272,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "kI4cWxIAXrIdtT4s",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Handle_Todo_Status"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -307,8 +310,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "zhEomZH8pmqOYUEh",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Show_Projection_Details"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -331,8 +335,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "XmanM922rwHz8e7X",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Handle_Quality_Rating"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",

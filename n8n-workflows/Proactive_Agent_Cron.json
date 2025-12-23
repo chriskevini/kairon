@@ -14,7 +14,10 @@
       },
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "schedule-trigger",
       "name": "Every 5 Minutes"
     },
@@ -26,7 +29,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [224, 0],
+      "position": [
+        224,
+        0
+      ],
       "id": "check-next-pulse",
       "name": "Check Next Pulse",
       "credentials": {
@@ -63,7 +69,10 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [448, 0],
+      "position": [
+        448,
+        0
+      ],
       "id": "if-should-run",
       "name": "Should Run?"
     },
@@ -75,7 +84,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [672, -80],
+      "position": [
+        672,
+        -80
+      ],
       "id": "set-next-pulse",
       "name": "Set Next Pulse (Default)",
       "credentials": {
@@ -91,7 +103,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [896, -80],
+      "position": [
+        896,
+        -80
+      ],
       "id": "prepare-trigger-data",
       "name": "Prepare Trigger Data"
     },
@@ -99,8 +114,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "list"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Proactive_Agent"
         },
         "options": {
           "waitForSubWorkflow": false
@@ -108,7 +124,10 @@
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [1120, -80],
+      "position": [
+        1120,
+        -80
+      ],
       "id": "execute-proactive-agent",
       "name": "Execute Proactive_Agent"
     }

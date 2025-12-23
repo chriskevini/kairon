@@ -7,7 +7,10 @@
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "workflow-trigger",
       "name": "When Called by Another Workflow"
     },
@@ -17,7 +20,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [224, 0],
+      "position": [
+        224,
+        0
+      ],
       "id": "prepare-event",
       "name": "Prepare Event"
     },
@@ -31,7 +37,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [448, 0],
+      "position": [
+        448,
+        0
+      ],
       "id": "insert-event",
       "name": "Insert Event",
       "credentials": {
@@ -47,7 +56,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [672, 0],
+      "position": [
+        672,
+        0
+      ],
       "id": "init-ctx",
       "name": "Initialize ctx"
     },
@@ -59,7 +71,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [896, -288],
+      "position": [
+        896,
+        -288
+      ],
       "id": "get-prompt-modules",
       "name": "Get Prompt Modules",
       "alwaysOutputData": true,
@@ -78,7 +93,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [896, -96],
+      "position": [
+        896,
+        -96
+      ],
       "id": "get-north-star",
       "name": "Get North Star",
       "alwaysOutputData": true,
@@ -97,7 +115,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [896, 96],
+      "position": [
+        896,
+        96
+      ],
       "id": "get-recent-activities",
       "name": "Get Recent Activities (24h)",
       "alwaysOutputData": true,
@@ -116,7 +137,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [896, 288],
+      "position": [
+        896,
+        288
+      ],
       "id": "get-recent-notes",
       "name": "Get Recent Notes (7d)",
       "alwaysOutputData": true,
@@ -135,7 +159,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [896, 480],
+      "position": [
+        896,
+        480
+      ],
       "id": "get-pending-todos",
       "name": "Get Pending Todos",
       "alwaysOutputData": true,
@@ -153,7 +180,10 @@
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [1120, 0],
+      "position": [
+        1120,
+        0
+      ],
       "id": "merge-query-results",
       "name": "Merge Query Results"
     },
@@ -163,7 +193,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1344, 0],
+      "position": [
+        1344,
+        0
+      ],
       "id": "build-context-summary",
       "name": "Build Context Summary"
     },
@@ -180,7 +213,10 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1568, 0],
+      "position": [
+        1568,
+        0
+      ],
       "id": "semantic-select-techniques",
       "name": "Semantic Select Techniques",
       "continueOnFail": true
@@ -198,7 +234,10 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1568, 192],
+      "position": [
+        1568,
+        192
+      ],
       "id": "embed-context-for-rag",
       "name": "Embed Context for RAG",
       "continueOnFail": true
@@ -209,7 +248,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1792, 192],
+      "position": [
+        1792,
+        192
+      ],
       "id": "prepare-embedding-for-rag",
       "name": "Prepare Embedding for RAG"
     },
@@ -223,7 +265,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2016, 192],
+      "position": [
+        2016,
+        192
+      ],
       "id": "rag-similar-projections",
       "name": "RAG Similar Projections",
       "alwaysOutputData": true,
@@ -242,7 +287,10 @@
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [1792, 96],
+      "position": [
+        1792,
+        96
+      ],
       "id": "merge-semantic-results",
       "name": "Merge Semantic Results"
     },
@@ -252,7 +300,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2016, 96],
+      "position": [
+        2016,
+        96
+      ],
       "id": "assemble-prompt",
       "name": "Assemble Prompt"
     },
@@ -265,7 +316,10 @@
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
-      "position": [2240, 96],
+      "position": [
+        2240,
+        96
+      ],
       "id": "generate-message-llm",
       "name": "Generate Message with LLM"
     },
@@ -276,7 +330,10 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
-      "position": [2248, 320],
+      "position": [
+        2248,
+        320
+      ],
       "id": "nemotron-nano-9b",
       "name": "nemotron-nano-9b",
       "credentials": {
@@ -293,7 +350,10 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
-      "position": [2376, 320],
+      "position": [
+        2376,
+        320
+      ],
       "id": "mimo-v2-flash",
       "name": "mimo-v2-flash",
       "credentials": {
@@ -309,7 +369,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2464, 96],
+      "position": [
+        2464,
+        96
+      ],
       "id": "parse-llm-response",
       "name": "Parse LLM Response"
     },
@@ -323,7 +386,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2688, 96],
+      "position": [
+        2688,
+        96
+      ],
       "id": "store-trace",
       "name": "Store Trace",
       "credentials": {
@@ -339,7 +405,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2912, 96],
+      "position": [
+        2912,
+        96
+      ],
       "id": "merge-trace-result",
       "name": "Merge Trace Result"
     },
@@ -370,7 +439,10 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [3136, 96],
+      "position": [
+        3136,
+        96
+      ],
       "id": "if-empty",
       "name": "If Empty Message"
     },
@@ -384,7 +456,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [3360, 176],
+      "position": [
+        3360,
+        176
+      ],
       "id": "store-projection",
       "name": "Store Projection",
       "credentials": {
@@ -400,7 +475,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3584, 176],
+      "position": [
+        3584,
+        176
+      ],
       "id": "merge-for-discord",
       "name": "Merge for Discord"
     },
@@ -422,7 +500,10 @@
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
-      "position": [3808, 176],
+      "position": [
+        3808,
+        176
+      ],
       "id": "send-message",
       "name": "Send Message",
       "credentials": {
@@ -445,7 +526,10 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [4032, 176],
+      "position": [
+        4032,
+        176
+      ],
       "id": "update-projection-message-id",
       "name": "Update Projection with Message ID",
       "credentials": {

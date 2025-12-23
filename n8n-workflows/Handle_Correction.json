@@ -31,8 +31,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -113,8 +114,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -133,7 +135,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build list of emojis to remove based on voided projection types\nconst ctx = $json.ctx;\nconst original = $('Build Correction Queries').first().json.original;\nconst channelId = original.channel_id;\nconst messageId = original.message_id;\n\n// Get voided projection types from Execute_Queries result\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedTypes = voidedRows.map(item => item.projection_type).filter(Boolean);\n\n// Map projection types to their emojis\nconst typeToEmoji = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '✅'\n};\n\n// Only remove emojis for the projection types that were actually voided\nconst emojisToRemove = [...new Set(voidedTypes.map(t => typeToEmoji[t]).filter(Boolean))];\n\nif (emojisToRemove.length === 0) {\n  // No emojis to remove, return skip marker\n  return [{ json: { skip: true, ctx } }];\n}\n\nreturn emojisToRemove.map(emoji => ({\n  json: {\n    channel_id: channelId,\n    message_id: messageId,\n    emoji: emoji,\n    encoded_emoji: encodeURIComponent(emoji),\n    skip: false,\n    ctx\n  }\n}));"
+        "jsCode": "// Build list of emojis to remove based on voided projection types\nconst ctx = $json.ctx;\nconst original = $('Build Correction Queries').first().json.original;\nconst channelId = original.channel_id;\nconst messageId = original.message_id;\n\n// Get voided projection types from Execute_Queries result\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedTypes = voidedRows.map(item => item.projection_type).filter(Boolean);\n\n// Map projection types to their emojis\nconst typeToEmoji = {\n  'activity': '\ud83d\udd18',\n  'note': '\ud83d\udcdd',\n  'todo': '\u2705'\n};\n\n// Only remove emojis for the projection types that were actually voided\nconst emojisToRemove = [...new Set(voidedTypes.map(t => typeToEmoji[t]).filter(Boolean))];\n\nif (emojisToRemove.length === 0) {\n  // No emojis to remove, return skip marker\n  return [{ json: { skip: true, ctx } }];\n}\n\nreturn emojisToRemove.map(emoji => ({\n  json: {\n    channel_id: channelId,\n    message_id: messageId,\n    emoji: emoji,\n    encoded_emoji: encodeURIComponent(emoji),\n    skip: false,\n    ctx\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -267,8 +269,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "fCzIE4pwbotbDlD6",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Capture_Projection"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",

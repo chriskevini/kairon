@@ -219,8 +219,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries"
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -249,8 +250,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
-          "mode": "id"
+          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries"
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
