@@ -45,7 +45,6 @@
       "name": "Insert Event",
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -184,7 +183,6 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       }
@@ -235,7 +233,6 @@
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
           "name": "OpenRouter account"
         }
       }
@@ -255,7 +252,6 @@
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
           "name": "OpenRouter account"
         }
       }

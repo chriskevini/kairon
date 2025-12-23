@@ -44,7 +44,6 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },

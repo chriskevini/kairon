@@ -30,7 +30,6 @@
       "name": "Reset Next Pulse",
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       },
@@ -67,7 +66,6 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },

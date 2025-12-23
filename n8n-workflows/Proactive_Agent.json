@@ -45,7 +45,6 @@
       "name": "Insert Event",
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -80,7 +79,6 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -102,7 +100,6 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -124,7 +121,6 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -146,7 +142,6 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -168,7 +163,6 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -275,7 +269,6 @@
       "continueOnFail": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -338,7 +331,6 @@
       "name": "nemotron-nano-9b",
       "credentials": {
         "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
           "name": "OpenRouter account"
         }
       }
@@ -358,7 +350,6 @@
       "name": "mimo-v2-flash",
       "credentials": {
         "openRouterApi": {
-          "id": "r79IBN16aZtPIN8T",
           "name": "OpenRouter account"
         }
       }
@@ -394,7 +385,6 @@
       "name": "Store Trace",
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -464,7 +454,6 @@
       "name": "Store Projection",
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }
@@ -508,7 +497,6 @@
       "name": "Send Message",
       "credentials": {
         "discordBotApi": {
-          "id": "hvetTjtpeKFB1V0I",
           "name": "Discord Bot account"
         }
       },
@@ -534,7 +522,6 @@
       "name": "Update Projection with Message ID",
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
           "name": "Postgres account"
         }
       }

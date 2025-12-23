@@ -12,9 +12,14 @@ for file in "$WORKFLOW_DIR"/*.json; do
   
   # Remove pinData section (test execution data with real IDs)
   if jq -e '.pinData' "$file" > /dev/null 2>&1; then
-    echo "Sanitizing $filename..."
+    echo "Sanitizing $filename (pinData)..."
     jq 'del(.pinData)' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
-    echo "  ✓ Removed pinData"
+  fi
+
+  # Remove credential IDs (forces deployment script to look them up by name)
+  if jq -e '.nodes[].credentials' "$file" > /dev/null 2>&1; then
+    echo "Sanitizing $filename (credential IDs)..."
+    jq '.nodes |= map(if .credentials then .credentials |= with_entries(.value |= del(.id)) else . end)' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
   fi
 done
 
