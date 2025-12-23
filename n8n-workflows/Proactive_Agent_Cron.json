@@ -1,0 +1,182 @@
+{
+  "name": "Proactive_Agent_Cron",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "id": "schedule-trigger",
+      "name": "Every 5 Minutes"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Get next_pulse timestamp and current time\nSELECT \n  COALESCE(\n    (SELECT value::timestamptz FROM config WHERE key = 'next_pulse'),\n    NOW() - INTERVAL '1 minute'\n  ) as next_pulse,\n  NOW() as current_time,\n  COALESCE(\n    (SELECT value::timestamptz FROM config WHERE key = 'next_pulse'),\n    NOW() - INTERVAL '1 minute'\n  ) <= NOW() as should_run;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [224, 0],
+      "id": "check-next-pulse",
+      "name": "Check Next Pulse",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "check-should-run",
+              "leftValue": "={{ $json.should_run }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [448, 0],
+      "id": "if-should-run",
+      "name": "Should Run?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Set next_pulse to 2 hours from now (default interval)\n-- The Proactive_Agent can override this via its response\nUPDATE config \nSET value = (NOW() + INTERVAL '2 hours')::text, updated_at = NOW()\nWHERE key = 'next_pulse';\n\n-- If no row exists, insert one\nINSERT INTO config (key, value)\nVALUES ('next_pulse', (NOW() + INTERVAL '2 hours')::text)\nON CONFLICT (key) DO NOTHING;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [672, -80],
+      "id": "set-next-pulse",
+      "name": "Set Next Pulse (Default)",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for Proactive_Agent\nreturn [{\n  json: {\n    trigger_reason: 'cron'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [896, -80],
+      "id": "prepare-trigger-data",
+      "name": "Prepare Trigger Data"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1120, -80],
+      "id": "execute-proactive-agent",
+      "name": "Execute Proactive_Agent"
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Check Next Pulse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Next Pulse": {
+      "main": [
+        [
+          {
+            "node": "Should Run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Run?": {
+      "main": [
+        [
+          {
+            "node": "Set Next Pulse (Default)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Set Next Pulse (Default)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Trigger Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Trigger Data": {
+      "main": [
+        [
+          {
+            "node": "Execute Proactive_Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false
+  },
+  "meta": null,
+  "active": false
+}

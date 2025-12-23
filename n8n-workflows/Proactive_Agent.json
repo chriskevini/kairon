@@ -1,0 +1,637 @@
+{
+  "name": "Proactive_Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "id": "workflow-trigger",
+      "name": "When Called by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract trigger_reason from caller, default to 'cron'\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst now = new Date();\nconst idempotencyKey = `scheduled:proactive:${now.toISOString().slice(0, 16)}:${triggerReason}`;\n\nreturn [{\n  json: {\n    idempotency_key: idempotencyKey,\n    trigger_reason: triggerReason,\n    timestamp: now.toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [224, 0],
+      "id": "prepare-event",
+      "name": "Prepare Event"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert system event for proactive agent\nINSERT INTO events (idempotency_key, event_type, payload, timezone)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'proactive_agent',\n    'trigger_reason', $2\n  ),\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id, timezone = EXCLUDED.timezone\nRETURNING id, timezone;",
+        "options": {
+          "queryReplacement": "{{ $json.idempotency_key }},{{ $json.trigger_reason }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [448, 0],
+      "id": "insert-event",
+      "name": "Insert Event",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\nconst prepareData = $('Prepare Event').first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'proactive_agent',\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id]\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [672, 0],
+      "id": "init-ctx",
+      "name": "Initialize ctx"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Get active prompt modules, ordered by priority\nSELECT id, name, content, module_type, tags, priority\nFROM prompt_modules\nWHERE active = true\nORDER BY priority ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [896, -288],
+      "id": "get-prompt-modules",
+      "name": "Get Prompt Modules",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT value FROM config WHERE key = 'north_star';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [896, -96],
+      "id": "get-north-star",
+      "name": "Get North Star",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'description' as description\nFROM projections p\nWHERE p.projection_type = 'activity'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '24 hours'\nORDER BY (p.data->>'timestamp')::timestamptz DESC\nLIMIT 20;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [896, 96],
+      "id": "get-recent-activities",
+      "name": "Get Recent Activities (24h)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'text' as text\nFROM projections p\nWHERE p.projection_type = 'note'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '7 days'\nORDER BY (p.data->>'timestamp')::timestamptz DESC\nLIMIT 5;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [896, 288],
+      "id": "get-recent-notes",
+      "name": "Get Recent Notes (7d)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  p.id,\n  p.data->>'text' as text,\n  p.data->>'status' as status,\n  p.created_at,\n  EXTRACT(DAY FROM NOW() - p.created_at) as days_pending\nFROM projections p\nWHERE p.projection_type = 'todo'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND COALESCE(p.data->>'status', 'pending') = 'pending'\nORDER BY p.created_at ASC\nLIMIT 10;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [896, 480],
+      "id": "get-pending-todos",
+      "name": "Get Pending Todos",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 6
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1120, 0],
+      "id": "merge-query-results",
+      "name": "Merge Query Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble prompt from modules and context\nconst allItems = $input.all();\n\n// Extract ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\nconst formatDate = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      timeZone: timezone, \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  }\n};\n\n// Get current hour in user's timezone\nconst now = new Date();\nlet currentHour;\ntry {\n  currentHour = parseInt(now.toLocaleTimeString('en-US', { \n    timeZone: timezone, \n    hour: 'numeric', \n    hour12: false \n  }));\n} catch (e) {\n  currentHour = now.getHours();\n}\n\n// Determine time of day for technique selection\nconst isMorning = currentHour >= 6 && currentHour <= 9;\nconst isEvening = currentHour >= 20 && currentHour <= 23;\n\n// Extract prompt modules\nconst modules = allItems.filter(item => \n  item.json.module_type !== undefined\n);\n\n// Extract north star\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = allItems.filter(item => \n  item.json.value !== undefined && \n  item.json.module_type === undefined\n);\nif (northStarItems.length > 0 && northStarItems[0].json.value) {\n  northStar = northStarItems[0].json.value;\n}\n\n// Extract activities\nconst activityItems = allItems.filter(item => \n  item.json.description !== undefined && \n  !item.json.error\n);\n\n// Extract notes\nconst noteItems = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  item.json.days_pending === undefined &&\n  !item.json.error\n);\n\n// Extract todos\nconst todoItems = allItems.filter(item => \n  item.json.days_pending !== undefined && \n  !item.json.error\n);\n\n// Check for stuck todos (pending > 3 days)\nconst stuckTodos = todoItems.filter(t => t.json.days_pending > 3);\nconst hasStuckTodos = stuckTodos.length > 0;\n\n// Assemble prompt from modules\nconst promptParts = [];\n\n// 1. Always include persona modules (priority 0-10)\nconst personaModules = modules.filter(m => m.json.module_type === 'persona');\npersonaModules.forEach(m => promptParts.push(m.json.content));\n\n// 2. Select technique based on context\nlet selectedTechnique = null;\nif (isMorning) {\n  selectedTechnique = modules.find(m => \n    m.json.name === 'technique_morning'\n  );\n} else if (isEvening) {\n  selectedTechnique = modules.find(m => \n    m.json.name === 'technique_evening'\n  );\n} else if (hasStuckTodos) {\n  selectedTechnique = modules.find(m => \n    m.json.name === 'technique_stuck_todo'\n  );\n}\n\nif (selectedTechnique) {\n  promptParts.push(selectedTechnique.json.content);\n}\n\n// 3. Build context section\nlet contextSection = '## Current Context\\n\\n';\ncontextSection += `**Time:** ${formatDate(now.toISOString())} ${formatTime(now.toISOString())}\\n`;\ncontextSection += `**North Star:** ${northStar}\\n\\n`;\n\n// Format activities\ncontextSection += '### Recent Activities (last 24h)\\n';\nif (activityItems.length === 0) {\n  contextSection += '(No logged activity)\\n';\n} else {\n  activityItems.slice(0, 10).forEach(item => {\n    const time = formatTime(item.json.timestamp);\n    contextSection += `- ${time}: ${item.json.description} [${item.json.category}]\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format notes\ncontextSection += '### Recent Notes\\n';\nif (noteItems.length === 0) {\n  contextSection += '(No recent notes)\\n';\n} else {\n  noteItems.forEach(item => {\n    const date = formatDate(item.json.timestamp);\n    const preview = item.json.text.substring(0, 100) + (item.json.text.length > 100 ? '...' : '');\n    contextSection += `- ${date}: ${preview}\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format todos\ncontextSection += '### Pending Todos\\n';\nif (todoItems.length === 0) {\n  contextSection += '(No pending todos)\\n';\n} else {\n  todoItems.forEach(item => {\n    const daysStr = item.json.days_pending > 0 ? ` (${Math.floor(item.json.days_pending)} days)` : '';\n    contextSection += `- ${item.json.text}${daysStr}\\n`;\n  });\n}\n\npromptParts.push(contextSection);\n\n// 4. Include format module\nconst formatModule = modules.find(m => m.json.module_type === 'format');\nif (formatModule) {\n  promptParts.push(formatModule.json.content);\n}\n\n// 5. Always include guardrail modules (priority 200+)\nconst guardrailModules = modules.filter(m => m.json.module_type === 'guardrail');\nguardrailModules.forEach(m => promptParts.push(m.json.content));\n\n// Assemble final prompt\nconst assembledPrompt = promptParts.join('\\n\\n---\\n\\n');\n\n// Determine the context description for the agent\nlet contextDescription = 'general check-in';\nif (isMorning) contextDescription = 'morning check-in';\nelse if (isEvening) contextDescription = 'evening reflection';\nelse if (hasStuckTodos) contextDescription = 'stuck todo nudge';\nelse if (activityItems.length === 0) contextDescription = 'no recent activity';\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    assembled_prompt: assembledPrompt,\n    context_description: contextDescription,\n    technique_used: selectedTechnique?.json.name || 'none',\n    inference_start: Date.now(),\n    trace_chain_pg: traceChainPg,\n    // Metadata for trace storage\n    input_summary: {\n      activity_count: activityItems.length,\n      note_count: noteItems.length,\n      todo_count: todoItems.length,\n      stuck_todo_count: stuckTodos.length,\n      current_hour: currentHour,\n      is_morning: isMorning,\n      is_evening: isEvening\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1344, 0],
+      "id": "assemble-prompt",
+      "name": "Assemble Prompt"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.assembled_prompt }}\n\n---\n\n## Your Task\n\nBased on the context above, compose a proactive message to the user. This is a {{ $json.context_description }}.\n\nYour message should be helpful, personal, and timely. Reference their specific activities, notes, or todos when relevant.\n\nRespond with ONLY the message you would send to the user. No preamble, no explanation - just the message itself.",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [1568, 0],
+      "id": "generate-message-llm",
+      "name": "Generate Message with LLM"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [1576, 224],
+      "id": "nemotron-nano-9b",
+      "name": "nemotron-nano-9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [1704, 224],
+      "id": "mimo-v2-flash",
+      "name": "mimo-v2-flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "r79IBN16aZtPIN8T",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse LLM response\nconst assembleData = $('Assemble Prompt').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - assembleData.inference_start;\nconst ctx = assembleData.ctx;\n\n// Clean up the message (remove any markdown code blocks or preamble)\nlet message = llmText;\n\n// Remove common LLM artifacts\nif (message.startsWith('```')) {\n  message = message.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '');\n}\n\n// Trim any leading/trailing whitespace\nmessage = message.trim();\n\n// Check if message is empty or too short\nconst isEmpty = !message || message.length < 10;\n\nreturn [{\n  json: {\n    ctx,\n    message: message,\n    is_empty: isEmpty,\n    duration_ms: durationMs,\n    trace_chain_pg: assembleData.trace_chain_pg,\n    llm_response: llmText,\n    assembled_prompt: assembleData.assembled_prompt,\n    context_description: assembleData.context_description,\n    technique_used: assembleData.technique_used,\n    input_summary: assembleData.input_summary\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1792, 0],
+      "id": "parse-llm-response",
+      "name": "Parse LLM Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'proactive_agent',\n  jsonb_build_object(\n    'prompt', $2,\n    'completion', $3,\n    'context_description', $4,\n    'technique_used', $5,\n    'input_summary', $6::jsonb,\n    'duration_ms', $7::integer\n  ),\n  $8::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
+        "options": {
+          "queryReplacement": "{{ $json.ctx.event.event_id }},{{ $json.assembled_prompt }},{{ $json.llm_response }},{{ $json.context_description }},{{ $json.technique_used }},{{ JSON.stringify($json.input_summary) }},{{ $json.duration_ms }},{{ $json.trace_chain_pg }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2016, 0],
+      "id": "store-trace",
+      "name": "Store Trace",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge trace result with parsed LLM data\nconst traceResult = $json;\nconst parseData = $('Parse LLM Response').first().json;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// Pre-stringify projection data for Postgres\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  text: parseData.message,\n  context_description: parseData.context_description,\n  technique_used: parseData.technique_used\n};\n\nreturn [{\n  json: {\n    ctx: parseData.ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    message: parseData.message,\n    is_empty: parseData.is_empty,\n    projection_data_json: JSON.stringify(projectionData)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2240, 0],
+      "id": "merge-trace-result",
+      "name": "Merge Trace Result"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "check-empty",
+              "leftValue": "={{ $json.is_empty }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2464, 0],
+      "id": "if-empty",
+      "name": "If Empty Message"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'nudge',\n  $4::jsonb,\n  'auto_confirmed',\n  $5\n)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "{{ $json.trace_id }},{{ $json.ctx.event.event_id }},{{ $json.trace_chain_pg }},{{ $json.projection_data_json }},{{ $json.ctx.event.timezone }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2688, 80],
+      "id": "store-projection",
+      "name": "Store Projection",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge projection result for Discord\nconst projResult = $json;\nconst mergeData = $('Merge Trace Result').first().json;\n\nreturn [{\n  json: {\n    ctx: mergeData.ctx,\n    projection_id: projResult.id,\n    message: mergeData.message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2912, 80],
+      "id": "merge-for-discord",
+      "name": "Merge for Discord"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_GUILD_ID }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_ARCANE_SHELL }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [3136, 80],
+      "id": "send-message",
+      "name": "Send Message",
+      "credentials": {
+        "discordBotApi": {
+          "id": "hvetTjtpeKFB1V0I",
+          "name": "Discord Bot account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Update projection with Discord message ID for void support\nUPDATE projections \nSET data = data || jsonb_build_object(\n  'discord_message_id', $1,\n  'discord_channel_id', $2,\n  'discord_guild_id', $3\n)\nWHERE id = $4::uuid\nRETURNING id;",
+        "options": {
+          "queryReplacement": "{{ $json.id }},{{ $env.DISCORD_CHANNEL_ARCANE_SHELL }},{{ $env.DISCORD_GUILD_ID }},{{ $('Merge for Discord').first().json.projection_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [3360, 80],
+      "id": "update-projection-message-id",
+      "name": "Update Projection with Message ID",
+      "credentials": {
+        "postgres": {
+          "id": "MdnYzEgjzWRujz2v",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Called by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Event": {
+      "main": [
+        [
+          {
+            "node": "Insert Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Event": {
+      "main": [
+        [
+          {
+            "node": "Initialize ctx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize ctx": {
+      "main": [
+        [
+          {
+            "node": "Get Prompt Modules",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get North Star",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Activities (24h)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Notes (7d)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Pending Todos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Prompt Modules": {
+      "main": [
+        [
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get North Star": {
+      "main": [
+        [
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Get Recent Activities (24h)": {
+      "main": [
+        [
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Get Recent Notes (7d)": {
+      "main": [
+        [
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Get Pending Todos": {
+      "main": [
+        [
+          {
+            "node": "Merge Query Results",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Merge Query Results": {
+      "main": [
+        [
+          {
+            "node": "Assemble Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Message with LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Message with LLM": {
+      "main": [
+        [
+          {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Store Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Trace": {
+      "main": [
+        [
+          {
+            "node": "Merge Trace Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Trace Result": {
+      "main": [
+        [
+          {
+            "node": "If Empty Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Empty Message": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Store Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Projection": {
+      "main": [
+        [
+          {
+            "node": "Merge for Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge for Discord": {
+      "main": [
+        [
+          {
+            "node": "Send Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Message": {
+      "main": [
+        [
+          {
+            "node": "Update Projection with Message ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nemotron-nano-9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Message with LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mimo-v2-flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Message with LLM",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false
+  },
+  "meta": null,
+  "active": false
+}

@@ -7,6 +7,9 @@ BEGIN;
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Enable vector extension for embeddings (requires pgvector)
+CREATE EXTENSION IF NOT EXISTS vector;
+
 --------------------------------------------------------------------------------
 -- CORE TABLES
 --------------------------------------------------------------------------------
@@ -83,7 +86,7 @@ CREATE TABLE IF NOT EXISTS config (
   updated_by_raw_event_id UUID REFERENCES events(id)
 );
 
--- Embeddings: Vector embeddings for RAG (future use)
+-- Embeddings: Vector embeddings for RAG
 CREATE TABLE IF NOT EXISTS embeddings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   projection_id UUID REFERENCES projections(id),
@@ -91,10 +94,12 @@ CREATE TABLE IF NOT EXISTS embeddings (
   model_version TEXT,
   embedding_data JSONB NOT NULL,
   embedded_text TEXT,
+  embedding vector(384),  -- pgvector column for similarity search
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_embeddings_projection_id ON embeddings(projection_id);
+CREATE INDEX IF NOT EXISTS idx_embeddings_vector ON embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 -- Prompt modules: Composable prompt building blocks for the proactive agent
 CREATE TABLE IF NOT EXISTS prompt_modules (
@@ -105,6 +110,7 @@ CREATE TABLE IF NOT EXISTS prompt_modules (
   tags TEXT[] DEFAULT '{}',
   priority INTEGER DEFAULT 50,
   active BOOLEAN DEFAULT true,
+  embedding vector(384),  -- pgvector column for semantic selection
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   
@@ -116,6 +122,7 @@ CREATE TABLE IF NOT EXISTS prompt_modules (
 CREATE INDEX IF NOT EXISTS idx_prompt_modules_type ON prompt_modules(module_type);
 CREATE INDEX IF NOT EXISTS idx_prompt_modules_active ON prompt_modules(active) WHERE active = true;
 CREATE INDEX IF NOT EXISTS idx_prompt_modules_tags ON prompt_modules USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_prompt_modules_embedding ON prompt_modules USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10);
 
 --------------------------------------------------------------------------------
 -- CONVENIENCE VIEWS
