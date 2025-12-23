@@ -8,7 +8,7 @@
         "options": {}
       },
       "id": "cd624af2-2b2d-4c54-a6f2-c16f72817ee4",
-      "name": "DiscordWebhookEntry",
+      "name": "Discord Webhook Entry",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
@@ -35,7 +35,7 @@
         -128
       ],
       "id": "cron-nudge",
-      "name": "NudgeCron(every15Min)"
+      "name": "Nudge Cron (Every 15 Min)"
     },
     {
       "parameters": {
@@ -55,15 +55,14 @@
         544
       ],
       "id": "cron-summary",
-      "name": "SummaryCron(every5Min)"
+      "name": "Summary Cron (Every 5 Min)"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "list",
-          "cachedResultName": "Generate_Nudge"
+          "value": "59PoRBQyv8eCroDh",
+          "mode": "id"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -86,7 +85,7 @@
         -128
       ],
       "id": "execute-nudge-cron",
-      "name": "ExecuteGenerateNudge"
+      "name": "Execute Generate_Nudge"
     },
     {
       "parameters": {
@@ -99,25 +98,20 @@
         544
       ],
       "id": "build-summary-config-query",
-      "name": "BuildSummaryConfigQuery"
+      "name": "Build Summary Config Query"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": {
-            "ctx": "={{ $json.ctx }}"
-          }
+          "value": {}
         },
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
@@ -126,7 +120,7 @@
         544
       ],
       "id": "get-summary-config",
-      "name": "GetSummaryConfig"
+      "name": "Get Summary Config"
     },
     {
       "parameters": {
@@ -139,15 +133,14 @@
         544
       ],
       "id": "check-summary-time",
-      "name": "CheckShouldRunSummary"
+      "name": "Check Should Run Summary"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "list",
-          "cachedResultName": "Generate_Daily_Summary"
+          "value": "cIROQISrYEAKML84",
+          "mode": "id"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -170,7 +163,7 @@
         544
       ],
       "id": "execute-summary-cron",
-      "name": "ExecuteGenerateDailySummary"
+      "name": "Execute Generate_Daily_Summary"
     },
     {
       "parameters": {
@@ -231,7 +224,7 @@
         }
       },
       "id": "1c5b0871-58a8-457f-8b94-c1225e4e38b7",
-      "name": "RouteByEventType",
+      "name": "Route by Event Type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
@@ -241,7 +234,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = body.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = body.message_id;\nconst userId = body.user?.id || body.user_id;\nconst timestamp = Date.now();\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${timestamp}`;\n\nreturn [{\n  json: {\n    ...body,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
+        "jsCode": "const body = $json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = body.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = body.message_id;\nconst userId = body.user?.id || body.user_id;\nconst timestamp = Date.now();\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${timestamp}`;\n\nreturn [{\n  json: {\n    ...body,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -250,11 +243,11 @@
         352
       ],
       "id": "1ffa970a-a79d-4d92-ad89-666e68c48276",
-      "name": "ParseReaction"
+      "name": "Parse Reaction"
     },
     {
       "parameters": {
-        "jsCode": "// Build store message query for Execute_Queries\nconst parsed = $json;\nconst body = $('DiscordWebhookEntry').item.json.body;\n\nconst messageUrl = `https://discord.com/channels/${body.guild_id}/${body.channel_id}/${body.message_id}`;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  $11,\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          messageUrl,\n          body.author?.login || body.author_login,\n          body.thread_id || null,\n          body.content,\n          parsed.clean_text,\n          parsed.tag || null,\n          body.timestamp,\n          parsed.event_type\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
+        "jsCode": "// Build store message query for Execute_Queries\nconst parsed = $json;\nconst body = $('Discord Webhook Entry').item.json.body;\n\nconst messageUrl = `https://discord.com/channels/${body.guild_id}/${body.channel_id}/${body.message_id}`;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  $11,\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          messageUrl,\n          body.author?.login || body.author_login,\n          body.thread_id || null,\n          body.content,\n          parsed.clean_text,\n          parsed.tag || null,\n          body.timestamp,\n          parsed.event_type\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -263,43 +256,33 @@
         160
       ],
       "id": "build-message-event-query",
-      "name": "BuildMessageEventQuery"
+      "name": "Build Message Event Query"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  $11,\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload,\n    timezone = EXCLUDED.timezone\nRETURNING *;",
-        "values": [
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[0]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[1]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[2]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[3]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[4]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[5]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[6]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[7]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[8]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[9]}}",
-          "={{$('BuildMessageEventQuery').first().json.ctx.db_queries[0].params[10]}}"
-        ]
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
         128,
         160
       ],
       "id": "store-message-event",
-      "name": "StoreMessageEvent",
-      "credentials": {
-        "postgres": {
-          "name": "Postgres DB"
-        }
-      }
+      "name": "Store Message Event"
     },
     {
       "parameters": {
-        "jsCode": "// Build store reaction query for Execute_Queries\nconst parsed = $json;\nconst body = $('DiscordWebhookEntry').item.json.body;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          body.user?.login || body.user_id,\n          body.thread_id || null,\n          parsed.emoji,\n          parsed.extraction_index,\n          body.action,\n          parsed.synthetic_id\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
+        "jsCode": "// Build store reaction query for Execute_Queries\nconst parsed = $json;\nconst body = $('Discord Webhook Entry').item.json.body;\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: 'event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key,\n  timezone\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9,\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nRETURNING *;`,\n        params: [\n          body.guild_id,\n          body.channel_id,\n          body.message_id,\n          body.user?.login || body.user_id,\n          body.thread_id || null,\n          parsed.emoji,\n          parsed.extraction_index,\n          body.action,\n          parsed.synthetic_id\n        ]\n      }]\n    },\n    webhook: body,\n    parsed: parsed\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -308,25 +291,20 @@
         352
       ],
       "id": "build-reaction-event-query",
-      "name": "BuildReactionEventQuery"
+      "name": "Build Reaction Event Query"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
-          "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": {
-            "ctx": "={{ $json.ctx }}"
-          }
+          "value": {}
         },
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
@@ -335,11 +313,11 @@
         352
       ],
       "id": "store-reaction-event",
-      "name": "StoreReactionEvent"
+      "name": "Store Reaction Event"
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $('StoreMessageEvent').first().json;\nconst webhook = $('BuildMessageEventQuery').first().json.webhook;\nconst parsed = $('BuildMessageEventQuery').first().json.parsed;\n\nif (!dbResult || !dbResult.id) {\n  throw new Error('Database result (event) not found from StoreMessageEvent');\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: dbResult.event_type,\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhook = $('Build Message Event Query').first().json.webhook;\nconst parsed = $('Build Message Event Query').first().json.parsed;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: dbResult.event_type,\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -348,11 +326,11 @@
         160
       ],
       "id": "ebc352f8-4d54-4ecd-9aee-d6e36d191099",
-      "name": "InitializeMessageContext"
+      "name": "Initialize Message Context"
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhook = $('BuildReactionEventQuery').first().json.webhook;\nconst parsed = $('BuildReactionEventQuery').first().json.parsed;\n\nif (!dbResult) {\n  throw new Error('Database result (event) not found in ctx.db.event.row');\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst ctx = $json.ctx;\nconst dbResult = ctx.db?.event?.row;\nconst webhook = $('Build Reaction Event Query').first().json.webhook;\nconst parsed = $('Build Reaction Event Query').first().json.parsed;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        timezone: dbResult.timezone || 'UTC',\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -361,7 +339,7 @@
         352
       ],
       "id": "9377cd32-3d33-458d-9cb9-bca0ffb63490",
-      "name": "InitializeReactionContext"
+      "name": "Initialize Reaction Context"
     },
     {
       "parameters": {
@@ -390,7 +368,7 @@
         352
       ],
       "id": "a03ea0a9-a9d2-4ce7-bb70-3a12397a5719",
-      "name": "RouteReaction"
+      "name": "Route Reaction"
     },
     {
       "parameters": {
@@ -419,7 +397,7 @@
         160
       ],
       "id": "29f4a14c-4ba5-481b-9ac0-7d8200241a40",
-      "name": "RouteMessage"
+      "name": "Route Message"
     },
     {
       "parameters": {
@@ -432,176 +410,176 @@
         160
       ],
       "id": "5f108e4e-41d7-4284-be7e-dcd784e855e6",
-      "name": "ParseMessage"
+      "name": "Parse Message"
     }
   ],
   "connections": {
-    "DiscordWebhookEntry": {
+    "Discord Webhook Entry": {
       "main": [
         [
           {
-            "node": "RouteByEventType",
+            "node": "Route by Event Type",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "NudgeCron(every15Min)": {
+    "Nudge Cron (Every 15 Min)": {
       "main": [
         [
           {
-            "node": "ExecuteGenerateNudge",
+            "node": "Execute Generate_Nudge",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "SummaryCron(every5Min)": {
+    "Summary Cron (Every 5 Min)": {
       "main": [
         [
           {
-            "node": "BuildSummaryConfigQuery",
+            "node": "Build Summary Config Query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "BuildSummaryConfigQuery": {
+    "Build Summary Config Query": {
       "main": [
         [
           {
-            "node": "GetSummaryConfig",
+            "node": "Get Summary Config",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "GetSummaryConfig": {
+    "Get Summary Config": {
       "main": [
         [
           {
-            "node": "CheckShouldRunSummary",
+            "node": "Check Should Run Summary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "CheckShouldRunSummary": {
+    "Check Should Run Summary": {
       "main": [
         [
           {
-            "node": "ExecuteGenerateDailySummary",
+            "node": "Execute Generate_Daily_Summary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "RouteByEventType": {
+    "Route by Event Type": {
       "main": [
         [
           {
-            "node": "ParseMessage",
+            "node": "Parse Message",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "ParseReaction",
+            "node": "Parse Reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "ParseReaction": {
+    "Parse Reaction": {
       "main": [
         [
           {
-            "node": "BuildReactionEventQuery",
+            "node": "Build Reaction Event Query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "ParseMessage": {
+    "Parse Message": {
       "main": [
         [
           {
-            "node": "BuildMessageEventQuery",
+            "node": "Build Message Event Query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "BuildMessageEventQuery": {
+    "Build Message Event Query": {
       "main": [
         [
           {
-            "node": "StoreMessageEvent",
+            "node": "Store Message Event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "StoreMessageEvent": {
+    "Store Message Event": {
       "main": [
         [
           {
-            "node": "InitializeMessageContext",
+            "node": "Initialize Message Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "BuildReactionEventQuery": {
+    "Build Reaction Event Query": {
       "main": [
         [
           {
-            "node": "StoreReactionEvent",
+            "node": "Store Reaction Event",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "StoreReactionEvent": {
+    "Store Reaction Event": {
       "main": [
         [
           {
-            "node": "InitializeReactionContext",
+            "node": "Initialize Reaction Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "InitializeMessageContext": {
+    "Initialize Message Context": {
       "main": [
         [
           {
-            "node": "RouteMessage",
+            "node": "Route Message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "InitializeReactionContext": {
+    "Initialize Reaction Context": {
       "main": [
         [
           {
-            "node": "RouteReaction",
+            "node": "Route Reaction",
             "type": "main",
             "index": 0
           }
