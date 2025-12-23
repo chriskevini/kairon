@@ -1,21 +1,22 @@
 #!/bin/bash
-# deploy.sh - Deploy workflows to dev or prod with testing
+# deploy.sh - Deploy workflows to dev and prod with testing
 #
 # Usage:
-#   ./scripts/deploy.sh dev    # Transform + deploy to dev + run smoke tests
-#   ./scripts/deploy.sh prod   # Deploy to prod as-is (not yet implemented)
+#   ./scripts/deploy.sh           # Full pipeline: dev → test → prod
+#   ./scripts/deploy.sh dev       # Deploy to dev only + run smoke tests
+#   ./scripts/deploy.sh prod      # Deploy to prod only (no tests)
 #
 # Prerequisites:
 #   - Dev: docker-compose.dev.yml running on server
-#   - N8N_DEV_API_KEY set in .env
-#   - N8N_DEV_SSH_HOST set in .env (if running from a different machine)
+#   - N8N_DEV_API_KEY and N8N_API_KEY set in .env
+#   - SSH access to remote server (N8N_DEV_SSH_HOST in .env)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Load environment variables from repo .env first, then server .env
+# Load environment variables
 if [ -f "$REPO_ROOT/.env" ]; then
     set -a
     source "$REPO_ROOT/.env"
@@ -27,50 +28,42 @@ if [ -f /opt/n8n-docker-caddy/.env ]; then
     set +a
 fi
 
-TARGET="${1:-dev}"
+TARGET="${1:-all}"  # Default to full pipeline
 WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
 WORKFLOW_DEV_DIR="$REPO_ROOT/n8n-workflows-dev"
 TRANSFORM_SCRIPT="$SCRIPT_DIR/transform_for_dev.py"
 
-# --- CONFIGURATION ---
-if [ "$TARGET" == "prod" ]; then
-    echo "Prod deployment not yet implemented in this script"
-    echo "Use the existing manual process for now"
-    exit 1
-else
-    if [ -z "${N8N_DEV_API_KEY:-}" ]; then
-        echo "Error: N8N_DEV_API_KEY not set"
-        echo "Add it to .env or export it"
-        exit 1
-    fi
-    
-    # Set up SSH tunnels if N8N_DEV_SSH_HOST is configured
+# --- SSH TUNNEL SETUP ---
+setup_ssh_tunnel() {
     if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
-        # Dev tunnel (5679)
         if ! curl -s --connect-timeout 1 http://localhost:5679/ > /dev/null 2>&1; then
             echo "Opening SSH tunnel to $N8N_DEV_SSH_HOST..."
             ssh -f -N -L 5679:localhost:5679 -L 5678:localhost:5678 "$N8N_DEV_SSH_HOST" 2>/dev/null || {
                 echo "Error: Failed to open SSH tunnel to $N8N_DEV_SSH_HOST"
-                echo "Make sure you can SSH to this host without a password prompt"
                 exit 1
             }
-            # Give tunnel a moment to establish
             sleep 1
         fi
     fi
-    
-    API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
-    API_KEY="$N8N_DEV_API_KEY"
-    PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
-    PROD_API_KEY="${N8N_API_KEY:-}"
-    echo "Deploying to DEV ($API_URL)"
-fi
-
-echo "   Workflow source: $WORKFLOW_DIR"
-echo ""
+}
 
 # --- DEV DEPLOYMENT ---
-if [ "$TARGET" == "dev" ]; then
+deploy_dev() {
+    echo "========================================"
+    echo "STAGE 1: Deploy to DEV"
+    echo "========================================"
+    echo ""
+    
+    if [ -z "${N8N_DEV_API_KEY:-}" ]; then
+        echo "Error: N8N_DEV_API_KEY not set"
+        exit 1
+    fi
+    
+    local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
+    local API_KEY="$N8N_DEV_API_KEY"
+    local PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
+    local PROD_API_KEY="${N8N_API_KEY:-}"
+    
     # Check if dev stack is running
     if ! curl -s -o /dev/null -w "" "$API_URL/" 2>/dev/null; then
         echo "Error: Dev n8n not responding at $API_URL"
@@ -81,12 +74,9 @@ if [ "$TARGET" == "dev" ]; then
     TEMP_DIR=$(mktemp -d)
     trap "rm -rf $TEMP_DIR" EXIT
     
-    # --- PASS 1: Initial transform and push (creates workflows, gets IDs) ---
+    # --- PASS 1: Initial transform and push ---
     echo "Pass 1: Initial deployment..."
     echo ""
-    
-    # Transform workflows for dev (mock external calls, convert webhooks)
-    # First pass: no ID remapping yet
     echo "Transforming workflows for dev environment..."
     for workflow in "$WORKFLOW_DIR"/*.json; do
         [ -f "$workflow" ] || continue
@@ -95,7 +85,7 @@ if [ "$TARGET" == "dev" ]; then
         echo "   Transformed: $filename"
     done
     
-    # Copy dev-only workflows (no transformation needed, they're already dev-specific)
+    # Copy dev-only workflows
     if [ -d "$WORKFLOW_DEV_DIR" ]; then
         for workflow in "$WORKFLOW_DEV_DIR"/*.json; do
             [ -f "$workflow" ] || continue
@@ -105,7 +95,6 @@ if [ "$TARGET" == "dev" ]; then
         done
     fi
     
-    # Push transformed workflows to dev (creates any missing workflows)
     echo ""
     echo "Pushing to dev n8n (pass 1)..."
     WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
@@ -115,14 +104,12 @@ if [ "$TARGET" == "dev" ]; then
     echo ""
     echo "Pass 2: Remapping workflow IDs..."
     
-    # Fetch workflow name -> ID mapping from dev n8n
     DEV_WORKFLOW_IDS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
         "$API_URL/api/v1/workflows?limit=100" | \
         jq -c '[.data[] | {(.name): .id}] | add // {}')
     
     echo "   Found dev workflow IDs: $(echo "$DEV_WORKFLOW_IDS" | jq 'keys | length') workflows"
     
-    # Fetch workflow name -> ID mapping from prod n8n (via remote SSH to avoid tunnel auth issues)
     if [ -n "$PROD_API_KEY" ] && [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
         PROD_WORKFLOW_IDS=$(ssh "$N8N_DEV_SSH_HOST" \
             "curl -s -H 'X-N8N-API-KEY: $PROD_API_KEY' '$PROD_API_URL/api/v1/workflows?limit=100'" | \
@@ -130,8 +117,6 @@ if [ "$TARGET" == "dev" ]; then
         
         echo "   Found prod workflow IDs: $(echo "$PROD_WORKFLOW_IDS" | jq 'keys | length') workflows"
         
-        # Build prod ID -> dev ID mapping by matching names
-        # { "prodId1": "devId1", "prodId2": "devId2", ... }
         WORKFLOW_ID_REMAP=$(echo "$PROD_WORKFLOW_IDS" "$DEV_WORKFLOW_IDS" | \
             jq -sc '.[0] as $prod | .[1] as $dev | 
                 [$prod | to_entries[] | {(.value): $dev[.key]}] | 
@@ -139,11 +124,9 @@ if [ "$TARGET" == "dev" ]; then
         
         echo "   Built ID remap: $(echo "$WORKFLOW_ID_REMAP" | jq 'keys | length') mappings"
     else
-        echo "   Warning: N8N_API_KEY not set, skipping workflow ID remapping"
         WORKFLOW_ID_REMAP='{}'
     fi
     
-    # Re-transform with ID remapping
     rm -f "$TEMP_DIR"/*.json
     
     for workflow in "$WORKFLOW_DIR"/*.json; do
@@ -152,7 +135,6 @@ if [ "$TARGET" == "dev" ]; then
         WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
     done
     
-    # Copy dev-only workflows again
     if [ -d "$WORKFLOW_DEV_DIR" ]; then
         for workflow in "$WORKFLOW_DEV_DIR"/*.json; do
             [ -f "$workflow" ] || continue
@@ -161,101 +143,134 @@ if [ "$TARGET" == "dev" ]; then
         done
     fi
     
-    # Push again with correct IDs
     echo ""
     echo "Pushing to dev n8n (pass 2 - with correct workflow IDs)..."
     WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
         "$SCRIPT_DIR/workflows/n8n-push-local.sh"
     
-    # Run smoke tests
     echo ""
-    echo "Running smoke tests..."
+    echo "DEV deployment complete"
+}
+
+# --- SMOKE TESTS ---
+run_smoke_tests() {
+    echo ""
+    echo "========================================"
+    echo "STAGE 2: Smoke Tests"
+    echo "========================================"
+    echo ""
     
-    # Find Smoke_Test workflow ID
+    local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
+    local API_KEY="$N8N_DEV_API_KEY"
+    
     SMOKE_TEST_ID=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
         "$API_URL/api/v1/workflows" | \
         jq -r '.data[] | select(.name == "Smoke_Test") | .id')
     
     if [ -z "$SMOKE_TEST_ID" ] || [ "$SMOKE_TEST_ID" == "null" ]; then
         echo "Warning: Smoke_Test workflow not found in dev n8n"
-        echo "Create it manually in the dev n8n UI, then re-run deploy"
-        echo ""
-        echo "Deployment complete (smoke tests skipped)"
-        exit 0
+        echo "Skipping smoke tests"
+        return 0
     fi
     
-    # Activate the workflow (required for webhook to work)
-    ACTIVATE_RESULT=$(curl -s -X POST \
+    # Activate the workflow
+    curl -s -X POST \
         -H "X-N8N-API-KEY: $API_KEY" \
-        "$API_URL/api/v1/workflows/$SMOKE_TEST_ID/activate")
+        "$API_URL/api/v1/workflows/$SMOKE_TEST_ID/activate" > /dev/null
     
-    if ! echo "$ACTIVATE_RESULT" | jq -e '.active == true' > /dev/null 2>&1; then
-        echo "Warning: Could not activate Smoke_Test workflow"
-        echo "$ACTIVATE_RESULT" | jq '.' 2>/dev/null || echo "$ACTIVATE_RESULT"
-        echo ""
-        echo "Deployment complete (smoke tests skipped)"
-        exit 0
-    fi
-    
-    # Execute smoke test via webhook with timeout
-    echo "   Invoking smoke test webhook..."
+    echo "Invoking smoke test webhook..."
     RESULT=$(curl -s -X POST \
         --max-time 60 \
         -H "Content-Type: application/json" \
         "$API_URL/webhook/smoke-test" \
         -d '{}')
     
-    # Check if curl succeeded
     if [ -z "$RESULT" ]; then
-        echo "FAILED: No response from smoke test (timeout or connection error)"
-        exit 1
+        echo "FAILED: No response from smoke test"
+        return 1
     fi
     
-    # Check if response is valid JSON
     if ! echo "$RESULT" | jq -e '.' > /dev/null 2>&1; then
-        echo "FAILED: Smoke test returned invalid JSON"
-        echo "Raw response: $RESULT"
-        exit 1
+        echo "FAILED: Invalid JSON response"
+        echo "$RESULT"
+        return 1
     fi
     
-    # Check result
     if echo "$RESULT" | jq -e '.success == true' > /dev/null 2>&1; then
         echo ""
-        echo "========================================"
         echo "SMOKE TESTS PASSED"
-        echo "========================================"
-        echo "$RESULT" | jq -r '"Run: \(.run_id)"' || echo "Run: unknown"
-        echo "$RESULT" | jq -r '"Tests: \(.summary.passed)/\(.summary.total) passed"' || echo "Tests: unknown"
+        echo "$RESULT" | jq -r '"  Run: \(.run_id)"'
+        echo "$RESULT" | jq -r '"  Tests: \(.summary.passed)/\(.summary.total) passed"'
         echo ""
-        echo "Test Results:"
-        echo "$RESULT" | jq -r '.tests[] | "  \(if .passed then "✓" else "✗" end) \(.name): \(.details)"' || {
-            echo "  (could not parse individual test results)"
-        }
+        echo "$RESULT" | jq -r '.tests[] | "  \(if .passed then "✓" else "✗" end) \(.name): \(.details)"'
+        return 0
     else
         echo ""
-        echo "========================================"
         echo "SMOKE TESTS FAILED"
-        echo "========================================"
-        
-        # Try to parse structured response
-        if echo "$RESULT" | jq -e '.tests' > /dev/null 2>&1; then
-            echo "$RESULT" | jq -r '"Run: \(.run_id // "unknown")"' || echo "Run: unknown"
-            echo "$RESULT" | jq -r '"Tests: \(.summary.passed // 0)/\(.summary.total // 0) passed"' || echo "Tests: unknown"
-            echo ""
-            echo "Test Results:"
-            echo "$RESULT" | jq -r '.tests[] | "  \(if .passed then "✓" else "✗" end) \(.name): \(.details)"' || {
-                echo "  (could not parse individual test results)"
-            }
-        else
-            # Raw output if not structured
-            echo "Raw response:"
-            echo "$RESULT" | jq '.' 2>/dev/null || echo "$RESULT"
-        fi
+        echo "$RESULT" | jq -r '.tests[] | "  \(if .passed then "✓" else "✗" end) \(.name): \(.details)"' 2>/dev/null || echo "$RESULT"
+        return 1
+    fi
+}
+
+# --- PROD DEPLOYMENT ---
+deploy_prod() {
+    echo ""
+    echo "========================================"
+    echo "STAGE 3: Deploy to PROD"
+    echo "========================================"
+    echo ""
+    
+    if [ -z "${N8N_API_KEY:-}" ]; then
+        echo "Error: N8N_API_KEY not set"
         exit 1
     fi
-fi
+    
+    # Use rdev which handles SSH-based API access
+    if ! command -v rdev &> /dev/null; then
+        echo "Error: rdev not found. Install from ~/.local/bin/rdev"
+        exit 1
+    fi
+    
+    echo "Pushing workflows to prod n8n via rdev..."
+    rdev n8n push
+    
+    echo ""
+    echo "PROD deployment complete"
+}
+
+# --- MAIN ---
+setup_ssh_tunnel
+
+case "$TARGET" in
+    dev)
+        deploy_dev
+        run_smoke_tests
+        ;;
+    prod)
+        deploy_prod
+        ;;
+    all|"")
+        deploy_dev
+        if run_smoke_tests; then
+            deploy_prod
+        else
+            echo ""
+            echo "========================================"
+            echo "PROD DEPLOYMENT SKIPPED - Tests failed"
+            echo "========================================"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Usage: $0 [dev|prod|all]"
+        echo "  dev  - Deploy to dev + run smoke tests"
+        echo "  prod - Deploy to prod only"
+        echo "  all  - Full pipeline: dev → test → prod (default)"
+        exit 1
+        ;;
+esac
 
 echo ""
 echo "========================================"
-echo "DEPLOYMENT COMPLETE: $TARGET"
+echo "DEPLOYMENT COMPLETE"
 echo "========================================"

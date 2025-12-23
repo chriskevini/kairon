@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pre-push hook - deploy to dev and run smoke tests before allowing push
+# Pre-push hook - deploy to dev, run smoke tests, then deploy to prod
 #
 # Install: ln -sf ../../.githooks/pre-push .git/hooks/pre-push
 # Or: git config core.hooksPath .githooks
@@ -9,7 +9,7 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 echo "========================================"
-echo "Pre-push: Running dev deployment + smoke tests"
+echo "Pre-push: Full deployment pipeline"
 echo "========================================"
 echo ""
 
@@ -17,20 +17,20 @@ echo ""
 WORKFLOW_CHANGES=$(git diff --name-only HEAD @{upstream} 2>/dev/null | grep -c "n8n-workflows/" || true)
 
 if [ "$WORKFLOW_CHANGES" -eq 0 ]; then
-    echo "No workflow changes detected, skipping smoke tests"
+    echo "No workflow changes detected, skipping deployment"
     exit 0
 fi
 
 echo "Detected $WORKFLOW_CHANGES workflow file(s) changed"
 echo ""
 
-# Deploy to dev and run smoke tests
-"$REPO_ROOT/scripts/deploy.sh" dev
+# Full pipeline: dev → smoke tests → prod
+"$REPO_ROOT/scripts/deploy.sh"
 
 if [ $? -ne 0 ]; then
     echo ""
     echo "========================================"
-    echo "PUSH BLOCKED: Dev smoke tests failed"
+    echo "PUSH BLOCKED: Deployment pipeline failed"
     echo "========================================"
     echo ""
     echo "Fix the issues and try again."
@@ -39,5 +39,5 @@ fi
 
 echo ""
 echo "========================================"
-echo "Pre-push checks passed"
+echo "Pre-push deployment complete"
 echo "========================================"
