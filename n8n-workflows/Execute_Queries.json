@@ -1,0 +1,236 @@
+{
+  "name": "Execute_Queries",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "trigger-execute-queries",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate input and initialize loop state\n// Execute_Queries: Unified sub-workflow for all database operations\n// - Executes queries sequentially (supports chaining via $results)\n// - Preserves ctx throughout\n// - Stores results in ctx.db[key] = { row, rows, count }\n\nconst ctx = $json.ctx;\n\nif (!ctx?.db_queries || !Array.isArray(ctx.db_queries) || ctx.db_queries.length === 0) {\n  throw new Error('Execute_Queries requires ctx.db_queries array with at least one query');\n}\n\n// Validate each query has required fields\nfor (const q of ctx.db_queries) {\n  if (!q.key || !q.sql) {\n    throw new Error('Each query in ctx.db_queries must have key and sql fields');\n  }\n}\n\n// Initialize loop state\nreturn [{\n  json: {\n    original_ctx: ctx,\n    queries: ctx.db_queries,\n    current_index: 0,\n    results: {}  // Will accumulate {key: {row, rows, count}}\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "initialize-loop",
+      "name": "Initialize Loop"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare current query for execution\n// Supports $results.key.field references in params for chaining\n// Also formats arrays as PostgreSQL array literals when needed\nconst state = $json;\nconst query = state.queries[state.current_index];\n\n// Helper to format JS arrays as PostgreSQL array literals\nfunction formatPgArray(arr) {\n  if (!Array.isArray(arr)) return arr;\n  return '{' + arr.join(',') + '}';\n}\n\n// Process params to resolve $results references\nlet params = query.params || [];\n\nif (params.length > 0) {\n  params = params.map(param => {\n    if (typeof param === 'string' && param.startsWith('$results.')) {\n      // Parse reference like \"$results.trace.row.id\"\n      const path = param.substring('$results.'.length).split('.');\n      let value = state.results;\n      for (const key of path) {\n        if (value && typeof value === 'object') {\n          value = value[key];\n        } else {\n          value = undefined;\n          break;\n        }\n      }\n      if (value === undefined) {\n        throw new Error(`Execute_Queries: Could not resolve reference ${param}`);\n      }\n      // Auto-format arrays for PostgreSQL\n      return formatPgArray(value);\n    }\n    // Also format arrays that aren't references\n    if (Array.isArray(param)) {\n      return formatPgArray(param);\n    }\n    return param;\n  });\n}\n\nreturn [{\n  json: {\n    ...state,\n    current_query: query,\n    sql: query.sql,\n    params: params\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "prepare-query",
+      "name": "Prepare Query"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {
+          "queryReplacement": "={{ $json.params }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        660,
+        0
+      ],
+      "id": "execute-postgres-query",
+      "name": "Execute Query",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        880,
+        0
+      ],
+      "id": "merge-results",
+      "name": "Merge Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect query results and check if more queries remain\nconst items = $input.all();\n\n// Find state from merge (has original_ctx)\nlet state = null;\nconst queryResults = [];\n\nfor (const item of items) {\n  if (item.json.original_ctx) {\n    state = item.json;\n  } else {\n    // This is a Postgres result row\n    queryResults.push(item.json);\n  }\n}\n\nif (!state) {\n  throw new Error('Execute_Queries: Lost loop state');\n}\n\n// Store results for current query\nconst currentKey = state.current_query.key;\nstate.results[currentKey] = {\n  row: queryResults[0] || null,  // First row (common for RETURNING or single-row SELECT)\n  rows: queryResults,             // All rows\n  count: queryResults.length      // Row count\n};\n\n// Move to next query\nstate.current_index++;\n\n// Check if more queries remain\nconst hasMore = state.current_index < state.queries.length;\n\nreturn [{\n  json: {\n    ...state,\n    has_more: hasMore\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "collect-results",
+      "name": "Collect Results"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-more",
+              "leftValue": "={{ $json.has_more }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        0
+      ],
+      "id": "check-more-queries",
+      "name": "More Queries?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore ctx with all query results in ctx.db namespace\nconst state = $json;\n\n// Remove db_queries since it was consumed\nconst { db_queries, ...restCtx } = state.original_ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...restCtx,\n      db: {\n        ...(restCtx.db || {}),\n        ...state.results\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        100
+      ],
+      "id": "finalize-context",
+      "name": "Finalize Context"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Initialize Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Loop": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Execute Query": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Results": {
+      "main": [
+        [
+          {
+            "node": "More Queries?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "More Queries?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}
