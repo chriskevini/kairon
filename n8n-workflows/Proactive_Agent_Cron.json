@@ -37,7 +37,7 @@
       "name": "Check Next Pulse",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -91,7 +91,7 @@
       "name": "Set Next Pulse (Default)",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },

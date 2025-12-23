@@ -91,7 +91,7 @@
       "name": "Execute Query",
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       },
       "alwaysOutputData": true

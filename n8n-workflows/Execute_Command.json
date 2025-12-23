@@ -335,7 +335,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -358,7 +358,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -379,7 +379,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -402,7 +402,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -423,7 +423,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -542,7 +542,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -1062,7 +1062,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -1189,7 +1189,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -1212,7 +1212,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
@@ -1235,7 +1235,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj"
         }
       }
     },
