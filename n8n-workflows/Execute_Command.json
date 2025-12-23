@@ -263,6 +263,30 @@
               },
               "renameOutput": true,
               "outputKey": "help"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "modules",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "modules-cmd-id"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "modules"
             }
           ]
         },
@@ -311,8 +335,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
         }
       }
     },
@@ -335,8 +359,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
         }
       }
     },
@@ -357,8 +381,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
         }
       }
     },
@@ -381,8 +405,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
         }
       }
     },
@@ -403,14 +427,14 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Handle help command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nconst helpText = `\ud83d\udcda **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions \u2192 !! (activity)\n- Observations/notes \u2192 .. (note)\n- Questions/requests \u2192 ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent [N]\\` - Show last N projections (default 10)\n\\`::recent activities [N]\\` - Show last N activities\n\\`::recent notes [N]\\` - Show last N notes\n\\`::recent todos [N]\\` - Show last N todos\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**Generation:**\n\\`::generate summary\\` - Generate daily summary now\n\\`::generate nudge\\` - Send a nudge now\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM format)\n- \\`timezone\\` - Your timezone (e.g. \\`pacific\\`, \\`vancouver\\`, \\`America/Vancouver\\`)\n- \\`verbose\\` - Always show projection details (true/false)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`++ what should I focus on today?\\`\n\\`::set north_star Focus on deep work\\`\n\\`::set timezone vancouver\\`\n\\`::recent 20\\`\n\\`::recent todos\\`\n\\`::delete activity 1 3 5\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: helpText\n    }\n  }\n};"
+        "jsCode": "// Handle help command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\n\nconst helpText = `\ud83d\udcda **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions \u2192 !! (activity)\n- Observations/notes \u2192 .. (note)\n- Questions/requests \u2192 ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Prompt Modules:**\n\\`::modules\\` - List all prompt modules\n\\`::get module <name>\\` - View module details\n\\`::set module <name> on\\` - Enable module\n\\`::set module <name> off\\` - Disable module\n\\`::set module <name> <content>\\` - Update content\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent [type] [N]\\` - Show recent items\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**Generation:**\n\\`::generate summary\\` - Generate daily summary now\n\\`::generate nudge\\` - Send a nudge now\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM)\n- \\`timezone\\` - Your timezone (e.g. \\`pacific\\`, \\`vancouver\\`)\n- \\`verbose\\` - Always show projection details (true/false)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`::set timezone vancouver\\`\n\\`::modules\\`\n\\`::get module base_persona\\`\n\\`::set module base_persona off\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: helpText\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -523,8 +547,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
         }
       }
     },
@@ -543,7 +567,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate GET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').first()?.json?.ctx?.command?.args || [];\n\n// Join all args into a single key (support \"north star\" -> \"north_star\")\nconst key = args.join('_');\n\n// Validation: check if key provided\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing config key. Syntax: \\`::get <key>\\`\\n\\nAvailable keys: north_star, summary_time, verbose\\nUse \\`::help\\` for more info.`\n      }\n    }\n  };\n}\n\n// Valid - pass the normalized key\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_key: key\n    }\n  }\n};"
+        "jsCode": "// Validate GET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').first()?.json?.ctx?.command?.args || [];\n\n// Check for module subcommand: ::get module <name>\nif (args[0] === 'module' || args[0] === 'modules') {\n  const moduleName = args[1];\n  \n  if (!moduleName) {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Missing module name. Syntax: \\`::get module <name>\\`\\n\\nUse \\`::modules\\` to see available modules.`\n        }\n      }\n    };\n  }\n  \n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: true,\n        target: 'module',\n        module_name: moduleName\n      }\n    }\n  };\n}\n\n// Standard config get\nconst key = args.join('_');\n\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing config key. Syntax: \\`::get <key>\\`\\n\\nAvailable keys: north_star, summary_time, timezone, verbose\\nFor modules: \\`::get module <name>\\`\\nUse \\`::help\\` for more info.`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      target: 'config',\n      normalized_key: key\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -556,7 +580,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate SET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').first()?.json?.ctx?.command?.args || [];\n\n// Validation: need at least 2 args (key and value)\nif (!args || args.length < 2) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Be present and intentional\\`\\n\\nAvailable keys: north_star, summary_time, timezone, verbose`\n      }\n    }\n  };\n}\n\n// Normalize key: convert spaces to underscores (north_star or summary_time)\nconst key = args[0];\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid config key (empty string).\\n\\nExample: \\`::set north_star <your principle>\\``\n      }\n    }\n  };\n}\n\n\n// Join remaining args as value\nlet valToSet = args.slice(1).join(' ');\n\n// Special handling for verbose key - only allow true/false\nif (key === 'verbose') {\n  const val = valToSet.toLowerCase().trim();\n  if (val !== 'true' && val !== 'false') {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Invalid value for \\`verbose\\`. Use \\`true\\` or \\`false\\`.`\n        }\n      }\n    };\n  }\n  valToSet = val;\n}\n\n// Special handling for timezone key - parse aliases\nif (key === 'timezone' || key === 'tz') {\n  const input = valToSet.toLowerCase().trim();\n  \n  // Timezone aliases map\n  const aliases = {\n    // North America\n    'pacific': 'America/Los_Angeles',\n    'pst': 'America/Los_Angeles',\n    'pdt': 'America/Los_Angeles',\n    'la': 'America/Los_Angeles',\n    'los angeles': 'America/Los_Angeles',\n    'vancouver': 'America/Vancouver',\n    'seattle': 'America/Los_Angeles',\n    'sf': 'America/Los_Angeles',\n    'mountain': 'America/Denver',\n    'mst': 'America/Denver',\n    'mdt': 'America/Denver',\n    'denver': 'America/Denver',\n    'central': 'America/Chicago',\n    'cst': 'America/Chicago',\n    'cdt': 'America/Chicago',\n    'chicago': 'America/Chicago',\n    'eastern': 'America/New_York',\n    'est': 'America/New_York',\n    'edt': 'America/New_York',\n    'new york': 'America/New_York',\n    'nyc': 'America/New_York',\n    'toronto': 'America/Toronto',\n    // Europe\n    'london': 'Europe/London',\n    'uk': 'Europe/London',\n    'gmt': 'Europe/London',\n    'bst': 'Europe/London',\n    'paris': 'Europe/Paris',\n    'berlin': 'Europe/Berlin',\n    'cet': 'Europe/Paris',\n    // Asia/Pacific  \n    'tokyo': 'Asia/Tokyo',\n    'jst': 'Asia/Tokyo',\n    'sydney': 'Australia/Sydney',\n    'aest': 'Australia/Sydney',\n    'melbourne': 'Australia/Melbourne',\n    'singapore': 'Asia/Singapore',\n    'sgt': 'Asia/Singapore',\n    // UTC\n    'utc': 'UTC',\n    'gmt': 'UTC'\n  };\n  \n  // Check if input is an alias\n  if (aliases[input]) {\n    valToSet = aliases[input];\n  } else if (input.includes('/')) {\n    // Looks like IANA format, validate it\n    try {\n      const testDate = new Date();\n      testDate.toLocaleString('en-US', { timeZone: input });\n      // Capitalize properly (user might type 'america/vancouver')\n      valToSet = input.split('/').map(part => \n        part.split('_').map(word => \n          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()\n        ).join('_')\n      ).join('/');\n    } catch (e) {\n      const suggestions = Object.keys(aliases).slice(0, 8).join(', ');\n      return {\n        ctx: {\n          ...ctx,\n          validation: {\n            valid: false,\n            error_message: `\u274c Unknown timezone: \\`${input}\\`\\n\\n**Common timezones:** ${suggestions}\\n\\n**Or use IANA format:** America/Vancouver, Europe/London, Asia/Tokyo`\n          }\n        }\n      };\n    }\n  } else {\n    // Unknown alias\n    const suggestions = Object.keys(aliases).slice(0, 8).join(', ');\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Unknown timezone: \\`${input}\\`\\n\\n**Common timezones:** ${suggestions}\\n\\n**Or use IANA format:** America/Vancouver, Europe/London, Asia/Tokyo`\n        }\n      }\n    };\n  }\n}\n\n// Valid - pass normalized key and value\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_key: key === 'tz' ? 'timezone' : key,\n      normalized_value: valToSet\n    }\n  }\n};"
+        "jsCode": "// Validate SET command\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst args = $('Parse Command and Args').first()?.json?.ctx?.command?.args || [];\n\n// Check for module subcommand: ::set module <name> <on|off|content>\nif (args[0] === 'module' || args[0] === 'modules') {\n  const moduleName = args[1];\n  const action = args[2];\n  \n  if (!moduleName) {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Missing module name. Syntax:\\n\\`::set module <name> on\\` - Enable module\\n\\`::set module <name> off\\` - Disable module\\n\\`::set module <name> <content>\\` - Update content\\n\\nUse \\`::modules\\` to see available modules.`\n        }\n      }\n    };\n  }\n  \n  if (!action) {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Missing action. Syntax:\\n\\`::set module ${moduleName} on\\` - Enable\\n\\`::set module ${moduleName} off\\` - Disable\\n\\`::set module ${moduleName} <content>\\` - Update content`\n        }\n      }\n    };\n  }\n  \n  // Check for on/off toggle\n  if (action.toLowerCase() === 'on') {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: true,\n          target: 'module',\n          operation: 'toggle',\n          module_name: moduleName,\n          new_active: true\n        }\n      }\n    };\n  }\n  \n  if (action.toLowerCase() === 'off') {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: true,\n          target: 'module',\n          operation: 'toggle',\n          module_name: moduleName,\n          new_active: false\n        }\n      }\n    };\n  }\n  \n  // Otherwise it's a content update - join all remaining args\n  const newContent = args.slice(2).join(' ');\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: true,\n        target: 'module',\n        operation: 'update',\n        module_name: moduleName,\n        new_content: newContent\n      }\n    }\n  };\n}\n\n// Standard config set - need at least 2 args (key and value)\nif (!args || args.length < 2) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Be present and intentional\\`\\nFor modules: \\`::set module <name> on|off|<content>\\`\\n\\nAvailable keys: north_star, summary_time, timezone, verbose`\n      }\n    }\n  };\n}\n\nconst key = args[0];\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid config key (empty string).\\n\\nExample: \\`::set north_star <your principle>\\``\n      }\n    }\n  };\n}\n\nlet valToSet = args.slice(1).join(' ');\n\n// Special handling for verbose key\nif (key === 'verbose') {\n  const val = valToSet.toLowerCase().trim();\n  if (val !== 'true' && val !== 'false') {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Invalid value for \\`verbose\\`. Use \\`true\\` or \\`false\\`.`\n        }\n      }\n    };\n  }\n  valToSet = val;\n}\n\n// Special handling for timezone key\nif (key === 'timezone' || key === 'tz') {\n  const input = valToSet.toLowerCase().trim();\n  \n  const aliases = {\n    'pacific': 'America/Los_Angeles',\n    'pst': 'America/Los_Angeles',\n    'pdt': 'America/Los_Angeles',\n    'la': 'America/Los_Angeles',\n    'los angeles': 'America/Los_Angeles',\n    'vancouver': 'America/Vancouver',\n    'seattle': 'America/Los_Angeles',\n    'sf': 'America/Los_Angeles',\n    'mountain': 'America/Denver',\n    'mst': 'America/Denver',\n    'mdt': 'America/Denver',\n    'denver': 'America/Denver',\n    'central': 'America/Chicago',\n    'cst': 'America/Chicago',\n    'cdt': 'America/Chicago',\n    'chicago': 'America/Chicago',\n    'eastern': 'America/New_York',\n    'est': 'America/New_York',\n    'edt': 'America/New_York',\n    'new york': 'America/New_York',\n    'nyc': 'America/New_York',\n    'toronto': 'America/Toronto',\n    'utc': 'UTC',\n    'gmt': 'UTC',\n    'london': 'Europe/London',\n    'uk': 'Europe/London',\n    'paris': 'Europe/Paris',\n    'berlin': 'Europe/Berlin',\n    'tokyo': 'Asia/Tokyo',\n    'sydney': 'Australia/Sydney',\n    'melbourne': 'Australia/Melbourne'\n  };\n  \n  const resolved = aliases[input] || valToSet;\n  \n  try {\n    const testDate = new Date();\n    testDate.toLocaleString('en-US', { timeZone: resolved });\n    valToSet = resolved;\n  } catch (e) {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Invalid timezone: \\`${valToSet}\\`\\n\\nExamples: \\`pacific\\`, \\`vancouver\\`, \\`America/Los_Angeles\\``\n        }\n      }\n    };\n  }\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      target: 'config',\n      normalized_key: key === 'tz' ? 'timezone' : key,\n      normalized_value: valToSet\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1027,6 +1051,380 @@
       ],
       "id": "send-error-message",
       "name": "Send Error Message"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name, module_type, active, priority, array_length(tags, 1) as tag_count\nFROM prompt_modules\nORDER BY module_type, priority, name",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -464,
+        10576
+      ],
+      "id": "query-list-modules",
+      "name": "Query List Modules",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format modules list response\nconst ctx = $('When Executed by Another Workflow').first().json.ctx;\nconst modules = $input.all();\n\nif (!modules || modules.length === 0) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\ud83d\udced No prompt modules found.`\n      }\n    }\n  };\n}\n\n// Group by module_type\nconst byType = {};\nfor (const mod of modules) {\n  const m = mod.json;\n  const type = m.module_type || 'unknown';\n  if (!byType[type]) byType[type] = [];\n  byType[type].push(m);\n}\n\nconst typeIcons = {\n  persona: '\ud83c\udfad',\n  technique: '\ud83e\udde0',\n  guardrail: '\ud83d\udee1\ufe0f',\n  format: '\ud83d\udcdd',\n  context: '\ud83d\udcca'\n};\n\nlet response = `\ud83e\udde9 **Prompt Modules (${modules.length})**\\n\\n`;\n\nfor (const [type, mods] of Object.entries(byType)) {\n  const icon = typeIcons[type] || '\u2022';\n  response += `**${icon} ${type}**\\n`;\n  for (const m of mods) {\n    const status = m.active ? '\u2705' : '\u274c';\n    response += `  ${status} \\`${m.name}\\` (priority: ${m.priority})\\n`;\n  }\n  response += '\\n';\n}\n\nresponse += `\ud83d\udca1 Use \\`::module <name>\\` to view details\\n`;\nresponse += `\ud83d\udca1 Use \\`::module <name> on/off\\` to toggle`;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: response\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        10576
+      ],
+      "id": "format-modules-response",
+      "name": "Format Modules Response"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-view",
+                    "leftValue": "={{ $json.ctx.validation.operation }}",
+                    "rightValue": "view",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "view"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-toggle",
+                    "leftValue": "={{ $json.ctx.validation.operation }}",
+                    "rightValue": "toggle",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "toggle"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-update",
+                    "leftValue": "={{ $json.ctx.validation.operation }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "update"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -464,
+        10768
+      ],
+      "id": "switch-module-operation",
+      "name": "Switch Module Operation"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, content, module_type, tags, priority, active, created_at, updated_at\nFROM prompt_modules\nWHERE name = $1",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.validation.module_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -240,
+        10672
+      ],
+      "id": "query-view-module",
+      "name": "Query View Module",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE prompt_modules\nSET active = $2, updated_at = NOW()\nWHERE name = $1\nRETURNING name, active",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.validation.module_name }},={{ $json.ctx.validation.new_active }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -240,
+        10864
+      ],
+      "id": "query-toggle-module",
+      "name": "Query Toggle Module",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE prompt_modules\nSET content = $2, updated_at = NOW()\nWHERE name = $1\nRETURNING name, content",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.validation.module_name }},={{ $json.ctx.validation.new_content }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -240,
+        11056
+      ],
+      "id": "query-update-module",
+      "name": "Query Update Module",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "p2SIY25QglSNcDnj",
+          "name": "Local Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format view module response\n// Can be called from ::get module <name> or ::module <name> (if we keep that)\nconst allItems = $input.all();\n\n// Find the ctx - could be from different sources\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\n// Fallback to input item\nif (!ctx) {\n  ctx = $json.ctx;\n}\n\nconst result = $input.item?.json;\nconst moduleName = ctx?.validation?.module_name || 'unknown';\n\nif (!result || !result.name) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Module \\`${moduleName}\\` not found.\\n\\nUse \\`::modules\\` to see available modules.`\n      }\n    }\n  };\n}\n\nconst statusIcon = result.active ? '\u2705' : '\u274c';\nconst status = result.active ? 'Active' : 'Inactive';\nconst tags = result.tags?.length > 0 ? result.tags.join(', ') : '(none)';\n\n// Truncate content if too long for Discord\nlet content = result.content;\nif (content.length > 1000) {\n  content = content.substring(0, 1000) + '...';\n}\n\nconst response = `\ud83e\udde9 **Module: ${result.name}**\\n\\n` +\n  `**Type:** ${result.module_type}\\n` +\n  `**Status:** ${statusIcon} ${status}\\n` +\n  `**Priority:** ${result.priority}\\n` +\n  `**Tags:** ${tags}\\n\\n` +\n  `**Content:**\\n\\`\\`\\`\\n${content}\\n\\`\\`\\`\\n\\n` +\n  `\ud83d\udca1 \\`::set module ${result.name} on/off\\` to toggle\\n` +\n  `\ud83d\udca1 \\`::set module ${result.name} <content>\\` to update`;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: response\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        10672
+      ],
+      "id": "format-view-module-response",
+      "name": "Format View Module Response"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format toggle module response\nconst ctx = $json.ctx || $input.first()?.json?.ctx;\nconst result = $input.item?.json;\nconst moduleName = ctx?.validation?.module_name || 'unknown';\n\nif (!result || !result.name) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Module \\`${moduleName}\\` not found.\\n\\nUse \\`::modules\\` to see available modules.`\n      }\n    }\n  };\n}\n\nconst statusIcon = result.active ? '\u2705' : '\u274c';\nconst status = result.active ? 'enabled' : 'disabled';\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `${statusIcon} Module \\`${result.name}\\` ${status}`\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        10864
+      ],
+      "id": "format-toggle-module-response",
+      "name": "Format Toggle Module Response"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format update module response\nconst ctx = $json.ctx || $input.first()?.json?.ctx;\nconst result = $input.item?.json;\nconst moduleName = ctx?.validation?.module_name || 'unknown';\n\nif (!result || !result.name) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Module \\`${moduleName}\\` not found.\\n\\nUse \\`::modules\\` to see available modules.`\n      }\n    }\n  };\n}\n\n// Show preview of new content\nlet preview = result.content;\nif (preview.length > 100) {\n  preview = preview.substring(0, 100) + '...';\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `\u2705 Updated module \\`${result.name}\\`\\n\\n**New content:** ${preview}`\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        11056
+      ],
+      "id": "format-update-module-response",
+      "name": "Format Update Module Response"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-config",
+                    "leftValue": "={{ $json.ctx.validation.target }}",
+                    "rightValue": "config",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "config"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-module",
+                    "leftValue": "={{ $json.ctx.validation.target }}",
+                    "rightValue": "module",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "module"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -560,
+        8768
+      ],
+      "id": "switch-get-target",
+      "name": "Switch Get Target"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-config",
+                    "leftValue": "={{ $json.ctx.validation.target }}",
+                    "rightValue": "config",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "config"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-module",
+                    "leftValue": "={{ $json.ctx.validation.target }}",
+                    "rightValue": "module",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "module"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -560,
+        8960
+      ],
+      "id": "switch-set-target",
+      "name": "Switch Set Target"
     }
   ],
   "connections": {
@@ -1123,6 +1521,13 @@
         [
           {
             "node": "Handle help",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query List Modules",
             "type": "main",
             "index": 0
           }
@@ -1368,7 +1773,7 @@
       "main": [
         [
           {
-            "node": "Query Get Config",
+            "node": "Switch Get Target",
             "type": "main",
             "index": 0
           }
@@ -1386,7 +1791,7 @@
       "main": [
         [
           {
-            "node": "Query Set Config",
+            "node": "Switch Set Target",
             "type": "main",
             "index": 0
           }
@@ -1513,6 +1918,157 @@
           }
         ]
       ]
+    },
+    "Query List Modules": {
+      "main": [
+        [
+          {
+            "node": "Format Modules Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Modules Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Module Operation": {
+      "main": [
+        [
+          {
+            "node": "Query View Module",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Toggle Module",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Update Module",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query View Module": {
+      "main": [
+        [
+          {
+            "node": "Format View Module Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Toggle Module": {
+      "main": [
+        [
+          {
+            "node": "Format Toggle Module Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Update Module": {
+      "main": [
+        [
+          {
+            "node": "Format Update Module Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format View Module Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Toggle Module Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Update Module Response": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Get Target": {
+      "main": [
+        [
+          {
+            "node": "Query Get Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query View Module",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Switch Set Target": {
+      "main": [
+        [
+          {
+            "node": "Query Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch Module Operation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     }
   },
   "settings": {
@@ -1520,10 +2076,5 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false,
     "errorWorkflow": "JOXLqn9TTznBdo7Q"
-  },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
-  "active": false
+  }
 }
