@@ -204,36 +204,42 @@ if (!data) {
 }
 ```
 
-### Additional Patterns
+### Database Queries: Execute_Queries vs Inline Postgres
+
+**Use Execute_Queries sub-workflow when:**
+- Multiple queries need to run sequentially with result chaining
+- You need trace_id from INSERT to use in subsequent queries
+- Example: Store trace → Store projection (Multi_Capture, Capture_Thread)
 
 ```javascript
-// Initialize arrays from ctx
-const traceChain = $json.ctx.event.trace_chain || [];
+// Build queries with chaining
+return [{
+  json: {
+    ctx: {
+      ...ctx,
+      db_queries: [
+        {
+          key: 'trace',
+          sql: 'INSERT INTO traces (...) RETURNING id',
+          params: [...]
+        },
+        {
+          key: 'projection',
+          sql: 'INSERT INTO projections (trace_id, ...) VALUES ($1, ...)',
+          params: ['$results.trace.row.id', ...]  // Chain from previous result
+        }
+      ]
+    }
+  }
+}];
 
-// Format Postgres arrays in Code nodes, not query expressions
-const traceChainPg = `{${traceChain.join(',')}}`;
-
-// Validate ctx before access
-const ctx = $json.ctx;
-if (!ctx?.event?.event_id) {
-  return {
-    ctx,
-    error: true,
-    response: "❌ Missing event data"
-  };
-}
-
-// Always use snake_case for object keys
-const projectionData = {
-  event_id: ctx.event.event_id,
-  clean_text: ctx.event.clean_text,
-  user_id: ctx.db?.user_record?.id
-};
-
-// Safely access nested ctx properties
-const channelId = $json.ctx?.event?.channel_id || 'unknown';
-const confidence = $json.ctx?.llm?.confidence ?? 0.5;
+// After Execute_Queries, results in ctx.db.trace.row, ctx.db.projection.row
 ```
+
+**Use inline Postgres nodes when:**
+- Single independent query per branch
+- Command-style workflows with many separate branches (Execute_Command)
+- Simple query → format → respond flow
 
 ### Switch Nodes
 
