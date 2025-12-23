@@ -16,45 +16,37 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 ORDER BY timestamp ASC;",
-        "options": {
-          "queryReplacement": "={{ $json.ctx.event.thread_id }}"
-        }
+        "jsCode": "// Build query to get thread history\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [{\n        key: 'thread_history',\n        sql: 'SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 ORDER BY timestamp ASC;',\n        params: [ctx.event.thread_id]\n      }]\n    }\n  }\n}];"
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -1872,
         544
       ],
-      "id": "837680d8-e710-4699-ae2d-9e1c5fc045c0",
-      "name": "Get Thread History",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "build-thread-history-query",
+      "name": "Build Thread History Query"
     },
     {
       "parameters": {
-        "mode": "append",
-        "numberInputs": 1
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
+        }
       },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         -1648,
         544
       ],
-      "id": "merge-thread-data",
-      "name": "Merge Thread Data"
+      "id": "execute-thread-history",
+      "name": "Get Thread History"
     },
     {
       "parameters": {
-        "jsCode": "// Merge DB results into ctx pattern\n// All inputs come via Merge node in append mode\nconst allInputs = $input.all();\n\n// Get thread messages (items with role and text properties)\nconst messages = allInputs\n  .filter(item => item.json.role !== undefined && item.json.text !== undefined)\n  .toReversed();\n\n// Format thread history for LLM\nconst threadHistory = messages.map(msg => {\n  return `${msg.json.role.toUpperCase()}: ${msg.json.text}`;\n}).join('\\n');\n\n// Get ctx from trigger (already initialized by Route_Message)\nconst ctx = $('Execute Workflow Trigger').first().json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        thread_id: ctx.event.thread_id,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
+        "jsCode": "// Merge DB results into ctx pattern\nconst ctx = $json.ctx;\n\n// Get thread messages from db results\nconst messages = ctx.db.thread_history.rows || [];\n\n// Format thread history for LLM (reversed for chronological order)\nconst threadHistory = messages.toReversed().map(msg => {\n  return `${msg.role.toUpperCase()}: ${msg.text}`;\n}).join('\\n');\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        thread_id: ctx.event.thread_id,\n        thread_history: threadHistory,\n        message_count: messages.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -68,7 +60,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.ctx.db.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom’s birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom’s birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus\n\n**Example Thread 3:**\n\"I feel drained after back-to-back calls. I should probably book a vacation soon. The team lunch is next Thursday at the Italian place downtown. I've committed to no email checks after 8 PM.\"\n\n**Good Extraction:**\nreflection|I feel drained after back-to-back calls\nreflection|I've committed to no email checks after 8 PM\ntodo|Book a vacation\nfact|The team lunch is next Thursday at the Italian place downtown\n\n## Rules\n- Extract only items **explicitly stated or strongly implied** — never invent or infer new information.\n- Use the user's own words/phrasing when possible; minor edits only for clarity/conciseness.\n- Be specific and concrete — skip vague statements.\n- Limit to **maximum 10 items**.\n- Order by **importance/relevance** (most impactful, urgent, or personal first).\n- Prioritize categories: todo > reflection > fact (if something could fit multiple).\n- If unsure between reflection and fact, choose reflection.\n- Edge cases:\n  - \"I should probably...\" or \"Maybe I need to...\" → reflection unless clear commitment (\"I'm going to...\").\n  - Wishes/hypotheticals → reflection only if they reveal a pattern; otherwise omit.\n  - Advice from others → ignore unless user explicitly adopts it.\n  - Repeated ideas → extract only once (best phrasing).\n  - Negations (e.g., \"I hate early meetings\") → reflection.\n\n## Output Format\nOutput **only** the extracted lines, one per item, exactly like this (no preamble, no explanations, no extra text):\n\ntype|text\ntype|text\n...\n\nExtract thoughtfully for maximum signal and relevance.",
+        "text": "=You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n{{ $json.ctx.db.thread_history }}\n\n## Task\nExtract and classify the most important items from the thread into **exactly one** category each:\n\n**reflection** - Internal knowledge about the user (personal insights, patterns, preferences, decisions, or commitments)  \n**fact** - External knowledge about the world, people, events, or things (objective information not tied to the user's internal state)  \n**todo** - Concrete, actionable tasks or next steps (specific and doable)\n\n## Few-Shot Examples\n\n**Example Thread 1:**\n\"I realized I get my best work done in the mornings right after coffee. My mom's birthday is coming up on June 12th, I need to get her a gift. John told me he really likes dark roast with no sugar. I've decided to stop scheduling meetings before noon. Also, I should probably block out 2-hour chunks for deep work. Sarah mentioned she's allergic to peanuts.\"\n\n**Good Extraction:**\nreflection|I get my best work done in the mornings right after coffee\nreflection|I've decided to stop scheduling meetings before noon\ntodo|Get mom a gift for her June 12th birthday\ntodo|Block out 2-hour chunks for deep work\nfact|Mom's birthday is June 12th\nfact|John really likes dark roast with no sugar\nfact|Sarah is allergic to peanuts\n\n**Example Thread 2:**\n\"Maybe I should try walking more, it might help with focus. Dad prefers calls in the evening. I'm going to switch to async updates for the team. Don't forget to send the report by Friday. The office WiFi password is 'guest123'. I tend to lose steam after lunch if I eat carbs.\"\n\n**Good Extraction:**\nreflection|I'm going to switch to async updates for the team\nreflection|I tend to lose steam after lunch if I eat carbs\ntodo|Send the report by Friday\nfact|Dad prefers calls in the evening\nfact|The office WiFi password is 'guest123'\nreflection|Walking more might help with focus (tentative insight)\n\n**Bad Examples (Do NOT do these):**\n- ❌ `reflection|Send the report by Friday` (action = todo, not reflection)\n- ❌ `fact|I realized I work best in the morning` (user insight = reflection, not fact)\n- ❌ `todo|Dad prefers calls in the evening` (info about another person = fact, not todo)\n- ❌ Including both a reflection AND a todo for the same item\n- ❌ Creating tasks that are vague or not actionable (e.g., \"think about...\")\n\n## Output Format\nReturn one line per item:\n`type|text`\n\nReturn ONLY the categorized items, no explanations.",
         "needsFallback": true,
         "batching": {}
       },
@@ -130,36 +122,42 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE projections SET status = 'voided', voided_at = NOW(), voided_reason = 'replaced_by_new_extraction' WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $1 AND status = 'pending';",
-        "options": {
-          "queryReplacement": "={{ $('Has Extractions?').first().json.ctx.db.thread_id }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        272,
-        448
-      ],
-      "id": "a3a014f0-33c5-4103-80aa-6b645163d8b2",
-      "name": "Void Old Extractions",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Build SQL query to insert extractions as projections\nconst ctx = $('Has Extractions?').first().json.ctx;\nconst traceResult = $('Write Thread Extraction Trace').first().json;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = traceResult.trace_id;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst updatedTraceChain = [...traceChain, extractionTraceId];\nconst traceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// 7 parameters per row: event_id, trace_id, trace_chain, projection_type, data (jsonb), status, timezone\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 7;\n  return `($${offset + 1}::uuid, $${offset + 2}::uuid, $${offset + 3}::uuid[], $${offset + 4}, $${offset + 5}::jsonb, $${offset + 6}, $${offset + 7})`;\n}).join(', ');\n\nconst query = `\nINSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  data,\n  status,\n  timezone\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5, $6, $7... sequence (7 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ctx.event.event_id);  // event_id\n  params.push(extractionTraceId);    // trace_id\n  params.push(traceChainPg);         // trace_chain\n  params.push('thread_extraction');  // projection_type\n  params.push(JSON.stringify({       // data as JSONB\n    thread_id: ext.thread_id,\n    item_type: ext.item_type,\n    text: ext.text,\n    display_order: ext.display_order\n  }));\n  params.push('pending');            // status\n  params.push(ctx.event.timezone || null);  // timezone\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      }\n    },\n    sql_query: query,\n    sql_params: params\n  }\n}];"
+        "jsCode": "// Build query for trace and void old extractions\nconst ctx = $('Set Inference Start').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedCtx = $input.first().json.ctx;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${ctx.db.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: {\n      ...parsedCtx,\n      db_queries: [\n        {\n          key: 'trace',\n          sql: `WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_extraction',\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'thread_history', $2,\n        'conversation_id', $3::text\n      ),\n      'prompt', $4,\n      'completion', $5,\n      'result', jsonb_build_object(\n        'extraction_count', $6::integer,\n        'has_extractions', true\n      ),\n      'model', 'nvidia/nemotron-nano-9b-v2:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $8::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;`,\n          params: [\n            ctx.event.event_id,\n            ctx.db.thread_history,\n            ctx.db.thread_id,\n            promptText,\n            llmOutput,\n            parsedCtx.llm.extractions?.length || 0,\n            durationMs,\n            traceChainPg\n          ]\n        },\n        {\n          key: 'void_old',\n          sql: `UPDATE projections SET status = 'voided', voided_at = NOW(), voided_reason = 'replaced_by_new_extraction' WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $1 AND status = 'pending';`,\n          params: [ctx.db.thread_id]\n        }\n      ]\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        496,
+        -400,
+        544
+      ],
+      "id": "prepare-trace-data-save-chat",
+      "name": "Prepare Trace Data"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        48,
+        448
+      ],
+      "id": "write-thread-extraction-trace",
+      "name": "Write Thread Extraction Trace"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build SQL query to insert extractions as projections\nconst ctx = $json.ctx;\nconst extractions = ctx.llm.extractions;\nconst extractionTraceId = ctx.db.trace.row.trace_id;\n\nif (!extractions || extractions.length === 0) {\n  return [];\n}\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst updatedTraceChain = [...traceChain, extractionTraceId];\nconst traceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// 7 parameters per row: event_id, trace_id, trace_chain, projection_type, data (jsonb), status, timezone\nconst values = extractions.map((ext, idx) => {\n  const offset = idx * 7;\n  return `($${offset + 1}::uuid, $${offset + 2}::uuid, $${offset + 3}::uuid[], $${offset + 4}, $${offset + 5}::jsonb, $${offset + 6}, $${offset + 7})`;\n}).join(', ');\n\nconst insertSql = `\nINSERT INTO projections (\n  event_id,\n  trace_id,\n  trace_chain,\n  projection_type,\n  data,\n  status,\n  timezone\n)\nVALUES ${values}\nRETURNING *;\n`;\n\n// The params array matches the $1, $2, $3, $4, $5, $6, $7... sequence (7 per extraction)\nconst params = [];\nextractions.forEach(ext => {\n  params.push(ctx.event.event_id);  // event_id\n  params.push(extractionTraceId);    // trace_id\n  params.push(traceChainPg);         // trace_chain\n  params.push('thread_extraction');  // projection_type\n  params.push(JSON.stringify({       // data as JSONB\n    thread_id: ext.thread_id,\n    item_type: ext.item_type,\n    text: ext.text,\n    display_order: ext.display_order\n  }));\n  params.push('pending');            // status\n  params.push(ctx.event.timezone || null);  // timezone\n});\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db: {\n        ...ctx.db,\n        trace_id: extractionTraceId\n      },\n      db_queries: [{\n        key: 'extractions',\n        sql: insertSql,\n        params: params\n      }]\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
         448
       ],
       "id": "6f856663-e8d6-4f8c-9c9c-41a6eab0d27b",
@@ -167,36 +165,29 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "{{ $json.sql_query }}",
-        "options": {
-          "queryReplacement": "={{ $json.sql_params }}"
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
-        720,
+        496,
         448
       ],
       "id": "48cebe42-d9c8-4de1-a10a-d1e09935ad25",
-      "name": "Save Extractions to DB",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "name": "Save Extractions to DB"
     },
     {
       "parameters": {
-        "jsCode": "// Build Discord summary message\nconst ctx = $('Build Insert Query').first().json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '📊 **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '💡 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '📋 **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '❌ Dismiss • 🗑️ Delete thread';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        summary_content: content,\n        emoji_count: extractions.length\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build Discord summary message\nconst ctx = $json.ctx;\nconst extractions = ctx.llm.extractions;\n\nconst numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];\n\nconst notes = extractions.filter(e => \n  e.item_type === 'reflection' || e.item_type === 'fact'\n);\nconst todos = extractions.filter(e => e.item_type === 'todo');\n\nlet content = '📊 **Thread Summary**\\n\\n';\n\nif (notes.length > 0) {\n  content += '💡 **Insights & Facts**\\n';\n  notes.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\nif (todos.length > 0) {\n  content += '📋 **Action Items**\\n';\n  todos.forEach(item => {\n    const emoji = numberEmojis[item.display_order - 1] || '•';\n    content += `${emoji} ${item.text}\\n`;\n  });\n  content += '\\n';\n}\n\ncontent += '---\\n';\ncontent += 'Tap number emoji to save\\n';\ncontent += '❌ Dismiss • 🗑️ Delete thread';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        summary_content: content,\n        emoji_count: extractions.length\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        944,
+        720,
         448
       ],
       "id": "8cfff2da-39dd-4c84-abab-f5a723655499",
@@ -209,7 +200,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1392,
+        1168,
         448
       ],
       "id": "d7ff0aa4-b3d1-42f5-a10d-37aad4ec2f56",
@@ -226,7 +217,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1840,
+        1616,
         448
       ],
       "id": "124efe0a-5911-42ba-bd1f-4478da67fdff",
@@ -244,27 +235,33 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE projections SET data = data || jsonb_build_object('summary_message_id', $1) WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $2 AND status = 'pending';",
-        "options": {
-          "queryReplacement": "={{ $('Prepare Emoji Reactions').first().json.summary_message_id }},={{ $('Prepare Emoji Reactions').first().json.ctx.db.thread_id }}"
+        "jsCode": "// Build query to update summary message ID on projections\nconst ctx = $('Prepare Emoji Reactions').first().json.ctx;\nconst summaryMessageId = $('Prepare Emoji Reactions').first().json.summary_message_id;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [{\n        key: 'update_summary',\n        sql: `UPDATE projections SET data = data || jsonb_build_object('summary_message_id', $1) WHERE projection_type = 'thread_extraction' AND data->>'thread_id' = $2 AND status = 'pending';`,\n        params: [summaryMessageId, ctx.db.thread_id]\n      }]\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        256
+      ],
+      "id": "build-update-summary-query",
+      "name": "Build Update Summary Query"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.WORKFLOW_ID_EXECUTE_QUERIES }}",
+          "mode": "id"
         }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         1840,
         256
       ],
       "id": "cc84e221-84fb-49bb-b72b-e0589a531893",
-      "name": "Update Summary Message ID",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "name": "Update Summary Message ID"
     },
     {
       "parameters": {
@@ -456,7 +453,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        1168,
+        944,
         448
       ],
       "id": "59068362-0e97-4e90-90c3-98373b60e25f",
@@ -479,7 +476,7 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        1616,
+        1392,
         448
       ],
       "id": "ebfeb17a-a211-4a67-adf9-ec9c26e418cc",
@@ -492,7 +489,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2064,
+        1840,
         520
       ],
       "id": "9a504ad1-2ee7-435b-9c81-ff106ef75821",
@@ -522,42 +519,6 @@
       ],
       "id": "set-inference-start-save-chat",
       "name": "Set Inference Start"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Prepare trace data for thread extraction (using ctx pattern)\nconst ctx = $('Set Inference Start').first().json.ctx;\nconst inferenceStart = ctx.timing?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\nconst llmOutput = $('Extract Items LLM').first().json.text;\nconst parsedCtx = $input.first().json.ctx;\n\n// Build filled prompt\nconst promptText = `You are analyzing a conversation thread to extract key insights and actionable items.\n\n## Thread History\n${ctx.db.thread_history}\n\n## Task\nExtract and classify the most important items from the thread...`;\n\n// Format trace_chain for PostgreSQL uuid[] type\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx: parsedCtx,\n    // Trace data for query\n    input_thread_history: ctx.db.thread_history,\n    input_thread_id: ctx.db.thread_id,\n    prompt_text: promptText,\n    completion_text: llmOutput,\n    result_extraction_count: parsedCtx.llm.extractions?.length || 0,\n    result_has_extractions: parsedCtx.llm.has_extractions,\n    duration_ms: durationMs,\n    event_id: ctx.event.event_id,\n    trace_chain_pg: traceChainPg\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -400,
-        544
-      ],
-      "id": "prepare-trace-data-save-chat",
-      "name": "Prepare Trace Data"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH new_trace AS (\n  INSERT INTO traces (event_id, step_name, data, trace_chain)\n  VALUES (\n    $1::uuid,\n    'thread_extraction',\n    jsonb_build_object(\n      'input', jsonb_build_object(\n        'thread_history', $2,\n        'conversation_id', $3::text\n      ),\n      'prompt', $4,\n      'completion', $5,\n      'result', jsonb_build_object(\n        'extraction_count', $6::integer,\n        'has_extractions', true\n      ),\n      'model', 'nvidia/nemotron-nano-9b-v2:free',\n      'duration_ms', $7::integer\n    ),\n    $8::uuid[]\n  )\n  RETURNING id\n)\nSELECT \n  new_trace.id as trace_id,\n  $8::uuid[] || new_trace.id as updated_trace_chain\nFROM new_trace;",
-        "options": {
-          "queryReplacement": "={{ $json.event_id }},={{ $json.input_thread_history }},={{ $json.input_thread_id }},={{ $json.prompt_text }},={{ $json.completion_text }},={{ $json.result_extraction_count }},={{ $json.duration_ms }},={{ $json.trace_chain_pg }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        48,
-        448
-      ],
-      "id": "write-thread-extraction-trace",
-      "name": "Write Thread Extraction Trace",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
     }
   ],
   "connections": {
@@ -565,7 +526,7 @@
       "main": [
         [
           {
-            "node": "Get Thread History",
+            "node": "Build Thread History Query",
             "type": "main",
             "index": 0
           },
@@ -587,18 +548,18 @@
         ]
       ]
     },
-    "Get Thread History": {
+    "Build Thread History Query": {
       "main": [
         [
           {
-            "node": "Merge Thread Data",
+            "node": "Get Thread History",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge Thread Data": {
+    "Get Thread History": {
       "main": [
         [
           {
@@ -672,17 +633,6 @@
       ]
     },
     "Write Thread Extraction Trace": {
-      "main": [
-        [
-          {
-            "node": "Void Old Extractions",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Void Old Extractions": {
       "main": [
         [
           {
@@ -800,7 +750,7 @@
       "main": [
         [
           {
-            "node": "Update Summary Message ID",
+            "node": "Build Update Summary Query",
             "type": "main",
             "index": 0
           }
@@ -808,6 +758,17 @@
         [
           {
             "node": "Add Emoji Reactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Update Summary Query": {
+      "main": [
+        [
+          {
+            "node": "Update Summary Message ID",
             "type": "main",
             "index": 0
           }
