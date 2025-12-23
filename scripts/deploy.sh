@@ -74,6 +74,19 @@ deploy_dev() {
     TEMP_DIR=$(mktemp -d)
     trap "rm -rf $TEMP_DIR" EXIT
     
+    # --- PASS 0: Validation ---
+    echo "========================================"
+    echo "STAGE 0: Validation"
+    echo "========================================"
+    echo ""
+    echo "Validating workflow structure and connections..."
+    if ! python3 "$SCRIPT_DIR/workflows/inspect_workflow.py" "$WORKFLOW_DIR"/*.json --validate; then
+        echo "Error: Validation failed. Fix workflow structure issues before deploying."
+        exit 1
+    fi
+    echo "Validation OK"
+    echo ""
+
     # --- PASS 1: Initial transform and push ---
     echo "Pass 1: Initial deployment..."
     echo ""
@@ -139,7 +152,8 @@ deploy_dev() {
         for workflow in "$WORKFLOW_DEV_DIR"/*.json; do
             [ -f "$workflow" ] || continue
             filename=$(basename "$workflow")
-            cp "$workflow" "$TEMP_DIR/$filename"
+            # Also transform dev-only workflows to remap workflow IDs
+            WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
         done
     fi
     

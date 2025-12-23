@@ -362,7 +362,33 @@
             "version": 3
           },
           "conditions": [
-            {
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "workflow-trigger",
+      "name": "When Called by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { idempotency_key: 'proactive-' + Date.now(), trigger_reason: 'manual', timestamp: new Date().toISOString() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "prepare-event",
+      "name": "Prepare Event"
+    },
+    {
               "id": "check-empty",
               "leftValue": "={{ $json.is_empty }}",
               "rightValue": true,

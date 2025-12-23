@@ -75,10 +75,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Test 3: Prepare Query_DB - tests sub-workflow communication\nconst state = $json;\nreturn [{\n  json: {\n    _state: state,\n    ctx: {\n      event: { event_id: 'smoke-' + state.run_id },\n      db_queries: [\n        { key: 'scalar', sql: 'SELECT 42 as value' },\n        { key: 'multi', sql: 'SELECT generate_series(1,3) as n' },\n        { key: 'empty', sql: 'SELECT 1 WHERE false' },\n        { key: 'params', sql: 'SELECT $1::text as echo', params: ['hello'] }\n      ]\n    }\n  }\n}];"
+        "jsCode": "// Test 3: Prepare Execute_Queries - tests sub-workflow communication\nconst state = $json;\nreturn [{\n  json: {\n    _state: state,\n    ctx: {\n      event: { event_id: 'smoke-' + state.run_id },\n      db_queries: [\n        { key: 'scalar', sql: 'SELECT 42 as value' },\n        { key: 'multi', sql: 'SELECT generate_series(1,3) as n' },\n        { key: 'empty', sql: 'SELECT 1 WHERE false' },\n        { key: 'params', sql: 'SELECT $1::text as echo', params: ['hello'] }\n      ]\n    }\n  }\n}];"
       },
       "id": "prep-qdb",
-      "name": "Prep Query_DB",
+      "name": "Prep Execute_Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1320, 0]
@@ -89,7 +89,7 @@
         "options": { "waitForSubWorkflow": true }
       },
       "id": "call-qdb",
-      "name": "Call Query_DB",
+      "name": "Call Execute_Queries",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [1540, 0],
@@ -97,17 +97,17 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json;\nconst state = $('Prep Query_DB').first().json._state;\n\nif (input.error) {\n  state.tests.push({ name: 'query_db', passed: false, details: 'SubWorkflow error: ' + (input.error.message || 'unknown') });\n  return [{ json: state }];\n}\n\nconst db = input.ctx?.db || {};\n\n// Test scalar query\nconst scalarOk = db.scalar?.results?.[0]?.value === 42;\n\n// Test multi-row query\nconst multiOk = db.multi?.results?.length === 3 && db.multi?.results?.[0]?.n === 1;\n\n// Test empty result - n8n returns [{}] for empty, not []\nconst emptyRes = db.empty?.results || [];\nconst emptyOk = emptyRes.length === 0 || (emptyRes.length === 1 && Object.keys(emptyRes[0]||{}).length === 0);\n\n// Test parameterized query\nconst paramsOk = db.params?.results?.[0]?.echo === 'hello';\n\n// Verify db_queries was cleaned up\nconst cleanOk = !input.ctx?.db_queries;\n\nconst passed = scalarOk && multiOk && emptyOk && paramsOk && cleanOk;\nlet details = 'OK';\nif (!passed) {\n  details = `scalar=${scalarOk}, multi=${multiOk}, empty=${emptyOk}, params=${paramsOk}, clean=${cleanOk}`;\n}\n\nstate.tests.push({ name: 'query_db', passed, details });\nreturn [{ json: state }];"
+        "jsCode": "const input = $json;\nconst state = $('Prep Execute_Queries').first().json._state;\n\nif (input.error) {\n  state.tests.push({ name: 'query_db', passed: false, details: 'SubWorkflow error: ' + (input.error.message || 'unknown') });\n  return [{ json: state }];\n}\n\nconst db = input.ctx?.db || {};\n\n// Test scalar query\nconst scalarOk = db.scalar?.results?.[0]?.value === 42;\n\n// Test multi-row query\nconst multiOk = db.multi?.results?.length === 3 && db.multi?.results?.[0]?.n === 1;\n\n// Test empty result - n8n returns [{}] for empty, not []\nconst emptyRes = db.empty?.results || [];\nconst emptyOk = emptyRes.length === 0 || (emptyRes.length === 1 && Object.keys(emptyRes[0]||{}).length === 0);\n\n// Test parameterized query\nconst paramsOk = db.params?.results?.[0]?.echo === 'hello';\n\n// Verify db_queries was cleaned up\nconst cleanOk = !input.ctx?.db_queries;\n\nconst passed = scalarOk && multiOk && emptyOk && paramsOk && cleanOk;\nlet details = 'OK';\nif (!passed) {\n  details = `scalar=${scalarOk}, multi=${multiOk}, empty=${emptyOk}, params=${paramsOk}, clean=${cleanOk}`;\n}\n\nstate.tests.push({ name: 'query_db', passed, details });\nreturn [{ json: state }];"
       },
       "id": "eval-qdb",
-      "name": "Eval Query_DB",
+      "name": "Eval Execute_Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1760, 0]
     },
     {
       "parameters": {
-        "jsCode": "// Test 4: ctx pattern - verify data preservation through transforms\nconst state = $json;\n\n// Simulate ctx flowing through workflow transforms\nlet ctx = {\n  event: {\n    event_id: 'test-123',\n    trace_chain: ['test-123'],\n    clean_text: 'original text',\n    tag: '!!',\n    channel_id: 'chan-1'\n  }\n};\n\n// Transform 1: Add db namespace (like Query_DB does)\nctx = {\n  ...ctx,\n  db: {\n    results: [{ id: 1, name: 'test' }],\n    count: 1\n  }\n};\n\n// Transform 2: Add llm namespace (like LLM wrapper does)\nctx = {\n  ...ctx,\n  llm: {\n    completion_text: 'LLM response',\n    duration_ms: 150,\n    confidence: 0.95\n  }\n};\n\n// Transform 3: Update trace_chain (like Store Trace does)\nconst newTraceId = 'trace-456';\nctx = {\n  ...ctx,\n  event: {\n    ...ctx.event,\n    trace_chain: [...ctx.event.trace_chain, newTraceId]\n  }\n};\n\n// Transform 4: Add validation namespace\nctx = {\n  ...ctx,\n  validation: { valid: true }\n};\n\n// Verify ALL original data preserved\nconst checks = [\n  ctx.event.event_id === 'test-123',\n  ctx.event.clean_text === 'original text',\n  ctx.event.tag === '!!',\n  ctx.event.channel_id === 'chan-1',\n  ctx.event.trace_chain.length === 2,\n  ctx.event.trace_chain[0] === 'test-123',\n  ctx.event.trace_chain[1] === 'trace-456',\n  ctx.db.results[0].id === 1,\n  ctx.db.count === 1,\n  ctx.llm.completion_text === 'LLM response',\n  ctx.llm.duration_ms === 150,\n  ctx.validation.valid === true\n];\n\nconst passed = checks.every(c => c);\nconst failIdx = checks.findIndex(c => !c);\nstate.tests.push({\n  name: 'ctx_preservation',\n  passed,\n  details: passed ? 'OK' : `Failed check ${failIdx}`\n});\n\nreturn [{ json: state }];"
+        "jsCode": "// Test 4: ctx pattern - verify data preservation through transforms\nconst state = $json;\n\n// Simulate ctx flowing through workflow transforms\nlet ctx = {\n  event: {\n    event_id: 'test-123',\n    trace_chain: ['test-123'],\n    clean_text: 'original text',\n    tag: '!!',\n    channel_id: 'chan-1'\n  }\n};\n\n// Transform 1: Add db namespace (like Execute_Queries does)\nctx = {\n  ...ctx,\n  db: {\n    results: [{ id: 1, name: 'test' }],\n    count: 1\n  }\n};\n\n// Transform 2: Add llm namespace (like LLM wrapper does)\nctx = {\n  ...ctx,\n  llm: {\n    completion_text: 'LLM response',\n    duration_ms: 150,\n    confidence: 0.95\n  }\n};\n\n// Transform 3: Update trace_chain (like Store Trace does)\nconst newTraceId = 'trace-456';\nctx = {\n  ...ctx,\n  event: {\n    ...ctx.event,\n    trace_chain: [...ctx.event.trace_chain, newTraceId]\n  }\n};\n\n// Transform 4: Add validation namespace\nctx = {\n  ...ctx,\n  validation: { valid: true }\n};\n\n// Verify ALL original data preserved\nconst checks = [\n  ctx.event.event_id === 'test-123',\n  ctx.event.clean_text === 'original text',\n  ctx.event.tag === '!!',\n  ctx.event.channel_id === 'chan-1',\n  ctx.event.trace_chain.length === 2,\n  ctx.event.trace_chain[0] === 'test-123',\n  ctx.event.trace_chain[1] === 'trace-456',\n  ctx.db.results[0].id === 1,\n  ctx.db.count === 1,\n  ctx.llm.completion_text === 'LLM response',\n  ctx.llm.duration_ms === 150,\n  ctx.validation.valid === true\n];\n\nconst passed = checks.every(c => c);\nconst failIdx = checks.findIndex(c => !c);\nstate.tests.push({\n  name: 'ctx_preservation',\n  passed,\n  details: passed ? 'OK' : `Failed check ${failIdx}`\n});\n\nreturn [{ json: state }];"
       },
       "id": "test-ctx",
       "name": "Test ctx Pattern",
@@ -228,15 +228,24 @@
       "main": [[{"node": "Test Tags", "type": "main", "index": 0}]]
     },
     "Test Tags": {
-      "main": [[{"node": "Prep Query_DB", "type": "main", "index": 0}]]
+      "main": [[{"node": "Prep Execute_Queries", "type": "main", "index": 0}]]
     },
-    "Prep Query_DB": {
-      "main": [[{"node": "Call Query_DB", "type": "main", "index": 0}]]
+    "Prep Execute_Queries": {
+      "main": [[{"node": "Call Execute_Queries", "type": "main", "index": 0}]]
     },
-    "Call Query_DB": {
-      "main": [[{"node": "Eval Query_DB", "type": "main", "index": 0}]]
+    "Call Execute_Queries": {
+      "main": [[{"node": "Eval Execute_Queries", "type": "main", "index": 0}]]
     },
-    "Eval Query_DB": {
+    "Eval Execute_Queries": {
+      "main": [[{"node": "Test ctx Pattern", "type": "main", "index": 0}]]
+    },
+    "Prep Execute_Queries": {
+      "main": [[{"node": "Call Execute_Queries", "type": "main", "index": 0}]]
+    },
+    "Call Execute_Queries": {
+      "main": [[{"node": "Eval Execute_Queries", "type": "main", "index": 0}]]
+    },
+    "Eval Execute_Queries": {
       "main": [[{"node": "Test ctx Pattern", "type": "main", "index": 0}]]
     },
     "Test ctx Pattern": {

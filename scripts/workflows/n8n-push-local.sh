@@ -38,16 +38,34 @@ if [ -z "$REMOTE_WORKFLOWS" ] || [ "$REMOTE_WORKFLOWS" = "null" ]; then
 fi
 
 # Build lookup map: name -> id
+# Note: n8n API can return phantom/orphan workflows that exist in the list
+# but return 404 on GET. We verify each workflow is accessible before adding
+# to the map. For duplicates, we pick the first accessible one.
+declare -A SEEN_NAMES=()
+
 if [ "$REMOTE_WORKFLOWS" != "[]" ]; then
     while IFS= read -r line; do
         [ -z "$line" ] && continue
         id=$(echo "$line" | jq -r '.id')
         name=$(echo "$line" | jq -r '.name')
-        [ "$id" != "null" ] && [ "$name" != "null" ] && WORKFLOW_IDS["$name"]="$id"
+        [ "$id" = "null" ] || [ "$name" = "null" ] && continue
+        
+        # Skip if we already have a working ID for this name
+        [ -n "${SEEN_NAMES[$name]:-}" ] && continue
+        
+        # Verify the workflow is actually accessible (not a phantom)
+        verify_result=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_API_URL/api/v1/workflows/$id")
+        
+        if [ "$verify_result" = "200" ]; then
+            WORKFLOW_IDS["$name"]="$id"
+            SEEN_NAMES["$name"]=1
+        fi
     done < <(echo "$REMOTE_WORKFLOWS" | jq -c '.[]')
 fi
 
-echo "   Found ${#WORKFLOW_IDS[@]} existing workflows"
+echo "   Found ${#WORKFLOW_IDS[@]} accessible workflows"
 echo ""
 
 # Process each workflow file
