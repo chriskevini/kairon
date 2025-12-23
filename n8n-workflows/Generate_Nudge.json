@@ -69,6 +69,15 @@
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
           "mode": "list",
           "cachedResultName": "Execute_Queries"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -234,6 +243,15 @@
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
           "mode": "list",
           "cachedResultName": "Execute_Queries"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -278,6 +296,15 @@
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
           "mode": "list",
           "cachedResultName": "Execute_Queries"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
@@ -322,6 +349,15 @@
           "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
           "mode": "list",
           "cachedResultName": "Execute_Queries"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
         }
       },
       "type": "n8n-nodes-base.executeWorkflow",
