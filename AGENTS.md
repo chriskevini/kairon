@@ -320,21 +320,6 @@ The script automatically detects whether it's running locally or on the server a
 
 **Pre-push hook:** Workflow changes trigger automatic deployment. Skip with `git push --no-verify` if needed.
 
-### Deployment Process
-
-When deploying to dev:
-### Dev Environment Deployment Details
-
-```bash
-./scripts/deploy.sh dev
-```
-
-This will:
-1. Transform workflows for dev (mock Discord, convert webhooks)
-2. Push to dev n8n (creates missing workflows)
-3. Remap workflow IDs from prod → dev
-4. Run smoke tests (gate deployment on success)
-
 ### Workflow ID References
 
 **Always use the n8n API to get workflow IDs** - never hardcode them or guess from the UI.
