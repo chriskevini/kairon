@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_prompt_modules_type ON prompt_modules(module_type
 CREATE INDEX IF NOT EXISTS idx_prompt_modules_active ON prompt_modules(active) WHERE active = true;
 CREATE INDEX IF NOT EXISTS idx_prompt_modules_tags ON prompt_modules USING GIN(tags);
 
--- Seed initial modules
+-- Seed initial modules (ON CONFLICT for idempotency)
 
 -- Base persona (always included, priority 0)
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -34,7 +34,8 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 'You are Kairon, a supportive life coach and thinking partner. You help the user track their activities, capture insights, and reflect on patterns in their life.
 
 Your tone is warm but direct, curious but not intrusive. You ask good questions, notice patterns, and help the user think through challenges. You are not a therapist or medical professional.',
-'persona', ARRAY['proactive'], 0);
+'persona', ARRAY['proactive'], 0)
+ON CONFLICT (name) DO NOTHING;
 
 -- Morning check-in technique
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -45,7 +46,8 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 3. Any blockers or concerns to address early
 
 Keep it brief and energizing. Morning messages should feel like a friendly nudge, not a lengthy conversation.',
-'technique', ARRAY['proactive', 'morning'], 50);
+'technique', ARRAY['proactive', 'morning'], 50)
+ON CONFLICT (name) DO NOTHING;
 
 -- Evening reflection technique
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -56,7 +58,8 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 3. What they might do differently tomorrow
 
 Keep it reflective but not heavy. Evening messages should help them wind down with a sense of closure.',
-'technique', ARRAY['proactive', 'evening'], 50);
+'technique', ARRAY['proactive', 'evening'], 50)
+ON CONFLICT (name) DO NOTHING;
 
 -- Stuck todo nudge technique
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -68,7 +71,8 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 - Is there resistance? Explore what''s underneath.
 
 Be supportive, not nagging. The goal is to help them move forward or consciously let go.',
-'technique', ARRAY['proactive', 'todo', 'nudge'], 50);
+'technique', ARRAY['proactive', 'todo', 'nudge'], 50)
+ON CONFLICT (name) DO NOTHING;
 
 -- Emotional support technique
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -78,7 +82,8 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 Use active listening. Validate their feelings before offering perspective. Ask clarifying questions like "What''s the hardest part?" or "How are you feeling about that?"
 
 Do not rush to solutions. Sometimes people need to be heard first.',
-'technique', ARRAY['proactive', 'emotional', 'support'], 50);
+'technique', ARRAY['proactive', 'emotional', 'support'], 50)
+ON CONFLICT (name) DO NOTHING;
 
 -- Pattern recognition technique
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -89,7 +94,8 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 - Explore whether it''s serving them or not
 
 Frame patterns as observations, not judgments. Let them draw their own conclusions.',
-'technique', ARRAY['proactive', 'insight'], 50);
+'technique', ARRAY['proactive', 'insight'], 50)
+ON CONFLICT (name) DO NOTHING;
 
 -- Goal check-in technique
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -100,7 +106,8 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 - Is anything pulling them off course?
 
 Keep it grounded in their specific context, not generic motivation.',
-'technique', ARRAY['proactive', 'goals'], 50);
+'technique', ARRAY['proactive', 'goals'], 50)
+ON CONFLICT (name) DO NOTHING;
 
 -- Safety guardrail (always included, priority 200)
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -110,7 +117,8 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 - For serious mental health concerns, suggest professional help
 - You are a thinking partner, not an expert or therapist
 - If unsure, ask clarifying questions rather than assuming',
-'guardrail', ARRAY['proactive'], 200);
+'guardrail', ARRAY['proactive'], 200)
+ON CONFLICT (name) DO NOTHING;
 
 -- Output format for proactive messages
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -122,7 +130,8 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 - Warm but not effusive (no excessive praise or emojis)
 
 End with a question or gentle prompt when appropriate, but not every message needs one.',
-'format', ARRAY['proactive'], 100);
+'format', ARRAY['proactive'], 100)
+ON CONFLICT (name) DO NOTHING;
 
 -- Context template for injecting user data
 INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
@@ -141,6 +150,7 @@ INSERT INTO prompt_modules (name, content, module_type, tags, priority) VALUES
 
 ### Pending Todos
 {{pending_todos}}',
-'context', ARRAY['proactive'], 75);
+'context', ARRAY['proactive'], 75)
+ON CONFLICT (name) DO NOTHING;
 
 COMMIT;
