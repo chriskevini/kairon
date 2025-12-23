@@ -16,110 +16,37 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT timestamp, role, text FROM thread_history WHERE thread_id = $1 AND NOT (role = 'user' AND text = $2) ORDER BY timestamp ASC LIMIT 20;",
-        "options": {
-          "queryReplacement": "={{ $json.ctx.event.thread_id }},={{ $json.ctx.event.clean_text }}"
-        }
+        "jsCode": "// Prepare batch database queries for Query_DB sub-workflow\nconst ctx = $json.ctx;\n\nconst db_queries = [\n  {\n    key: 'history',\n    sql: `SELECT timestamp, role, text FROM thread_history \n          WHERE thread_id = $1 AND NOT (role = 'user' AND text = $2) \n          ORDER BY timestamp ASC LIMIT 20`,\n    params: [ctx.event.thread_id, ctx.event.clean_text]\n  },\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (data->>'timestamp')::timestamptz as timestamp,\n            data->>'category' as category,\n            data->>'description' as description\n          FROM projections\n          WHERE projection_type = 'activity'\n            AND status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (data->>'timestamp')::timestamptz DESC\n          LIMIT 20`\n  },\n  {\n    key: 'notes',\n    sql: `SELECT \n            (data->>'timestamp')::timestamptz as timestamp,\n            data->>'category' as category,\n            data->>'text' as text\n          FROM projections\n          WHERE projection_type = 'note'\n            AND status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (data->>'timestamp')::timestamptz DESC\n          LIMIT 10`\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n}];"
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         6880,
-        288
+        624
       ],
-      "id": "862be3f8-3ec4-4873-9601-51c0412b5953",
-      "name": "Get Conversation History",
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
+      "id": "prepare-db-queries",
+      "name": "Prepare DB Queries"
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'north_star';",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        6880,
-        480
-      ],
-      "id": "466482ef-e173-4639-920d-4a7d4a809c9d",
-      "name": "Get North Star",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
+        "workflowId": {
+          "__rl": true,
+          "value": "UpiUvzlgVuMdYsnp",
+          "mode": "id"
         }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (data->>'timestamp')::timestamptz as timestamp,\n  data->>'category' as category,\n  data->>'description' as description\nFROM projections\nWHERE projection_type = 'activity'\n  AND status IN ('auto_confirmed', 'confirmed')\nORDER BY (data->>'timestamp')::timestamptz DESC\nLIMIT 20;",
-        "options": {}
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        6880,
-        768
-      ],
-      "id": "583b8b02-bf8c-4dd6-ab42-1f0e4df1d3e6",
-      "name": "Get Recent Activities",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (data->>'timestamp')::timestamptz as timestamp,\n  data->>'category' as category,\n  data->>'text' as text\nFROM projections\nWHERE projection_type = 'note'\n  AND status IN ('auto_confirmed', 'confirmed')\nORDER BY (data->>'timestamp')::timestamptz DESC\nLIMIT 10;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        6880,
-        960
-      ],
-      "id": "7a6cb0ab-38bd-449e-89f4-302bcab90d06",
-      "name": "Get Recent Notes",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 5
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         7104,
-        576
+        624
       ],
-      "id": "3e910a00-1800-474d-aba6-8f67169d3a9b",
-      "name": "Wait for Context"
+      "id": "execute-query-db",
+      "name": "Query_DB"
     },
     {
       "parameters": {
-        "jsCode": "// Merge all context data into ctx pattern\n// Input 0 has ctx from Merge Conversation ctx\nconst ctxInput = $input.all().find(item => item.json.ctx);\nconst ctx = ctxInput?.json?.ctx || {};\n\n// Get all merged inputs\nconst allInputs = $input.all();\n\n// Extract conversation history and sort by timestamp ascending\nconst historyItems = allInputs.filter(item => item.json.role !== undefined && item.json.text !== undefined);\nconst history = historyItems\n  .sort((a, b) => new Date(a.json.timestamp) - new Date(b.json.timestamp))\n  .map(item => ({\n    role: item.json.role,\n    text: item.json.text\n  }));\n\n// Extract north star\nlet northStar = 'Not set';\nconst northStarItem = allInputs.find(item => item.json.value !== undefined && item.json.key === undefined);\nif (northStarItem) {\n  northStar = northStarItem.json.value;\n}\n\n// Extract activities\nconst activities = allInputs\n  .filter(item => item.json.category && item.json.description)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    description: item.json.description\n  }));\n\n// Extract notes\nconst notes = allInputs\n  .filter(item => item.json.category && item.json.text && !item.json.role)\n  .map(item => ({\n    timestamp: item.json.timestamp,\n    category: item.json.category,\n    text: item.json.text\n  }));\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        north_star: northStar,\n        inference_start: Date.now(),\n        history: history,\n        activities: activities,\n        notes: notes\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build LLM context from Query_DB results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract and sort conversation history\nconst history = (db.history?.results || [])\n  .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))\n  .map(item => ({\n    role: item.role,\n    text: item.text\n  }));\n\n// Extract north star\nconst northStar = db.north_star?.results?.[0]?.value || 'Not set';\n\n// Extract activities\nconst activities = (db.activities?.results || []).map(item => ({\n  timestamp: item.timestamp,\n  category: item.category,\n  description: item.description\n}));\n\n// Extract notes  \nconst notes = (db.notes?.results || []).map(item => ({\n  timestamp: item.timestamp,\n  category: item.category,\n  text: item.text\n}));\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        north_star: northStar,\n        inference_start: Date.now(),\n        history: history,\n        activities: activities,\n        notes: notes\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -409,22 +336,7 @@
       "main": [
         [
           {
-            "node": "Get Conversation History",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get North Star",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Recent Activities",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Recent Notes",
+            "node": "Prepare DB Queries",
             "type": "main",
             "index": 0
           },
@@ -437,60 +349,22 @@
             "node": "Remove 🔵 Reaction",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Wait for Context",
-            "type": "main",
-            "index": 2
           }
         ]
       ]
     },
-    "Get Conversation History": {
+    "Prepare DB Queries": {
       "main": [
         [
           {
-            "node": "Wait for Context",
+            "node": "Query_DB",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get North Star": {
-      "main": [
-        [
-          {
-            "node": "Wait for Context",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Get Recent Activities": {
-      "main": [
-        [
-          {
-            "node": "Wait for Context",
-            "type": "main",
-            "index": 3
-          }
-        ]
-      ]
-    },
-    "Get Recent Notes": {
-      "main": [
-        [
-          {
-            "node": "Wait for Context",
-            "type": "main",
-            "index": 4
-          }
-        ]
-      ]
-    },
-    "Wait for Context": {
+    "Query_DB": {
       "main": [
         [
           {
