@@ -576,7 +576,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.id }}",
-        "emoji": "\u2753",
+        "emoji": "❓",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -651,13 +651,14 @@
         "workflowId": {
           "__rl": true,
           "value": "={{ $env.WORKFLOW_ID_SHOW_PROJECTION_DETAILS }}",
-          "mode": "id"
+          "mode": "list",
+          "cachedResultName": "Show_Projection_Details"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "ctx": "={{ $('Merge for Discord').first().json.ctx }}",
-            "emoji": "\u2753"
+            "emoji": "❓"
           },
           "matchingColumns": [],
           "schema": [],
@@ -1066,7 +1067,6 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "JOXLqn9TTznBdo7Q",
     "availableInMCP": false
   },
   "meta": null,

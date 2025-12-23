@@ -50,7 +50,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=\ud83d\udd35"
+        "emoji": "=🔵"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -59,7 +59,7 @@
         7984
       ],
       "id": "476cc1ef-8e72-4df6-ab57-42bda8f06403",
-      "name": "ReactWith\ud83d\udd35",
+      "name": "ReactWith🔵",
       "webhookId": "react-processing",
       "retryOnFail": true,
       "maxTries": 3,
@@ -499,7 +499,7 @@
       "main": [
         [
           {
-            "node": "ReactWith\ud83d\udd35",
+            "node": "ReactWith🔵",
             "type": "main",
             "index": 0
           },
@@ -631,8 +631,7 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false,
-    "errorWorkflow": "JOXLqn9TTznBdo7Q"
+    "availableInMCP": false
   },
   "staticData": null,
   "meta": {
