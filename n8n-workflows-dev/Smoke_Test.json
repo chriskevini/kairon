@@ -68,6 +68,44 @@
     },
     {
       "parameters": {
+        "jsCode": "// Prepare ctx for Query_DB test\nconst state = $json;\nreturn [{\n  json: {\n    _state: state,\n    ctx: {\n      event: { event_id: 'smoke-test' },\n      db_queries: [\n        { key: 'test1', sql: 'SELECT 1 as value' },\n        { key: 'test2', sql: 'SELECT 2 as value' }\n      ]\n    }\n  }\n}];"
+      },
+      "id": "smoke-prep-query-db",
+      "name": "Prepare Query_DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "QXmBwl6dvPbW001h"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "smoke-query-db",
+      "name": "Call Query_DB",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [1320, 0],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Evaluate Query_DB result\nconst input = $json;\n\n// Handle error case\nif (input.error) {\n  const state = $('Prepare Query_DB').first().json._state;\n  state.tests.push({ \n    name: 'query_db', \n    passed: false, \n    details: 'Query_DB failed: ' + (input.error.message || JSON.stringify(input.error))\n  });\n  return [{ json: state }];\n}\n\n// Check ctx.db has our query results\nconst ctx = input.ctx;\nconst test1Ok = ctx?.db?.test1?.results?.[0]?.value === 1;\nconst test2Ok = ctx?.db?.test2?.results?.[0]?.value === 2;\nconst passed = test1Ok && test2Ok;\n\nconst state = $('Prepare Query_DB').first().json._state;\nstate.tests.push({ \n  name: 'query_db', \n  passed, \n  details: passed ? 'OK' : `test1=${test1Ok}, test2=${test2Ok}`\n});\n\nreturn [{ json: state }];"
+      },
+      "id": "smoke-eval-query-db",
+      "name": "Evaluate Query_DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 0]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
         "query": "DELETE FROM config WHERE key LIKE 'smoke_test_%'",
         "options": {}
@@ -76,7 +114,7 @@
       "name": "Cleanup",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1100, 0],
+      "position": [1760, 0],
       "credentials": {
         "postgres": {
           "name": "Postgres account"
@@ -86,13 +124,13 @@
     },
     {
       "parameters": {
-        "jsCode": "const state = $('Evaluate').first().json;\nconst passed = state.tests.filter(t => t.passed).length;\nconst failed = state.tests.filter(t => !t.passed).length;\nreturn [{ json: {\n  success: failed === 0,\n  message: failed === 0 ? `All ${passed} tests passed` : `${failed} failed`,\n  run_id: state.run_id,\n  summary: { total: state.tests.length, passed, failed },\n  tests: state.tests\n}}];"
+        "jsCode": "const state = $('Evaluate Query_DB').first().json;\nconst passed = state.tests.filter(t => t.passed).length;\nconst failed = state.tests.filter(t => !t.passed).length;\nreturn [{ json: {\n  success: failed === 0,\n  message: failed === 0 ? `All ${passed} tests passed` : `${failed} failed`,\n  run_id: state.run_id,\n  summary: { total: state.tests.length, passed, failed },\n  tests: state.tests\n}}];"
       },
       "id": "smoke-compile",
       "name": "Compile",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1320, 0]
+      "position": [1980, 0]
     },
     {
       "parameters": {
@@ -103,7 +141,7 @@
       "name": "Return",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1540, 0]
+      "position": [2200, 0]
     }
   ],
   "connections": {
@@ -123,6 +161,15 @@
       "main": [[{"node": "Evaluate", "type": "main", "index": 0}]]
     },
     "Evaluate": {
+      "main": [[{"node": "Prepare Query_DB", "type": "main", "index": 0}]]
+    },
+    "Prepare Query_DB": {
+      "main": [[{"node": "Call Query_DB", "type": "main", "index": 0}]]
+    },
+    "Call Query_DB": {
+      "main": [[{"node": "Evaluate Query_DB", "type": "main", "index": 0}]]
+    },
+    "Evaluate Query_DB": {
       "main": [[{"node": "Cleanup", "type": "main", "index": 0}]]
     },
     "Cleanup": {
