@@ -162,7 +162,7 @@
         "operation": "executeQuery",
         "query": "SELECT id, data->>'thread_id' AS thread_id, data->>'item_type' AS item_type, data->>'text' AS text FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND (data->>'display_order')::int = $2 AND status = 'pending' LIMIT 1;",
         "options": {
-          "values": "={{ $json.ctx.event.message_id }},={{ $json.ctx.action.display_order }}"
+          "values": "={{ [  $json.ctx.event.message_id ,  $json.ctx.action.display_order  ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -324,7 +324,7 @@
         "operation": "executeQuery",
         "query": "-- Insert embedding for the saved projection (fire-and-forget)\nINSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding)\nSELECT \n  $1::uuid,\n  'all-MiniLM-L6-v2',\n  '{}',\n  $2,\n  $3::vector\nWHERE $3 IS NOT NULL\nON CONFLICT DO NOTHING;",
         "options": {
-          "values": "={{ $('After Promote').first().json.id }},={{ $('After Promote').first().json.text }},={{ $json.embeddings && $json.embeddings[0] ? '[' + $json.embeddings[0].join(',') + ']' : null }}"
+          "values": "={{ [  $('After Promote').first().json.id ,  $('After Promote').first().json.text ,  $json.embeddings && $json.embeddings[0] ? '[' + $json.embeddings[0].join(',') + ']' : null  ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",

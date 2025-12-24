@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse quality rating from emoji\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '👍': 1.0,\n  '👎': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\nreturn {\n  json: {\n    ctx,\n    quality_score: qualityScore,\n    emoji\n  }\n};",
+        "jsCode": "// Parse quality rating from emoji\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '\ud83d\udc4d': 1.0,\n  '\ud83d\udc4e': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\nreturn {\n  json: {\n    ctx,\n    quality_score: qualityScore,\n    emoji\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
@@ -33,7 +33,7 @@
         "operation": "executeQuery",
         "query": "-- Find projections by either the original user message or the bot reply message\nWITH target_projections AS (\n  -- Option 1: User message that triggered projections\n  SELECT p.id\n  FROM projections p\n  JOIN events e ON p.event_id = e.id\n  WHERE e.payload->>'discord_message_id' = $3\n    AND e.event_type = 'discord_message'\n    AND p.status IN ('auto_confirmed', 'confirmed')\n  UNION\n  -- Option 2: Bot reply message (projection stores the message ID)\n  SELECT p.id\n  FROM projections p\n  WHERE (p.data->>'discord_message_id' = $3\n     OR p.metadata->>'message_id' = $3)\n    AND p.status IN ('auto_confirmed', 'confirmed')\n)\nUPDATE projections\nSET \n  quality_score = $1,\n  metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(\n    'quality_rated_at', NOW(),\n    'quality_emoji', $2\n  )\nWHERE id IN (SELECT id FROM target_projections)\nRETURNING id, projection_type, quality_score;",
         "options": {
-          "values": "={{ $json.quality_score }},={{ $json.emoji }},={{ $json.ctx.event.message_id }}"
+          "values": "={{ [  $json.quality_score ,  $json.emoji ,  $json.ctx.event.message_id  ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
