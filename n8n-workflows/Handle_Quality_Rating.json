@@ -53,6 +53,7 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "// Format response based on updated projections\nconst ctx = $('ReceiveEvent').first().json.ctx;\nconst qualityScore = $('ParseQualityRating').first().json.quality_score;\nconst emoji = $('ParseQualityRating').first().json.emoji;\nconst updated = $input.all();\n\nif (!updated || updated.length === 0 || !updated[0].json.id) {\n  return {\n    ctx,\n    response: {\n      content: `${emoji} No projections found for this message to rate.`\n    },\n    updated_count: 0\n  };\n}\n\nconst count = updated.length;\nconst types = [...new Set(updated.map(u => u.json.projection_type))];\nconst typeStr = types.join(', ');\nconst scoreLabel = qualityScore === 1.0 ? 'good' : 'poor';\n\nreturn {\n  ctx,\n  response: {\n    content: `${emoji} Marked ${count} projection(s) as **${scoreLabel}** quality (${typeStr})`\n  },\n  updated_count: count\n};"
       },
       "type": "n8n-nodes-base.code",

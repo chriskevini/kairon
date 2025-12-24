@@ -83,6 +83,7 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "// Collect query results and check if more queries remain\nconst items = $input.all();\n\n// Find state from merge (has original_ctx)\nlet state = null;\nconst queryResults = [];\n\nfor (const item of items) {\n  if (item.json.original_ctx) {\n    state = item.json;\n  } else {\n    // This is a Postgres result row\n    queryResults.push(item.json);\n  }\n}\n\nif (!state) {\n  throw new Error('Query_DB: Lost loop state');\n}\n\n// Store results for current query\nconst currentKey = state.current_query.key;\nstate.results[currentKey] = {\n  results: queryResults,\n  count: queryResults.length\n};\n\n// Move to next query\nstate.current_index++;\n\n// Check if more queries remain\nconst hasMore = state.current_index < state.queries.length;\n\nreturn [{\n  json: {\n    ...state,\n    has_more: hasMore\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",

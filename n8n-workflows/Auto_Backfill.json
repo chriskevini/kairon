@@ -143,6 +143,7 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
         "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const trace = item.json;\n  let parsed;\n  try {\n    parsed = JSON.parse(trace.completion);\n  } catch (e) {\n    console.error(`Failed to parse completion for trace ${trace.trace_id}: ${e.message}`);\n    continue;\n  }\n\n  const types = ['activity', 'note', 'todo'];\n  for (const type of types) {\n    const data = parsed[type];\n    if (data && data.confidence >= 0.5) {\n      results.push({\n        json: {\n          trace_id: trace.trace_id,\n          event_id: trace.event_id,\n          trace_chain: trace.trace_chain,\n          timezone: trace.timezone,\n          type: type,\n          data: data\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
