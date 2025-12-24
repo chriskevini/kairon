@@ -163,7 +163,7 @@ def check_code_node_ctx_pattern(node: dict, result: LintResult):
 
     bad_access_patterns = [
         (
-            r"\$json\.(?!ctx)[a-z_]+(?!\s*\|\|)",
+            r"\$json\.(?!ctx|db)[a-z_]+(?!\s*\|\|)",
             "accesses $json.X directly instead of $json.ctx.X",
         ),
     ]
@@ -289,7 +289,7 @@ def check_execute_workflow_nodes(workflow: dict, result: LintResult):
 
     for node in nodes:
         node_type = node.get("type", "")
-        if "executeWorkflow" in node_type:
+        if node_type == "n8n-nodes-base.executeWorkflow":
             name = node.get("name", "Unknown")
             params = node.get("parameters", {})
 
@@ -301,14 +301,6 @@ def check_execute_workflow_nodes(workflow: dict, result: LintResult):
                 result.error(
                     f"'{name}': ExecuteWorkflow workflowId should use mode='list', found '{mode}'"
                 )
-
-            # Check for required cachedResult fields when using Execute_Queries
-            cached_name = workflow_id.get("cachedResultName")
-            if cached_name == "Execute_Queries":
-                if not workflow_id.get("cachedResultUrl"):
-                    result.error(
-                        f"'{name}': ExecuteWorkflow with cachedResultName='Execute_Queries' must have cachedResultUrl"
-                    )
 
             # Check for required cachedResult fields when using Execute_Queries
             cached_name = workflow_id.get("cachedResultName")
@@ -333,11 +325,23 @@ def check_node_references(workflow: dict, result: LintResult):
             # Find all node references
             refs = re.findall(r"\$\('([^']+)'\)", code)
 
-            # Filter out the immediate upstream context reference (which is acceptable)
-            # Wrapper nodes referencing the previous node for ctx is OK
-            if len(refs) > 2:
+            # Strict Enforcement:
+            # 1. Logic nodes should have 0 references (use ctx)
+            # 2. Context restoration nodes can have 1 reference
+            # 3. More than 1 reference is always a structural smell
+
+            is_restoration_node = any(
+                p in name
+                for p in ["Restore", "Merge", "Prepare", "Build", "Assem", "Wrap"]
+            )
+
+            if len(refs) > 1:
+                result.error(
+                    f"'{name}': has {len(refs)} node references. Use Merge nodes or ctx pattern to reduce coupling."
+                )
+            elif len(refs) == 1 and not is_restoration_node:
                 result.warn(
-                    f"'{name}': has {len(refs)} node references - consider using ctx pattern to reduce coupling"
+                    f"'{name}': logic node uses direct reference $('{refs[0]}'). Consider moving ctx restoration to a dedicated wrapper node."
                 )
 
 
@@ -519,6 +523,7 @@ def lint_workflow(filepath: str) -> LintResult:
             check_merge_node_config(node, result)
 
     check_node_references(workflow, result)
+    check_execute_workflow_nodes(workflow, result)
 
     return result
 

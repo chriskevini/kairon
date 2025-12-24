@@ -341,7 +341,12 @@ curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
 - UI can show stale cached values
 - API is the source of truth for what n8n actually uses
 
-**Execute Workflow nodes** should use `mode: "id"` with the actual workflow ID. The deploy script handles remapping prod IDs to dev IDs automatically.
+**Execute Workflow nodes** should use `mode: "list"` with:
+- `value`: The workflow ID (handled by deploy script for prod/dev remapping)
+- `cachedResultName`: The target workflow name
+- `cachedResultUrl`: `/workflow/{workflow_id}`
+
+The deploy script automatically remaps workflow IDs between production and development environments.
 
 ## Local Tools
 
