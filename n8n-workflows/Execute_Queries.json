@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2025-12-24T08:35:11.121Z",
+  "updatedAt": "2025-12-24T09:01:28.106Z",
   "createdAt": "2025-12-23T09:30:27.014Z",
   "id": "CgUAxK0i4YhrZ2Wp",
   "name": "Execute_Queries",
@@ -82,7 +82,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.current_query.sql }}",
+        "query": "{{ $json.sql }}",
         "options": {
           "queryReplacement": "={{ $json.params }}"
         }
@@ -90,8 +90,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        688,
-        -176
+        672,
+        0
       ],
       "id": "execute-postgres-query",
       "name": "ExecuteQuery",
@@ -290,9 +290,9 @@
   },
   "staticData": null,
   "meta": null,
-  "versionId": "c87c695d-514d-42f6-ae1e-7ada567f0255",
+  "versionId": "7ed2d22e-978a-4d88-b66d-909616bed0e6",
   "activeVersionId": null,
-  "versionCounter": 134,
+  "versionCounter": 137,
   "triggerCount": 0,
   "shared": [
     {
@@ -316,7 +316,7 @@
             "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
             "projectId": "erM3nntdLL53noWi",
             "user": {
-              "updatedAt": "2025-12-24T08:32:36.975Z",
+              "updatedAt": "2025-12-24T08:40:46.063Z",
               "createdAt": "2025-12-23T09:16:54.881Z",
               "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
               "email": "chriskevini@gmail.com",
@@ -330,7 +330,8 @@
               "settings": {
                 "userActivated": true,
                 "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
-                "userActivatedAt": 1766487000077
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
               },
               "disabled": false,
               "mfaEnabled": false,

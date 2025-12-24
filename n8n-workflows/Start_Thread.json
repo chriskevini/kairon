@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2025-12-24T08:53:16.587Z",
+  "createdAt": "2025-12-23T09:30:32.352Z",
+  "id": "9z0gv8DzdPC76trq",
   "name": "Start_Thread",
+  "description": null,
+  "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -46,7 +52,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.db.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $json.ctx.event.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) → Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) → Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that's conversational and specific, not generic\n\nRespond to their initial message now.",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.db.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $json.ctx.event.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) \u2192 Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) \u2192 Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that's conversational and specific, not generic\n\nRespond to their initial message now.",
         "needsFallback": true,
         "batching": {}
       },
@@ -167,7 +173,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=🗨️"
+        "emoji": "=\ud83d\udde8\ufe0f"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -176,7 +182,7 @@
         -2560
       ],
       "id": "1e7b0d2a-54ee-4607-bcd9-7872585cb7c1",
-      "name": "ReactWith🗨️",
+      "name": "ReactWith\ud83d\udde8\ufe0f",
       "webhookId": "d9babcdf-8243-4adb-83c8-bbaf038fbfc7",
       "retryOnFail": true,
       "maxTries": 3,
@@ -192,7 +198,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -204,7 +210,7 @@
         -2080
       ],
       "id": "remove-blue-reaction-start-chat",
-      "name": "Remove🔵Reaction",
+      "name": "Remove\ud83d\udd35Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -325,12 +331,12 @@
             "index": 0
           },
           {
-            "node": "ReactWith🗨️",
+            "node": "ReactWith\ud83d\udde8\ufe0f",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove🔵Reaction",
+            "node": "Remove\ud83d\udd35Reaction",
             "type": "main",
             "index": 0
           }
@@ -425,12 +431,12 @@
         ]
       ]
     },
-    "ReactWith🗨️": {
+    "ReactWith\ud83d\udde8\ufe0f": {
       "main": [
         []
       ]
     },
-    "Remove🔵Reaction": {
+    "Remove\ud83d\udd35Reaction": {
       "main": [
         []
       ]
@@ -466,5 +472,59 @@
   },
   "staticData": null,
   "meta": null,
-  "active": false
+  "versionId": "cf643934-0e4c-47b4-b881-746d6b5443e1",
+  "activeVersionId": null,
+  "versionCounter": 184,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:32.352Z",
+      "createdAt": "2025-12-23T09:30:32.352Z",
+      "role": "workflow:owner",
+      "workflowId": "9z0gv8DzdPC76trq",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
 }

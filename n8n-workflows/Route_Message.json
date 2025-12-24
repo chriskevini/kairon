@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2025-12-24T09:23:41.326Z",
+  "createdAt": "2025-12-23T09:30:31.267Z",
+  "id": "G0XzfbZiT3P98B4S",
   "name": "Route_Message",
+  "description": null,
+  "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -143,8 +149,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Add projection type to ctx for Capture_Projection workflow\n// Derive type from tag (!! = activity, .. = note, $$ = todo)\nconst tag = $json.ctx.event.tag;\nconst tagToType = { '!!': 'activity', '..': 'note', '$$': 'todo' };\nconst projectionType = tagToType[tag] || 'activity';\n\nreturn [\n  {\n    json: {\n      ctx: {\n        ...$json.ctx,\n        projection: {\n          type: projectionType\n        }\n      }\n    }\n  }\n];",
-        "mode": "runOnceForEachItem"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Add projection type to ctx for Capture_Projection workflow\n// Derive type from tag (!! = activity, .. = note, $$ = todo)\nconst tag = $json.ctx.event.tag;\nconst tagToType = { '!!': 'activity', '..': 'note', '$$': 'todo' };\nconst projectionType = tagToType[tag] || 'activity';\n\nreturn  {\n      ctx: {\n        ...$json.ctx,\n        projection: {\n          type: projectionType\n        }\n      }\n    }\n  \n;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -639,5 +645,59 @@
   },
   "staticData": null,
   "meta": null,
-  "active": false
+  "versionId": "5a853904-4ddf-43f2-b4c9-e4e0ebfe9f5a",
+  "activeVersionId": null,
+  "versionCounter": 217,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:31.267Z",
+      "createdAt": "2025-12-23T09:30:31.267Z",
+      "role": "workflow:owner",
+      "workflowId": "G0XzfbZiT3P98B4S",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
 }

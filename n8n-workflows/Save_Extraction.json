@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2025-12-24T08:53:16.249Z",
+  "createdAt": "2025-12-23T09:30:31.825Z",
+  "id": "dzbXvPNPoYdpaXGT",
   "name": "Save_Extraction",
+  "description": null,
+  "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -33,7 +39,7 @@
         "operation": "executeQuery",
         "query": "SELECT id FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND status = 'pending' LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.message_id }}"
+          "values": "={{ $json.ctx.event.message_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -162,7 +168,7 @@
         "operation": "executeQuery",
         "query": "SELECT id, data->>'thread_id' AS thread_id, data->>'item_type' AS item_type, data->>'text' AS text FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND (data->>'display_order')::int = $2 AND status = 'pending' LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.message_id }},={{ $json.ctx.action.display_order }}"
+          "values": "={{ [  $json.ctx.event.message_id ,  $json.ctx.action.display_order  ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -243,7 +249,7 @@
         "operation": "executeQuery",
         "query": "UPDATE projections SET projection_type = 'note', status = 'confirmed', confirmed_at = NOW(), data = data || jsonb_build_object('category', data->>'item_type', 'promoted_from', 'thread_extraction', 'confirmed_via', 'reaction') WHERE id = $1::uuid AND projection_type = 'thread_extraction' RETURNING id, data->>'text' AS text;",
         "options": {
-          "queryReplacement": "={{ $json.id }}"
+          "values": "={{ $json.id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -266,7 +272,7 @@
         "operation": "executeQuery",
         "query": "UPDATE projections SET projection_type = 'todo', status = 'confirmed', confirmed_at = NOW(), data = data || jsonb_build_object('promoted_from', 'thread_extraction', 'confirmed_via', 'reaction', 'todo_status', 'pending') WHERE id = $1::uuid AND projection_type = 'thread_extraction' RETURNING id, data->>'text' AS text;",
         "options": {
-          "queryReplacement": "={{ $json.id }}"
+          "values": "={{ $json.id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -324,7 +330,7 @@
         "operation": "executeQuery",
         "query": "-- Insert embedding for the saved projection (fire-and-forget)\nINSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding)\nSELECT \n  $1::uuid,\n  'all-MiniLM-L6-v2',\n  '{}',\n  $2,\n  $3::vector\nWHERE $3 IS NOT NULL\nON CONFLICT DO NOTHING;",
         "options": {
-          "queryReplacement": "={{ $('After Promote').first().json.id }},={{ $('After Promote').first().json.text }},={{ $json.embeddings && $json.embeddings[0] ? '[' + $json.embeddings[0].join(',') + ']' : null }}"
+          "values": "={{ [  $('After Promote').first().json.id ,  $('After Promote').first().json.text ,  $json.embeddings && $json.embeddings[0] ? '[' + $json.embeddings[0].join(',') + ']' : null  ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -373,7 +379,7 @@
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as unsaved FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND status = 'pending' HAVING COUNT(*) = 0;",
         "options": {
-          "queryReplacement": "={{ $('What Action').item.json.ctx.event.message_id }}"
+          "values": "={{ $('What Action').item.json.ctx.event.message_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -451,7 +457,7 @@
         "operation": "executeQuery",
         "query": "SELECT data->>'thread_id' AS discord_thread_id FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.message_id }}"
+          "values": "={{ $json.ctx.event.message_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -805,5 +811,59 @@
   },
   "staticData": null,
   "meta": null,
-  "active": false
+  "versionId": "669aff82-a704-409c-af1b-21f9ea475c03",
+  "activeVersionId": null,
+  "versionCounter": 125,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:31.825Z",
+      "createdAt": "2025-12-23T09:30:31.825Z",
+      "role": "workflow:owner",
+      "workflowId": "dzbXvPNPoYdpaXGT",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
 }

@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2025-12-24T09:18:39.380Z",
+  "createdAt": "2025-12-23T09:30:28.917Z",
+  "id": "NOJ7FqVhVLqw0n8D",
   "name": "Handle_Error",
+  "description": null,
+  "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {},
@@ -7,21 +13,20 @@
       "typeVersion": 1,
       "position": [
         -400,
-        216
+        224
       ],
       "id": "error-trigger-handle-error",
       "name": "ErrorTrigger"
     },
     {
       "parameters": {
-        "jsCode": "// Filter: Skip if this is a parent workflow wrapping a child error\n// Parent errors have errorResponse (the wrapped child error)\nconst errorData = $json;\nconst error = errorData.execution?.error || {};\n\n// If this error is just wrapping a sub-workflow error, skip it\nif (error.errorResponse) {\n  return []; // Return empty to stop flow\n}\n\n// Continue processing - this is the root cause error\nreturn { json: $json };",
-        "mode": "runOnceForEachItem"
+        "jsCode": "// Filter: Skip if this is a parent workflow wrapping a child error\n// Parent errors have errorResponse (the wrapped child error)\nconst errorData = $input.first().json;\nconst error = errorData.execution?.error || {};\n\n// If this error is just wrapping a sub-workflow error, skip it\nif (error.errorResponse) {\n  return []; // Return empty to stop flow\n}\n\n// Continue processing - this is the root cause error\nreturn { json: errorData };"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -176,
-        216
+        224
       ],
       "id": "filter-duplicates-handle-error",
       "name": "FilterDuplicateErrors"
@@ -36,7 +41,7 @@
       "typeVersion": 2.4,
       "position": [
         48,
-        216
+        224
       ],
       "id": "get-recent-event-handle-error",
       "name": "GetRecentEvent",
@@ -50,14 +55,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract error details and merge with event context\nconst errorData = $('FilterDuplicateErrors').first().json;\nconst eventData = $json || {};\n\nconst execution = errorData.execution || {};\nconst workflow = errorData.workflow || {};\nconst error = execution.error || {};\n\n// Get the node that failed\nconst failedNode = error.node?.name || execution.lastNodeExecuted || 'Unknown';\nconst errorMessage = error.message || 'No error message';\n\n// Get workflow info\nconst workflowName = workflow.name || 'Unknown';\nconst executionId = execution.id || 'N/A';\n\n// Get Discord context from recent event\nconst guildId = eventData.guild_id || null;\nconst channelId = eventData.channel_id || null;\nconst messageId = eventData.message_id || null;\nconst cleanText = eventData.clean_text || '';\n\n// Try to extract from error URL if available\nlet extractedChannelId = channelId;\nlet extractedMessageId = messageId;\n\nif (!channelId && error.context?.request?.uri) {\n  const uri = error.context.request.uri;\n  // Parse: https://discord.com/api/v10/channels/{channel_id}/messages/{message_id}/...\n  const match = uri.match(/channels\\/([0-9]+)\\/messages\\/([0-9]+)/);\n  if (match) {\n    extractedChannelId = match[1];\n    extractedMessageId = match[2];\n  }\n}\n\n// Build condensed Discord message\nlet content = `\u274c **${workflowName}** \u2192 ${failedNode}\\n`;\ncontent += `${errorMessage}`;\n\nif (cleanText) {\n  const preview = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;\n  content += `\\n\ud83d\udcdd \"${preview}\"`;\n}\n\ncontent += `\\n\\`exec:${executionId}\\``;\n\n// Truncate if needed (Discord 2000 char limit)\nif (content.length > 1900) {\n  content = content.substring(0, 1900) + '...';\n}\n\nreturn {\n  json: {\n    content: content,\n    guild_id: guildId || process.env.DISCORD_GUILD_ID,\n    channel_id: extractedChannelId,\n    message_id: extractedMessageId,\n    can_react: !!(extractedChannelId && extractedMessageId)\n  }\n};",
-        "mode": "runOnceForEachItem"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract error details and merge with event context\nconst errorData = $('FilterDuplicateErrors').first().json;\nconst eventData = $json || {};\n\nconst execution = errorData.execution || {};\nconst workflow = errorData.workflow || {};\nconst error = execution.error || {};\n\n// Get the node that failed\nconst failedNode = error.node?.name || execution.lastNodeExecuted || 'Unknown';\nconst errorMessage = error.message || 'No error message';\n\n// Get workflow info\nconst workflowName = workflow.name || 'Unknown';\nconst executionId = execution.id || 'N/A';\n\n// Get Discord context from recent event\nconst guildId = eventData.guild_id || null;\nconst channelId = eventData.channel_id || null;\nconst messageId = eventData.message_id || null;\nconst cleanText = eventData.clean_text || '';\n\n// Try to extract from error URL if available\nlet extractedChannelId = channelId;\nlet extractedMessageId = messageId;\n\nif (!channelId && error.context?.request?.uri) {\n  const uri = error.context.request.uri;\n  // Parse: https://discord.com/api/v10/channels/{channel_id}/messages/{message_id}/...\n  const match = uri.match(/channels\\/([0-9]+)\\/messages\\/([0-9]+)/);\n  if (match) {\n    extractedChannelId = match[1];\n    extractedMessageId = match[2];\n  }\n}\n\n// Build condensed Discord message\nlet content = `❌ **${workflowName}** → ${failedNode}\\n`;\ncontent += `${errorMessage}`;\n\nif (cleanText) {\n  const preview = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;\n  content += `\\n📝 \"${preview}\"`;\n}\n\ncontent += `\\n\\`exec:${executionId}\\``;\n\n// Truncate if needed (Discord 2000 char limit)\nif (content.length > 1900) {\n  content = content.substring(0, 1900) + '...';\n}\n\nreturn {\n  json: {\n    content: content,\n    guild_id: guildId || process.env.DISCORD_GUILD_ID,\n    channel_id: extractedChannelId,\n    message_id: extractedMessageId,\n    can_react: !!(extractedChannelId && extractedMessageId)\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         272,
-        216
+        224
       ],
       "id": "format-error-handle-error",
       "name": "FormatErrorMessage"
@@ -90,7 +95,7 @@
       "typeVersion": 2,
       "position": [
         496,
-        216
+        224
       ],
       "id": "check-can-react-handle-error",
       "name": "CanReact?"
@@ -110,7 +115,7 @@
         144
       ],
       "id": "add-error-reaction-handle-error",
-      "name": "Add\u274cReaction",
+      "name": "Add❌Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -137,7 +142,7 @@
         144
       ],
       "id": "remove-blue-reaction-handle-error",
-      "name": "Remove\ud83d\udd35Reaction",
+      "name": "Remove🔵Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -162,14 +167,14 @@
           "value": "={{ $env.DISCORD_CHANNEL_KAIRON_LOGS }}",
           "mode": "id"
         },
-        "content": "={{ $('Format Error Message').item.json.content }}",
+        "content": "={{ $('FormatErrorMessage').item.json.content }}",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
         1392,
-        216
+        224
       ],
       "id": "send-error-discord-handle-error",
       "name": "SendErrorToLogs",
@@ -185,15 +190,12 @@
       }
     },
     {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      },
+      "parameters": {},
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
         1168,
-        216
+        224
       ],
       "id": "merge-paths-handle-error",
       "name": "MergePaths"
@@ -248,7 +250,7 @@
       "main": [
         [
           {
-            "node": "Add\u274cReaction",
+            "node": "Add❌Reaction",
             "type": "main",
             "index": 0
           }
@@ -262,18 +264,18 @@
         ]
       ]
     },
-    "Add\u274cReaction": {
+    "Add❌Reaction": {
       "main": [
         [
           {
-            "node": "Remove\ud83d\udd35Reaction",
+            "node": "Remove🔵Reaction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Remove\ud83d\udd35Reaction": {
+    "Remove🔵Reaction": {
       "main": [
         [
           {
@@ -302,5 +304,59 @@
   },
   "staticData": null,
   "meta": null,
-  "active": false
+  "versionId": "98a19fff-c4cf-4aaa-9a07-ebd60bdb0627",
+  "activeVersionId": null,
+  "versionCounter": 131,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:28.917Z",
+      "createdAt": "2025-12-23T09:30:28.917Z",
+      "role": "workflow:owner",
+      "workflowId": "NOJ7FqVhVLqw0n8D",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
 }

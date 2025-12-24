@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2025-12-24T08:53:12.351Z",
+  "createdAt": "2025-12-23T21:46:04.499Z",
+  "id": "eRoAFDm0UWls8AJd",
   "name": "Backup_Workflow",
+  "description": null,
+  "active": true,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -90,7 +96,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n📁 Backup Directory: ${backupDir}\\n✅ Successfully backed up: ${successCount} items\\n❌ Failed to backup: ${errorCount} items\\n⚠️  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n};",
+        "jsCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n\ud83d\udcc1 Backup Directory: ${backupDir}\\n\u2705 Successfully backed up: ${successCount} items\\n\u274c Failed to backup: ${errorCount} items\\n\u26a0\ufe0f  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "id": "5",
@@ -235,5 +241,299 @@
   },
   "staticData": null,
   "meta": null,
-  "active": false
+  "versionId": "0b4c0d58-0795-428c-86aa-7e859c47b3b3",
+  "activeVersionId": "0b4c0d58-0795-428c-86aa-7e859c47b3b3",
+  "versionCounter": 106,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T21:46:04.499Z",
+      "createdAt": "2025-12-23T21:46:04.499Z",
+      "role": "workflow:owner",
+      "workflowId": "eRoAFDm0UWls8AJd",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2025-12-24T08:53:12.354Z",
+    "createdAt": "2025-12-24T08:53:12.354Z",
+    "versionId": "0b4c0d58-0795-428c-86aa-7e859c47b3b3",
+    "workflowId": "eRoAFDm0UWls8AJd",
+    "nodes": [
+      {
+        "parameters": {
+          "cronExpression": "0 2 * * *",
+          "timezone": "UTC"
+        },
+        "id": "1",
+        "name": "Cron",
+        "type": "n8n-nodes-base.cron",
+        "typeVersion": 1,
+        "position": [
+          -600,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const fs = require('fs');\nconst path = require('path');\nconst { execSync } = require('child_process');\n\n// Get current timestamp\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-');\nconst backupDir = `/tmp/n8n-backup-${timestamp}`;\n\n// Ensure backup directory exists\nexecSync(`mkdir -p ${backupDir}`);\n\n// Files to backup\nconst files = [\n  'n8n-workflows',\n  'n8n-workflows-dev',\n  'scripts',\n  '.env',\n  'DEPLOYMENT.md',\n  'README.md'\n];\n\nconst results = [];\n\nfor (const file of files) {\n  try {\n    if (fs.existsSync(file)) {\n      const dest = path.join(backupDir, file);\n      execSync(`cp -r ${file} ${dest}`);\n      results.push({ file, status: 'success', path: dest });\n    } else {\n      results.push({ file, status: 'not_found' });\n    }\n  } catch (error) {\n    results.push({ file, status: 'error', error: error.message });\n  }\n}\n\n// Create backup info file\nconst backupInfo = {\n  timestamp,\n  backupDir,\n  results,\n  createdAt: new Date().toISOString()\n};\n\nfs.writeFileSync(path.join(backupDir, 'backup-info.json'), JSON.stringify(backupInfo, null, 2));\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: $json.id || 'backup-' + timestamp,\n        event_type: 'backup_workflow',\n        clean_text: 'Backup workflow execution',\n        trace_chain: [timestamp],\n        author_login: 'system',\n        timestamp: new Date().toISOString()\n      },\n      backup: {\n        results,\n        backupDir,\n        timestamp\n      }\n    }\n  }\n};",
+          "mode": "runOnceForEachItem"
+        },
+        "id": "2",
+        "name": "CreateBackup",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -400,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO traces (event_id, event_type, trace_chain, author_login, timestamp, duration_ms, model, completion_text, confidence, prompt, response, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id",
+          "values": [
+            "={{$json.ctx.event.event_id}}",
+            "backup_workflow",
+            "={{JSON.stringify($json.ctx.event.trace_chain)}}",
+            "system",
+            "={{$json.ctx.event.timestamp}}",
+            0,
+            "system",
+            "Backup created successfully",
+            1,
+            "Create backup",
+            "Backup completed",
+            "completed"
+          ]
+        },
+        "id": "3",
+        "name": "StoreTrace",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.4,
+        "position": [
+          -200,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "GIpVtzgs3wiCmQBQ",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO projections (trace_id, projection_type, projection_data, confidence, category) VALUES ($1, $2, $3, $4, $5)",
+          "values": [
+            "={{$json.ctx.db.trace.id}}",
+            "backup",
+            "={{JSON.stringify($json.ctx.backup)}}",
+            1,
+            "system"
+          ]
+        },
+        "id": "4",
+        "name": "StoreBackupProjection",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.4,
+        "position": [
+          0,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "GIpVtzgs3wiCmQBQ",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n\ud83d\udcc1 Backup Directory: ${backupDir}\\n\u2705 Successfully backed up: ${successCount} items\\n\u274c Failed to backup: ${errorCount} items\\n\u26a0\ufe0f  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n};",
+          "mode": "runOnceForEachItem"
+        },
+        "id": "5",
+        "name": "FormatSuccessMessage",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          200,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const message = $json.ctx.message;\n\n// Send success message to Discord\nconst webhookUrl = process.env.DISCORD_WEBHOOK_URL;\nif (webhookUrl) {\n  const payload = {\n    content: message,\n    username: 'Kairon Backup Bot',\n    avatar_url: 'https://cdn.discordapp.com/emojis/123456789012345678.png' // Kairon logo\n  };\n  \n  await $node['HTTP Request'].run({\n    method: 'POST',\n    url: webhookUrl,\n    body: JSON.stringify(payload),\n    headers: {\n      'Content-Type': 'application/json'\n    }\n  });\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      discord_sent: true\n    }\n  }\n};",
+          "mode": "runOnceForEachItem"
+        },
+        "id": "6",
+        "name": "SendDiscordSuccess",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          400,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "url": "={{$json.ctx.discord_sent ? '' : ''}}",
+          "method": "POST",
+          "jsonParameters": true,
+          "options": {}
+        },
+        "id": "7",
+        "name": "HttpRequest",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 2,
+        "position": [
+          400,
+          200
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO events (idempotency_key, event_type, clean_text, author_login, timestamp, channel_id, message_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (idempotency_key) DO NOTHING RETURNING id",
+          "values": [
+            "={{'backup-' + new Date().toISOString().replace(/[:.]/g, '-')}}",
+            "backup_workflow",
+            "Backup workflow executed successfully",
+            "system",
+            "={{$json.ctx.event.timestamp}}",
+            "system",
+            "backup"
+          ]
+        },
+        "id": "8",
+        "name": "LogEvent",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.4,
+        "position": [
+          -200,
+          -200
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "GIpVtzgs3wiCmQBQ",
+            "name": "Postgres account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Cron": {
+        "main": [
+          [
+            {
+              "node": "CreateBackup",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "CreateBackup": {
+        "main": [
+          [
+            {
+              "node": "StoreTrace",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "StoreTrace": {
+        "main": [
+          [
+            {
+              "node": "StoreBackupProjection",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "StoreBackupProjection": {
+        "main": [
+          [
+            {
+              "node": "FormatSuccessMessage",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "FormatSuccessMessage": {
+        "main": [
+          [
+            {
+              "node": "SendDiscordSuccess",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "SendDiscordSuccess": {
+        "main": [
+          [
+            {
+              "node": "HttpRequest",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Chris Irineo",
+    "name": null,
+    "description": null
+  }
 }

@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2025-12-24T08:53:12.894Z",
+  "createdAt": "2025-12-23T09:30:25.763Z",
+  "id": "mbX1lCt14Yi75gTE",
   "name": "Continue_Thread",
+  "description": null,
+  "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -180,7 +186,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=💭"
+        "emoji": "=\ud83d\udcad"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -189,7 +195,7 @@
         96
       ],
       "id": "3d6f0aee-f86f-437e-aa57-0683b80c2ced",
-      "name": "ReactWith💭",
+      "name": "ReactWith\ud83d\udcad",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "retryOnFail": true,
       "maxTries": 3,
@@ -205,7 +211,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -217,7 +223,7 @@
         1152
       ],
       "id": "remove-blue-reaction-continue-chat",
-      "name": "Remove🔵Reaction",
+      "name": "Remove\ud83d\udd35Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -322,12 +328,12 @@
             "index": 0
           },
           {
-            "node": "ReactWith💭",
+            "node": "ReactWith\ud83d\udcad",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove🔵Reaction",
+            "node": "Remove\ud83d\udd35Reaction",
             "type": "main",
             "index": 0
           }
@@ -462,5 +468,59 @@
   },
   "staticData": null,
   "meta": null,
-  "active": false
+  "versionId": "afa8d3be-2df8-4506-baab-4f177983c46a",
+  "activeVersionId": null,
+  "versionCounter": 185,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:25.763Z",
+      "createdAt": "2025-12-23T09:30:25.763Z",
+      "role": "workflow:owner",
+      "workflowId": "mbX1lCt14Yi75gTE",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
 }
