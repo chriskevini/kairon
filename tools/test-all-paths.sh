@@ -23,7 +23,7 @@ CHANNEL_ID="1453335033665556654"
 QUICK_MODE=false
 VERIFY_DB=false
 DEV_MODE=false
-QUIET_MODE=false
+QUIET_MODE=true
 
 # Colors
 GREEN='\033[0;32m'
@@ -121,7 +121,7 @@ while [[ "$#" -gt 0 ]]; do
         --quick) QUICK_MODE=true ;;
         --verify-db) VERIFY_DB=true ;;
         --dev) DEV_MODE=true ;;
-        --quiet) QUIET_MODE=true ;;
+        --verbose) QUIET_MODE=false ;;
         --webhook) WEBHOOK="$2"; shift ;;
         --guild-id) GUILD_ID="$2"; shift ;;
         --channel-id) CHANNEL_ID="$2"; shift ;;
@@ -132,7 +132,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --quick          Run quick test suite (skip exhaustive aliases)"
             echo "  --verify-db      Verify database after tests"
             echo "  --dev            Run against dev environment (port 5679)"
-            echo "  --quiet          Silent on success, only show failures"
+            echo "  --verbose        Show full output (default is silent on success)"
             echo "  --webhook URL    Use custom webhook URL"
             echo "  --guild-id ID    Discord guild ID"
             echo "  --channel-id ID  Discord channel ID"
