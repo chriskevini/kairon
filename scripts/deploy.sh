@@ -186,7 +186,7 @@ deploy_prod() {
                 "$N8N_DEV_SSH_HOST:/opt/kairon/scripts/workflows/"
             
             ssh "$N8N_DEV_SSH_HOST" "cd /opt/kairon && \
-                source /opt/n8n-docker-caddy/.env && \
+                export \$(grep -E '^(N8N_API_KEY|N8N_API_URL)=' /opt/n8n-docker-caddy/.env) && \
                 WORKFLOW_DIR='/opt/kairon/n8n-workflows' \
                 bash /opt/kairon/scripts/workflows/n8n-push-prod.sh" > "$OUTPUT_FILE" 2>&1
         else
