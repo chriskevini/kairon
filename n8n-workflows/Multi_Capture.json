@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare for multi-capture\nconst ctx = $json.ctx;\n\nreturn {\n  json: {\n    ctx: ctx,\n    inference_start: Date.now()\n  }\n};",
+        "jsCode": "// Prepare for multi-capture\nconst ctx = $json.ctx;\n\nreturn [\n  {\n    json: {\n      ctx: ctx,\n      inference_start: Date.now()\n    }\n  }\n];",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
@@ -421,7 +421,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract text for embedding from projection data\nconst ctx = $json.ctx;\nconst projection = ctx.db?.projection?.row || {};\nconst data = projection.data || {};\nconst embeddingText = data.description || data.text || '';\n\nreturn {\n  json: {\n    projection_id: projection.id,\n    embedding_text: embeddingText\n  }\n};",
+        "jsCode": "// Extract text for embedding from projection data\nconst ctx = $json.ctx;\nconst projection = ctx.db?.projection?.row || {};\nconst data = projection.data || {};\nconst embeddingText = data.description || data.text || '';\n\nreturn [\n  {\n    json: {\n      projection_id: projection.id,\n      embedding_text: embeddingText\n    }\n  }\n];",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
@@ -784,7 +784,7 @@
   },
   "settings": {
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "errorWorkflow": "NOJ7FqVhVLqw0n8D",
     "availableInMCP": false,
     "executionOrder": "v1"
   },
