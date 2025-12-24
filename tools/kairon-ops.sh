@@ -8,6 +8,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Track SSH tunnel PID for cleanup
+SSH_TUNNEL_PID=""
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -57,16 +60,27 @@ done
 init_environment() {
     case "$ENVIRONMENT" in
         dev)
+            if [ -z "${N8N_DEV_API_KEY:-}" ]; then
+                error "Dev environment not configured"
+                error "Set N8N_DEV_API_KEY in .env file"
+                error "See .env.example for required dev variables"
+                exit 1
+            fi
             export CRED_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
-            export CRED_API_KEY="$N8N_DEV_API_KEY"
+            export CRED_API_KEY="${N8N_DEV_API_KEY:-}"
             export CRED_CONTAINER_DB="${CONTAINER_DB_DEV:-postgres-dev}"
             export CRED_DB_NAME="${DB_NAME_DEV:-kairon_dev}"
             export CRED_DB_USER="${DB_USER_DEV:-n8n_user}"
-            export CRED_SSH_HOST="${DEV_SSH_HOST:-}"
+            export CRED_SSH_HOST="${N8N_DEV_SSH_HOST:-}"
             ;;
         prod)
+            if [ -z "${N8N_API_KEY:-}" ]; then
+                error "Production environment not configured"
+                error "Set N8N_API_KEY in .env file"
+                exit 1
+            fi
             export CRED_API_URL="${N8N_API_URL:-http://localhost:5678}"
-            export CRED_API_KEY="$N8N_API_KEY"
+            export CRED_API_KEY="${N8N_API_KEY:-}"
             export CRED_CONTAINER_DB="${CONTAINER_DB:-postgres-db}"
             export CRED_DB_NAME="${DB_NAME:-kairon}"
             export CRED_DB_USER="${DB_USER:-n8n_user}"
@@ -75,13 +89,44 @@ init_environment() {
     esac
 }
 
-init_environment
-
 # Check if we're in the right directory
 if [ ! -f "$PROJECT_ROOT/.env" ]; then
     error "Not in kairon project root (no .env found)"
     error "Current dir: $PROJECT_ROOT"
     exit 1
+fi
+
+# Load environment variables from .env
+set -a
+source "$PROJECT_ROOT/.env"
+set +a
+
+# Initialize credentials AFTER loading .env
+init_environment
+
+# Cleanup function for SSH tunnel
+cleanup_ssh_tunnel() {
+    if [ -n "$SSH_TUNNEL_PID" ]; then
+        kill "$SSH_TUNNEL_PID" 2>/dev/null || true
+    fi
+}
+
+# Set up SSH tunnel for dev environment if needed
+if [ "$ENVIRONMENT" = "dev" ] && [ -n "$CRED_SSH_HOST" ]; then
+    if ! curl -s --connect-timeout 1 http://localhost:5679/ > /dev/null 2>&1; then
+        info "Opening SSH tunnel to $CRED_SSH_HOST..."
+        ssh -f -N -L 5679:localhost:5679 "$CRED_SSH_HOST" 2>/dev/null || {
+            error "Failed to open SSH tunnel to $CRED_SSH_HOST"
+            exit 1
+        }
+        
+        # Find the SSH tunnel PID for cleanup
+        sleep 1
+        SSH_TUNNEL_PID=$(ps aux | grep "[s]sh.*5679:localhost:5679.*$CRED_SSH_HOST" | awk '{print $2}' | head -1)
+        
+        # Set trap for cleanup
+        trap cleanup_ssh_tunnel EXIT INT TERM
+    fi
 fi
 
 # Change to project root for rdev to work
@@ -95,15 +140,17 @@ if ! command -v rdev &>/dev/null; then
 fi
 
 # Determine if we should use local or remote execution
+# For dev with SSH host: use local curl via SSH tunnel (port forwarding)
+# For prod: always use rdev for remote execution
 use_local() {
-    [ "$ENVIRONMENT" = "dev" ] && [ -z "$CRED_SSH_HOST" ]
+    [ "$ENVIRONMENT" = "dev" ]
 }
 
 get_api_key() {
     if use_local; then
         echo "$CRED_API_KEY"
     else
-        rdev exec 'grep "^N8N_API_KEY=" ~/kairon/.env | cut -d= -f2' 2>/dev/null || echo "$CRED_API_KEY"
+        rdev exec 'source ~/kairon/.env 2>/dev/null && echo "$N8N_API_KEY"' 2>/dev/null || echo "$CRED_API_KEY"
     fi
 }
 
@@ -112,14 +159,6 @@ execute_remote() {
         bash -c "$*" 2>/dev/null || eval "$@"
     else
         rdev exec "$@"
-    fi
-}
-
-get_api_key() {
-    if use_local; then
-        echo "$CRED_API_KEY"
-    else
-        rdev exec 'source ~/kairon/.env 2>/dev/null && echo "$N8N_API_KEY"' 2>/dev/null || echo "$CRED_API_KEY"
     fi
 }
 
@@ -267,7 +306,7 @@ cmd_backup() {
     local workflow_count=0
     echo "$workflow_data" | jq -r '.data[]? | "\(.id)|\(.name)"' | while IFS='|' read -r id name; do
         local safe_name
-        safe_name=$(echo "$name" | tr '/' '_' | tr ' ' '_' | tr -cd '[:alnum:]_-')
+        safe_name=$(echo "$name" | tr '/' '_' | tr ' ' '_' | sed 's/[^a-zA-Z0-9_-]/_/g' | tr -s '_')
         info "Backing up: $name"
         execute_remote "curl -s -H 'X-N8N-API-KEY: $api_key' '$CRED_API_URL/api/v1/workflows/$id'" | \
             jq '.' > "$backup_dir/workflows/${safe_name}.json"
