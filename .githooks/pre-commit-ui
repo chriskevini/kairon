@@ -1,0 +1,36 @@
+#!/bin/bash
+# n8n UI Pre-commit Hook
+# Validates workflows for n8n UI compatibility before commit
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Find workflow files staged for commit
+STAGED_WORKFLOWS=$(git diff --cached --name-only --diff-filter=ACM | grep "n8n-workflows/.*\.json$" || true)
+
+if [ -z "$STAGED_WORKFLOWS" ]; then
+    # No workflow files staged, skip UI validation
+    exit 0
+fi
+
+echo "🖥️  Validating n8n UI compatibility for staged workflows..."
+echo ""
+
+# Run API-only validation first (fast)
+if python3 "$SCRIPT_DIR/validation/n8n_workflow_validator.py" $STAGED_WORKFLOWS >/dev/null 2>&1; then
+    echo "✅ API compatibility validation passed"
+else
+    echo "❌ API compatibility validation failed"
+    echo ""
+    echo "Workflows may not be compatible with n8n. Run full tests:"
+    echo "  ./scripts/testing/run-n8n-ui-tests.sh --api-only"
+    exit 1
+fi
+
+# For production deployments, suggest full UI testing
+if [ -n "$N8N_API_KEY" ] && [ -n "$N8N_API_URL" ]; then
+    echo "💡 Tip: Run full UI compatibility tests before pushing:"
+    echo "  ./scripts/testing/run-n8n-ui-tests.sh --full"
+fi
+
+echo "✅ UI compatibility pre-commit checks passed"
