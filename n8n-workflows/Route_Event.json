@@ -61,9 +61,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "59PoRBQyv8eCroDh",
+          "value": "ujGErhNkQv4hkJxB",
           "mode": "list",
-          "cachedResultName": "Generate_Nudge"
+          "cachedResultName": "Generate_Nudge",
+          "cachedResultUrl": "/workflow/ujGErhNkQv4hkJxB"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -105,7 +106,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
+          "id": "GIpVtzgs3wiCmQBQ",
           "name": "Postgres account"
         }
       }
@@ -127,9 +128,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "cIROQISrYEAKML84",
+          "value": "tpkLfvOCAeN5YzMR",
           "mode": "list",
-          "cachedResultName": "Generate_Daily_Summary"
+          "cachedResultName": "Generate_Daily_Summary",
+          "cachedResultUrl": "/workflow/tpkLfvOCAeN5YzMR"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -221,7 +223,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const reaction = $json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn {\n  ...reaction,\n  synthetic_id: syntheticId,\n  emoji: emoji,\n  extraction_index: extractionIndex\n};"
+        "jsCode": "const reaction = $json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn {\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -251,7 +254,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
+          "id": "GIpVtzgs3wiCmQBQ",
           "name": "Postgres account"
         }
       }
@@ -275,14 +278,15 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "MdnYzEgjzWRujz2v",
+          "id": "GIpVtzgs3wiCmQBQ",
           "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Message').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $json;\nconst webhook = $('Discord Webhook Entry').first().json.body;\nconst parsed = $('Parse Message').first().json;\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: parsed.clean_text,\n        tag: parsed.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -295,7 +299,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $input.first().json;\nconst webhook = $('Discord Webhook Entry').item.json.body;\nconst parsed = $('Parse Reaction').item.json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\nconst dbResult = $json;\nconst webhook = $('Discord Webhook Entry').first().json.body;\nconst parsed = $('Parse Reaction').first().json;\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: parsed.emoji,\n        extraction_index: parsed.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -310,9 +315,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "k8ALz60eG7kYqxK9",
+          "value": "TiwH9iJRRV8ZRtrs",
           "mode": "list",
-          "cachedResultUrl": "/workflow/k8ALz60eG7kYqxK9",
+          "cachedResultUrl": "/workflow/TiwH9iJRRV8ZRtrs",
           "cachedResultName": "Route_Reaction"
         },
         "workflowInputs": {
@@ -339,9 +344,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "NMMQUQveF3aitpti",
+          "value": "G0XzfbZiT3P98B4S",
           "mode": "list",
-          "cachedResultUrl": "/workflow/NMMQUQveF3aitpti",
+          "cachedResultUrl": "/workflow/G0XzfbZiT3P98B4S",
           "cachedResultName": "Route_Message"
         },
         "workflowInputs": {
@@ -366,7 +371,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const json = $input.first().json;\nconst content = (json.body.content || \"\").trim();\nconst lowerContent = content.toLowerCase();\n\nconst TAG_TABLE = [\n  [\"!!\", \"act\"],\n  [\"..\", \"note\"],\n  [\"++\", \"chat\"],\n  [\"--\", \"save\"],\n  [\"::\", \"cmd\"],\n  [\"$$\", \"todo\", \"to-do\"]\n];\n\nlet tag = null;\nlet clean_text = content;\n\nfor (const row of TAG_TABLE) {\n  const normalized = row[0];\n  \n  const match = row.find(alias => {\n    const a = alias.toLowerCase();\n    \n    // Check if alias is strictly symbols (no letters or numbers)\n    const isSymbolOnly = !/[a-z0-9]/i.test(a);\n\n    if (isSymbolOnly) {\n      // Symbols match even if glued to text: \"!!task\"\n      return lowerContent.startsWith(a);\n    } else {\n      // Words require a space or exact match: \"act task\" or \"act\"\n      return lowerContent.startsWith(a + \" \") || lowerContent === a;\n    }\n  });\n\n  if (match) {\n    tag = normalized;\n    clean_text = content.slice(match.length).trim();\n    break;\n  }\n}\n\nreturn { ...json.body, tag, clean_text };"
+        "jsCode": "const json = $json;\nconst content = (json.body.content || \"\").trim();\nconst lowerContent = content.toLowerCase();\n\nconst TAG_TABLE = [\n  [\"!!\", \"act\"],\n  [\"..\", \"note\"],\n  [\"++\", \"chat\"],\n  [\"--\", \"save\"],\n  [\"::\", \"cmd\"],\n  [\"$$\", \"todo\", \"to-do\"]\n];\n\nlet tag = null;\nlet clean_text = content;\n\nfor (const row of TAG_TABLE) {\n  const normalized = row[0];\n  \n  const match = row.find(alias => {\n    const a = alias.toLowerCase();\n    \n    // Check if alias is strictly symbols (no letters or numbers)\n    const isSymbolOnly = !/[a-z0-9]/i.test(a);\n\n    if (isSymbolOnly) {\n      // Symbols match even if glued to text: \"!!task\"\n      return lowerContent.startsWith(a);\n    } else {\n      // Words require a space or exact match: \"act task\" or \"act\"\n      return lowerContent.startsWith(a + \" \") || lowerContent === a;\n    }\n  });\n\n  if (match) {\n    tag = normalized;\n    clean_text = content.slice(match.length).trim();\n    break;\n  }\n}\n\nreturn { ...json.body, tag, clean_text };",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -522,9 +528,23 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "errorWorkflow": ""
   },
-  "staticData": null,
+  "staticData": {
+    "node:NudgeCron(every15Min)": {
+      "recurrenceRules": []
+    },
+    "node:SummaryCron(every5Min)": {
+      "recurrenceRules": []
+    },
+    "node:Nudge Cron (Every 15 Min)": {
+      "recurrenceRules": []
+    },
+    "node:Summary Cron (Every 5 Min)": {
+      "recurrenceRules": []
+    }
+  },
   "meta": null,
-  "active": true
+  "active": false
 }
