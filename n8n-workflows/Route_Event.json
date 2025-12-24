@@ -223,8 +223,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const reaction = $json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn {\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n};",
-        "mode": "runOnceForEachItem"
+        "jsCode": "const reaction = $input.first().json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -371,8 +370,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const json = $json;\nconst content = (json.body.content || \"\").trim();\nconst lowerContent = content.toLowerCase();\n\nconst TAG_TABLE = [\n  [\"!!\", \"act\"],\n  [\"..\", \"note\"],\n  [\"++\", \"chat\"],\n  [\"--\", \"save\"],\n  [\"::\", \"cmd\"],\n  [\"$$\", \"todo\", \"to-do\"]\n];\n\nlet tag = null;\nlet clean_text = content;\n\nfor (const row of TAG_TABLE) {\n  const normalized = row[0];\n  \n  const match = row.find(alias => {\n    const a = alias.toLowerCase();\n    \n    // Check if alias is strictly symbols (no letters or numbers)\n    const isSymbolOnly = !/[a-z0-9]/i.test(a);\n\n    if (isSymbolOnly) {\n      // Symbols match even if glued to text: \"!!task\"\n      return lowerContent.startsWith(a);\n    } else {\n      // Words require a space or exact match: \"act task\" or \"act\"\n      return lowerContent.startsWith(a + \" \") || lowerContent === a;\n    }\n  });\n\n  if (match) {\n    tag = normalized;\n    clean_text = content.slice(match.length).trim();\n    break;\n  }\n}\n\nreturn { ...json.body, tag, clean_text };",
-        "mode": "runOnceForEachItem"
+        "jsCode": "const json = $input.first().json;\nconst content = (json.body.content || \"\").trim();\nconst lowerContent = content.toLowerCase();\n\nconst TAG_TABLE = [\n  [\"!!\", \"act\"],\n  [\"..\", \"note\"],\n  [\"++\", \"chat\"],\n  [\"--\", \"save\"],\n  [\"::\", \"cmd\"],\n  [\"$$\", \"todo\", \"to-do\"]\n];\n\nlet tag = null;\nlet clean_text = content;\n\nfor (const row of TAG_TABLE) {\n  const normalized = row[0];\n  \n  const match = row.find(alias => {\n    const a = alias.toLowerCase();\n    \n    // Check if alias is strictly symbols (no letters or numbers)\n    const isSymbolOnly = !/[a-z0-9]/i.test(a);\n\n    if (isSymbolOnly) {\n      // Symbols match even if glued to text: \"!!task\"\n      return lowerContent.startsWith(a);\n    } else {\n      // Words require a space or exact match: \"act task\" or \"act\"\n      return lowerContent.startsWith(a + \" \") || lowerContent === a;\n    }\n  });\n\n  if (match) {\n    tag = normalized;\n    clean_text = content.slice(match.length).trim();\n    break;\n  }\n}\n\nreturn [{ json: { ...json.body, tag, clean_text } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
