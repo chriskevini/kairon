@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-12-24T03:27:20Z",
+  "status": "checking",
+  "containers": [
+    "NAMES                      STATUS          PORTS",
+    "n8n-dev                    Up 17 hours     0.0.0.0:5679->5678/tcp, [::]:5679->5678/tcp",
+    "n8n-docker-caddy-n8n-1     Up 12 seconds   0.0.0.0:5678->5678/tcp, [::]:5678->5678/tcp",
+    "postgres-db                Up 24 hours     0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp",
+    "postgres-dev               Up 24 hours     5432/tcp",
+    "embedding-service          Up 25 hours     0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp",
+    "n8n-docker-caddy-caddy-1   Up 39 hours     0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp, 443/udp, 2019/tcp",
+    "=== Discord Relay ==="
+  ],
+  "database": {
+ {"events_24h" : 240, "traces_24h" : 37, "projections_24h" : 21, "last_event" : "2025-12-24T03:00:39.110746+00:00", "last_trace" : "2025-12-24T02:39:03.754299+00:00", "last_projection" : "2025-12-23T12:18:31.157138+00:00"}
+  },
+  "workflows": [
+    "[0;34mℹ[0m Fetching workflows from n8n..."
+  ]
+}
