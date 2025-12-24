@@ -103,6 +103,13 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
         if echo "$result" | jq -e '.id' > /dev/null 2>&1; then
             echo "   Updated: $name"
             UPDATED=$((UPDATED + 1))
+            
+            # Activate if needed
+            if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
+                curl -s -X POST \
+                    -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                    "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null
+            fi
         else
             echo "   Failed to update: $name"
             echo "     Error: $(echo "$result" | jq -r '.message // .')"
@@ -120,6 +127,13 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
         if [ -n "$new_id" ]; then
             echo "   Created: $name (id: $new_id)"
             CREATED=$((CREATED + 1))
+            
+            # Activate if needed
+            if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
+                curl -s -X POST \
+                    -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                    "$N8N_API_URL/api/v1/workflows/$new_id/activate" > /dev/null
+            fi
         else
             echo "   Failed to create: $name"
             echo "     Error: $(echo "$result" | jq -r '.message // .')"

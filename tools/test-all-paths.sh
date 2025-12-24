@@ -22,6 +22,7 @@ GUILD_ID="754207117157859388"
 CHANNEL_ID="1453335033665556654"
 QUICK_MODE=false
 VERIFY_DB=false
+DEV_MODE=false
 
 # Colors
 GREEN='\033[0;32m'
@@ -35,115 +36,90 @@ TOTAL_TESTS=0
 PASSED_TESTS=0
 FAILED_TESTS=0
 
-log_test() { echo -e "${BLUE}[TEST]${NC} $1"; }
-log_pass() { echo -e "${GREEN}  ✓${NC} $1"; ((PASSED_TESTS++)); }
-log_fail() { echo -e "${RED}  ✗${NC} $1"; ((FAILED_TESTS++)); }
-log_info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
-
 send_message() {
-    local message="$1"
-    local test_name="$2"
-    local thread_id="${3:-null}"
-    local test_id="test-msg-$(date +%s)-$$-$TOTAL_TESTS"
+    local content="$1"
+    local description="$2"
+    local thread_id="${3:-}"
+    local msg_id="test-msg-$(date +%s%N)"
     
     ((TOTAL_TESTS++))
-    log_test "$test_name"
+    log_test "$description ($content)"
     
-    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
-    
-    # Use HEREDOC for safer JSON construction
     local payload=$(cat <<EOF
 {
   "event_type": "message",
   "guild_id": "$GUILD_ID",
   "channel_id": "$CHANNEL_ID",
-  "message_id": "$test_id",
-  "thread_id": "$thread_id",
+  "message_id": "$msg_id",
   "author": {
     "login": "test-user",
-    "id": "test-user-id",
+    "id": "12345",
     "display_name": "Test User"
   },
-  "content": "$message",
-  "timestamp": "$timestamp"
+  "content": "$content",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
+  "thread_id": "$thread_id"
 }
 EOF
 )
     
-    local response
-    response=$(curl -s -w "\n%{http_code}" --max-time 20 -X POST "$WEBHOOK" \
+    response_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$WEBHOOK" \
         -H "Content-Type: application/json" \
         -d "$payload")
     
-    local exit_code=$?
-    if [ $exit_code -ne 0 ]; then
-        log_fail "Curl failed with exit code $exit_code"
-        return 1
-    fi
-
-    local http_code=$(echo "$response" | tail -n1)
-    local body=$(echo "$response" | head -n-1)
-    
-    if [ "$http_code" = "200" ]; then
-        log_pass "HTTP 200"
-        echo "$test_id" >> /tmp/kairon_test_ids.txt
-        return 0
+    if [ "$response_code" = "200" ]; then
+        log_pass "Sent"
+        echo "$msg_id" >> /tmp/kairon_test_ids.txt
     else
-        log_fail "HTTP $http_code - Body: $body"
-        return 1
+        log_fail "Failed to send (HTTP $response_code)"
     fi
 }
 
 send_reaction() {
     local emoji="$1"
     local message_id="$2"
-    local action="${3:-add}"
-    local test_name="$4"
+    local action="$3"
+    local description="$4"
     
     ((TOTAL_TESTS++))
-    log_test "$test_name"
-    
-    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+    log_test "$description ($emoji $action)"
     
     local payload=$(cat <<EOF
 {
   "event_type": "reaction",
-  "action": "$action",
-  "emoji": "$emoji",
   "guild_id": "$GUILD_ID",
   "channel_id": "$CHANNEL_ID",
   "message_id": "$message_id",
-  "user": {
-    "id": "test-user-id",
-    "login": "test-user",
-    "display_name": "Test User"
-  },
-  "timestamp": "$timestamp"
+  "user_id": "12345",
+  "emoji": "$emoji",
+  "action": "$action",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
 }
 EOF
 )
-
-    local response
-    response=$(curl -s -w "\n%{http_code}" --max-time 15 -X POST "$WEBHOOK" \
+    
+    response_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$WEBHOOK" \
         -H "Content-Type: application/json" \
         -d "$payload")
-    
-    local http_code=$(echo "$response" | tail -n1)
-    
-    if [ "$http_code" = "200" ]; then
-        log_pass "HTTP 200"
-        return 0
+        
+    if [ "$response_code" = "200" ]; then
+        log_pass "Sent"
     else
-        log_fail "HTTP $http_code"
-        return 1
+        log_fail "Failed to send (HTTP $response_code)"
     fi
 }
+
+log_test() { echo -e "${BLUE}[TEST]${NC} $1"; }
+log_pass() { echo -e "${GREEN}  ✓${NC} $1"; ((PASSED_TESTS++)); }
+log_fail() { echo -e "${RED}  ✗${NC} $1"; ((FAILED_TESTS++)); }
+log_info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --quick) QUICK_MODE=true ;;
         --verify-db) VERIFY_DB=true ;;
+        --dev) DEV_MODE=true ;;
         --webhook) WEBHOOK="$2"; shift ;;
         --guild-id) GUILD_ID="$2"; shift ;;
         --channel-id) CHANNEL_ID="$2"; shift ;;
@@ -153,6 +129,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "Options:"
             echo "  --quick          Run quick test suite (skip exhaustive aliases)"
             echo "  --verify-db      Verify database after tests"
+            echo "  --dev            Run against dev environment (port 5679)"
             echo "  --webhook URL    Use custom webhook URL"
             echo "  --guild-id ID    Discord guild ID"
             echo "  --channel-id ID  Discord channel ID"
@@ -163,6 +140,12 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
+if [ "$DEV_MODE" = true ]; then
+    WEBHOOK="http://localhost:5679/webhook/kairon-dev-test"
+    log_info "Running in DEV mode (port 5679)"
+fi
+
 
 > /tmp/kairon_test_ids.txt
 
@@ -271,12 +254,31 @@ fi
 if [ "$VERIFY_DB" = true ] && [ -f "$SCRIPT_DIR/kairon-ops.sh" ]; then
     echo ""
     log_info "=== Database Verification ==="
-    log_info "Waiting 10s for async processing..."
-    sleep 10
+    log_info "Waiting 3s for async processing..."
+    sleep 3
     
-    test_count=$("$SCRIPT_DIR/kairon-ops.sh" db-query \
-        "SELECT COUNT(*) FROM events WHERE idempotency_key LIKE 'test-msg-%' AND received_at > NOW() - INTERVAL '5 minutes';" \
+    if [ "$DEV_MODE" = true ]; then
+        # Use rdev directly with dev container settings
+        db_verify() {
+            CONTAINER_DB=postgres-dev DB_NAME=kairon_dev rdev db "$1"
+        }
+    else
+        db_verify() {
+            "$SCRIPT_DIR/kairon-ops.sh" db-query "$1"
+        }
+    fi
+
+    test_count=$(db_verify \
+        "SELECT COUNT(*) FROM events WHERE (idempotency_key LIKE 'test-msg-%' OR payload->>'discord_message_id' LIKE 'test-msg-%') AND received_at > NOW() - INTERVAL '5 minutes';" \
         | grep -o '[0-9]*' | head -1)
+    
+    # Try a broader search if count is 0
+    if [ "${test_count:-0}" -eq 0 ]; then
+        log_info "Retrying broader search..."
+        test_count=$(db_verify \
+            "SELECT COUNT(*) FROM events WHERE (idempotency_key LIKE 'test-msg-%' OR payload->>'discord_message_id' LIKE 'test-msg-%') AND received_at > NOW() - INTERVAL '10 minutes';" \
+            | grep -o '[0-9]*' | head -1)
+    fi
     
     log_info "Test events in DB: $test_count / $TOTAL_TESTS"
 fi

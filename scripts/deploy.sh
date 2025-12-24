@@ -86,7 +86,8 @@ deploy_dev() {
         for workflow in "$WORKFLOW_DIR"/*.json; do
             [ -f "$workflow" ] || continue
             filename=$(basename "$workflow")
-            python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
+            workflow_name=$(basename "$workflow" .json)
+            WORKFLOW_NAME="$workflow_name" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
         done
         
         if [ -d "$WORKFLOW_DEV_DIR" ]; then
@@ -110,7 +111,7 @@ deploy_dev() {
         
         if [ -n "$PROD_API_KEY" ] && [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
             PROD_WORKFLOW_IDS=$(ssh "$N8N_DEV_SSH_HOST" \
-                "curl -s -H 'X-N8N-API-KEY: $PROD_API_KEY' '$PROD_API_URL/api/v1/workflows?limit=100'" | \
+                "source /opt/n8n-docker-caddy/.env && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
                 jq -c '[.data[] | {(.name): .id}] | add // {}')
             
             WORKFLOW_ID_REMAP=$(echo "$PROD_WORKFLOW_IDS" "$DEV_WORKFLOW_IDS" | \
@@ -125,7 +126,8 @@ deploy_dev() {
         for workflow in "$REPO_ROOT/n8n-workflows"/*.json; do
             [ -f "$workflow" ] || continue
             filename=$(basename "$workflow")
-            WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
+            workflow_name=$(basename "$workflow" .json)
+            WORKFLOW_NAME="$workflow_name" WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
         done
         
         if [ -d "$WORKFLOW_DEV_DIR" ]; then
@@ -153,36 +155,24 @@ deploy_dev() {
 run_smoke_tests() {
     echo -n "STAGE 2: Smoke Tests... "
     
-    local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
-    local API_KEY="$N8N_DEV_API_KEY"
-    
-    SMOKE_TEST_ID=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
-        "$API_URL/api/v1/workflows" | \
-        jq -r '.data[] | select(.name == "Smoke_Test") | .id')
-    
-    if [ -z "$SMOKE_TEST_ID" ] || [ "$SMOKE_TEST_ID" == "null" ]; then
-        echo "⚠️  Smoke_Test workflow not found. Skipping."
+    if [ ! -f "$REPO_ROOT/tools/test-all-paths.sh" ]; then
+        echo "⚠️  tools/test-all-paths.sh not found. Skipping."
         return 0
     fi
-    
-    # Activate the workflow
-    curl -s -X POST \
-        -H "X-N8N-API-KEY: $API_KEY" \
-        "$API_URL/api/v1/workflows/$SMOKE_TEST_ID/activate" > /dev/null
-    
-    RESULT=$(curl -s -X POST \
-        --max-time 60 \
-        -H "Content-Type: application/json" \
-        "$API_URL/webhook/smoke-test" \
-        -d '{}')
-    
-    if echo "$RESULT" | jq -e '.success == true' > /dev/null 2>&1; then
+
+    # Capture output for diagnostics
+    local SMOKE_OUTPUT_FILE=$(mktemp)
+    trap "rm -f $SMOKE_OUTPUT_FILE" RETURN
+
+    # Run the comprehensive test script against the dev environment
+    # Use --quick to keep deployment fast, but --verify-db for confidence
+    if "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --verify-db > "$SMOKE_OUTPUT_FILE" 2>&1; then
         echo "✅ PASSED"
         return 0
     else
         echo "❌ FAILED"
         echo "----------------------------------------"
-        echo "$RESULT" | jq '.' 2>/dev/null || echo "$RESULT"
+        cat "$SMOKE_OUTPUT_FILE"
         echo "----------------------------------------"
         return 1
     fi

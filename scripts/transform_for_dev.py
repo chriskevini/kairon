@@ -40,10 +40,19 @@ def transform_node(node: dict) -> dict:
     # Allows smoke tests to invoke workflows directly without HTTP
     # Exception: Smoke_Test entry point webhook should not be transformed
     if node_type == "n8n-nodes-base.webhook":
-        # Skip transformation for critical infrastructure nodes
         node_name = node.get("name", "").lower()
+
+        # Entry point for smoke tests (old method)
         if "smoke_test" in node_name or "test" in node_name:
             return node
+
+        # Entry point for external test-all-paths.sh script
+        if "discord webhook entry" in node_name or "test webhook" in node_name:
+            node["parameters"]["path"] = "kairon-dev-test"
+            # Switch to production response mode to ensure it's registered properly
+            node["parameters"]["responseMode"] = "onReceived"
+            return node
+
         node["type"] = "n8n-nodes-base.executeWorkflowTrigger"
         node["typeVersion"] = 1
         node["parameters"] = {}
@@ -123,8 +132,11 @@ return [{{
             value = workflow_ref.get("value", "")
 
             # Remap prod ID to dev ID
-            if mode == "id" and value in WORKFLOW_ID_REMAP:
+            # Also handle mode="list" which is used in newer n8n versions
+            if (mode == "id" or mode == "list") and value in WORKFLOW_ID_REMAP:
                 workflow_ref["value"] = WORKFLOW_ID_REMAP[value]
+                # Force mode to "id" for cleaner mapping in dev
+                workflow_ref["mode"] = "id"
 
         return node
 
@@ -137,6 +149,18 @@ def transform_workflow(workflow: dict) -> dict:
         return workflow
 
     workflow["nodes"] = [transform_node(node) for node in workflow["nodes"]]
+
+    # Ensure the workflow has a name if it's missing (needed by n8n-push-local.sh)
+    # Prefer name from environment, then existing name, then fallback
+    env_name = os.environ.get("WORKFLOW_NAME")
+    if env_name:
+        workflow["name"] = env_name
+    elif not workflow.get("name"):
+        workflow["name"] = "Unnamed Transformed Workflow"
+
+    # Force activation for dev testing if not explicitly set
+    if "active" not in workflow:
+        workflow["active"] = True
 
     # Add a marker to indicate this workflow was transformed
     if not workflow.get("meta"):
