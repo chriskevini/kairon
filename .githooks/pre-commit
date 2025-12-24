@@ -1,6 +1,7 @@
 #!/bin/bash
 # Pre-commit hook for Kairon
-# Validates and sanitizes n8n workflow files before commit
+# Fast validation: JSON syntax, pinData, and structural tests
+# Comprehensive functional testing moved to pre-push hook
 
 set -euo pipefail
 
@@ -60,47 +61,25 @@ if [ $has_pindata -eq 1 ]; then
     exit 1
 fi
 
-# Run Unit Tests (Structural + Functional)
+# Run Fast Structural Tests (moved functional tests to pre-push)
 echo ""
-echo "🧪 Running Unit Tests..."
+echo "🧪 Running Structural Tests..."
 has_test_errors=0
 
-# 1. Structural/Pattern tests using unit_test_framework.py
 for file in $STAGED_WORKFLOWS; do
     if ! python3 "$REPO_ROOT/scripts/workflows/unit_test_framework.py" "$REPO_ROOT/$file" >/dev/null 2>&1; then
-        echo "  ❌ Unit test framework failed: $file"
+        echo "  ❌ Structural tests failed: $file"
         # Run it again without silencing to show errors
         python3 "$REPO_ROOT/scripts/workflows/unit_test_framework.py" "$REPO_ROOT/$file"
         has_test_errors=1
     else
-        echo "  ✓ $file (Structural)"
+        echo "  ✓ $file"
     fi
 done
 
-# 2. Functional tests using pytest (if they exist for the staged workflows)
-if command -v pytest >/dev/null 2>&1 || python3 -m pytest --version >/dev/null 2>&1; then
-    PYTEST_CMD="pytest"
-    if ! command -v pytest >/dev/null 2>&1; then PYTEST_CMD="python3 -m pytest"; fi
-
-    for file in $STAGED_WORKFLOWS; do
-        filename=$(basename "$file" .json)
-        test_file="$REPO_ROOT/n8n-workflows/tests/test_$filename.py"
-        if [ -f "$test_file" ]; then
-            if ! $PYTEST_CMD "$test_file" >/dev/null 2>&1; then
-                echo "  ❌ Functional tests failed: $filename"
-                # Run it again to show specific failures
-                $PYTEST_CMD "$test_file" -v
-                has_test_errors=1
-            else
-                echo "  ✓ $file (Functional)"
-            fi
-        fi
-    done
-fi
-
 if [ $has_test_errors -eq 1 ]; then
     echo ""
-    echo "❌ Commit aborted: Unit tests failed"
+    echo "❌ Commit aborted: Structural tests failed"
     exit 1
 fi
 

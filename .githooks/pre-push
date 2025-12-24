@@ -1,5 +1,6 @@
 #!/bin/bash
-# Pre-push hook - deploy to dev, run smoke tests, then deploy to prod
+# Pre-push hook - comprehensive testing: full deployment pipeline
+# Includes functional tests and production deployment validation
 #
 # Install: ln -sf ../../.githooks/pre-push .git/hooks/pre-push
 # Or: git config core.hooksPath .githooks
