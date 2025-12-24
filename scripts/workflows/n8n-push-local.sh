@@ -30,19 +30,15 @@ echo ""
 
 # Fetch existing workflows
 echo "Fetching existing workflows..."
-REMOTE_WORKFLOWS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows?limit=100" | jq -r '.data')
+RESPONSE=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows?limit=100")
+REMOTE_WORKFLOWS=$(echo "$RESPONSE" | jq -r '.data? // []')
 
-if [ -z "$REMOTE_WORKFLOWS" ] || [ "$REMOTE_WORKFLOWS" = "null" ]; then
+if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "null" ]; then
     echo "Error: Failed to fetch workflows. Check API key and connectivity."
     exit 1
 fi
 
 # Build lookup map: name -> id
-# Note: n8n API can return phantom/orphan workflows that exist in the list
-# but return 404 on GET. We verify each workflow is accessible before adding
-# to the map. For duplicates, we pick the first accessible one.
-declare -A SEEN_NAMES=()
-
 if [ "$REMOTE_WORKFLOWS" != "[]" ]; then
     while IFS= read -r line; do
         [ -z "$line" ] && continue
@@ -50,18 +46,8 @@ if [ "$REMOTE_WORKFLOWS" != "[]" ]; then
         name=$(echo "$line" | jq -r '.name')
         [ "$id" = "null" ] || [ "$name" = "null" ] && continue
         
-        # Skip if we already have a working ID for this name
-        [ -n "${SEEN_NAMES[$name]:-}" ] && continue
-        
-        # Verify the workflow is actually accessible (not a phantom)
-        verify_result=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$id")
-        
-        if [ "$verify_result" = "200" ]; then
-            WORKFLOW_IDS["$name"]="$id"
-            SEEN_NAMES["$name"]=1
-        fi
+        # In dev, we trust the name->id mapping without verification to speed things up
+        WORKFLOW_IDS["$name"]="$id"
     done < <(echo "$REMOTE_WORKFLOWS" | jq -c '.[]')
 fi
 

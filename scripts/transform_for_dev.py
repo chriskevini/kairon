@@ -99,24 +99,40 @@ return [{{
         original_name = node.get("name", "LLM Chain")
         node["type"] = "n8n-nodes-base.code"
         node["typeVersion"] = 2
-        node["parameters"] = {
-            "jsCode": f'''// Mock LLM Chain node: {original_name}
-// Returns fake LLM response for dev testing
+
+        # Enhanced mocking logic
+        js_code = f'''// Mock LLM Chain node: {original_name}
 const input = $input.first().json;
 const inputText = input.ctx?.event?.clean_text 
   || input.text 
   || input.prompt 
-  || "unknown input";
+  || "";
+
+// Check for specific keywords to provide more realistic mocks
+let response = "[MOCK LLM] I processed your request.";
+
+if (inputText.includes("!!") || inputText.toLowerCase().includes("act")) {{
+  response = "[MOCK LLM] Activity recorded: " + inputText.replace(/!!|act/i, "").trim();
+}} else if (inputText.includes("..") || inputText.toLowerCase().includes("note")) {{
+  response = "[MOCK LLM] Note saved.";
+}} else if (inputText.includes("$$") || inputText.toLowerCase().includes("todo")) {{
+  response = "[MOCK LLM] Added to your todo list.";
+}} else if (inputText.includes("++")) {{
+  response = "[MOCK LLM] I am starting a new thread for you. How can I help?";
+}} else if (inputText.includes("--")) {{
+  response = "[MOCK LLM] Thread summarized and closed.";
+}}
 
 return [{{ 
   json: {{ 
-    text: "[MOCK LLM] Response for: " + inputText.substring(0, 100),
+    text: response,
     _mock: true,
     _original_node: "{original_name}",
     _input_preview: inputText.substring(0, 200)
   }} 
 }}];'''
-        }
+
+        node["parameters"] = {"jsCode": js_code}
         return node
 
     # HTTP Request nodes that call external APIs could also be mocked here

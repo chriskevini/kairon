@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2025-12-24T08:53:16.249Z",
+  "updatedAt": "2025-12-24T11:29:01.502Z",
   "createdAt": "2025-12-23T09:30:31.825Z",
   "id": "dzbXvPNPoYdpaXGT",
   "name": "Save_Extraction",
@@ -22,8 +22,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse emoji to determine action type\n// Input is ctx pattern from Route_Reaction\nconst ctx = $json.ctx;\nconst event = ctx.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3, '4️⃣': 4, '5️⃣': 5,\n  '6️⃣': 6, '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\n\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '❌') {\n  actionType = 'dismiss';\n} else if (emoji === '🗑️') {\n  actionType = 'delete_thread';\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      action: {\n        type: actionType,\n        display_order: displayOrder,\n        emoji: emoji\n      }\n    }\n  }\n};",
-        "mode": "runOnceForEachItem"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse emoji to determine action type\n// Input is ctx pattern from Route_Reaction\nconst ctx = $json.ctx;\nconst event = ctx.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3, '4️⃣': 4, '5️⃣': 5,\n  '6️⃣': 6, '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\n\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '❌') {\n  actionType = 'dismiss';\n} else if (emoji === '🗑️') {\n  actionType = 'delete_thread';\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      action: {\n        type: actionType,\n        display_order: displayOrder,\n        emoji: emoji\n      }\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -39,14 +39,14 @@
         "operation": "executeQuery",
         "query": "SELECT id FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND status = 'pending' LIMIT 1;",
         "options": {
-          "values": "={{ $json.ctx.event.message_id }}"
+          "queryReplacement": "={{ $json.ctx.event.message_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
         -1344,
-        680
+        688
       ],
       "id": "check-summary-message",
       "name": "CheckIfSummaryMessage",
@@ -167,9 +167,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, data->>'thread_id' AS thread_id, data->>'item_type' AS item_type, data->>'text' AS text FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND (data->>'display_order')::int = $2 AND status = 'pending' LIMIT 1;",
-        "options": {
-          "values": "={{ [  $json.ctx.event.message_id ,  $json.ctx.action.display_order  ] }}"
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
@@ -196,7 +194,7 @@
       "typeVersion": 3,
       "position": [
         -448,
-        296
+        304
       ],
       "id": "merge-extraction-ctx",
       "name": "MergeExtractionWithCtx"
@@ -239,7 +237,7 @@
       "typeVersion": 3.4,
       "position": [
         -224,
-        296
+        304
       ],
       "id": "70fe2723-8181-4e57-98e7-d3fc4484f4c7",
       "name": "IsTodo?"
@@ -248,9 +246,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE projections SET projection_type = 'note', status = 'confirmed', confirmed_at = NOW(), data = data || jsonb_build_object('category', data->>'item_type', 'promoted_from', 'thread_extraction', 'confirmed_via', 'reaction') WHERE id = $1::uuid AND projection_type = 'thread_extraction' RETURNING id, data->>'text' AS text;",
-        "options": {
-          "values": "={{ $json.id }}"
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
@@ -271,15 +267,13 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE projections SET projection_type = 'todo', status = 'confirmed', confirmed_at = NOW(), data = data || jsonb_build_object('promoted_from', 'thread_extraction', 'confirmed_via', 'reaction', 'todo_status', 'pending') WHERE id = $1::uuid AND projection_type = 'thread_extraction' RETURNING id, data->>'text' AS text;",
-        "options": {
-          "values": "={{ $json.id }}"
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
         0,
-        536
+        544
       ],
       "id": "87dbb168-a1c3-4e8c-8547-dbcc69a33849",
       "name": "PromoteToTodo",
@@ -291,15 +285,12 @@
       }
     },
     {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      },
+      "parameters": {},
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
         224,
-        296
+        304
       ],
       "id": "d87f449e-a026-4d48-aa08-e9489c352b51",
       "name": "AfterPromote"
@@ -329,9 +320,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "-- Insert embedding for the saved projection (fire-and-forget)\nINSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding)\nSELECT \n  $1::uuid,\n  'all-MiniLM-L6-v2',\n  '{}',\n  $2,\n  $3::vector\nWHERE $3 IS NOT NULL\nON CONFLICT DO NOTHING;",
-        "options": {
-          "values": "={{ [  $('After Promote').first().json.id ,  $('After Promote').first().json.text ,  $json.embeddings && $json.embeddings[0] ? '[' + $json.embeddings[0].join(',') + ']' : null  ] }}"
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
@@ -341,12 +330,12 @@
       ],
       "id": "insert-embedding",
       "name": "InsertEmbedding",
-      "continueOnFail": true,
       "credentials": {
         "postgres": {
           "name": "Postgres account"
         }
-      }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -360,7 +349,7 @@
       "typeVersion": 4.2,
       "position": [
         448,
-        296
+        304
       ],
       "id": "51af8a9d-7ace-4b47-a579-4efa1886e799",
       "name": "RemoveNumberEmoji",
@@ -378,15 +367,13 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as unsaved FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND status = 'pending' HAVING COUNT(*) = 0;",
-        "options": {
-          "values": "={{ $('What Action').item.json.ctx.event.message_id }}"
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
         672,
-        296
+        304
       ],
       "id": "6c50df92-a223-416d-87c6-7f7aa5841f48",
       "name": "CheckAllSaved",
@@ -412,7 +399,7 @@
       "typeVersion": 4.2,
       "position": [
         896,
-        296
+        304
       ],
       "id": "90af10c8-1c74-467e-ae4e-dbd793ddd892",
       "name": "UpdateSummary(allSaved)",
@@ -456,9 +443,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT data->>'thread_id' AS discord_thread_id FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 LIMIT 1;",
-        "options": {
-          "values": "={{ $json.ctx.event.message_id }}"
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
@@ -811,9 +796,9 @@
   },
   "staticData": null,
   "meta": null,
-  "versionId": "669aff82-a704-409c-af1b-21f9ea475c03",
+  "versionId": "54c52bad-1560-49dc-9959-7d0245b4af15",
   "activeVersionId": null,
-  "versionCounter": 125,
+  "versionCounter": 126,
   "triggerCount": 0,
   "shared": [
     {

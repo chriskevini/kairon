@@ -82,29 +82,10 @@ deploy_dev() {
     
     # Wrap actual deployment in a block to capture output
     {
-        # Pass 1
-        for workflow in "$WORKFLOW_DIR"/*.json; do
-            [ -f "$workflow" ] || continue
-            filename=$(basename "$workflow")
-            workflow_name=$(basename "$workflow" .json)
-            WORKFLOW_NAME="$workflow_name" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
-        done
-        
-        if [ -d "$WORKFLOW_DEV_DIR" ]; then
-            for workflow in "$WORKFLOW_DEV_DIR"/*.json; do
-                [ -f "$workflow" ] || continue
-                filename=$(basename "$workflow")
-                cp "$workflow" "$TEMP_DIR/$filename"
-            done
-        fi
-        
-        WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
-            "$SCRIPT_DIR/workflows/n8n-push-local.sh" > "$OUTPUT_FILE" 2>&1
-        
-        # Pass 2
+        # Get IDs upfront for ID remapping
         DEV_WORKFLOW_IDS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
             "$API_URL/api/v1/workflows?limit=100" | \
-            jq -c '[.data[] | {(.name): .id}] | add // {}')
+            jq -c '[.data[]? | {(.name): .id}] | add // {}')
         
         PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
         PROD_API_KEY="${N8N_API_KEY:-}"
@@ -112,7 +93,7 @@ deploy_dev() {
         if [ -n "$PROD_API_KEY" ] && [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
             PROD_WORKFLOW_IDS=$(ssh "$N8N_DEV_SSH_HOST" \
                 "source /opt/n8n-docker-caddy/.env && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
-                jq -c '[.data[] | {(.name): .id}] | add // {}')
+                jq -c '[.data[]? | {(.name): .id}] | add // {}')
             
             WORKFLOW_ID_REMAP=$(echo "$PROD_WORKFLOW_IDS" "$DEV_WORKFLOW_IDS" | \
                 jq -sc '.[0] as $prod | .[1] as $dev | 
@@ -121,9 +102,9 @@ deploy_dev() {
         else
             WORKFLOW_ID_REMAP='{}'
         fi
-        
-        rm -f "$TEMP_DIR"/*.json
-        for workflow in "$REPO_ROOT/n8n-workflows"/*.json; do
+
+        # Single pass transformation & push
+        for workflow in "$WORKFLOW_DIR"/*.json; do
             [ -f "$workflow" ] || continue
             filename=$(basename "$workflow")
             workflow_name=$(basename "$workflow" .json)
@@ -139,7 +120,7 @@ deploy_dev() {
         fi
         
         WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
-            "$SCRIPT_DIR/workflows/n8n-push-local.sh" >> "$OUTPUT_FILE" 2>&1
+            "$SCRIPT_DIR/workflows/n8n-push-local.sh" > "$OUTPUT_FILE" 2>&1
     } || {
         echo "❌ FAILED"
         echo "----------------------------------------"
@@ -165,8 +146,8 @@ run_smoke_tests() {
     trap "rm -f $SMOKE_OUTPUT_FILE" RETURN
 
     # Run the comprehensive test script against the dev environment
-    # Use --quick to keep deployment fast, but --verify-db for confidence
-    if "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --verify-db > "$SMOKE_OUTPUT_FILE" 2>&1; then
+    # Use --quiet to keep deployment fast and silent on success
+    if "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --quiet --verify-db > "$SMOKE_OUTPUT_FILE" 2>&1; then
         echo "✅ PASSED"
         return 0
     else

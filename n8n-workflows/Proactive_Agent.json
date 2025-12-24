@@ -604,7 +604,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.id }}",
-        "emoji": "\u2753",
+        "emoji": "❓",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -689,7 +689,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "ctx": "={{ $('Merge for Discord').first().json.ctx }}",
-            "emoji": "\u2753"
+            "emoji": "❓"
           },
           "matchingColumns": [],
           "schema": [],

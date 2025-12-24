@@ -1,4 +1,11 @@
 {
+  "updatedAt": "2025-12-24T10:26:39.506Z",
+  "createdAt": "2025-12-23T09:30:26.164Z",
+  "id": "ZwuxCuNFykFxgD3e",
+  "name": "Execute_Command",
+  "description": null,
+  "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -8,7 +15,7 @@
       "typeVersion": 1.1,
       "position": [
         -1584,
-        10656
+        9616
       ],
       "id": "de6befd4-4882-4e2c-97b1-62f920df6d66",
       "name": "WhenExecutedByAnotherWorkflow"
@@ -38,7 +45,7 @@
       "typeVersion": 3.4,
       "position": [
         -1360,
-        10656
+        9616
       ],
       "id": "c204a8a7-abe4-45a8-ac75-2d842f69bbd3",
       "name": "ParseCommandAndArgs"
@@ -321,7 +328,7 @@
       "typeVersion": 3.4,
       "position": [
         -1136,
-        10496
+        9504
       ],
       "id": "82eda145-e9cb-43da-a242-e7bf654ca38e",
       "name": "Switch"
@@ -333,8 +340,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        11040
+        -240,
+        10000
       ],
       "id": "a07e31ae-ae03-4838-b91e-13e3c2f52c86",
       "name": "HandlePing"
@@ -348,8 +355,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -16,
-        8768
+        -464,
+        8816
       ],
       "id": "c04cc95d-922c-48fb-9004-faf36ff52204",
       "name": "QueryGetConfig",
@@ -370,8 +377,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -16,
-        9280
+        -464,
+        9040
       ],
       "id": "2296ca6d-1789-4986-a245-f2f16e88a92f",
       "name": "QuerySetConfig",
@@ -392,8 +399,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -16,
-        10656
+        -464,
+        9616
       ],
       "id": "c1663df9-a24b-4805-aed0-9946a2e5a9cc",
       "name": "QueryStats",
@@ -416,8 +423,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -240,
-        9856
+        -464,
+        9232
       ],
       "id": "cdd4aab7-7649-4dd9-9574-3003796f3d3b",
       "name": "QueryRecentEvents",
@@ -438,8 +445,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -16,
-        10848
+        -464,
+        9808
       ],
       "id": "ace9000d-af6f-4eb7-90ac-6169a08148e9",
       "name": "QueryUserStatus",
@@ -458,8 +465,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        11232
+        -240,
+        10192
       ],
       "id": "08ba42dd-9ee4-40fe-bb1a-3f6bf264f200",
       "name": "HandleHelp"
@@ -472,8 +479,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        8768
+        -240,
+        8816
       ],
       "id": "ed79c164-c1c3-40b9-adfb-6cb9d3ca307d",
       "name": "FormatGetResponse"
@@ -486,8 +493,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        9280
+        -240,
+        9040
       ],
       "id": "8e523999-62d1-4f38-8fd3-22e5708e9325",
       "name": "FormatSetResponse"
@@ -500,8 +507,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        10656
+        -240,
+        9616
       ],
       "id": "fba83474-329f-4db6-9939-11cfe17a7a3d",
       "name": "FormatStatsResponse"
@@ -513,8 +520,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16,
-        9856
+        -240,
+        9232
       ],
       "id": "a38c0645-066f-4591-b097-de21fb82b1c1",
       "name": "FormatRecentResponse"
@@ -527,8 +534,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        10848
+        -240,
+        9808
       ],
       "id": "6e1f0ee3-6930-49e6-a76a-3a5b85d942f3",
       "name": "FormatStatusResponse"
@@ -541,8 +548,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        11424
+        -240,
+        10384
       ],
       "id": "f76de764-c075-42cc-95e3-538852ab8b22",
       "name": "HandleUnknownCommand"
@@ -556,8 +563,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -240,
-        10048
+        -464,
+        9424
       ],
       "id": "9eca4f90-6b61-48e7-8fd6-295adcdca359",
       "name": "VoidProjections",
@@ -576,8 +583,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16,
-        10048
+        -240,
+        9424
       ],
       "id": "1bc87344-c616-42bd-8fe4-8882e2174430",
       "name": "FormatVoidResponse"
@@ -589,8 +596,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -688,
-        8912
+        -912,
+        8768
       ],
       "id": "b665e2c9-44f1-48ed-a0dc-5ab2cae4e2ed",
       "name": "ValidateGet"
@@ -603,7 +610,7 @@
       "typeVersion": 2,
       "position": [
         -912,
-        9520
+        8960
       ],
       "id": "14603be3-d751-4be9-a5a1-46ad5f7249a7",
       "name": "ValidateSet"
@@ -615,8 +622,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -688,
-        10096
+        -912,
+        9344
       ],
       "id": "99805555-a99c-4559-b170-f18f40233457",
       "name": "ValidateDelete"
@@ -628,8 +635,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -688,
-        9904
+        -912,
+        9152
       ],
       "id": "4bf45858-8e0b-4aca-8713-44bf3f9627ab",
       "name": "ValidateRecent"
@@ -662,8 +669,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -464,
-        9904
+        -688,
+        9152
       ],
       "id": "db6e02d4-93be-4ebf-b85a-96aade6217dd",
       "name": "IfValidRecent"
@@ -696,8 +703,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -464,
-        8912
+        -688,
+        8768
       ],
       "id": "0cb57d2d-bb81-4fd9-a1c8-6d4b3d2f8868",
       "name": "IfValidGet"
@@ -731,7 +738,7 @@
       "typeVersion": 2.3,
       "position": [
         -688,
-        9520
+        8960
       ],
       "id": "dbbb373a-e421-44cb-acdf-9ddd121a659d",
       "name": "IfValidSet"
@@ -764,8 +771,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -464,
-        10096
+        -688,
+        9344
       ],
       "id": "f2b3226c-7f08-4e93-9684-8467d9fd3458",
       "name": "IfValidDelete"
@@ -789,8 +796,8 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        432,
-        10088
+        -16,
+        9664
       ],
       "id": "4ed54e00-c7e3-4db6-94c0-c525d95534e3",
       "name": "SendResponse",
@@ -817,7 +824,7 @@
       "typeVersion": 4.2,
       "position": [
         -1360,
-        10848
+        9808
       ],
       "id": "remove-blue-reaction-execute-cmd",
       "name": "Remove🔵Reaction",
@@ -853,7 +860,7 @@
       "typeVersion": 2,
       "position": [
         -1360,
-        10464
+        9424
       ],
       "id": "e5ebd093-f037-4d4a-94a8-5830869a2dbc",
       "name": "ReactWith💻",
@@ -876,8 +883,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -688,
-        10416
+        -912,
+        9536
       ],
       "id": "validate-generate",
       "name": "ValidateGenerate"
@@ -910,8 +917,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -464,
-        10416
+        -688,
+        9536
       ],
       "id": "if-valid-generate",
       "name": "IfValidGenerate"
@@ -977,8 +984,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        -240,
-        10328
+        -464,
+        9536
       ],
       "id": "switch-generate-type",
       "name": "SwitchGenerateType"
@@ -1009,8 +1016,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -16,
-        10248
+        -240,
+        9472
       ],
       "id": "execute-nudge",
       "name": "ExecuteGenerateNudge"
@@ -1041,8 +1048,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -16,
-        10440
+        -240,
+        9600
       ],
       "id": "execute-summary",
       "name": "ExecuteGenerateDailySummary"
@@ -1054,8 +1061,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        10344
+        -16,
+        9536
       ],
       "id": "format-generate-response",
       "name": "FormatGenerateResponse"
@@ -1068,8 +1075,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -240,
-        9136
+        -16,
+        9856
       ],
       "id": "send-error-message",
       "name": "SendErrorMessage"
@@ -1083,8 +1090,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -16,
-        11616
+        -464,
+        10576
       ],
       "id": "query-list-modules",
       "name": "QueryListModules",
@@ -1103,8 +1110,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        11616
+        -240,
+        10576
       ],
       "id": "format-modules-response",
       "name": "FormatModulesResponse"
@@ -1194,8 +1201,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        -240,
-        9440
+        -464,
+        10768
       ],
       "id": "switch-module-operation",
       "name": "SwitchModuleOperation"
@@ -1209,8 +1216,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -16,
-        8960
+        -240,
+        10672
       ],
       "id": "query-view-module",
       "name": "QueryViewModule",
@@ -1231,8 +1238,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -16,
-        9472
+        -240,
+        10864
       ],
       "id": "query-toggle-module",
       "name": "QueryToggleModule",
@@ -1253,8 +1260,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        -16,
-        9664
+        -240,
+        11056
       ],
       "id": "query-update-module",
       "name": "QueryUpdateModule",
@@ -1273,8 +1280,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        8960
+        -16,
+        10672
       ],
       "id": "format-view-module-response",
       "name": "FormatViewModuleResponse"
@@ -1287,8 +1294,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        9472
+        -16,
+        10864
       ],
       "id": "format-toggle-module-response",
       "name": "FormatToggleModuleResponse"
@@ -1301,8 +1308,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        9664
+        -16,
+        11056
       ],
       "id": "format-update-module-response",
       "name": "FormatUpdateModuleResponse"
@@ -1368,8 +1375,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        -240,
-        8848
+        -560,
+        8768
       ],
       "id": "switch-get-target",
       "name": "SwitchGetTarget"
@@ -1435,8 +1442,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        -464,
-        9408
+        -560,
+        8960
       ],
       "id": "switch-set-target",
       "name": "SwitchSetTarget"
@@ -1850,6 +1857,17 @@
         []
       ]
     },
+    "SendErrorMessage": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "ValidateGenerate": {
       "main": [
         [
@@ -1920,17 +1938,6 @@
       ]
     },
     "FormatGenerateResponse": {
-      "main": [
-        [
-          {
-            "node": "SendResponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "SendErrorMessage": {
       "main": [
         [
           {
@@ -2093,7 +2100,67 @@
       ]
     }
   },
-  "meta": {
-    "instanceId": "4f8c4d2199da5b1d539bd57e824e3c13de989bd561816e15778a052aa18f0b98"
-  }
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "NOJ7FqVhVLqw0n8D",
+    "availableInMCP": false,
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "versionId": "2351094b-788f-4f1a-a3c8-26c3312fbaa5",
+  "activeVersionId": null,
+  "versionCounter": 191,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:26.164Z",
+      "createdAt": "2025-12-23T09:30:26.164Z",
+      "role": "workflow:owner",
+      "workflowId": "ZwuxCuNFykFxgD3e",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
 }

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2025-12-24T08:53:12.108Z",
+  "updatedAt": "2025-12-24T11:08:41.352Z",
   "createdAt": "2025-12-23T12:17:03.830Z",
   "id": "qfwF87c3wub8oujg",
   "name": "Auto_Backfill",
@@ -36,8 +36,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        250,
-        -100
+        256,
+        -96
       ],
       "id": "find-missing-embeddings",
       "name": "FindMissingEmbeddings",
@@ -55,8 +55,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        500,
-        -100
+        512,
+        -96
       ],
       "id": "loop-embeddings",
       "name": "LoopEmbeddings",
@@ -76,8 +76,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        750,
-        -100
+        752,
+        -96
       ],
       "id": "embed-text",
       "name": "EmbedText",
@@ -105,8 +105,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1000,
-        -100
+        1008,
+        -96
       ],
       "id": "insert-embedding",
       "name": "InsertEmbedding",
@@ -114,14 +114,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $json;\nconst projectionId = item.projection_id;\nconst text = item.description || item.text || \"\";\nconst embeddings = $(\"EmbedText\").first().json.embeddings;\n\nif (!embeddings || !embeddings[0]) return [];\n\nconst vector = \"[\" + embeddings[0].join(\",\") + \"]\";\n\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"embedding\",\n        sql: \"INSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding) SELECT $1, \\u0027all-MiniLM-L6-v2\\u0027, \\u0027{}\\u0027, $2, $3::vector WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE projection_id = $1) ON CONFLICT DO NOTHING;\",\n        params: [projectionId, text, vector]\n      }]\n    }\n  }\n};",
-        "mode": "runOnceForEachItem"
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $json;\nconst projectionId = item.projection_id;\nconst text = item.description || item.text || \"\";\nconst embeddings = $(\"EmbedText\").first().json.embeddings;\n\nif (!embeddings || !embeddings[0]) return {};\n\nconst vector = \"[\" + embeddings[0].join(\",\") + \"]\";\n\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"embedding\",\n        sql: \"INSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding) SELECT $1, \\u0027all-MiniLM-L6-v2\\u0027, \\u0027{}\\u0027, $2, $3::vector WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE projection_id = $1) ON CONFLICT DO NOTHING;\",\n        params: [projectionId, text, vector]\n      }]\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        875,
-        50
+        880,
+        64
       ],
       "id": "prepare-embedding-query",
       "name": "PrepareEmbeddingQuery"
@@ -135,8 +135,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        250,
-        300
+        256,
+        304
       ],
       "id": "find-incomplete-traces",
       "name": "FindIncompleteTraces",
@@ -149,14 +149,13 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const trace = item.json;\n  let parsed;\n  try {\n    parsed = JSON.parse(trace.completion);\n  } catch (e) {\n    console.error(`Failed to parse completion for trace ${trace.trace_id}: ${e.message}`);\n    continue;\n  }\n\n  const types = ['activity', 'note', 'todo'];\n  for (const type of types) {\n    const data = parsed[type];\n    if (data && data.confidence >= 0.5) {\n      results.push({\n        json: {\n          trace_id: trace.trace_id,\n          event_id: trace.event_id,\n          trace_chain: trace.trace_chain,\n          timezone: trace.timezone,\n          type: type,\n          data: data\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
-        300
+        512,
+        304
       ],
       "id": "parse-missing-projections",
       "name": "ParseMissingProjections"
@@ -183,8 +182,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        750,
-        300
+        752,
+        304
       ],
       "id": "insert-missing-projections",
       "name": "InsertMissingProjections",
@@ -192,14 +191,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $json;\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"projection\",\n        sql: \"INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone) SELECT $1::uuid, $2::uuid, $3::uuid[], $4, $5::jsonb, \\u0027auto_confirmed\\u0027, $6 WHERE NOT EXISTS (SELECT 1 FROM projections WHERE trace_id = $1 AND projection_type = $4);\",\n        params: [\n          item.trace_id,\n          item.event_id,\n          \"{\" + item.trace_chain.join(\",\") + \"}\",\n          item.type,\n          JSON.stringify(item.data),\n          item.timezone\n        ]\n      }]\n    }\n  }\n};",
-        "mode": "runOnceForEachItem"
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $json;\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"projection\",\n        sql: \"INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone) SELECT $1::uuid, $2::uuid, $3::uuid[], $4, $5::jsonb, \\u0027auto_confirmed\\u0027, $6 WHERE NOT EXISTS (SELECT 1 FROM projections WHERE trace_id = $1 AND projection_type = $4);\",\n        params: [\n          item.trace_id,\n          item.event_id,\n          \"{\" + item.trace_chain.join(\",\") + \"}\",\n          item.type,\n          JSON.stringify(item.data),\n          item.timezone\n        ]\n      }]\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        625,
-        450
+        640,
+        464
       ],
       "id": "prepare-projection-query",
       "name": "PrepareProjectionQuery"
@@ -323,9 +322,9 @@
     }
   },
   "meta": null,
-  "versionId": "72b72857-5e8c-4d39-baf5-0532816261e9",
-  "activeVersionId": "72b72857-5e8c-4d39-baf5-0532816261e9",
-  "versionCounter": 184,
+  "versionId": "46663391-e1ac-40cd-b7e4-059523b6c3d2",
+  "activeVersionId": "46663391-e1ac-40cd-b7e4-059523b6c3d2",
+  "versionCounter": 186,
   "triggerCount": 1,
   "shared": [
     {
@@ -378,9 +377,9 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2025-12-24T08:53:12.109Z",
-    "createdAt": "2025-12-24T08:53:12.109Z",
-    "versionId": "72b72857-5e8c-4d39-baf5-0532816261e9",
+    "updatedAt": "2025-12-24T11:08:41.354Z",
+    "createdAt": "2025-12-24T11:08:41.354Z",
+    "versionId": "46663391-e1ac-40cd-b7e4-059523b6c3d2",
     "workflowId": "qfwF87c3wub8oujg",
     "nodes": [
       {
@@ -412,8 +411,8 @@
         "type": "n8n-nodes-base.postgres",
         "typeVersion": 2.4,
         "position": [
-          250,
-          -100
+          256,
+          -96
         ],
         "id": "find-missing-embeddings",
         "name": "FindMissingEmbeddings",
@@ -431,8 +430,8 @@
         "type": "n8n-nodes-base.splitInBatches",
         "typeVersion": 3,
         "position": [
-          500,
-          -100
+          512,
+          -96
         ],
         "id": "loop-embeddings",
         "name": "LoopEmbeddings",
@@ -452,8 +451,8 @@
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4.2,
         "position": [
-          750,
-          -100
+          752,
+          -96
         ],
         "id": "embed-text",
         "name": "EmbedText",
@@ -481,8 +480,8 @@
         "type": "n8n-nodes-base.executeWorkflow",
         "typeVersion": 1.3,
         "position": [
-          1000,
-          -100
+          1008,
+          -96
         ],
         "id": "insert-embedding",
         "name": "InsertEmbedding",
@@ -490,14 +489,14 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $json;\nconst projectionId = item.projection_id;\nconst text = item.description || item.text || \"\";\nconst embeddings = $(\"EmbedText\").first().json.embeddings;\n\nif (!embeddings || !embeddings[0]) return [];\n\nconst vector = \"[\" + embeddings[0].join(\",\") + \"]\";\n\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"embedding\",\n        sql: \"INSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding) SELECT $1, \\u0027all-MiniLM-L6-v2\\u0027, \\u0027{}\\u0027, $2, $3::vector WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE projection_id = $1) ON CONFLICT DO NOTHING;\",\n        params: [projectionId, text, vector]\n      }]\n    }\n  }\n};",
-          "mode": "runOnceForEachItem"
+          "mode": "runOnceForEachItem",
+          "jsCode": "const item = $json;\nconst projectionId = item.projection_id;\nconst text = item.description || item.text || \"\";\nconst embeddings = $(\"EmbedText\").first().json.embeddings;\n\nif (!embeddings || !embeddings[0]) return {};\n\nconst vector = \"[\" + embeddings[0].join(\",\") + \"]\";\n\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"embedding\",\n        sql: \"INSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding) SELECT $1, \\u0027all-MiniLM-L6-v2\\u0027, \\u0027{}\\u0027, $2, $3::vector WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE projection_id = $1) ON CONFLICT DO NOTHING;\",\n        params: [projectionId, text, vector]\n      }]\n    }\n  }\n};"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
         "position": [
-          875,
-          50
+          880,
+          64
         ],
         "id": "prepare-embedding-query",
         "name": "PrepareEmbeddingQuery"
@@ -511,8 +510,8 @@
         "type": "n8n-nodes-base.postgres",
         "typeVersion": 2.4,
         "position": [
-          250,
-          300
+          256,
+          304
         ],
         "id": "find-incomplete-traces",
         "name": "FindIncompleteTraces",
@@ -525,14 +524,13 @@
       },
       {
         "parameters": {
-          "mode": "runOnceForAllItems",
           "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const trace = item.json;\n  let parsed;\n  try {\n    parsed = JSON.parse(trace.completion);\n  } catch (e) {\n    console.error(`Failed to parse completion for trace ${trace.trace_id}: ${e.message}`);\n    continue;\n  }\n\n  const types = ['activity', 'note', 'todo'];\n  for (const type of types) {\n    const data = parsed[type];\n    if (data && data.confidence >= 0.5) {\n      results.push({\n        json: {\n          trace_id: trace.trace_id,\n          event_id: trace.event_id,\n          trace_chain: trace.trace_chain,\n          timezone: trace.timezone,\n          type: type,\n          data: data\n        }\n      });\n    }\n  }\n}\nreturn results;"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
         "position": [
-          500,
-          300
+          512,
+          304
         ],
         "id": "parse-missing-projections",
         "name": "ParseMissingProjections"
@@ -559,8 +557,8 @@
         "type": "n8n-nodes-base.executeWorkflow",
         "typeVersion": 1.3,
         "position": [
-          750,
-          300
+          752,
+          304
         ],
         "id": "insert-missing-projections",
         "name": "InsertMissingProjections",
@@ -568,14 +566,14 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $json;\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"projection\",\n        sql: \"INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone) SELECT $1::uuid, $2::uuid, $3::uuid[], $4, $5::jsonb, \\u0027auto_confirmed\\u0027, $6 WHERE NOT EXISTS (SELECT 1 FROM projections WHERE trace_id = $1 AND projection_type = $4);\",\n        params: [\n          item.trace_id,\n          item.event_id,\n          \"{\" + item.trace_chain.join(\",\") + \"}\",\n          item.type,\n          JSON.stringify(item.data),\n          item.timezone\n        ]\n      }]\n    }\n  }\n};",
-          "mode": "runOnceForEachItem"
+          "mode": "runOnceForEachItem",
+          "jsCode": "const item = $json;\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"projection\",\n        sql: \"INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone) SELECT $1::uuid, $2::uuid, $3::uuid[], $4, $5::jsonb, \\u0027auto_confirmed\\u0027, $6 WHERE NOT EXISTS (SELECT 1 FROM projections WHERE trace_id = $1 AND projection_type = $4);\",\n        params: [\n          item.trace_id,\n          item.event_id,\n          \"{\" + item.trace_chain.join(\",\") + \"}\",\n          item.type,\n          JSON.stringify(item.data),\n          item.timezone\n        ]\n      }]\n    }\n  }\n};"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
         "position": [
-          625,
-          450
+          640,
+          464
         ],
         "id": "prepare-projection-query",
         "name": "PrepareProjectionQuery"
