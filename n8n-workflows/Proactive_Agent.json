@@ -565,7 +565,7 @@
         "operation": "executeQuery",
         "query": "UPDATE config \nSET value = (NOW() + ($1 || ' minutes')::interval)::text, updated_at = NOW()\nWHERE key = 'next_pulse';",
         "options": {
-          "values": "={{ $json.next_pulse_minutes }}"
+          "queryReplacement": "={{ $json.next_pulse_minutes }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -598,7 +598,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.id }}",
-        "emoji": "❓",
+        "emoji": "\u2753",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -683,7 +683,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "ctx": "={{ $('Merge for Discord').first().json.ctx }}",
-            "emoji": "❓"
+            "emoji": "\u2753"
           },
           "matchingColumns": [],
           "schema": [],

@@ -47,7 +47,7 @@
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
         "options": {
-          "values": "={{ $json.params }}"
+          "queryReplacement": "={{ $json.params }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
