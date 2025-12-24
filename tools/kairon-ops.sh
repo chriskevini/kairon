@@ -1,5 +1,6 @@
 #!/bin/bash
 # Kairon Operations - Unified remote operations tool
+# Supports both dev and prod environments via --dev/--prod flags
 # Uses rdev under the hood for robust SSH connection management
 
 set -e
@@ -30,6 +31,52 @@ warning() {
     echo -e "${YELLOW}⚠${NC} $*"
 }
 
+# Source shared utilities if available
+if [ -f ~/.local/share/remote-dev/lib/json-helpers.sh ]; then
+    source ~/.local/share/remote-dev/lib/json-helpers.sh
+fi
+
+if [ -f ~/.local/share/remote-dev/lib/credential-helper.sh ]; then
+    source ~/.local/share/remote-dev/lib/credential-helper.sh
+fi
+
+# ============================================================================
+# ENVIRONMENT SETUP
+# ============================================================================
+ENVIRONMENT="prod"  # default to prod
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --dev) ENVIRONMENT="dev"; shift ;;
+        --prod) ENVIRONMENT="prod"; shift ;;
+        *) break ;;
+    esac
+done
+
+# Initialize credentials based on environment
+init_environment() {
+    case "$ENVIRONMENT" in
+        dev)
+            export CRED_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
+            export CRED_API_KEY="$N8N_DEV_API_KEY"
+            export CRED_CONTAINER_DB="${CONTAINER_DB_DEV:-postgres-dev}"
+            export CRED_DB_NAME="${DB_NAME_DEV:-kairon_dev}"
+            export CRED_DB_USER="${DB_USER_DEV:-n8n_user}"
+            export CRED_SSH_HOST="${DEV_SSH_HOST:-}"
+            ;;
+        prod)
+            export CRED_API_URL="${N8N_API_URL:-http://localhost:5678}"
+            export CRED_API_KEY="$N8N_API_KEY"
+            export CRED_CONTAINER_DB="${CONTAINER_DB:-postgres-db}"
+            export CRED_DB_NAME="${DB_NAME:-kairon}"
+            export CRED_DB_USER="${DB_USER:-n8n_user}"
+            export CRED_SSH_HOST=""
+            ;;
+    esac
+}
+
+init_environment
+
 # Check if we're in the right directory
 if [ ! -f "$PROJECT_ROOT/.env" ]; then
     error "Not in kairon project root (no .env found)"
@@ -47,23 +94,68 @@ if ! command -v rdev &>/dev/null; then
     exit 1
 fi
 
+# Determine if we should use local or remote execution
+use_local() {
+    [ "$ENVIRONMENT" = "dev" ] && [ -z "$CRED_SSH_HOST" ]
+}
+
+get_api_key() {
+    if use_local; then
+        echo "$CRED_API_KEY"
+    else
+        rdev exec 'grep "^N8N_API_KEY=" ~/kairon/.env | cut -d= -f2' 2>/dev/null || echo "$CRED_API_KEY"
+    fi
+}
+
+execute_remote() {
+    if use_local; then
+        bash -c "$*" 2>/dev/null || eval "$@"
+    else
+        rdev exec "$@"
+    fi
+}
+
+get_api_key() {
+    if use_local; then
+        echo "$CRED_API_KEY"
+    else
+        rdev exec 'source ~/kairon/.env 2>/dev/null && echo "$N8N_API_KEY"' 2>/dev/null || echo "$CRED_API_KEY"
+    fi
+}
+
+execute_db() {
+    if use_local; then
+        docker exec -i "$CRED_CONTAINER_DB" psql -U "$CRED_DB_USER" -d "$CRED_DB_NAME" -t -c "$@" 2>/dev/null || \
+            docker exec "$CRED_CONTAINER_DB" psql -U "$CRED_DB_USER" -d "$CRED_DB_NAME" -c "$@"
+    else
+        rdev db "$@"
+    fi
+}
+
 # ============================================================================
 # FUNCTION: status - Complete system status
 # ============================================================================
 cmd_status() {
-    info "Checking system status..."
+    local env_label
+    if [ "$ENVIRONMENT" = "dev" ]; then
+        env_label="[DEV]"
+    else
+        env_label="[PROD]"
+    fi
+    
+    info "Checking system status $env_label..."
     echo ""
     
     echo "=== Docker Containers ==="
-    rdev exec 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -10'
+    execute_remote 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -10'
     echo ""
     
     echo "=== Discord Relay ==="
-    rdev exec 'systemctl status kairon-relay.service --no-pager | head -15'
+    execute_remote 'systemctl status kairon-relay.service --no-pager | head -15' 2>/dev/null || warning "Discord relay service not found"
     echo ""
     
     echo "=== Database Health (Last 24 Hours) ==="
-    rdev db "
+    execute_db "
         SELECT 
             'Events' as metric, 
             COUNT(*)::text as count,
@@ -85,7 +177,7 @@ cmd_status() {
     echo ""
     
     echo "=== Data Pipeline Health ==="
-    rdev db "
+    execute_db "
         WITH metrics AS (
             SELECT
                 (SELECT COUNT(*) FROM events WHERE received_at > NOW() - INTERVAL '1 hour') as events_1h,
@@ -105,16 +197,16 @@ cmd_status() {
 cmd_n8n_list() {
     info "Fetching workflows from n8n..."
     
-    # Get API key from server
-    API_KEY=$(rdev exec 'grep "^N8N_API_KEY=" ~/kairon/.env | cut -d= -f2')
+    local api_key
+    api_key=$(get_api_key)
     
-    if [ -z "$API_KEY" ]; then
-        error "Could not get N8N_API_KEY from server"
+    if [ -z "$api_key" ]; then
+        error "Could not get N8N_API_KEY"
         exit 1
     fi
     
-    # Fetch workflows
-    rdev exec "curl -s -H 'X-N8N-API-KEY: $API_KEY' 'http://localhost:5678/api/v1/workflows'" | \
+    local url="$CRED_API_URL/api/v1/workflows"
+    execute_remote "curl -s -H 'X-N8N-API-KEY: $api_key' '$url'" | \
         jq -r '.data[]? | "\(.name)|\(.id)|\(.active)"' | \
         column -t -s'|' -N "NAME,ID,ACTIVE" || {
         error "Failed to fetch workflows from n8n API"
@@ -136,14 +228,15 @@ cmd_n8n_get() {
     
     info "Fetching workflow $workflow_id..."
     
-    API_KEY=$(rdev exec 'grep "^N8N_API_KEY=" ~/kairon/.env | cut -d= -f2')
+    local api_key
+    api_key=$(get_api_key)
     
-    if [ -z "$API_KEY" ]; then
-        error "Could not get N8N_API_KEY from server"
+    if [ -z "$api_key" ]; then
+        error "Could not get N8N_API_KEY"
         exit 1
     fi
     
-    rdev exec "curl -s -H 'X-N8N-API-KEY: $API_KEY' 'http://localhost:5678/api/v1/workflows/$workflow_id'"
+    execute_remote "curl -s -H 'X-N8N-API-KEY: $api_key' '$CRED_API_URL/api/v1/workflows/$workflow_id'"
 }
 
 # ============================================================================
@@ -155,36 +248,43 @@ cmd_backup() {
     
     info "Creating backup in $backup_dir"
     
-    # Get API key
-    API_KEY=$(rdev exec 'grep "^N8N_API_KEY=" ~/kairon/.env | cut -d= -f2')
+    local api_key
+    api_key=$(get_api_key)
     
-    if [ -z "$API_KEY" ]; then
-        error "Could not get N8N_API_KEY from server"
+    if [ -z "$api_key" ]; then
+        error "Could not get N8N_API_KEY"
         exit 1
     fi
     
     # Get workflow list
     info "Fetching workflow list..."
     local workflow_data
-    workflow_data=$(rdev exec "curl -s -H 'X-N8N-API-KEY: $API_KEY' 'http://localhost:5678/api/v1/workflows'")
+    workflow_data=$(execute_remote "curl -s -H 'X-N8N-API-KEY: $api_key' '$CRED_API_URL/api/v1/workflows'")
     
     echo "$workflow_data" > "$backup_dir/state/workflows.json"
     
     # Extract each workflow
     local workflow_count=0
     echo "$workflow_data" | jq -r '.data[]? | "\(.id)|\(.name)"' | while IFS='|' read -r id name; do
+        local safe_name
+        safe_name=$(echo "$name" | tr '/' '_' | tr ' ' '_' | tr -cd '[:alnum:]_-')
         info "Backing up: $name"
-        rdev exec "curl -s -H 'X-N8N-API-KEY: $API_KEY' 'http://localhost:5678/api/v1/workflows/$id'" | \
-            jq '.' > "$backup_dir/workflows/${name}.json"
+        execute_remote "curl -s -H 'X-N8N-API-KEY: $api_key' '$CRED_API_URL/api/v1/workflows/$id'" | \
+            jq '.' > "$backup_dir/workflows/${safe_name}.json"
         workflow_count=$((workflow_count + 1))
     done
     
     # Backup database
     info "Backing up database..."
-    rdev db --backup > /dev/null 2>&1 || {
-        # Fallback if rdev db --backup doesn't work
-        rdev exec "docker exec postgres-db pg_dump -U n8n_user kairon" > "$backup_dir/kairon.sql"
-    }
+    if use_local; then
+        docker exec "$CRED_CONTAINER_DB" pg_dump -U "$CRED_DB_USER" "$CRED_DB_NAME" > "$backup_dir/kairon.sql" 2>/dev/null || {
+            error "Failed to backup database locally"
+        }
+    else
+        execute_db --backup > /dev/null 2>&1 || {
+            execute_remote "docker exec $CRED_CONTAINER_DB pg_dump -U $CRED_DB_USER $CRED_DB_NAME" > "$backup_dir/kairon.sql"
+        }
+    fi
     
     # Save system state
     info "Saving system state..."
@@ -209,7 +309,7 @@ cmd_db_query() {
         exit 1
     fi
     
-    rdev db "$query"
+    execute_db "$query"
 }
 
 # ============================================================================
@@ -234,20 +334,23 @@ cmd_verify() {
 cmd_test_api() {
     info "Testing n8n API connectivity..."
     
-    API_KEY=$(rdev exec 'grep "^N8N_API_KEY=" ~/kairon/.env | cut -d= -f2')
+    local api_key
+    api_key=$(get_api_key)
     
-    if [ -z "$API_KEY" ]; then
-        error "Could not get N8N_API_KEY from server"
+    if [ -z "$api_key" ]; then
+        error "Could not get N8N_API_KEY"
         exit 1
     fi
     
     echo ""
-    echo "API Key: ${API_KEY:0:20}..."
+    echo "API Key: ${api_key:0:20}..."
+    echo ""
+    echo "API URL: $CRED_API_URL"
     echo ""
     
     info "Testing GET /api/v1/workflows..."
     local response
-    response=$(rdev exec "curl -s -w '\n%{http_code}' -H 'X-N8N-API-KEY: $API_KEY' 'http://localhost:5678/api/v1/workflows'")
+    response=$(execute_remote "curl -s -w '\n%{http_code}' -H 'X-N8N-API-KEY: $api_key' '$CRED_API_URL/api/v1/workflows'")
     
     local http_code=$(echo "$response" | tail -1)
     local body=$(echo "$response" | head -n -1)
@@ -272,7 +375,13 @@ show_help() {
 Kairon Operations Tool - Unified operations using rdev
 
 Usage:
-  $0 <command> [args]
+  $0 [OPTIONS] <command> [args]
+  $0 --dev <command> [args]
+  $0 --prod <command> [args]
+
+Options:
+  --dev     Use development environment (local n8n on port 5679)
+  --prod    Use production environment (default, remote server)
 
 Commands:
   status              Show complete system status
@@ -285,19 +394,34 @@ Commands:
   help                Show this help
 
 Examples:
+  # Production (default - connects to remote server)
   $0 status
   $0 db-query "SELECT COUNT(*) FROM events;"
   $0 n8n-list
   $0 backup
 
-Note: This tool uses 'rdev' for all remote operations.
-Make sure rdev is installed and .env is configured.
+  # Development (connects to local n8n on port 5679)
+  $0 --dev status
+  $0 --dev db-query "SELECT COUNT(*) FROM events;"
+  $0 --dev n8n-list
+
+Environment Variables (from .env):
+  N8N_DEV_API_URL, N8N_DEV_API_KEY - Dev n8n credentials
+  N8N_API_URL, N8N_API_KEY         - Prod n8n credentials
+
+Note: This tool uses 'rdev' for production operations.
+For dev, commands run directly on localhost.
 EOF
 }
 
 main() {
     local cmd="${1:-}"
     shift 2>/dev/null || true
+    
+    # Show environment context
+    if [ "$ENVIRONMENT" = "dev" ]; then
+        echo -e "${YELLOW}🔧 Using DEVELOPMENT environment${NC}" >&2
+    fi
     
     case "$cmd" in
         status)
