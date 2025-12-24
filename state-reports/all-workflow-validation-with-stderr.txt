@@ -1,0 +1,112 @@
+=== Auto_Backfill.json ===
+Validating Auto_Backfill.json...
+[1;33mWARNING: Code node 'ParseMissingProjections' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Backup_Workflow.json ===
+Validating Backup_Workflow.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Capture_Projection.json ===
+Validating Capture_Projection.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Capture_Thread.json ===
+Validating Capture_Thread.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Continue_Thread.json ===
+Validating Continue_Thread.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Execute_Command.json ===
+Validating Execute_Command.json...
+[1;33mWARNING: Code node 'FormatRecentResponse' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'FormatVoidResponse' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'FormatModulesResponse' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Execute_Queries.json ===
+Validating Execute_Queries.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Generate_Daily_Summary.json ===
+Validating Generate_Daily_Summary.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Generate_Nudge.json ===
+Validating Generate_Nudge.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Handle_Correction.json ===
+Validating Handle_Correction.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Handle_Error.json ===
+Validating Handle_Error.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Handle_Quality_Rating.json ===
+Validating Handle_Quality_Rating.json...
+[1;33mWARNING: Code node 'FormatResponse' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Handle_Todo_Status.json ===
+Validating Handle_Todo_Status.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Multi_Capture.json ===
+Validating Multi_Capture.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== My_workflow.json ===
+Validating My_workflow.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Proactive_Agent_Cron.json ===
+Validating Proactive_Agent_Cron.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Proactive_Agent.json ===
+Validating Proactive_Agent.json...
+[1;33mWARNING: Code node 'BuildContextSummary' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'AssemblePrompt' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Query_DB.json ===
+Validating Query_DB.json...
+[1;33mWARNING: Code node 'CollectResults' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Route_Event.json ===
+Validating Route_Event.json...
+[1;33mWARNING: Code node 'Check' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'Should' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'Run' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'Summary' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'Parse' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'Reaction' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'Parse' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[1;33mWARNING: Code node 'Message' uses $input.first/last/all which might fail in n8n v2 if mode is runOnceForEachItem.[0m
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Route_Message.json ===
+Validating Route_Message.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Route_Reaction.json ===
+Validating Route_Reaction.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Save_Extraction.json ===
+Validating Save_Extraction.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Show_Projection_Details.json ===
+Validating Show_Projection_Details.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+
+=== Start_Thread.json ===
+Validating Start_Thread.json...
+[0;32mSUCCESS: Workflow validation passed[0m
+

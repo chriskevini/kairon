@@ -107,8 +107,9 @@ fi
 RESPONSE=$(curl -s -X PUT -H "X-N8N-API-KEY: $API_KEY" -H "Content-Type: application/json" \
     --data @"$TEMP_FILE" "https://n8n.chrisirineo.com/api/v1/workflows/$WORKFLOW_ID")
 
-if echo "$RESPONSE" | jq -e '.data.id' >/dev/null 2>&1; then
-    log "Deployment successful!"
+# n8n API returns the workflow object directly (not wrapped in .data)
+if echo "$RESPONSE" | jq -e '.id' >/dev/null 2>&1; then
+    log "Deployment successful! Updated at $(echo "$RESPONSE" | jq -r '.updatedAt')"
 else
     error "Deployment failed: $RESPONSE"
 fi
