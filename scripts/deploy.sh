@@ -24,6 +24,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Source shared deployment verification
+if [ -f ~/.local/share/remote-dev/lib/deploy-verify.sh ]; then
+    source ~/.local/share/remote-dev/lib/deploy-verify.sh
+fi
+
 # Load environment variables
 if [ -f "$REPO_ROOT/.env" ]; then
     set -a
@@ -78,15 +83,17 @@ deploy_dev() {
     
     # Capture output for diagnostics
     local OUTPUT_FILE=$(mktemp)
-    trap "rm -rf $TEMP_DIR $OUTPUT_FILE" EXIT
+    local DEPLOY_LOG=$(mktemp)
+    trap "rm -rf $TEMP_DIR $OUTPUT_FILE $DEPLOY_LOG" EXIT
+    
+    # Get workflow IDs upfront for ID remapping and post-deployment verification
+    local DEV_WORKFLOW_IDS_BEFORE
+    DEV_WORKFLOW_IDS_BEFORE=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
+        "$API_URL/api/v1/workflows?limit=100" | \
+        jq -c '[.data[]? | {(.name): .id}] | add // {}')
     
     # Wrap actual deployment in a block to capture output
     {
-        # Get IDs upfront for ID remapping
-        DEV_WORKFLOW_IDS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
-            "$API_URL/api/v1/workflows?limit=100" | \
-            jq -c '[.data[]? | {(.name): .id}] | add // {}')
-        
         PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
         PROD_API_KEY="${N8N_API_KEY:-}"
         
@@ -95,7 +102,7 @@ deploy_dev() {
                 "source /opt/n8n-docker-caddy/.env && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
                 jq -c '[.data[]? | {(.name): .id}] | add // {}')
             
-            WORKFLOW_ID_REMAP=$(echo "$PROD_WORKFLOW_IDS" "$DEV_WORKFLOW_IDS" | \
+            WORKFLOW_ID_REMAP=$(echo "$PROD_WORKFLOW_IDS" "$DEV_WORKFLOW_IDS_BEFORE" | \
                 jq -sc '.[0] as $prod | .[1] as $dev | 
                     [$prod | to_entries[] | {(.value): $dev[.key]}] | 
                     add // {}')
@@ -120,7 +127,7 @@ deploy_dev() {
         fi
         
         WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
-            "$SCRIPT_DIR/workflows/n8n-push-local.sh" > "$OUTPUT_FILE" 2>&1
+            "$SCRIPT_DIR/workflows/n8n-push-local.sh" > "$DEPLOY_LOG" 2>&1
     } || {
         echo "❌ FAILED"
         echo "----------------------------------------"
@@ -130,6 +137,28 @@ deploy_dev() {
     }
     
     echo "✅ PASSED"
+    
+    # Verify deployment - show what was created/updated
+    echo ""
+    echo "   Deployment Summary:"
+    echo "   Source: $TEMP_DIR"
+    
+    local DEV_WORKFLOW_IDS_AFTER
+    DEV_WORKFLOW_IDS_AFTER=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
+        "$API_URL/api/v1/workflows?limit=100" | \
+        jq -c '[.data[]? | {(.name): .id}] | add // {}')
+    
+    # Count and show workflow changes
+    local workflow_count
+    workflow_count=$(echo "$DEV_WORKFLOW_IDS_AFTER" | jq 'keys | length')
+    echo "   Accessible workflows: $workflow_count"
+    
+    # Show the deploy log output
+    if [ -f "$DEPLOY_LOG" ] && [ -s "$DEPLOY_LOG" ]; then
+        echo ""
+        echo "   Push details:"
+        cat "$DEPLOY_LOG" | sed 's/^/   /'
+    fi
 }
 
 # --- COMPREHENSIVE FUNCTIONAL TESTS ---
@@ -168,9 +197,25 @@ deploy_prod() {
         exit 1
     fi
     
+    local PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
+    local PROD_API_KEY="$N8N_API_KEY"
+    
     # Capture output for diagnostics
     local OUTPUT_FILE=$(mktemp)
-    trap "rm -f $OUTPUT_FILE" EXIT
+    local DEPLOY_LOG=$(mktemp)
+    trap "rm -f $OUTPUT_FILE $DEPLOY_LOG" EXIT
+    
+    # Get workflow IDs before for verification
+    local PROD_WORKFLOW_IDS_BEFORE=""
+    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        PROD_WORKFLOW_IDS_BEFORE=$(ssh "$N8N_DEV_SSH_HOST" \
+            "source /opt/n8n-docker-caddy/.env && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
+            jq -c '[.data[]? | {(.name): .id}] | add // {}')
+    else
+        PROD_WORKFLOW_IDS_BEFORE=$(curl -s -H "X-N8N-API-KEY: $PROD_API_KEY" \
+            "$PROD_API_URL/api/v1/workflows?limit=100" | \
+            jq -c '[.data[]? | {(.name): .id}] | add // {}')
+    fi
     
     {
         # Determine if we're on the remote server or local machine
@@ -188,12 +233,12 @@ deploy_prod() {
             ssh "$N8N_DEV_SSH_HOST" "cd /opt/kairon && \
                 export \$(grep -E '^(N8N_API_KEY|N8N_API_URL)=' /opt/n8n-docker-caddy/.env) && \
                 WORKFLOW_DIR='/opt/kairon/n8n-workflows' \
-                bash /opt/kairon/scripts/workflows/n8n-push-prod.sh" > "$OUTPUT_FILE" 2>&1
+                bash /opt/kairon/scripts/workflows/n8n-push-prod.sh" > "$DEPLOY_LOG" 2>&1
         else
             N8N_API_URL="${N8N_API_URL:-http://localhost:5678}" \
             N8N_API_KEY="$N8N_API_KEY" \
             WORKFLOW_DIR="$WORKFLOW_DIR" \
-                "$SCRIPT_DIR/workflows/n8n-push-prod.sh" > "$OUTPUT_FILE" 2>&1
+                "$SCRIPT_DIR/workflows/n8n-push-prod.sh" > "$DEPLOY_LOG" 2>&1
         fi
     } || {
         echo "❌ FAILED"
@@ -204,6 +249,32 @@ deploy_prod() {
     }
     
     echo "✅ PASSED"
+    
+    # Verify deployment
+    echo ""
+    echo "   Deployment Summary:"
+    
+    local PROD_WORKFLOW_IDS_AFTER=""
+    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        PROD_WORKFLOW_IDS_AFTER=$(ssh "$N8N_DEV_SSH_HOST" \
+            "source /opt/n8n-docker-caddy/.env && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
+            jq -c '[.data[]? | {(.name): .id}] | add // {}')
+    else
+        PROD_WORKFLOW_IDS_AFTER=$(curl -s -H "X-N8N-API-KEY: $PROD_API_KEY" \
+            "$PROD_API_URL/api/v1/workflows?limit=100" | \
+            jq -c '[.data[]? | {(.name): .id}] | add // {}')
+    fi
+    
+    local workflow_count
+    workflow_count=$(echo "$PROD_WORKFLOW_IDS_AFTER" | jq 'keys | length')
+    echo "   Accessible workflows: $workflow_count"
+    
+    # Show the deploy log output
+    if [ -f "$DEPLOY_LOG" ] && [ -s "$DEPLOY_LOG" ]; then
+        echo ""
+        echo "   Push details:"
+        cat "$DEPLOY_LOG" | sed 's/^/   /'
+    fi
 }
 
 # --- UNIT TESTS ---
