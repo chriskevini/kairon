@@ -1,0 +1,16 @@
+{
+  "name": "Test_Workflow",
+  "nodes": [
+    {
+      "id": "test-node",
+      "name": "Test Node",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "// test"
+      }
+    }
+  ],
+  "connections": {},
+  "settings": {}
+}
