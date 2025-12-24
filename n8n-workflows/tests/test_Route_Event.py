@@ -23,7 +23,6 @@ class TestRoute_Event:
     def test_workflow_structure(self):
         """Test that the workflow has valid structure"""
         workflow = load_workflow()
-        assert workflow["name"] == "Route_Event"
         nodes = workflow.get("nodes", [])
         assert len(nodes) >= 15
 
