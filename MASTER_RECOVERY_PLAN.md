@@ -1,7 +1,8 @@
 # Kairon Master Recovery Plan - Foolproof Edition
 
 **Date:** 2025-12-24  
-**Status:** CRITICAL - Production Partially Down  
+**Status:** IN PROGRESS - Phase 9 (Blocked on Route_Event)  
+**Last Updated:** 2025-12-24 08:00 UTC  
 **Author:** Master Recovery Analysis
 
 ## Executive Summary
@@ -16,30 +17,126 @@ The Kairon system experienced cascading failures following a PostgreSQL database
 
 ### What's Working ✅
 - Discord relay service is running and forwarding messages
-- n8n containers are running (prod and dev)
+- n8n production container is running (restarted during recovery)
 - PostgreSQL database is running with correct schema
-- Events are being stored in the `events` table
+- Events are being stored in the `events` table (last verified: older events)
 - Webhooks return HTTP 200
 - Basic commands like `::ping` work (they don't use Execute_Queries)
 - SSH access via ControlMaster works reliably
+- All 24 workflows deployed to production n8n
+- Deployment pipeline working correctly
 
 ### What's Broken ❌
-- **Traces are not being created** (last trace: 22 hours ago)
-- **Projections are not being created** (last projection: 22 hours ago)
-- **n8n API returns 405/null** (authentication or routing issue)
-- **n8n logs show telemetry errors** ("Could not find property option")
-- **Workflows reference non-existent error workflow** (JOXLqn9TTznBdo7Q)
-- **Workflows have corrupted parameters** (queryReplacement vs values)
-- **11 commits ahead of origin** but local changes not fully deployed
+- **Route_Event workflow failing silently** (Postgres node v2 parameter passing issue)
+- **Events NOT being created** (webhook succeeds but DB insert fails)
+- **Postgres node v2 `values` parameter not accepting params array**
+- **Error changed from "$7" to "$1"** (indicates partial progress but still broken)
+- n8n telemetry errors ("Could not find property option") - cosmetic only
 
-### Critical Metrics
+### Critical Discovery 🚨
+- **Production n8n container was DOWN** for unknown duration
+- Restarted at 2025-12-24 ~07:44 UTC
+- All workflows were missing (database had 0 workflows)
+- Successfully deployed all 24 workflows after restart
+
+---
+
+## Recovery Progress Tracker
+
+### Phase Completion Status
+
+| Phase | Status | Completion Time | Notes |
+|-------|--------|----------------|-------|
+| Phase 1: Tools | ✅ COMPLETE | 2025-12-24 01:00 UTC | All diagnostic tools built and tested |
+| Phase 2: Baseline | ✅ COMPLETE | 2025-12-24 01:30 UTC | Git tag: `pre-recovery-20251223-1926` |
+| Phase 3: Infrastructure | ✅ COMPLETE | 2025-12-24 02:00 UTC | Credentials verified, error workflow removed |
+| Phase 4: Execute_Queries | ✅ COMPLETE | 2025-12-24 03:00 UTC | Fixed Postgres v2 parameters |
+| Phase 5: Route_Event | ⚠️ BLOCKED | - | Postgres node v2 parameter issue |
+| Phase 6: Route_Message | ⏸️ PENDING | - | Blocked by Phase 5 |
+| Phase 7: Remaining | ⏸️ PENDING | - | Blocked by Phase 5 |
+| Phase 8: Verification | ⏸️ PENDING | - | Blocked by Phase 5 |
+| Phase 9: Documentation | ⏸️ PENDING | - | Blocked by Phase 5 |
+
+### Session Timeline (2025-12-24)
+
+**00:00-01:30 UTC: Initial Assessment & Tool Building**
+- Built `kairon-ops.sh`, `verify-system.sh`, `db-health.sh` tools
+- Created git branch `recovery/2025-12-24-master-plan`
+- Tagged baseline: `pre-recovery-20251223-1926`
+- Identified 24 workflows needing fixes
+
+**01:30-03:00 UTC: Core Infrastructure Fixes**
+- Fixed Execute_Queries Postgres node (queryReplacement → values)
+- Updated 24 workflows for Postgres v2 compatibility
+- Fixed all Code nodes for n8n v2 (removed `$input.first()` in runOnceForEachItem)
+- Removed invalid error workflow references
+- Deployed all workflows successfully
+
+**03:00-05:00 UTC: Initial Route_Event Investigation**
+- Discovered inline array syntax doesn't work: `={{ [...] }}`
+- Attempted to add "Prepare Params" Code nodes
+- First deployment attempt
+
+**05:00-07:44 UTC: Critical Discovery**
+- Webhooks returning 200 but events not being created
+- Discovered production n8n container was DOWN
+- Container `n8n-docker-caddy-n8n-1` missing from docker ps
+- Found docker-compose.yml in `/opt/n8n-docker-caddy/`
+
+**07:44-08:00 UTC: Production Recovery & Debugging**
+- Started production n8n container: `docker compose up -d n8n`
+- Re-deployed all 24 workflows to empty n8n instance
+- Tested Route_Event webhook - still failing
+- Tried multiple fixes:
+  - Explicit node reference: `$('Prepare Message Params').first().json.params` ✅ deployed
+  - Changed Code mode: `runOnceForAllItems` → `runOnceForEachItem` ✅ deployed
+  - Changed Code to use `$json` instead of `$input.first().json` ✅ deployed
+- Error evolved from "no parameter $7" to "no parameter $1" (indicates progress)
+- **Current blocker:** Postgres node v2 not accepting params array format
+
+### Current Blocker: Route_Event Postgres Node v2 Issue
+
+**Problem:** Store Message Event Postgres node fails with "there is no parameter $1"
+
+**What We've Tried:**
+1. ❌ Inline array construction: `={{ [val1, val2, ...] }}`
+2. ❌ Code node preparing params array + `$json.params`
+3. ❌ Explicit node reference: `$('Prepare Message Params').first().json.params`
+4. ❌ Changed Code node mode to `runOnceForEachItem`
+
+**Working Example:** Execute_Queries uses `$json.params` successfully, but in a different context
+
+**Next Steps:**
+1. ✅ **Refactor to use Execute_Queries pattern** (proven to work)
+2. Look at git history for how ctx pattern is implemented
+3. Replace inline Postgres nodes with Execute_Queries sub-workflow calls
+
+### Git State
+
+**Branch:** `recovery/2025-12-24-master-plan`  
+**Commits since baseline:** 7 commits  
+**Last commit:** `4202507` - "fix: change Prepare Params nodes to runOnceForEachItem mode"  
+**Rollback point:** Tag `pre-recovery-20251223-1926`
+
+**Recent Commits:**
 ```
-Events (24h):     241 ✅
-Traces (24h):     38  ❌ (should be ~240)
-Last event:       2025-12-24 03:00 UTC (12 min ago)
-Last trace:       2025-12-24 02:39 UTC (33 min ago)
-Gap:              203 events without traces
+4202507 fix: change Prepare Params nodes to runOnceForEachItem mode
+83c4e42 fix: use explicit node reference for Postgres params and add debug logging
+28192b5 fix: add Prepare Params nodes to Route_Event for proper array handling
+... (4 more commits)
 ```
+
+### Files Modified
+
+**Primary Changes:**
+- `n8n-workflows/Route_Event.json` - Multiple attempts to fix Postgres params
+- `n8n-workflows/Execute_Queries.json` - Fixed for Postgres v2
+- `n8n-workflows/*.json` - 24 workflows updated for n8n v2 compatibility
+
+**Tools Created:**
+- `tools/kairon-ops.sh` - Unified operations script
+- `tools/verify-system.sh` - System health checks
+- `tools/db-health.sh` - Database monitoring
 
 ---
 
@@ -372,52 +469,236 @@ curl -X POST "https://n8n.chrisirineo.com/webhook/asoiaf92746087" \
 
 ---
 
-### Phase 5: Fix Route_Event (30-40 min)
+### Phase 5: Fix Route_Event (30-40 min) ⚠️ BLOCKED - REFACTORING TO Execute_Queries
 
 Route_Event is the entry point - it must work correctly for anything to process.
 
-#### Step 5.1: Identify Code Node Issues
+#### Current Blocker (2025-12-24 08:00 UTC)
 
-**Known issues:**
-- InitializeMessageContext uses deprecated patterns
-- InitializeReactionContext uses deprecated patterns
+**Issue:** Postgres node v2 parameter passing fails with "there is no parameter $1"
 
-**Check current state:**
-```bash
-./tools/validate-workflow.sh n8n-workflows/Route_Event.json
+**Attempts Made:**
+1. ❌ Inline array: `={{ [...] }}`
+2. ❌ Prepare Params Code node + `$json.params`
+3. ❌ Explicit node reference: `$('Prepare Message Params').first().json.params`
+4. ❌ Changed Code mode to `runOnceForEachItem`
+
+**Root Cause:** Unknown - possibly n8n v2 Postgres node doesn't accept array format in `values` parameter, or there's a context issue with how `$json` is evaluated.
+
+**Decision:** Refactor to use Execute_Queries pattern (proven to work in Phase 4)
+
+#### Step 5.1: Refactor Route_Event to Use Execute_Queries Pattern
+
+**Current Architecture (BROKEN):**
+```
+Route by Event Type
+  ├─> Parse Message
+  │     └─> Prepare Message Params (Code node)
+  │           └─> Store Message Event (Postgres direct)
+  │                 └─> Initialize Message Context
+  │                       └─> Route Message
+  │
+  └─> Parse Reaction
+        └─> Prepare Reaction Params (Code node)
+              └─> Store Reaction Event (Postgres direct)
+                    └─> Initialize Reaction Context
+                          └─> Route Reaction
 ```
 
-#### Step 5.2: Fix Code Nodes
+**New Architecture (Using Execute_Queries):**
+```
+Route by Event Type
+  ├─> Parse Message
+  │     └─> Build Message Context (Code node)
+  │           - Creates ctx.db_queries array with INSERT query
+  │           - Follows ctx pattern from Execute_Queries
+  │           └─> Execute_Queries sub-workflow
+  │                 └─> Initialize Message Context (reads ctx.db.message_event)
+  │                       └─> Route Message
+  │
+  └─> Parse Reaction
+        └─> Build Reaction Context (Code node)
+              - Creates ctx.db_queries array with INSERT query
+              - Follows ctx pattern from Execute_Queries
+              └─> Execute_Queries sub-workflow
+                    └─> Initialize Reaction Context (reads ctx.db.reaction_event)
+                          └─> Route Reaction
+```
 
-**Pattern to fix:**
+**Key Changes:**
+1. Replace "Prepare Params" nodes with "Build Context" nodes that create `ctx.db_queries`
+2. Remove inline Postgres nodes (Store Message/Reaction Event)
+3. Add Execute_Queries sub-workflow calls
+4. Update Initialize Context nodes to read from `ctx.db.message_event` / `ctx.db.reaction_event`
+
+**Benefits:**
+- Uses proven Execute_Queries pattern
+- Follows ctx convention used throughout system
+- Easier to debug (Execute_Queries has better error handling)
+- More maintainable
+
+#### Step 5.2: Study Execute_Queries Pattern from Git History
+
+Before implementing, review how other workflows use Execute_Queries:
+
+```bash
+# Find workflows that call Execute_Queries
+cd /home/chris/Work/kairon
+grep -l "Execute_Queries" n8n-workflows/*.json
+
+# Look at Handle_Correction as example (simple, single query)
+jq '.nodes[] | select(.name=="Build DB Query Context")' n8n-workflows/Handle_Correction.json
+
+# Look at how ctx.db_queries is structured
+git log --all --source --full-history -- n8n-workflows/Handle_Correction.json
+```
+
+**Expected ctx.db_queries format:**
 ```javascript
-// BEFORE (broken in runOnceForEachItem)
-const data = $input.first().json;
-return { json: { ctx: { ... } } };
-
-// AFTER (works in runOnceForAllItems)
-const data = $input.first().json;
-return [{ json: { ctx: { ... } } }];
+ctx: {
+  event: { ... },  // Current event data
+  db_queries: [
+    {
+      key: "message_event",  // Result will be in ctx.db.message_event
+      sql: "INSERT INTO events (...) VALUES ($1, $2, ...) RETURNING *;",
+      params: [val1, val2, ...]
+    }
+  ]
+}
 ```
 
-**Apply fixes:**
+#### Step 5.3: Implement Build Message Context Node
+
+Create new Code node that replaces "Prepare Message Params" + "Store Message Event":
+
+```javascript
+// Build Message Context - prepares DB query using Execute_Queries pattern
+const parsed = $json;
+
+// Build parameters array
+const params = [
+    parsed.guild_id,
+    parsed.channel_id,
+    parsed.message_id,
+    `https://discord.com/channels/${parsed.guild_id}/${parsed.channel_id}/${parsed.message_id}`,
+    parsed.author?.login || parsed.author_login,
+    parsed.thread_id || null,
+    parsed.content,
+    parsed.clean_text,
+    parsed.tag || null,
+    parsed.timestamp
+];
+
+// Return ctx with db_queries array (Execute_Queries pattern)
+return {
+  json: {
+    ctx: {
+      event_type: 'discord_message',
+      webhook_data: parsed,
+      db_queries: [
+        {
+          key: "message_event",
+          sql: `INSERT INTO events (
+  event_type,
+  payload,
+  idempotency_key
+) VALUES (
+  'discord_message',
+  jsonb_build_object(
+    'content', $7,
+    'clean_text', $8,
+    'tag', $9,
+    'discord_guild_id', $1,
+    'discord_channel_id', $2,
+    'discord_message_id', $3,
+    'message_url', $4,
+    'author_login', $5,
+    'thread_id', $6,
+    'timestamp', $10::timestamptz
+  ),
+  $3
+)
+ON CONFLICT (event_type, idempotency_key) DO UPDATE
+SET payload = EXCLUDED.payload
+RETURNING *;`,
+          params: params
+        }
+      ]
+    }
+  }
+};
+```
+
+#### Step 5.4: Update Initialize Message Context Node
+
+Modify to read from Execute_Queries result:
+
+```javascript
+// Initialize Message Context - reads result from Execute_Queries
+const ctx = $json.ctx;
+const dbResult = ctx.db.message_event.row;  // Execute_Queries stores result here
+const webhook = ctx.webhook_data;
+
+return {
+  json: {
+    ctx: {
+      event: {
+        event_id: dbResult.id,
+        event_type: 'discord_message',
+        timestamp: webhook.timestamp,
+        guild_id: webhook.guild_id,
+        channel_id: webhook.channel_id,
+        message_id: webhook.message_id,
+        author_login: webhook.author?.login || webhook.author_login,
+        thread_id: webhook.thread_id || null,
+        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,
+        raw_text: webhook.content,
+        clean_text: webhook.clean_text,
+        tag: webhook.tag || null,
+        trace_chain: [dbResult.id],
+        trace_chain_pg: `{${dbResult.id}}`
+      }
+    }
+  }
+};
+```
+
+#### Step 5.5: Update Workflow Connections
+
+**Remove:**
+- Prepare Message Params node
+- Store Message Event (Postgres) node
+
+**Add:**
+- Build Message Context (Code) node
+- Execute_Queries (Execute Workflow) node
+
+**New Connection Flow:**
+```
+Parse Message 
+  → Build Message Context
+    → Execute_Queries (sub-workflow)
+      → Initialize Message Context
+        → Route Message
+```
+
+#### Step 5.6: Apply Same Pattern to Reaction Path
+
+Repeat steps 5.3-5.5 for reaction handling:
+- Build Reaction Context (replaces Prepare Reaction Params)
+- Execute_Queries call
+- Update Initialize Reaction Context to read from `ctx.db.reaction_event`
+
+#### Step 5.7: Deploy and Test
+
 ```bash
-./tools/fix-route-event.sh
+# Validate workflow
+./tools/validate-workflow.sh n8n-workflows/Route_Event.json
 
-# Verify changes
-git diff n8n-workflows/Route_Event.json
-```
+# Deploy
+./tools/deploy-workflow.sh n8n-workflows/Route_Event.json
 
-#### Step 5.3: Deploy Route_Event
-```bash
-ROUTE_EVENT_ID=$(./tools/kairon-ops.sh n8n-list | grep "Route_Event" | awk -F'ID: ' '{print $2}' | awk '{print $1}')
-
-./tools/deploy-workflow.sh n8n-workflows/Route_Event.json --id $ROUTE_EVENT_ID
-```
-
-#### Step 5.4: Test Route_Event
-
-**Test message processing:**
+# Test message processing
 ```bash
 # Send test message
 curl -X POST "https://n8n.chrisirineo.com/webhook/asoiaf92746087" \
