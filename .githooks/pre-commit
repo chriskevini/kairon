@@ -83,5 +83,30 @@ if [ $has_test_errors -eq 1 ]; then
     exit 1
 fi
 
+# Run ctx Pattern Compliance Checks
+echo ""
+echo "🔍 Checking ctx pattern compliance..."
+has_ctx_errors=0
+
+for file in $STAGED_WORKFLOWS; do
+    if ! python3 "$REPO_ROOT/scripts/workflows/lint_workflows.py" "$REPO_ROOT/$file" >/dev/null 2>&1; then
+        echo "  ❌ ctx pattern issues: $file"
+        # Run it again without silencing to show details
+        python3 "$REPO_ROOT/scripts/workflows/lint_workflows.py" "$REPO_ROOT/$file"
+        has_ctx_errors=1
+    else
+        echo "  ✓ $file"
+    fi
+done
+
+if [ $has_ctx_errors -eq 1 ]; then
+    echo ""
+    echo "❌ Commit aborted: ctx pattern violations found"
+    echo ""
+    echo "Fix the issues or use --no-verify to bypass:"
+    echo "  git commit --no-verify"
+    exit 1
+fi
+
 echo ""
 echo "✅ All workflow checks and tests passed!"
