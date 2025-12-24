@@ -283,6 +283,34 @@ def check_switch_node_fallback(node: dict, result: LintResult):
         )
 
 
+def check_execute_workflow_nodes(workflow: dict, result: LintResult):
+    """Check ExecuteWorkflow nodes follow proper patterns"""
+    nodes = workflow.get("nodes", [])
+
+    for node in nodes:
+        node_type = node.get("type", "")
+        if "executeWorkflow" in node_type:
+            name = node.get("name", "Unknown")
+            params = node.get("parameters", {})
+
+            # Check workflowId configuration
+            workflow_id = params.get("workflowId", {})
+            mode = workflow_id.get("mode")
+
+            if mode != "list":
+                result.error(
+                    f"'{name}': ExecuteWorkflow workflowId should use mode='list', found '{mode}'"
+                )
+
+            # Check for required cachedResult fields when using Execute_Queries
+            cached_name = workflow_id.get("cachedResultName")
+            if cached_name == "Execute_Queries":
+                if not workflow_id.get("cachedResultUrl"):
+                    result.error(
+                        f"'{name}': ExecuteWorkflow with cachedResultName='Execute_Queries' must have cachedResultUrl"
+                    )
+
+
 def check_node_references(workflow: dict, result: LintResult):
     """Check for scattered node references that should use ctx instead"""
     nodes = workflow.get("nodes", [])
