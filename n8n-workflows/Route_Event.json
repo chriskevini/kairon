@@ -239,7 +239,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;",
         "options": {
-          "values": "={{ [ $('Parse Message').item.json.guild_id, $('Parse Message').item.json.channel_id, $('Parse Message').item.json.message_id, 'https://discord.com/channels/' + $('Parse Message').item.json.guild_id + '/' + $('Parse Message').item.json.channel_id + '/' + $('Parse Message').item.json.message_id, $('Parse Message').item.json.author?.login || $('Parse Message').item.json.author_login, $('Parse Message').item.json.thread_id || null, $('Parse Message').item.json.content, $('Parse Message').item.json.clean_text, $('Parse Message').item.json.tag || null, $('Parse Message').item.json.timestamp ] }}"
+          "values": "={{ $json.params }}"
         }
       },
       "id": "22b228b1-5999-4f45-8dc4-498385ad6aa9",
@@ -263,7 +263,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING *;",
         "options": {
-          "values": "={{ [ $('Parse Reaction').item.json.guild_id, $('Parse Reaction').item.json.channel_id, $('Parse Reaction').item.json.message_id, $('Parse Reaction').item.json.user?.login || $('Parse Reaction').item.json.user_id, $('Parse Reaction').item.json.thread_id || null, $('Parse Reaction').item.json.emoji, $('Parse Reaction').item.json.extraction_index, $('Parse Reaction').item.json.action, $('Parse Reaction').item.json.synthetic_id ] }}"
+          "values": "={{ $json.params }}"
         }
       },
       "id": "a6bdb18b-71f2-4c8f-afce-c269250fb9ac",
@@ -380,6 +380,34 @@
       ],
       "id": "5f108e4e-41d7-4284-be7e-dcd784e855e6",
       "name": "Parse Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare parameters array for Postgres node\nconst parsed = $input.first().json;\n\nconst params = [\n    parsed.guild_id,\n    parsed.channel_id,\n    parsed.message_id,\n    `https://discord.com/channels/${parsed.guild_id}/${parsed.channel_id}/${parsed.message_id}`,\n    parsed.author?.login || parsed.author_login,\n    parsed.thread_id || null,\n    parsed.content,\n    parsed.clean_text,\n    parsed.tag || null,\n    parsed.timestamp\n];\n\nreturn [{ json: { ...parsed, params } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        160
+      ],
+      "id": "1dee35fc-7a2a-4e70-b541-e25450738f82",
+      "name": "Prepare Message Params"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare parameters array for Postgres node\nconst parsed = $input.first().json;\n\nconst params = [\n    parsed.guild_id,\n    parsed.channel_id,\n    parsed.message_id,\n    parsed.user?.login || parsed.user_id,\n    parsed.thread_id || null,\n    parsed.emoji,\n    parsed.extraction_index,\n    parsed.action,\n    parsed.synthetic_id\n];\n\nreturn [{ json: { ...parsed, params } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        352
+      ],
+      "id": "1e599c77-83a3-488c-990c-27fda94c4a92",
+      "name": "Prepare Reaction Params"
     }
   ],
   "connections": {
@@ -460,7 +488,7 @@
       "main": [
         [
           {
-            "node": "Store Reaction Event",
+            "node": "Prepare Reaction Params",
             "type": "main",
             "index": 0
           }
@@ -515,7 +543,29 @@
       "main": [
         [
           {
+            "node": "Prepare Message Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Message Params": {
+      "main": [
+        [
+          {
             "node": "Store Message Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reaction Params": {
+      "main": [
+        [
+          {
+            "node": "Store Reaction Event",
             "type": "main",
             "index": 0
           }
