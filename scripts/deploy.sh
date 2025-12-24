@@ -146,8 +146,8 @@ run_smoke_tests() {
     trap "rm -f $SMOKE_OUTPUT_FILE" RETURN
 
     # Run the comprehensive test script against the dev environment
-    # Use --quiet to keep deployment fast and silent on success
-    if "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --quiet --verify-db > "$SMOKE_OUTPUT_FILE" 2>&1; then
+    # Default is silent on success, explicit --verify-db for database check
+    if "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --verify-db > "$SMOKE_OUTPUT_FILE" 2>&1; then
         echo "✅ PASSED"
         return 0
     else
