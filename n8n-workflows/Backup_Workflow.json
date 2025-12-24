@@ -96,7 +96,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n📁 Backup Directory: ${backupDir}\\n✅ Successfully backed up: ${successCount} items\\n❌ Failed to backup: ${errorCount} items\\n⚠️  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n};",
+        "jsCode": "const backupDir = $json.ctx.event.backup.backupDir;\nconst results = $json.ctx.event.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n📁 Backup Directory: ${backupDir}\\n✅ Successfully backed up: ${successCount} items\\n❌ Failed to backup: ${errorCount} items\\n⚠️  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "id": "5",
@@ -110,7 +110,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const message = $json.ctx.message;\n\n// Send success message to Discord\nconst webhookUrl = process.env.DISCORD_WEBHOOK_URL;\nif (webhookUrl) {\n  const payload = {\n    content: message,\n    username: 'Kairon Backup Bot',\n    avatar_url: 'https://cdn.discordapp.com/emojis/123456789012345678.png' // Kairon logo\n  };\n  \n  await $node['HTTP Request'].run({\n    method: 'POST',\n    url: webhookUrl,\n    body: JSON.stringify(payload),\n    headers: {\n      'Content-Type': 'application/json'\n    }\n  });\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      discord_sent: true\n    }\n  }\n};",
+        "jsCode": "const message = $json.ctx.event.message;\n\n// Send success message to Discord\nconst webhookUrl = process.env.DISCORD_WEBHOOK_URL;\nif (webhookUrl) {\n  const payload = {\n    content: message,\n    username: 'Kairon Backup Bot',\n    avatar_url: 'https://cdn.discordapp.com/emojis/123456789012345678.png' // Kairon logo\n  };\n  \n  await $node['HTTP Request'].run({\n    method: 'POST',\n    url: webhookUrl,\n    body: JSON.stringify(payload),\n    headers: {\n      'Content-Type': 'application/json'\n    }\n  });\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      discord_sent: true\n    }\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "id": "6",
@@ -137,34 +137,6 @@
         400,
         200
       ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO events (idempotency_key, event_type, clean_text, author_login, timestamp, channel_id, message_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (idempotency_key) DO NOTHING RETURNING id",
-        "values": [
-          "={{'backup-' + new Date().toISOString().replace(/[:.]/g, '-')}}",
-          "backup_workflow",
-          "Backup workflow executed successfully",
-          "system",
-          "={{$json.ctx.event.timestamp}}",
-          "system",
-          "backup"
-        ]
-      },
-      "id": "8",
-      "name": "LogEvent",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        -200,
-        -200
-      ],
-      "credentials": {
-        "postgres": {
-          "name": "Postgres account"
-        }
-      }
     }
   ],
   "connections": {
