@@ -230,11 +230,15 @@ send_reaction "🔵" "$LAST_MSG_ID" "add" "Reaction: Trigger correction"
 send_reaction "❌" "$LAST_MSG_ID" "add" "Reaction: Void/Delete"
 [ "$QUIET_MODE" = false ] && echo ""
 
-# 6. EDGE CASES
-log_info "--- 6. Edge Cases ---"
-send_message "" "Empty message"
-send_message "   " "Whitespace only"
-send_message "!!" "Only tag"
+# 6. EDGE CASES & VALIDATION TIERS (Issue #68)
+log_info "--- 6. Edge Cases & Validation Tiers ---"
+send_message "" "Tier 1: Empty message (Expect ⛔)"
+send_message "   " "Tier 1: Whitespace only (Expect ⛔)"
+send_message "!!" "Tier 2: Tag only (Expect ⚠️)"
+send_message "act" "Tier 2: Tag alias only (Expect ⚠️)"
+send_message "test message" "Tier 3: Test keyword (Expect 💀)"
+send_message "testing something" "Tier 3: Testing keyword (Expect 💀)"
+send_message "aaaaa" "Tier 3: Junk keyword (Expect 💀)"
 send_message "::" "Only command tag"
 LONG_MSG=$(printf 'A%.0s' {1..500})
 send_message "$LONG_MSG" "Long message (500 chars)"

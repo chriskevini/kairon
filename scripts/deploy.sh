@@ -24,6 +24,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Track cleanup files globally
+CLEANUP_FILES=()
+
+# Cleanup function
+cleanup_all() {
+    for file in "${CLEANUP_FILES[@]}"; do
+        rm -rf "$file" 2>/dev/null || true
+    done
+}
+
+trap cleanup_all EXIT INT TERM
+
 # Source shared deployment verification
 if [ -f ~/.local/share/remote-dev/lib/deploy-verify.sh ]; then
     source ~/.local/share/remote-dev/lib/deploy-verify.sh
@@ -81,7 +93,7 @@ deploy_dev() {
     TEMP_DIR=$(mktemp -d)
     OUTPUT_FILE=$(mktemp)
     DEPLOY_LOG=$(mktemp)
-    trap "rm -rf $TEMP_DIR $OUTPUT_FILE $DEPLOY_LOG" EXIT
+    CLEANUP_FILES+=("$TEMP_DIR" "$OUTPUT_FILE" "$DEPLOY_LOG")
     
     # Get workflow IDs upfront for ID remapping and post-deployment verification
     local DEV_WORKFLOW_IDS_BEFORE
@@ -200,7 +212,7 @@ deploy_prod() {
     # Capture output for diagnostics
     OUTPUT_FILE=$(mktemp)
     DEPLOY_LOG=$(mktemp)
-    trap "rm -f $OUTPUT_FILE $DEPLOY_LOG" EXIT
+    CLEANUP_FILES+=("$OUTPUT_FILE" "$DEPLOY_LOG")
     
     # Get workflow IDs before for verification
     local PROD_WORKFLOW_IDS_BEFORE=""
