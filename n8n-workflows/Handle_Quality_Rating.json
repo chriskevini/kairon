@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse quality rating from emoji\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '\ud83d\udc4d': 1.0,\n  '\ud83d\udc4e': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\nreturn {\n  json: {\n    ctx,\n    quality_score: qualityScore,\n    emoji\n  }\n};",
+        "jsCode": "// Parse quality rating from emoji\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '👍': 1.0,\n  '👎': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\nreturn {\n  json: {\n    ctx,\n    quality_score: qualityScore,\n    emoji\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
