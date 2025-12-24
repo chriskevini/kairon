@@ -37,6 +37,7 @@
       "name": "FindMissingEmbeddings",
       "credentials": {
         "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
           "name": "Postgres account"
         }
       }
@@ -80,9 +81,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -106,7 +108,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $json;\nconst projectionId = item.projection_id;\nconst text = item.description || item.text || \"\";\nconst embeddings = $(\"Embed Text\").item.json.embeddings;\n\nif (!embeddings || !embeddings[0]) return [];\n\nconst vector = \"[\" + embeddings[0].join(\",\") + \"]\";\n\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"embedding\",\n        sql: \"INSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding) SELECT $1, \\u0027all-MiniLM-L6-v2\\u0027, \\u0027{}\\u0027, $2, $3::vector WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE projection_id = $1) ON CONFLICT DO NOTHING;\",\n        params: [projectionId, text, vector]\n      }]\n    }\n  }\n}];"
+        "jsCode": "const item = $json;\nconst projectionId = item.projection_id;\nconst text = item.description || item.text || \"\";\nconst embeddings = $(\"EmbedText\").first().json.embeddings;\n\nif (!embeddings || !embeddings[0]) return [];\n\nconst vector = \"[\" + embeddings[0].join(\",\") + \"]\";\n\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"embedding\",\n        sql: \"INSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding) SELECT $1, \\u0027all-MiniLM-L6-v2\\u0027, \\u0027{}\\u0027, $2, $3::vector WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE projection_id = $1) ON CONFLICT DO NOTHING;\",\n        params: [projectionId, text, vector]\n      }]\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -133,6 +136,7 @@
       "name": "FindIncompleteTraces",
       "credentials": {
         "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
           "name": "Postgres account"
         }
       }
@@ -154,9 +158,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -180,7 +185,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $json;\nreturn [{\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"projection\",\n        sql: \"INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone) SELECT $1::uuid, $2::uuid, $3::uuid[], $4, $5::jsonb, \\u0027auto_confirmed\\u0027, $6 WHERE NOT EXISTS (SELECT 1 FROM projections WHERE trace_id = $1 AND projection_type = $4);\",\n        params: [\n          item.trace_id,\n          item.event_id,\n          \"{\" + item.trace_chain.join(\",\") + \"}\",\n          item.type,\n          JSON.stringify(item.data),\n          item.timezone\n        ]\n      }]\n    }\n  }\n}];"
+        "jsCode": "const item = $json;\nreturn {\n  json: {\n    ctx: {\n      db_queries: [{\n        key: \"projection\",\n        sql: \"INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone) SELECT $1::uuid, $2::uuid, $3::uuid[], $4, $5::jsonb, \\u0027auto_confirmed\\u0027, $6 WHERE NOT EXISTS (SELECT 1 FROM projections WHERE trace_id = $1 AND projection_type = $4);\",\n        params: [\n          item.trace_id,\n          item.event_id,\n          \"{\" + item.trace_chain.join(\",\") + \"}\",\n          item.type,\n          JSON.stringify(item.data),\n          item.timezone\n        ]\n      }]\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -300,6 +306,11 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
 }

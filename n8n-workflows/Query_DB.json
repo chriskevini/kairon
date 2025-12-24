@@ -16,7 +16,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate input and initialize loop state\nconst ctx = $json.ctx;\n\nif (!ctx?.db_queries || !Array.isArray(ctx.db_queries) || ctx.db_queries.length === 0) {\n  throw new Error('Query_DB requires ctx.db_queries array with at least one query');\n}\n\n// Validate each query has required fields\nfor (const q of ctx.db_queries) {\n  if (!q.key || !q.sql) {\n    throw new Error('Each query in ctx.db_queries must have key and sql fields');\n  }\n}\n\n// Initialize loop state\nreturn [{\n  json: {\n    original_ctx: ctx,\n    queries: ctx.db_queries,\n    current_index: 0,\n    results: {}  // Will accumulate {key: {results, count}}\n  }\n}];"
+        "jsCode": "// Validate input and initialize loop state\nconst ctx = $json.ctx;\n\nif (!ctx?.db_queries || !Array.isArray(ctx.db_queries) || ctx.db_queries.length === 0) {\n  throw new Error('Query_DB requires ctx.db_queries array with at least one query');\n}\n\n// Validate each query has required fields\nfor (const q of ctx.db_queries) {\n  if (!q.key || !q.sql) {\n    throw new Error('Each query in ctx.db_queries must have key and sql fields');\n  }\n}\n\n// Initialize loop state\nreturn {\n  json: {\n    original_ctx: ctx,\n    queries: ctx.db_queries,\n    current_index: 0,\n    results: {}  // Will accumulate {key: {results, count}}\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -29,7 +30,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare current query for execution\nconst state = $json;\nconst query = state.queries[state.current_index];\n\nreturn [{\n  json: {\n    ...state,\n    current_query: query,\n    sql: query.sql,\n    params: query.params || []\n  }\n}];"
+        "jsCode": "// Prepare current query for execution\nconst state = $json;\nconst query = state.queries[state.current_index];\n\nreturn {\n  json: {\n    ...state,\n    current_query: query,\n    sql: query.sql,\n    params: query.params || []\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -45,7 +47,7 @@
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
         "options": {
-          "queryReplacement": "={{ $json.params }}"
+          "values": "={{ $json.params }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -58,7 +60,8 @@
       "name": "ExecuteQuery",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       },
       "alwaysOutputData": true
@@ -126,7 +129,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Restore ctx with all query results in ctx.db namespace\nconst state = $json;\n\n// Remove db_queries since it was consumed\nconst { db_queries, ...restCtx } = state.original_ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...restCtx,\n      db: {\n        ...(restCtx.db || {}),\n        ...state.results\n      }\n    }\n  }\n}];"
+        "jsCode": "// Restore ctx with all query results in ctx.db namespace\nconst state = $json;\n\n// Remove db_queries since it was consumed\nconst { db_queries, ...restCtx } = state.original_ctx;\n\nreturn {\n  json: {\n    ctx: {\n      ...restCtx,\n      db: {\n        ...(restCtx.db || {}),\n        ...state.results\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -231,6 +235,10 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner"
-  }
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
 }

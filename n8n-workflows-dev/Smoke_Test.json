@@ -131,7 +131,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json;\nconst state = $('Prep Execute_Queries').first().json._state;\n\nif (input.error) {\n  state.tests.push({ name: 'query_db', passed: false, details: 'SubWorkflow error: ' + (input.error.message || 'unknown') });\n  return [{ json: state }];\n}\n\nconst db = input.ctx?.db || {};\n\n// Test scalar query\nconst scalarOk = db.scalar?.results?.[0]?.value === 42;\n\n// Test multi-row query\nconst multiOk = db.multi?.results?.length === 3 && db.multi?.results?.[0]?.n === 1;\n\n// Test empty result - n8n returns [{}] for empty, not []\nconst emptyRes = db.empty?.results || [];\nconst emptyOk = emptyRes.length === 0 || (emptyRes.length === 1 && Object.keys(emptyRes[0]||{}).length === 0);\n\n// Test parameterized query\nconst paramsOk = db.params?.results?.[0]?.echo === 'hello';\n\n// Verify db_queries was cleaned up\nconst cleanOk = !input.ctx?.db_queries;\n\nconst passed = scalarOk && multiOk && emptyOk && paramsOk && cleanOk;\nlet details = 'OK';\nif (!passed) {\n  details = `scalar=${scalarOk}, multi=${multiOk}, empty=${emptyOk}, params=${paramsOk}, clean=${cleanOk}`;\n}\n\nstate.tests.push({ name: 'query_db', passed, details });\nreturn [{ json: state }];"
+        "jsCode": "const input = $json;\nconst state = $('prep_execute_queries').first().json._state;\n\nif (input.error) {\n  state.tests.push({ name: 'query_db', passed: false, details: 'SubWorkflow error: ' + (input.error.message || 'unknown') });\n  return [{ json: state }];\n}\n\nconst db = input.ctx?.db || {};\n\n// Test scalar query\nconst scalarOk = db.scalar?.results?.[0]?.value === 42;\n\n// Test multi-row query\nconst multiOk = db.multi?.results?.length === 3 && db.multi?.results?.[0]?.n === 1;\n\n// Test empty result - n8n returns [{}] for empty, not []\nconst emptyRes = db.empty?.results || [];\nconst emptyOk = emptyRes.length === 0 || (emptyRes.length === 1 && Object.keys(emptyRes[0]||{}).length === 0);\n\n// Test parameterized query\nconst paramsOk = db.params?.results?.[0]?.echo === 'hello';\n\n// Verify db_queries was cleaned up\nconst cleanOk = !input.ctx?.db_queries;\n\nconst passed = scalarOk && multiOk && emptyOk && paramsOk && cleanOk;\nlet details = 'OK';\nif (!passed) {\n  details = `scalar=${scalarOk}, multi=${multiOk}, empty=${emptyOk}, params=${paramsOk}, clean=${cleanOk}`;\n}\n\nstate.tests.push({ name: 'query_db', passed, details });\nreturn [{ json: state }];"
       },
       "id": "eval-qdb",
       "name": "eval_execute_queries",
@@ -254,7 +254,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const state = $('Eval Schema').first().json;\nconst passed = state.tests.filter(t => t.passed).length;\nconst failed = state.tests.filter(t => !t.passed).length;\nreturn [{ json: {\n  success: failed === 0,\n  run_id: state.run_id,\n  summary: { total: state.tests.length, passed, failed },\n  tests: state.tests\n}}];"
+        "jsCode": "const state = $('eval_schema').first().json;\nconst passed = state.tests.filter(t => t.passed).length;\nconst failed = state.tests.filter(t => !t.passed).length;\nreturn [{ json: {\n  success: failed === 0,\n  run_id: state.run_id,\n  summary: { total: state.tests.length, passed, failed },\n  tests: state.tests\n}}];"
       },
       "id": "compile",
       "name": "compile",
@@ -345,36 +345,36 @@
       "main": [
         [
           {
-            "node": "Prep Query_DB",
+            "node": "prep_execute_queries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prep Query_DB": {
+    "prep_execute_queries": {
       "main": [
         [
           {
-            "node": "Call Query_DB",
+            "node": "call_execute_queries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Call Query_DB": {
+    "call_execute_queries": {
       "main": [
         [
           {
-            "node": "Eval Query_DB",
+            "node": "eval_execute_queries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Eval Query_DB": {
+    "eval_execute_queries": {
       "main": [
         [
           {

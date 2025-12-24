@@ -38,6 +38,7 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       }
@@ -75,6 +76,7 @@
       "name": "NemotronNano9b",
       "credentials": {
         "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
           "name": "OpenRouter account"
         }
       }
@@ -96,13 +98,15 @@
       "name": "MimoV2Flash",
       "credentials": {
         "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
           "name": "OpenRouter account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Prepare db_queries for trace + projection storage\nconst ctx = $json.ctx || {};\n\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst northStar = ctx.llm?.north_star || '(not set)';\nconst cleanText = ctx.event?.clean_text || '';\nconst promptText = `You are an AI life coach...\\n\\nUser's Guiding Principle: ${northStar}\\n\\nThe user started with: ${cleanText}`;\n\n// Prepare db_queries for Execute_Queries\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `WITH new_trace AS (\n            INSERT INTO traces (event_id, step_name, data, trace_chain)\n            VALUES ($1::uuid, 'thread_initial_response',\n              jsonb_build_object(\n                'input', jsonb_build_object('text', $2, 'thread_id', $3::text),\n                'prompt', $4,\n                'completion', $5,\n                'result', jsonb_build_object('response_length', $6::integer),\n                'model', 'nvidia/nemotron-nano-9b-v2:free',\n                'duration_ms', $7::integer\n              ), $8::uuid[])\n            RETURNING id\n          )\n          SELECT new_trace.id as trace_id, $8::uuid[] || new_trace.id as updated_trace_chain\n          FROM new_trace`,\n    params: [\n      ctx.event?.event_id,\n      cleanText,\n      ctx.thread?.id,\n      promptText,\n      response,\n      response.length,\n      durationMs,\n      ctx.event?.trace_chain || []\n    ]\n  },\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (event_id, trace_id, trace_chain, projection_type, status, data, timezone)\n          VALUES ($1::uuid, $2::uuid, $3::uuid[], 'thread_response', 'auto_confirmed',\n            jsonb_build_object(\n              'thread_id', $4,\n              'response_text', $5,\n              'role', 'assistant',\n              'timestamp', $6::timestamptz\n            ), $7)\n          RETURNING id`,\n    params: [\n      ctx.event?.event_id,\n      '$results.trace.row.trace_id',\n      '$results.trace.row.updated_trace_chain',\n      ctx.thread?.id,\n      response,\n      ctx.event?.timestamp,\n      ctx.event?.timezone\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n}];"
+        "jsCode": "// Prepare db_queries for trace + projection storage\nconst ctx = $json.ctx || {};\n\nconst response = ctx.llm?.completion_text || '';\nconst inferenceStart = ctx.llm?.inference_start || Date.now();\nconst durationMs = Date.now() - inferenceStart;\n\n// Build filled prompt (reconstructed from template)\nconst northStar = ctx.llm?.north_star || '(not set)';\nconst cleanText = ctx.event?.clean_text || '';\nconst promptText = `You are an AI life coach...\\n\\nUser's Guiding Principle: ${northStar}\\n\\nThe user started with: ${cleanText}`;\n\n// Prepare db_queries for Execute_Queries\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `WITH new_trace AS (\n            INSERT INTO traces (event_id, step_name, data, trace_chain)\n            VALUES ($1::uuid, 'thread_initial_response',\n              jsonb_build_object(\n                'input', jsonb_build_object('text', $2, 'thread_id', $3::text),\n                'prompt', $4,\n                'completion', $5,\n                'result', jsonb_build_object('response_length', $6::integer),\n                'model', 'nvidia/nemotron-nano-9b-v2:free',\n                'duration_ms', $7::integer\n              ), $8::uuid[])\n            RETURNING id\n          )\n          SELECT new_trace.id as trace_id, $8::uuid[] || new_trace.id as updated_trace_chain\n          FROM new_trace`,\n    params: [\n      ctx.event?.event_id,\n      cleanText,\n      ctx.thread?.id,\n      promptText,\n      response,\n      response.length,\n      durationMs,\n      ctx.event?.trace_chain || []\n    ]\n  },\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (event_id, trace_id, trace_chain, projection_type, status, data, timezone)\n          VALUES ($1::uuid, $2::uuid, $3::uuid[], 'thread_response', 'auto_confirmed',\n            jsonb_build_object(\n              'thread_id', $4,\n              'response_text', $5,\n              'role', 'assistant',\n              'timestamp', $6::timestamptz\n            ), $7)\n          RETURNING id`,\n    params: [\n      ctx.event?.event_id,\n      '$results.trace.row.trace_id',\n      '$results.trace.row.updated_trace_chain',\n      ctx.thread?.id,\n      response,\n      ctx.event?.timestamp,\n      ctx.event?.timezone\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -143,6 +147,7 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       }
@@ -178,6 +183,7 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       },
@@ -204,6 +210,7 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       },
@@ -213,9 +220,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -238,7 +246,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare north_star query and build initial ctx\nconst triggerData = $json;\nconst ctx = triggerData.ctx || {};\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: \"SELECT value FROM config WHERE key = 'north_star'\"\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n}];"
+        "jsCode": "// Prepare north_star query and build initial ctx\nconst triggerData = $json;\nconst ctx = triggerData.ctx || {};\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: \"SELECT value FROM config WHERE key = 'north_star'\"\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -253,9 +262,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -278,7 +288,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build context for LLM from thread and db results\nconst ctx = $json.ctx || {};\nconst threadData = $('CreateDiscordThread').first().json;\n\n// Get north_star from Execute_Queries result\nconst northStar = ctx.db?.north_star?.row?.value || '(not set)';\n\n// Preserve all ctx.event fields and add thread + llm context\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: ctx.event?.event_id,\n        channel_id: ctx.event?.channel_id,\n        message_id: ctx.event?.message_id,\n        guild_id: ctx.event?.guild_id,\n        clean_text: ctx.event?.clean_text,\n        timestamp: ctx.event?.timestamp,\n        timezone: ctx.event?.timezone,\n        trace_chain: ctx.event?.trace_chain\n      },\n      thread: {\n        id: threadData.id\n      },\n      db: {\n        north_star: northStar\n      },\n      llm: {\n        inference_start: Date.now(),\n        north_star: northStar\n      }\n    }\n  }\n}];"
+        "jsCode": "// Build context for LLM from thread and db results\nconst ctx = $json.ctx || {};\nconst threadData = $('CreateDiscordThread').first().json;\n\n// Get north_star from Execute_Queries result\nconst northStar = ctx.db?.north_star?.row?.value || '(not set)';\n\n// Preserve all ctx.event fields and add thread + llm context\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: ctx.event?.event_id,\n        channel_id: ctx.event?.channel_id,\n        message_id: ctx.event?.message_id,\n        guild_id: ctx.event?.guild_id,\n        clean_text: ctx.event?.clean_text,\n        timestamp: ctx.event?.timestamp,\n        timezone: ctx.event?.timezone,\n        trace_chain: ctx.event?.trace_chain\n      },\n      thread: {\n        id: threadData.id\n      },\n      db: {\n        north_star: northStar\n      },\n      llm: {\n        inference_start: Date.now(),\n        north_star: northStar\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -291,7 +302,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Add LLM response to ctx\nconst prevData = $('Build LLM Context').first().json;\nconst ctx = prevData.ctx;\nconst llmResponse = $json.text || '';\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        completion_text: llmResponse\n      }\n    }\n  }\n}];"
+        "jsCode": "// Add LLM response to ctx\nconst prevData = $('BuildLlmContext').first().json;\nconst ctx = prevData.ctx;\nconst llmResponse = $json.text || '';\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      llm: {\n        ...ctx.llm,\n        completion_text: llmResponse\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -447,9 +459,10 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false,
+    "executionOrder": "v1"
   },
   "staticData": null,
   "meta": null,

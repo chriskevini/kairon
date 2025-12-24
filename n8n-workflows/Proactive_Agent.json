@@ -29,7 +29,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract trigger_reason from caller, default to 'cron'\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst now = new Date();\nconst idempotencyKey = `scheduled:proactive:${now.toISOString().slice(0, 16)}:${triggerReason}`;\n\nreturn [{\n  json: {\n    idempotency_key: idempotencyKey,\n    trigger_reason: triggerReason,\n    timestamp: now.toISOString()\n  }\n}];"
+        "jsCode": "// Extract trigger_reason from caller, default to 'cron'\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst now = new Date();\nconst idempotencyKey = `scheduled:proactive:${now.toISOString().slice(0, 16)}:${triggerReason}`;\n\nreturn {\n  json: {\n    idempotency_key: idempotencyKey,\n    trigger_reason: triggerReason,\n    timestamp: now.toISOString()\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -45,7 +46,7 @@
         "operation": "executeQuery",
         "query": "-- Insert system event for proactive agent\nINSERT INTO events (idempotency_key, event_type, payload, timezone)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'proactive_agent',\n    'trigger_reason', $2\n  ),\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id, timezone = EXCLUDED.timezone\nRETURNING id, timezone;",
         "options": {
-          "queryReplacement": "{{ $json.idempotency_key }},{{ $json.trigger_reason }}"
+          "values": "{{ $json.idempotency_key }},{{ $json.trigger_reason }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -58,13 +59,15 @@
       "name": "InsertEvent",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\nconst prepareData = $('PrepareEvent').first().json;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'proactive_agent',\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id],\n        trace_chain_pg: `{${eventResult.id}}`\n      },\n      db_queries: [{\n        key: 'history',\n        sql: `\n          (SELECT 'user' as role, payload->>'clean_text' as content, received_at as timestamp\n           FROM events \n           WHERE event_type = 'discord_message'\n           ORDER BY received_at DESC LIMIT 5)\n          UNION ALL\n          (SELECT 'assistant' as role, data->>'message' as content, created_at as timestamp\n           FROM projections\n           WHERE projection_type IN ('nudge', 'pulse')\n           ORDER BY created_at DESC LIMIT 5)\n          ORDER BY timestamp DESC\n          LIMIT 5;\n        `,\n        params: []\n      }]\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\nconst prepareData = $('PrepareEvent').first().json;\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'proactive_agent',\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id],\n        trace_chain_pg: `{${eventResult.id}}`\n      },\n      db_queries: [{\n        key: 'history',\n        sql: `\n          (SELECT 'user' as role, payload->>'clean_text' as content, received_at as timestamp\n           FROM events \n           WHERE event_type = 'discord_message'\n           ORDER BY received_at DESC LIMIT 5)\n          UNION ALL\n          (SELECT 'assistant' as role, data->>'message' as content, created_at as timestamp\n           FROM projections\n           WHERE projection_type IN ('nudge', 'pulse')\n           ORDER BY created_at DESC LIMIT 5)\n          ORDER BY timestamp DESC\n          LIMIT 5;\n        `,\n        params: []\n      }]\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -92,7 +95,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -113,7 +117,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -134,7 +139,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -155,7 +161,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -176,7 +183,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -251,7 +259,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare embedding for pgvector query\nconst contextData = $('BuildContextSummary').first().json;\nconst embedResult = $json;\n\n// Extract the embedding vector\nlet embedding = null;\nif (embedResult.embeddings && embedResult.embeddings.length > 0) {\n  embedding = embedResult.embeddings[0];\n}\n\n// Format as pgvector array string\nlet embeddingPg = null;\nif (embedding) {\n  embeddingPg = '[' + embedding.join(',') + ']';\n}\n\nreturn [{\n  json: {\n    ctx: contextData.ctx,\n    context_summary: contextData.context_summary,\n    all_items: contextData.all_items,\n    embedding_pg: embeddingPg,\n    has_embedding: embedding !== null\n  }\n}];"
+        "jsCode": "// Prepare embedding for pgvector query\nconst contextData = $('BuildContextSummary').first().json;\nconst embedResult = $json;\n\n// Extract the embedding vector\nlet embedding = null;\nif (embedResult.embeddings && embedResult.embeddings.length > 0) {\n  embedding = embedResult.embeddings[0];\n}\n\n// Format as pgvector array string\nlet embeddingPg = null;\nif (embedding) {\n  embeddingPg = '[' + embedding.join(',') + ']';\n}\n\nreturn {\n  json: {\n    ctx: contextData.ctx,\n    context_summary: contextData.context_summary,\n    all_items: contextData.all_items,\n    embedding_pg: embeddingPg,\n    has_embedding: embedding !== null\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -267,7 +276,7 @@
         "operation": "executeQuery",
         "query": "-- RAG: Find similar projections using pgvector\nSELECT \n  p.projection_type,\n  COALESCE(p.data->>'description', p.data->>'text') as content,\n  p.data->>'category' as category,\n  (p.data->>'timestamp')::timestamptz as timestamp,\n  e.embedding <=> $1::vector as distance\nFROM embeddings e\nJOIN projections p ON e.projection_id = p.id\nWHERE p.status IN ('auto_confirmed', 'confirmed')\n  AND p.created_at > NOW() - INTERVAL '30 days'\n  AND p.projection_type IN ('activity', 'note')\n  AND e.embedding IS NOT NULL\nORDER BY e.embedding <=> $1::vector\nLIMIT 5;",
         "options": {
-          "queryReplacement": "{{ $json.embedding_pg }}"
+          "values": "{{ $json.embedding_pg }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -282,7 +291,8 @@
       "continueOnFail": true,
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -344,6 +354,7 @@
       "name": "NemotronNano9b",
       "credentials": {
         "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
           "name": "OpenRouter account"
         }
       }
@@ -363,13 +374,15 @@
       "name": "MimoV2Flash",
       "credentials": {
         "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
           "name": "OpenRouter account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM response\nconst assembleData = $('AssemblePrompt').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - assembleData.inference_start;\nconst ctx = assembleData.ctx;\n\nlet message = '';\nlet nextPulseMinutes = 120;\nlet reasoning = '';\n\ntry {\n  // Extract JSON from response (handling potential markdown blocks)\n  const jsonMatch = llmText.match(/\\{[\\s\\S]*\\}/);\n  const data = JSON.parse(jsonMatch ? jsonMatch[0] : llmText);\n  message = data.message || '';\n  nextPulseMinutes = parseInt(data.next_pulse_minutes) || 120;\n  reasoning = data.reasoning || '';\n} catch (e) {\n  // Fallback for non-JSON or malformed responses\n  message = llmText.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '').trim();\n}\n\n// Check if message is empty or too short\nconst isEmpty = !message || message.length < 10;\n\nreturn [{\n  json: {\n    ctx,\n    message: message,\n    next_pulse_minutes: nextPulseMinutes,\n    reasoning: reasoning,\n    is_empty: isEmpty,\n    duration_ms: durationMs,\n    trace_chain_pg: assembleData.trace_chain_pg,\n    llm_response: llmText,\n    assembled_prompt: assembleData.assembled_prompt,\n    context_description: assembleData.context_description,\n    technique_source: assembleData.technique_source,\n    input_summary: assembleData.input_summary\n  }\n}];"
+        "jsCode": "// Parse LLM response\nconst assembleData = $('AssemblePrompt').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - assembleData.inference_start;\nconst ctx = assembleData.ctx;\n\nlet message = '';\nlet nextPulseMinutes = 120;\nlet reasoning = '';\n\ntry {\n  // Extract JSON from response (handling potential markdown blocks)\n  const jsonMatch = llmText.match(/\\{[\\s\\S]*\\}/);\n  const data = JSON.parse(jsonMatch ? jsonMatch[0] : llmText);\n  message = data.message || '';\n  nextPulseMinutes = parseInt(data.next_pulse_minutes) || 120;\n  reasoning = data.reasoning || '';\n} catch (e) {\n  // Fallback for non-JSON or malformed responses\n  message = llmText.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '').trim();\n}\n\n// Check if message is empty or too short\nconst isEmpty = !message || message.length < 10;\n\nreturn {\n  json: {\n    ctx,\n    message: message,\n    next_pulse_minutes: nextPulseMinutes,\n    reasoning: reasoning,\n    is_empty: isEmpty,\n    duration_ms: durationMs,\n    trace_chain_pg: assembleData.trace_chain_pg,\n    llm_response: llmText,\n    assembled_prompt: assembleData.assembled_prompt,\n    context_description: assembleData.context_description,\n    technique_source: assembleData.technique_source,\n    input_summary: assembleData.input_summary\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -385,7 +398,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'proactive_agent',\n  jsonb_build_object(\n    'prompt', $2,\n    'completion', $3,\n    'context_description', $4,\n    'technique_source', $5,\n    'input_summary', $6::jsonb,\n    'duration_ms', $7::integer\n  ),\n  $8::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
         "options": {
-          "queryReplacement": "{{ $json.ctx.event.event_id }},{{ $json.assembled_prompt }},{{ $json.llm_response }},{{ $json.context_description }},{{ $json.technique_source }},{{ JSON.stringify($json.input_summary) }},{{ $json.duration_ms }},{{ $json.trace_chain_pg }}"
+          "values": "{{ $json.ctx.event.event_id }},{{ $json.assembled_prompt }},{{ $json.llm_response }},{{ $json.context_description }},{{ $json.technique_source }},{{ JSON.stringify($json.input_summary) }},{{ $json.duration_ms }},{{ $json.trace_chain_pg }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -398,13 +411,15 @@
       "name": "StoreTrace",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Merge trace result with parsed LLM data\nconst traceResult = $json;\nconst parseData = $('Parse LLM Response').first().json;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// Pre-stringify projection data for Postgres\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  text: parseData.message,\n  context_description: parseData.context_description,\n  technique_source: parseData.technique_source\n};\n\nreturn [{\n  json: {\n    ctx: parseData.ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    message: parseData.message,\n    is_empty: parseData.is_empty,\n    projection_data_json: JSON.stringify(projectionData)\n  }\n}];"
+        "jsCode": "// Merge trace result with parsed LLM data\nconst traceResult = $json;\nconst parseData = $('ParseLlmResponse').first().json;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// Pre-stringify projection data for Postgres\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  text: parseData.message,\n  context_description: parseData.context_description,\n  technique_source: parseData.technique_source\n};\n\nreturn {\n  json: {\n    ctx: parseData.ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    message: parseData.message,\n    is_empty: parseData.is_empty,\n    projection_data_json: JSON.stringify(projectionData)\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -454,7 +469,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'nudge',\n  $4::jsonb,\n  'auto_confirmed',\n  $5\n)\nRETURNING id;",
         "options": {
-          "queryReplacement": "{{ $json.trace_id }},{{ $json.ctx.event.event_id }},{{ $json.trace_chain_pg }},{{ $json.projection_data_json }},{{ $json.ctx.event.timezone }}"
+          "values": "{{ $json.trace_id }},{{ $json.ctx.event.event_id }},{{ $json.trace_chain_pg }},{{ $json.projection_data_json }},{{ $json.ctx.event.timezone }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -467,13 +482,15 @@
       "name": "StoreProjection",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Merge projection result for Discord\nconst projResult = $json;\nconst mergeData = $('MergeTraceResult').first().json;\n\nreturn [{\n  json: {\n    ctx: mergeData.ctx,\n    projection_id: projResult.id,\n    message: mergeData.message\n  }\n}];"
+        "jsCode": "// Merge projection result for Discord\nconst projResult = $json;\nconst mergeData = $('MergeTraceResult').first().json;\n\nreturn {\n  json: {\n    ctx: mergeData.ctx,\n    projection_id: projResult.id,\n    message: mergeData.message\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -510,6 +527,7 @@
       "name": "SendMessage",
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       },
@@ -522,7 +540,7 @@
         "operation": "executeQuery",
         "query": "-- Update projection with Discord message ID for void support\nUPDATE projections \nSET data = data || jsonb_build_object(\n  'discord_message_id', $1,\n  'discord_channel_id', $2,\n  'discord_guild_id', $3\n)\nWHERE id = $4::uuid\nRETURNING id;",
         "options": {
-          "queryReplacement": "{{ $json.id }},{{ $env.DISCORD_CHANNEL_ARCANE_SHELL }},{{ $env.DISCORD_GUILD_ID }},{{ $('Merge for Discord').first().json.projection_id }}"
+          "values": "{{ $json.id }},{{ $env.DISCORD_CHANNEL_ARCANE_SHELL }},{{ $env.DISCORD_GUILD_ID }},{{ $('Merge for Discord').first().json.projection_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -535,7 +553,8 @@
       "name": "UpdateProjectionWithMessageId",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -544,7 +563,7 @@
         "operation": "executeQuery",
         "query": "UPDATE config \nSET value = (NOW() + ($1 || ' minutes')::interval)::text, updated_at = NOW()\nWHERE key = 'next_pulse';",
         "options": {
-          "queryReplacement": "={{ $json.next_pulse_minutes }}"
+          "values": "={{ $json.next_pulse_minutes }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -557,7 +576,8 @@
       "name": "UpdateNextPulse",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -589,6 +609,7 @@
       "name": "AddDiagnosticReaction",
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       }
@@ -609,7 +630,8 @@
       "name": "CheckVerboseConfig",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -650,9 +672,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "={{ $env.WORKFLOW_ID_SHOW_PROJECTION_DETAILS }}",
+          "value": "wVpslhMBnrsgDaOR",
           "mode": "list",
-          "cachedResultName": "Show_Projection_Details"
+          "cachedResultName": "Show_Projection_Details",
+          "cachedResultUrl": "/workflow/wVpslhMBnrsgDaOR"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -1065,10 +1088,12 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false,
+    "executionOrder": "v1"
   },
+  "staticData": null,
   "meta": null,
   "active": false
 }

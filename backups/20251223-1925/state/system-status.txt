@@ -1,0 +1,44 @@
+[0;34mℹ[0m Checking system status...
+
+=== Docker Containers ===
+NAMES                      STATUS        PORTS
+n8n-dev                    Up 17 hours   0.0.0.0:5679->5678/tcp, [::]:5679->5678/tcp
+n8n-docker-caddy-n8n-1     Up 17 hours   0.0.0.0:5678->5678/tcp, [::]:5678->5678/tcp
+postgres-db                Up 24 hours   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+postgres-dev               Up 24 hours   5432/tcp
+embedding-service          Up 25 hours   0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp
+n8n-docker-caddy-caddy-1   Up 39 hours   0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp, 443/udp, 2019/tcp
+
+=== Discord Relay ===
+● kairon-relay.service - Kairon Discord Relay Bot
+     Loaded: loaded (/etc/systemd/system/kairon-relay.service; disabled; preset: enabled)
+     Active: active (running) since Tue 2025-12-23 21:19:19 UTC; 6h ago
+   Main PID: 187198 (python)
+      Tasks: 3 (limit: 2318)
+     Memory: 26.7M (peak: 42.7M swap: 6.6M swap peak: 6.6M)
+        CPU: 2.201s
+     CGroup: /system.slice/kairon-relay.service
+             └─187198 /root/kairon/.venv/bin/python /root/kairon/discord_relay.py
+
+Dec 24 02:26:07 n8n start_relay.sh[187198]: ✓ Sent message to n8n (status 200)
+Dec 24 02:51:46 n8n start_relay.sh[187198]: DEBUG: Received message from chr15: :: ping in arcane-shell
+Dec 24 02:51:46 n8n start_relay.sh[187198]: DEBUG: Attempting to send message to n8n...
+Dec 24 02:51:46 n8n start_relay.sh[187198]: ✓ Sent message to n8n (status 200)
+Dec 24 02:51:51 n8n start_relay.sh[187198]: DEBUG: Received message from chr15: :: recent in arcane-shell
+
+=== Database Health (Last 24 Hours) ===
+   metric    | count |         latest          
+-------------+-------+-------------------------
+ Events      | 240   | 2025-12-24 03:00:39 UTC
+ Traces      | 37    | 2025-12-24 02:39:03 UTC
+ Projections | 21    | 2025-12-23 12:18:31 UTC
+(3 rows)
+
+
+=== Data Pipeline Health ===
+ events_1h | traces_1h | events_without_traces 
+-----------+-----------+-----------------------
+        15 |         2 |                    13
+(1 row)
+
+[0;32m✓[0m Status check complete

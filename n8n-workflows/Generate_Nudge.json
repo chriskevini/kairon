@@ -16,7 +16,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract trigger_reason from caller, default to 'cron'\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst now = new Date();\nconst idempotencyKey = `scheduled:nudge:${now.toISOString().slice(0, 16)}:${triggerReason}`;\n\nreturn [{\n  json: {\n    idempotency_key: idempotencyKey,\n    trigger_reason: triggerReason,\n    timestamp: now.toISOString()\n  }\n}];"
+        "jsCode": "// Extract trigger_reason from caller, default to 'cron'\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst now = new Date();\nconst idempotencyKey = `scheduled:nudge:${now.toISOString().slice(0, 16)}:${triggerReason}`;\n\nreturn {\n  json: {\n    idempotency_key: idempotencyKey,\n    trigger_reason: triggerReason,\n    timestamp: now.toISOString()\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -32,7 +33,7 @@
         "operation": "executeQuery",
         "query": "-- Insert system event for nudge\nINSERT INTO events (idempotency_key, event_type, payload, timezone)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'nudge',\n    'trigger_reason', $2\n  ),\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id, timezone = EXCLUDED.timezone\nRETURNING id, timezone;",
         "options": {
-          "queryReplacement": "{{ $json.idempotency_key }},{{ $json.trigger_reason }}"
+          "values": "{{ $json.idempotency_key }},{{ $json.trigger_reason }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -45,13 +46,15 @@
       "name": "InsertEvent",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id and prepare batch database queries\nconst eventResult = $json;\nconst prepareData = $(\"Prepare Event\").first().json;\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '4 hours'\n          ORDER BY (p.data->>'timestamp')::timestamptz DESC`\n  },\n  {\n    key: 'last_note',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (p.data->>'timestamp')::timestamptz DESC\n          LIMIT 1`\n  },\n  {\n    key: 'timezone',\n    sql: `SELECT value as timezone FROM config WHERE key = 'timezone'`\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"nudge\",\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id]\n      },\n      db_queries\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx with event_id and prepare batch database queries\nconst eventResult = $json;\nconst prepareData = $(\"PrepareEvent\").first().json;\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '4 hours'\n          ORDER BY (p.data->>'timestamp')::timestamptz DESC`\n  },\n  {\n    key: 'last_note',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (p.data->>'timestamp')::timestamptz DESC\n          LIMIT 1`\n  },\n  {\n    key: 'timezone',\n    sql: `SELECT value as timezone FROM config WHERE key = 'timezone'`\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"nudge\",\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id]\n      },\n      db_queries\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -66,9 +69,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -91,7 +95,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build LLM prompt context from Execute_Queries results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract timezone from db results, fallback to event timezone or UTC\nconst timezone = db.timezone?.row?.timezone || ctx.event.timezone || 'UTC';\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    // Fallback if timezone is invalid\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\n// Extract north star (fallback to introspection prompt)\nconst northStar = db.north_star?.row?.value || 'To determine my north star from deep introspection';\n\n// Extract activities from db results (use .rows for arrays)\nconst activityItems = db.activities?.rows || [];\n\n// Extract last note from db results (use .row for LIMIT 1)\nconst lastNote = db.last_note?.row;\n\n// Format activities list with user's timezone\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  activityItems.forEach(item => {\n    const time = formatTime(item.timestamp);\n    activitiesList += `- ${time}: [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format last note\nlet lastNoteText = '(No recent notes)';\nif (lastNote) {\n  const time = formatTime(lastNote.timestamp);\n  lastNoteText = `${time}: [${lastNote.category}] ${lastNote.text}`;\n}\n\n// Get current time in user's timezone\nlet currentTime;\ntry {\n  currentTime = new Date().toLocaleString('en-US', {\n    timeZone: timezone,\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n} catch (e) {\n  currentTime = new Date().toLocaleString('en-US', {\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n}\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList.trim(),\n    last_note: lastNoteText,\n    timestamp: currentTime,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n}];"
+        "jsCode": "// Build LLM prompt context from Execute_Queries results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract timezone from db results, fallback to event timezone or UTC\nconst timezone = db.timezone?.row?.timezone || ctx.event.timezone || 'UTC';\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    // Fallback if timezone is invalid\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\n// Extract north star (fallback to introspection prompt)\nconst northStar = db.north_star?.row?.value || 'To determine my north star from deep introspection';\n\n// Extract activities from db results (use .rows for arrays)\nconst activityItems = db.activities?.rows || [];\n\n// Extract last note from db results (use .row for LIMIT 1)\nconst lastNote = db.last_note?.row;\n\n// Format activities list with user's timezone\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  activityItems.forEach(item => {\n    const time = formatTime(item.timestamp);\n    activitiesList += `- ${time}: [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format last note\nlet lastNoteText = '(No recent notes)';\nif (lastNote) {\n  const time = formatTime(lastNote.timestamp);\n  lastNoteText = `${time}: [${lastNote.category}] ${lastNote.text}`;\n}\n\n// Get current time in user's timezone\nlet currentTime;\ntry {\n  currentTime = new Date().toLocaleString('en-US', {\n    timeZone: timezone,\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n} catch (e) {\n  currentTime = new Date().toLocaleString('en-US', {\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n}\n\nreturn {\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList.trim(),\n    last_note: lastNoteText,\n    timestamp: currentTime,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -133,6 +138,7 @@
       "name": "NemotronNano9b",
       "credentials": {
         "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
           "name": "OpenRouter account"
         }
       }
@@ -152,13 +158,15 @@
       "name": "MimoV2Flash",
       "credentials": {
         "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
           "name": "OpenRouter account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM response and prepare trace write query\nconst prepareData = $('PreparePromptData').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Parse the decision from first line\nconst lines = llmText.split('\\n').filter(l => l.trim());\nconst decision = (lines[0] || '').trim().toUpperCase();\n\n// Extract message (everything after first line)\nconst message = lines.slice(1).join('\\n').trim();\n\n// Determine if we should skip\nconst shouldSkip = decision === 'SKIP' || !['ENCOURAGE', 'REDIRECT'].includes(decision);\n\n// Prepare db_queries for trace INSERT\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES ($1::uuid, 'nudge',\n            jsonb_build_object(\n              'input', $2::jsonb,\n              'prompt', 'nudge-prompt',\n              'completion', $3,\n              'result', jsonb_build_object(\n                'decision', $4,\n                'message', $5,\n                'should_skip', $6::boolean\n              ),\n              'duration_ms', $7::integer\n            ), $8::uuid[])\n          RETURNING id, trace_chain || id AS updated_trace_chain`,\n    params: [\n      ctx.event.event_id,\n      {\n        north_star: prepareData.north_star,\n        recent_activities: prepareData.recent_activities,\n        last_note: prepareData.last_note,\n        timestamp: prepareData.timestamp,\n        activity_count: prepareData.activity_count\n      },\n      llmText,\n      decision,\n      message,\n      shouldSkip,\n      durationMs,\n      ctx.event.trace_chain || []\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    decision,\n    message,\n    should_skip: shouldSkip\n  }\n}];"
+        "jsCode": "// Parse LLM response and prepare trace write query\nconst prepareData = $('PreparePromptData').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Parse the decision from first line\nconst lines = llmText.split('\\n').filter(l => l.trim());\nconst decision = (lines[0] || '').trim().toUpperCase();\n\n// Extract message (everything after first line)\nconst message = lines.slice(1).join('\\n').trim();\n\n// Determine if we should skip\nconst shouldSkip = decision === 'SKIP' || !['ENCOURAGE', 'REDIRECT'].includes(decision);\n\n// Prepare db_queries for trace INSERT\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES ($1::uuid, 'nudge',\n            jsonb_build_object(\n              'input', $2::jsonb,\n              'prompt', 'nudge-prompt',\n              'completion', $3,\n              'result', jsonb_build_object(\n                'decision', $4,\n                'message', $5,\n                'should_skip', $6::boolean\n              ),\n              'duration_ms', $7::integer\n            ), $8::uuid[])\n          RETURNING id, trace_chain || id AS updated_trace_chain`,\n    params: [\n      ctx.event.event_id,\n      {\n        north_star: prepareData.north_star,\n        recent_activities: prepareData.recent_activities,\n        last_note: prepareData.last_note,\n        timestamp: prepareData.timestamp,\n        activity_count: prepareData.activity_count\n      },\n      llmText,\n      decision,\n      message,\n      shouldSkip,\n      durationMs,\n      ctx.event.trace_chain || []\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    decision,\n    message,\n    should_skip: shouldSkip\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -229,6 +237,7 @@
       "name": "SendNudge",
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       },
@@ -240,9 +249,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -265,7 +275,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Check if should skip and prepare for projection branch\nconst ctx = $json.ctx;\nconst traceRow = ctx.db?.trace?.row;\nconst prepData = $('PrepareTraceQuery').first().json;\n\nreturn [{\n  json: {\n    ctx,\n    trace_id: traceRow?.id,\n    updated_trace_chain: traceRow?.updated_trace_chain || [],\n    decision: prepData.decision,\n    message: prepData.message,\n    should_skip: prepData.should_skip\n  }\n}];"
+        "jsCode": "// Check if should skip and prepare for projection branch\nconst ctx = $json.ctx;\nconst traceRow = ctx.db?.trace?.row;\nconst prepData = $('PrepareTraceQuery').first().json;\n\nreturn {\n  json: {\n    ctx,\n    trace_id: traceRow?.id,\n    updated_trace_chain: traceRow?.updated_trace_chain || [],\n    decision: prepData.decision,\n    message: prepData.message,\n    should_skip: prepData.should_skip\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -278,7 +289,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare projection + final update queries\nconst checkData = $json;\nconst ctx = checkData.ctx;\n\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  decision: checkData.decision,\n  text: checkData.message\n};\n\nconst db_queries = [\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n          VALUES ($1::uuid, $2::uuid, $3::uuid[], 'nudge', $4::jsonb, 'auto_confirmed', $5)\n          RETURNING id`,\n    params: [\n      checkData.trace_id,\n      ctx.event.event_id,\n      checkData.updated_trace_chain,\n      projectionData,\n      ctx.event.timezone\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    message: checkData.message,\n    decision: checkData.decision\n  }\n}];"
+        "jsCode": "// Prepare projection + final update queries\nconst checkData = $json;\nconst ctx = checkData.ctx;\n\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  decision: checkData.decision,\n  text: checkData.message\n};\n\nconst db_queries = [\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n          VALUES ($1::uuid, $2::uuid, $3::uuid[], 'nudge', $4::jsonb, 'auto_confirmed', $5)\n          RETURNING id`,\n    params: [\n      checkData.trace_id,\n      ctx.event.event_id,\n      checkData.updated_trace_chain,\n      projectionData,\n      ctx.event.timezone\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    message: checkData.message,\n    decision: checkData.decision\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -293,9 +305,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -318,7 +331,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare for Discord post\nconst ctx = $json.ctx;\nconst projectionId = ctx.db?.projection?.row?.id;\nconst prepData = $('PrepareProjectionQuery').first().json;\n\nreturn [{\n  json: {\n    ctx,\n    projection_id: projectionId,\n    message: prepData.message\n  }\n}];"
+        "jsCode": "// Prepare for Discord post\nconst ctx = $json.ctx;\nconst projectionId = ctx.db?.projection?.row?.id;\nconst prepData = $('PrepareProjectionQuery').first().json;\n\nreturn {\n  json: {\n    ctx,\n    projection_id: projectionId,\n    message: prepData.message\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -331,7 +345,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare final update query with Discord message ID\nconst discordResult = $json;\nconst prepData = $('Prepare for Discord').first().json;\nconst ctx = prepData.ctx;\n\nconst db_queries = [\n  {\n    key: 'update_projection',\n    sql: `UPDATE projections \n          SET data = data || jsonb_build_object(\n            'discord_message_id', $1,\n            'discord_channel_id', $2,\n            'discord_guild_id', $3\n          )\n          WHERE id = $4::uuid\n          RETURNING id`,\n    params: [\n      discordResult.id,\n      $env.DISCORD_CHANNEL_ARCANE_SHELL || '',\n      $env.DISCORD_GUILD_ID || '',\n      prepData.projection_id\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n}];"
+        "jsCode": "// Prepare final update query with Discord message ID\nconst discordResult = $json;\nconst prepData = $('PrepareForDiscord').first().json;\nconst ctx = prepData.ctx;\n\nconst db_queries = [\n  {\n    key: 'update_projection',\n    sql: `UPDATE projections \n          SET data = data || jsonb_build_object(\n            'discord_message_id', $1,\n            'discord_channel_id', $2,\n            'discord_guild_id', $3\n          )\n          WHERE id = $4::uuid\n          RETURNING id`,\n    params: [\n      discordResult.id,\n      $env.DISCORD_CHANNEL_ARCANE_SHELL || '',\n      $env.DISCORD_GUILD_ID || '',\n      prepData.projection_id\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -346,9 +361,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -572,15 +588,12 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false,
+    "executionOrder": "v1"
   },
-  "staticData": {
-    "node:Every 15 Minutes": {
-      "recurrenceRules": []
-    }
-  },
+  "staticData": null,
   "meta": null,
   "active": false
 }

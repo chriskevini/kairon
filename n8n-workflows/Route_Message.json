@@ -30,7 +30,8 @@
       "name": "ResetNextPulse",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       },
       "onError": "continueRegularOutput"
@@ -66,6 +67,7 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       },
@@ -141,7 +143,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Add projection type to ctx for Capture_Projection workflow\n// Derive type from tag (!! = activity, .. = note, $$ = todo)\nconst tag = $json.ctx.event.tag;\nconst tagToType = { '!!': 'activity', '..': 'note', '$$': 'todo' };\nconst projectionType = tagToType[tag] || 'activity';\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      projection: {\n        type: projectionType\n      }\n    }\n  }\n}];"
+        "jsCode": "// Add projection type to ctx for Capture_Projection workflow\n// Derive type from tag (!! = activity, .. = note, $$ = todo)\nconst tag = $json.ctx.event.tag;\nconst tagToType = { '!!': 'activity', '..': 'note', '$$': 'todo' };\nconst projectionType = tagToType[tag] || 'activity';\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      projection: {\n        type: projectionType\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -156,9 +159,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "fCzIE4pwbotbDlD6",
+          "value": "Gu9mVRTwvJCq0Fpf",
           "mode": "list",
-          "cachedResultUrl": "/workflow/fCzIE4pwbotbDlD6",
+          "cachedResultUrl": "/workflow/Gu9mVRTwvJCq0Fpf",
           "cachedResultName": "Capture_Projection"
         },
         "workflowInputs": {
@@ -184,9 +187,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "LNzKP4CSjrY7FW5v",
+          "value": "9z0gv8DzdPC76trq",
           "mode": "list",
-          "cachedResultUrl": "/workflow/LNzKP4CSjrY7FW5v",
+          "cachedResultUrl": "/workflow/9z0gv8DzdPC76trq",
           "cachedResultName": "Start_Thread"
         },
         "workflowInputs": {
@@ -212,9 +215,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "v6t7HCxr2OOXvb2z",
+          "value": "ZwuxCuNFykFxgD3e",
           "mode": "list",
-          "cachedResultUrl": "/workflow/v6t7HCxr2OOXvb2z",
+          "cachedResultUrl": "/workflow/ZwuxCuNFykFxgD3e",
           "cachedResultName": "Execute_Command"
         },
         "workflowInputs": {
@@ -240,9 +243,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "CAQ4IaApsD2QpLiz",
+          "value": "yj2EUpsI7s3mLlRH",
           "mode": "list",
-          "cachedResultUrl": "/workflow/CAQ4IaApsD2QpLiz",
+          "cachedResultUrl": "/workflow/yj2EUpsI7s3mLlRH",
           "cachedResultName": "Capture_Thread"
         },
         "workflowInputs": {
@@ -268,9 +271,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "IAjqXOmWzGUHp9Ea",
+          "value": "mbX1lCt14Yi75gTE",
           "mode": "list",
-          "cachedResultUrl": "/workflow/IAjqXOmWzGUHp9Ea",
+          "cachedResultUrl": "/workflow/mbX1lCt14Yi75gTE",
           "cachedResultName": "Continue_Thread"
         },
         "workflowInputs": {
@@ -296,9 +299,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "YKY0jMK92KQdPqfS",
+          "value": "DX0m48INGS7vEwbu",
           "mode": "list",
-          "cachedResultUrl": "/workflow/YKY0jMK92KQdPqfS",
+          "cachedResultUrl": "/workflow/DX0m48INGS7vEwbu",
           "cachedResultName": "Multi_Capture"
         },
         "workflowInputs": {
@@ -629,13 +632,12 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false,
+    "executionOrder": "v1"
   },
   "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
+  "meta": null,
   "active": false
 }

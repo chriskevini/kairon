@@ -14,7 +14,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Filter: Skip if this is a parent workflow wrapping a child error\n// Parent errors have errorResponse (the wrapped child error)\nconst errorData = $input.first().json;\nconst error = errorData.execution?.error || {};\n\n// If this error is just wrapping a sub-workflow error, skip it\nif (error.errorResponse) {\n  return []; // Return empty to stop flow\n}\n\n// Continue processing - this is the root cause error\nreturn [$input.first()];"
+        "jsCode": "// Filter: Skip if this is a parent workflow wrapping a child error\n// Parent errors have errorResponse (the wrapped child error)\nconst errorData = $json;\nconst error = errorData.execution?.error || {};\n\n// If this error is just wrapping a sub-workflow error, skip it\nif (error.errorResponse) {\n  return []; // Return empty to stop flow\n}\n\n// Continue processing - this is the root cause error\nreturn { json: $json };",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -42,13 +43,15 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Extract error details and merge with event context\nconst errorData = $('FilterDuplicateErrors').first().json;\nconst eventData = $input.first().json || {};\n\nconst execution = errorData.execution || {};\nconst workflow = errorData.workflow || {};\nconst error = execution.error || {};\n\n// Get the node that failed\nconst failedNode = error.node?.name || execution.lastNodeExecuted || 'Unknown';\nconst errorMessage = error.message || 'No error message';\n\n// Get workflow info\nconst workflowName = workflow.name || 'Unknown';\nconst executionId = execution.id || 'N/A';\n\n// Get Discord context from recent event\nconst guildId = eventData.guild_id || null;\nconst channelId = eventData.channel_id || null;\nconst messageId = eventData.message_id || null;\nconst cleanText = eventData.clean_text || '';\n\n// Try to extract from error URL if available\nlet extractedChannelId = channelId;\nlet extractedMessageId = messageId;\n\nif (!channelId && error.context?.request?.uri) {\n  const uri = error.context.request.uri;\n  // Parse: https://discord.com/api/v10/channels/{channel_id}/messages/{message_id}/...\n  const match = uri.match(/channels\\/([0-9]+)\\/messages\\/([0-9]+)/);\n  if (match) {\n    extractedChannelId = match[1];\n    extractedMessageId = match[2];\n  }\n}\n\n// Build condensed Discord message\nlet content = `\u274c **${workflowName}** \u2192 ${failedNode}\\n`;\ncontent += `${errorMessage}`;\n\nif (cleanText) {\n  const preview = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;\n  content += `\\n\ud83d\udcdd \"${preview}\"`;\n}\n\ncontent += `\\n\\`exec:${executionId}\\``;\n\n// Truncate if needed (Discord 2000 char limit)\nif (content.length > 1900) {\n  content = content.substring(0, 1900) + '...';\n}\n\nreturn [{\n  json: {\n    content: content,\n    guild_id: guildId || process.env.DISCORD_GUILD_ID,\n    channel_id: extractedChannelId,\n    message_id: extractedMessageId,\n    can_react: !!(extractedChannelId && extractedMessageId)\n  }\n}];"
+        "jsCode": "// Extract error details and merge with event context\nconst errorData = $('FilterDuplicateErrors').first().json;\nconst eventData = $json || {};\n\nconst execution = errorData.execution || {};\nconst workflow = errorData.workflow || {};\nconst error = execution.error || {};\n\n// Get the node that failed\nconst failedNode = error.node?.name || execution.lastNodeExecuted || 'Unknown';\nconst errorMessage = error.message || 'No error message';\n\n// Get workflow info\nconst workflowName = workflow.name || 'Unknown';\nconst executionId = execution.id || 'N/A';\n\n// Get Discord context from recent event\nconst guildId = eventData.guild_id || null;\nconst channelId = eventData.channel_id || null;\nconst messageId = eventData.message_id || null;\nconst cleanText = eventData.clean_text || '';\n\n// Try to extract from error URL if available\nlet extractedChannelId = channelId;\nlet extractedMessageId = messageId;\n\nif (!channelId && error.context?.request?.uri) {\n  const uri = error.context.request.uri;\n  // Parse: https://discord.com/api/v10/channels/{channel_id}/messages/{message_id}/...\n  const match = uri.match(/channels\\/([0-9]+)\\/messages\\/([0-9]+)/);\n  if (match) {\n    extractedChannelId = match[1];\n    extractedMessageId = match[2];\n  }\n}\n\n// Build condensed Discord message\nlet content = `\u274c **${workflowName}** \u2192 ${failedNode}\\n`;\ncontent += `${errorMessage}`;\n\nif (cleanText) {\n  const preview = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;\n  content += `\\n\ud83d\udcdd \"${preview}\"`;\n}\n\ncontent += `\\n\\`exec:${executionId}\\``;\n\n// Truncate if needed (Discord 2000 char limit)\nif (content.length > 1900) {\n  content = content.substring(0, 1900) + '...';\n}\n\nreturn {\n  json: {\n    content: content,\n    guild_id: guildId || process.env.DISCORD_GUILD_ID,\n    channel_id: extractedChannelId,\n    message_id: extractedMessageId,\n    can_react: !!(extractedChannelId && extractedMessageId)\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -113,6 +116,7 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       },
@@ -139,6 +143,7 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       },
@@ -174,6 +179,7 @@
       "waitBetweenTries": 1000,
       "credentials": {
         "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
           "name": "Discord Bot account"
         }
       }

@@ -16,7 +16,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract trigger_reason from caller, prepare event data\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst today = $now.toFormat('yyyy-MM-dd');\n\nreturn [{ json: { should_run: true, today: today, trigger_reason: triggerReason } }];"
+        "jsCode": "// Extract trigger_reason from caller, prepare event data\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst today = $now.toFormat('yyyy-MM-dd');\n\nreturn { json: { should_run: true, today: today, trigger_reason: triggerReason } };",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -32,7 +33,7 @@
         "operation": "executeQuery",
         "query": "-- Insert system event for daily summary\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'daily_summary',\n    'trigger_reason', $2,\n    'scheduled_date', $3\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id, idempotency_key;",
         "options": {
-          "queryReplacement": "=scheduled:daily_summary:{{ $json.today }}:{{ $json.trigger_reason }},={{ $json.trigger_reason }},={{ $json.today }}"
+          "values": "=scheduled:daily_summary:{{ $json.today }}:{{ $json.trigger_reason }},={{ $json.trigger_reason }},={{ $json.today }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -44,12 +45,15 @@
       "id": "insert-event",
       "name": "InsertEvent",
       "credentials": {
-        "postgres": {}
+        "postgres": {
+          "name": "Postgres account"
+        }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id and prepare db_queries for Execute_Queries\nconst eventResult = $json;\nconst checkResult = $(\"Prepare Event Data\").first().json;\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n  },\n  {\n    key: 'notes',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n  },\n  {\n    key: 'breakdown',\n    sql: `SELECT \n            p.data->>'category' as category,\n            COUNT(*) as count\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          GROUP BY p.data->>'category'\n          ORDER BY count DESC`\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"daily_summary\",\n        trigger_reason: checkResult.trigger_reason,\n        today: checkResult.today,\n        trace_chain: [eventResult.id]\n      },\n      db_queries\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx with event_id and prepare db_queries for Execute_Queries\nconst eventResult = $json;\nconst checkResult = $(\"PrepareEventData\").first().json;\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n  },\n  {\n    key: 'notes',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n  },\n  {\n    key: 'breakdown',\n    sql: `SELECT \n            p.data->>'category' as category,\n            COUNT(*) as count\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          GROUP BY p.data->>'category'\n          ORDER BY count DESC`\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"daily_summary\",\n        trigger_reason: checkResult.trigger_reason,\n        today: checkResult.today,\n        trace_chain: [eventResult.id]\n      },\n      db_queries\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -64,9 +68,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -89,7 +94,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build LLM context from Execute_Queries results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract north star (use .row for single result)\nconst northStar = db.north_star?.row?.value || 'Not set';\n\n// Extract activities (use .rows for arrays)\nconst activityItems = db.activities?.rows || [];\n\n// Extract notes\nconst noteItems = db.notes?.rows || [];\n\n// Extract breakdown\nconst breakdownItems = db.breakdown?.rows || [];\n\n// Format activities list\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activityItems.forEach(item => {\n    const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (noteItems.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  noteItems.forEach(item => {\n    const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    notesList += `- ${time} [${item.category}] ${item.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet categoryBreakdown = '';\nif (breakdownItems.length === 0) {\n  categoryBreakdown = '(No data)';\n} else {\n  breakdownItems.forEach(item => {\n    categoryBreakdown += `- ${item.category}: ${item.count}\\n`;\n  });\n}\n\nreturn [{\n  json: {\n    ctx,\n    north_star: northStar,\n    activities_list: activitiesList,\n    notes_list: notesList,\n    category_breakdown: categoryBreakdown,\n    activity_count: activityItems.length,\n    note_count: noteItems.length,\n    inference_start: Date.now(),\n    llm_input: {\n      north_star: northStar,\n      activity_count: activityItems.length,\n      note_count: noteItems.length\n    }\n  }\n}];"
+        "jsCode": "// Build LLM context from Execute_Queries results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract north star (use .row for single result)\nconst northStar = db.north_star?.row?.value || 'Not set';\n\n// Extract activities (use .rows for arrays)\nconst activityItems = db.activities?.rows || [];\n\n// Extract notes\nconst noteItems = db.notes?.rows || [];\n\n// Extract breakdown\nconst breakdownItems = db.breakdown?.rows || [];\n\n// Format activities list\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activityItems.forEach(item => {\n    const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (noteItems.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  noteItems.forEach(item => {\n    const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    notesList += `- ${time} [${item.category}] ${item.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet categoryBreakdown = '';\nif (breakdownItems.length === 0) {\n  categoryBreakdown = '(No data)';\n} else {\n  breakdownItems.forEach(item => {\n    categoryBreakdown += `- ${item.category}: ${item.count}\\n`;\n  });\n}\n\nreturn {\n  json: {\n    ctx,\n    north_star: northStar,\n    activities_list: activitiesList,\n    notes_list: notesList,\n    category_breakdown: categoryBreakdown,\n    activity_count: activityItems.length,\n    note_count: noteItems.length,\n    inference_start: Date.now(),\n    llm_input: {\n      north_star: northStar,\n      activity_count: activityItems.length,\n      note_count: noteItems.length\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -118,7 +124,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM response and prepare write queries for trace + projection\nconst prepareData = $('PrepareSummaryData').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Build projection data\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  summary_date: ctx.event.today,\n  text: llmText,\n  activity_count: prepareData.llm_input?.activity_count || 0,\n  note_count: prepareData.llm_input?.note_count || 0\n};\n\n// Prepare db_queries for Execute_Queries (Write)\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES ($1::uuid, 'daily_summary', \n            jsonb_build_object(\n              'input', $2::jsonb,\n              'prompt', 'daily-summary-prompt',\n              'completion', $3,\n              'result', jsonb_build_object('summary', $3),\n              'duration_ms', $4::integer\n            ), $5::uuid[])\n          RETURNING id, trace_chain || id AS updated_trace_chain`,\n    params: [\n      ctx.event.event_id,\n      prepareData.llm_input,\n      llmText,\n      durationMs,\n      ctx.event.trace_chain || []\n    ]\n  },\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n          VALUES ($1::uuid, $2::uuid, $3::uuid[], 'daily_summary', $4::jsonb, 'auto_confirmed',\n            (SELECT value FROM config WHERE key = 'timezone'))\n          RETURNING id`,\n    params: [\n      '$results.trace.row.id',\n      ctx.event.event_id,\n      '$results.trace.row.updated_trace_chain',\n      projectionData\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    summary_text: llmText\n  }\n}];"
+        "jsCode": "// Parse LLM response and prepare write queries for trace + projection\nconst prepareData = $('PrepareSummaryData').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Build projection data\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  summary_date: ctx.event.today,\n  text: llmText,\n  activity_count: prepareData.llm_input?.activity_count || 0,\n  note_count: prepareData.llm_input?.note_count || 0\n};\n\n// Prepare db_queries for Execute_Queries (Write)\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES ($1::uuid, 'daily_summary', \n            jsonb_build_object(\n              'input', $2::jsonb,\n              'prompt', 'daily-summary-prompt',\n              'completion', $3,\n              'result', jsonb_build_object('summary', $3),\n              'duration_ms', $4::integer\n            ), $5::uuid[])\n          RETURNING id, trace_chain || id AS updated_trace_chain`,\n    params: [\n      ctx.event.event_id,\n      prepareData.llm_input,\n      llmText,\n      durationMs,\n      ctx.event.trace_chain || []\n    ]\n  },\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n          VALUES ($1::uuid, $2::uuid, $3::uuid[], 'daily_summary', $4::jsonb, 'auto_confirmed',\n            (SELECT value FROM config WHERE key = 'timezone'))\n          RETURNING id`,\n    params: [\n      '$results.trace.row.id',\n      ctx.event.event_id,\n      '$results.trace.row.updated_trace_chain',\n      projectionData\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    summary_text: llmText\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -133,9 +140,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -158,7 +166,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare for Discord - extract projection_id from write results\nconst ctx = $json.ctx;\nconst projectionId = ctx.db?.projection?.row?.id;\n\nreturn [{\n  json: {\n    ctx,\n    projection_id: projectionId,\n    summary_text: $('PrepareWriteQueries').first().json.summary_text\n  }\n}];"
+        "jsCode": "// Prepare for Discord - extract projection_id from write results\nconst ctx = $json.ctx;\nconst projectionId = ctx.db?.projection?.row?.id;\n\nreturn {\n  json: {\n    ctx,\n    projection_id: projectionId,\n    summary_text: $('PrepareWriteQueries').first().json.summary_text\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -205,7 +214,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare final update queries after Discord post\nconst discordResult = $json;\nconst prepData = $('Prepare for Discord').first().json;\nconst ctx = prepData.ctx;\n\nconst db_queries = [\n  {\n    key: 'update_projection',\n    sql: `UPDATE projections \n          SET data = data || jsonb_build_object(\n            'discord_message_id', $1,\n            'discord_channel_id', $2,\n            'discord_guild_id', $3\n          )\n          WHERE id = $4::uuid\n          RETURNING id`,\n    params: [\n      discordResult.id,\n      $env.DISCORD_CHANNEL_OBSIDIAN_BOARD || '',\n      $env.DISCORD_GUILD_ID || '',\n      prepData.projection_id\n    ]\n  },\n  {\n    key: 'update_config',\n    sql: `INSERT INTO config (key, value) VALUES ('last_summary_date', $1) \n          ON CONFLICT (key) DO UPDATE SET value = $1 \n          RETURNING *`,\n    params: [ctx.event.today]\n  }\n];\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n}];"
+        "jsCode": "// Prepare final update queries after Discord post\nconst discordResult = $json;\nconst prepData = $('PrepareForDiscord').first().json;\nconst ctx = prepData.ctx;\n\nconst db_queries = [\n  {\n    key: 'update_projection',\n    sql: `UPDATE projections \n          SET data = data || jsonb_build_object(\n            'discord_message_id', $1,\n            'discord_channel_id', $2,\n            'discord_guild_id', $3\n          )\n          WHERE id = $4::uuid\n          RETURNING id`,\n    params: [\n      discordResult.id,\n      $env.DISCORD_CHANNEL_OBSIDIAN_BOARD || '',\n      $env.DISCORD_GUILD_ID || '',\n      prepData.projection_id\n    ]\n  },\n  {\n    key: 'update_config',\n    sql: `INSERT INTO config (key, value) VALUES ('last_summary_date', $1) \n          ON CONFLICT (key) DO UPDATE SET value = $1 \n          RETURNING *`,\n    params: [ctx.event.today]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -220,9 +230,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -439,17 +450,12 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false,
+    "executionOrder": "v1"
   },
-  "staticData": {
-    "node:Every 5 Minutes": {
-      "recurrenceRules": []
-    }
-  },
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
+  "staticData": null,
+  "meta": null,
   "active": false
 }

@@ -63,13 +63,15 @@
       "name": "GetEmojiConfig",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Determine route based on emoji_mapping config\nconst ctx = $('ReceiveEvent').first().json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Parse config - Postgres returns JSON as string\nconst rawValue = $json.value;\nconst config = typeof rawValue === 'string' ? JSON.parse(rawValue) : (rawValue || {});\n\n// Extraction emojis (number selections + dismiss)\n// These are hardcoded because they're tied to display order logic\nconst extractionEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '❌'];\n\n// Info emojis (show details about the projection)\n// ❔ = simple view (just projections)\n// ❓ = detailed view (full prompts, timing)\nconst infoEmojis = ['❓', '❔'];\n\n// Quality rating emojis (rate projection quality)\nconst qualityEmojis = ['👍', '👎'];\n\n// Get correction emojis from config (type corrections + void)\nconst corrections = config.corrections || [];\n\n// Get todo status emojis from config\nconst statusEmojis = Object.keys(config.status || {});\n\n// Determine route\nlet route = 'unknown';\n\nif (extractionEmojis.includes(emoji)) {\n  route = 'extraction';\n} else if (infoEmojis.includes(emoji)) {\n  route = 'info';\n} else if (qualityEmojis.includes(emoji)) {\n  route = 'quality';\n} else if (corrections.includes(emoji)) {\n  route = 'correction';\n} else if (statusEmojis.includes(emoji)) {\n  route = 'todo_status';\n}\n\nreturn {\n  ctx,\n  route,\n  emoji,\n  config\n};"
+        "jsCode": "// Determine route based on emoji_mapping config\nconst ctx = $('ReceiveEvent').first().json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Parse config - Postgres returns JSON as string\nconst rawValue = $json.value;\nconst config = typeof rawValue === 'string' ? JSON.parse(rawValue) : (rawValue || {});\n\n// Extraction emojis (number selections + dismiss)\n// These are hardcoded because they're tied to display order logic\nconst extractionEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '❌'];\n\n// Info emojis (show details about the projection)\n// ❔ = simple view (just projections)\n// ❓ = detailed view (full prompts, timing)\nconst infoEmojis = ['❓', '❔'];\n\n// Quality rating emojis (rate projection quality)\nconst qualityEmojis = ['👍', '👎'];\n\n// Get correction emojis from config (type corrections + void)\nconst corrections = config.corrections || [];\n\n// Get todo status emojis from config\nconst statusEmojis = Object.keys(config.status || {});\n\n// Determine route\nlet route = 'unknown';\n\nif (extractionEmojis.includes(emoji)) {\n  route = 'extraction';\n} else if (infoEmojis.includes(emoji)) {\n  route = 'info';\n} else if (qualityEmojis.includes(emoji)) {\n  route = 'quality';\n} else if (corrections.includes(emoji)) {\n  route = 'correction';\n} else if (statusEmojis.includes(emoji)) {\n  route = 'todo_status';\n}\n\nreturn {\n  json: {\n    ctx,\n    route,\n    emoji,\n    config\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -223,9 +225,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "dzbXvPNPoYdpaXGT",
           "mode": "list",
-          "cachedResultName": "Save_Extraction"
+          "cachedResultName": "Save_Extraction",
+          "cachedResultUrl": "/workflow/dzbXvPNPoYdpaXGT"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -246,9 +249,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "baPcss9BKwIpEZQU",
           "mode": "list",
-          "cachedResultName": "Handle_Correction"
+          "cachedResultName": "Handle_Correction",
+          "cachedResultUrl": "/workflow/baPcss9BKwIpEZQU"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -271,9 +275,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "NCt9DcriuZwLwFLA",
           "mode": "list",
-          "cachedResultName": "Handle_Todo_Status"
+          "cachedResultName": "Handle_Todo_Status",
+          "cachedResultUrl": "/workflow/NCt9DcriuZwLwFLA"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -309,9 +314,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "wVpslhMBnrsgDaOR",
           "mode": "list",
-          "cachedResultName": "Show_Projection_Details"
+          "cachedResultName": "Show_Projection_Details",
+          "cachedResultUrl": "/workflow/wVpslhMBnrsgDaOR"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -334,9 +340,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "887fJOHvjP78PQoO",
           "mode": "list",
-          "cachedResultName": "Handle_Quality_Rating"
+          "cachedResultName": "Handle_Quality_Rating",
+          "cachedResultUrl": "/workflow/887fJOHvjP78PQoO"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -449,9 +456,10 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false,
+    "executionOrder": "v1"
   },
   "staticData": null,
   "meta": null,

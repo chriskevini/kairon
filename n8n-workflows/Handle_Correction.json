@@ -16,7 +16,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build lookup query for Execute_Queries\nconst ctx = $json.ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [{\n        key: 'original',\n        sql: `-- Look up the original event that created projections for this message\n-- Also get the emoji mapping config for correction types\nWITH original AS (\n  SELECT \n    e.id as event_id,\n    e.payload->>'discord_message_id' as message_id,\n    e.payload->>'clean_text' as clean_text,\n    e.payload->>'discord_channel_id' as channel_id,\n    e.payload->>'discord_guild_id' as guild_id,\n    e.payload->>'author_login' as author_login,\n    e.payload as original_payload\n  FROM events e\n  WHERE e.payload->>'discord_message_id' = $1\n    AND e.event_type = 'discord_message'\n  ORDER BY e.received_at DESC\n  LIMIT 1\n),\nemoji_config AS (\n  SELECT value FROM config WHERE key = 'emoji_mapping'\n)\nSELECT \n  o.*,\n  ec.value as emoji_mapping\nFROM original o\nCROSS JOIN emoji_config ec;`,\n        params: [ctx.event.message_id]\n      }]\n    }\n  }\n}];"
+        "jsCode": "// Build lookup query for Execute_Queries\nconst ctx = $json.ctx;\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [{\n        key: 'original',\n        sql: `-- Look up the original event that created projections for this message\n-- Also get the emoji mapping config for correction types\nWITH original AS (\n  SELECT \n    e.id as event_id,\n    e.payload->>'discord_message_id' as message_id,\n    e.payload->>'clean_text' as clean_text,\n    e.payload->>'discord_channel_id' as channel_id,\n    e.payload->>'discord_guild_id' as guild_id,\n    e.payload->>'author_login' as author_login,\n    e.payload as original_payload\n  FROM events e\n  WHERE e.payload->>'discord_message_id' = $1\n    AND e.event_type = 'discord_message'\n  ORDER BY e.received_at DESC\n  LIMIT 1\n),\nemoji_config AS (\n  SELECT value FROM config WHERE key = 'emoji_mapping'\n)\nSELECT \n  o.*,\n  ec.value as emoji_mapping\nFROM original o\nCROSS JOIN emoji_config ec;`,\n        params: [ctx.event.message_id]\n      }]\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -31,9 +32,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -56,7 +58,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare correction context from lookup result\nconst ctx = $json.ctx;\nconst original = ctx.db?.original?.row;\n\nif (!original || !original.event_id) {\n  return {\n    ctx,\n    has_original: false,\n    error: 'No original event found for this message'\n  };\n}\n\n// Parse emoji mapping - Postgres returns JSON as string\nconst rawMapping = original.emoji_mapping;\nconst emojiMapping = typeof rawMapping === 'string' ? JSON.parse(rawMapping) : (rawMapping || {});\nconst types = emojiMapping.types || {};\nconst actions = emojiMapping.actions || {};\nconst emoji = ctx.event.emoji;\n\n// Determine correction type\nlet correctionType = null;\nlet correctionTag = null;\nlet isVoidOnly = false;\n\nif (types[emoji]) {\n  correctionType = types[emoji].type;\n  correctionTag = types[emoji].tag;\n} else if (actions[emoji] === 'void') {\n  isVoidOnly = true;\n}\n\n// Pre-compute values for Postgres queries to avoid n8n expression parsing issues\nconst messageUrl = `https://discord.com/channels/${original.guild_id}/${original.channel_id}/${original.message_id}`;\nconst idempotencyKey = `correction_${original.message_id}_${Date.now()}`;\n\nreturn {\n  ctx,\n  has_original: true,\n  original: {\n    event_id: original.event_id,\n    message_id: original.message_id,\n    clean_text: original.clean_text,\n    channel_id: original.channel_id,\n    guild_id: original.guild_id,\n    author_login: original.author_login,\n    payload: original.original_payload,\n    message_url: messageUrl\n  },\n  correction: {\n    emoji: emoji,\n    type: correctionType,\n    tag: correctionTag,\n    is_void_only: isVoidOnly,\n    idempotency_key: idempotencyKey\n  }\n};"
+        "jsCode": "// Prepare correction context from lookup result\nconst ctx = $json.ctx;\nconst original = ctx.db?.original?.row;\n\nif (!original || !original.event_id) {\n  return {\n    json: {\n      ctx,\n      has_original: false,\n      error: 'No original event found for this message'\n    }\n  };\n}\n\n// Parse emoji mapping - Postgres returns JSON as string\nconst rawMapping = original.emoji_mapping;\nconst emojiMapping = typeof rawMapping === 'string' ? JSON.parse(rawMapping) : (rawMapping || {});\nconst types = emojiMapping.types || {};\nconst actions = emojiMapping.actions || {};\nconst emoji = ctx.event.emoji;\n\n// Determine correction type\nlet correctionType = null;\nlet correctionTag = null;\nlet isVoidOnly = false;\n\nif (types[emoji]) {\n  correctionType = types[emoji].type;\n  correctionTag = types[emoji].tag;\n} else if (actions[emoji] === 'void') {\n  isVoidOnly = true;\n}\n\n// Pre-compute values for Postgres queries to avoid n8n expression parsing issues\nconst messageUrl = `https://discord.com/channels/${original.guild_id}/${original.channel_id}/${original.message_id}`;\nconst idempotencyKey = `correction_${original.message_id}_${Date.now()}`;\n\nreturn {\n  json: {\n    ctx,\n    has_original: true,\n    original: {\n      event_id: original.event_id,\n      message_id: original.message_id,\n      clean_text: original.clean_text,\n      channel_id: original.channel_id,\n      guild_id: original.guild_id,\n      author_login: original.author_login,\n      payload: original.original_payload,\n      message_url: messageUrl\n    },\n    correction: {\n      emoji: emoji,\n      type: correctionType,\n      tag: correctionTag,\n      is_void_only: isVoidOnly,\n      idempotency_key: idempotencyKey\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -103,7 +106,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build queries for correction event creation and voiding projections\n// Uses $results chaining: correction event id -> void projections\nconst data = $json;\nconst ctx = data.ctx;\nconst original = data.original;\nconst correction = data.correction;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [\n        {\n          key: 'correction_event',\n          sql: `-- Create correction event for audit trail\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'user_correction',\n  jsonb_build_object(\n    'original_event_id', $2,\n    'original_message_id', $3,\n    'correction_emoji', $4,\n    'correction_type', $5,\n    'is_void_only', $6,\n    'triggered_by_event_id', $7\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING id;`,\n          params: [\n            correction.idempotency_key,\n            original.event_id,\n            original.message_id,\n            correction.emoji,\n            correction.type || 'void',\n            correction.is_void_only,\n            ctx.event.event_id\n          ]\n        },\n        {\n          key: 'voided',\n          sql: `-- Void ALL projections for this Discord message (by message_url)\n-- This catches both original projections and any corrected ones\nUPDATE projections\nSET \n  status = 'voided',\n  voided_at = NOW(),\n  voided_reason = 'user_correction',\n  voided_by_event_id = $1::uuid\nWHERE data->>'message_url' = $2\n  AND status IN ('pending', 'auto_confirmed', 'confirmed')\nRETURNING id, projection_type, data->>'description' as description, data->>'text' as text;`,\n          params: [\n            '$results.correction_event.row.id',\n            original.message_url\n          ]\n        }\n      ]\n    },\n    original: original,\n    correction: correction\n  }\n}];"
+        "jsCode": "// Build queries for correction event creation and voiding projections\n// Uses $results chaining: correction event id -> void projections\nconst data = $json;\nconst ctx = data.ctx;\nconst original = data.original;\nconst correction = data.correction;\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [\n        {\n          key: 'correction_event',\n          sql: `-- Create correction event for audit trail\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'user_correction',\n  jsonb_build_object(\n    'original_event_id', $2,\n    'original_message_id', $3,\n    'correction_emoji', $4,\n    'correction_type', $5,\n    'is_void_only', $6,\n    'triggered_by_event_id', $7\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING id;`,\n          params: [\n            correction.idempotency_key,\n            original.event_id,\n            original.message_id,\n            correction.emoji,\n            correction.type || 'void',\n            correction.is_void_only,\n            ctx.event.event_id\n          ]\n        },\n        {\n          key: 'voided',\n          sql: `-- Void ALL projections for this Discord message (by message_url)\n-- This catches both original projections and any corrected ones\nUPDATE projections\nSET \n  status = 'voided',\n  voided_at = NOW(),\n  voided_reason = 'user_correction',\n  voided_by_event_id = $1::uuid\nWHERE data->>'message_url' = $2\n  AND status IN ('pending', 'auto_confirmed', 'confirmed')\nRETURNING id, projection_type, data->>'description' as description, data->>'text' as text;`,\n          params: [\n            '$results.correction_event.row.id',\n            original.message_url\n          ]\n        }\n      ]\n    },\n    original: original,\n    correction: correction\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -118,9 +122,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "CgUAxK0i4YhrZ2Wp",
           "mode": "list",
-          "cachedResultName": "Execute_Queries"
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -143,7 +148,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build list of emojis to remove based on voided projection types\nconst ctx = $json.ctx;\nconst original = $('BuildCorrectionQueries').first().json.original;\nconst channelId = original.channel_id;\nconst messageId = original.message_id;\n\n// Get voided projection types from Execute_Queries result\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedTypes = voidedRows.map(item => item.projection_type).filter(Boolean);\n\n// Map projection types to their emojis\nconst typeToEmoji = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '✅'\n};\n\n// Only remove emojis for the projection types that were actually voided\nconst emojisToRemove = [...new Set(voidedTypes.map(t => typeToEmoji[t]).filter(Boolean))];\n\nif (emojisToRemove.length === 0) {\n  // No emojis to remove, return skip marker\n  return [{ json: { skip: true, ctx } }];\n}\n\nreturn emojisToRemove.map(emoji => ({\n  json: {\n    channel_id: channelId,\n    message_id: messageId,\n    emoji: emoji,\n    encoded_emoji: encodeURIComponent(emoji),\n    skip: false,\n    ctx\n  }\n}));"
+        "jsCode": "// Build list of emojis to remove based on voided projection types\nconst ctx = $json.ctx;\nconst original = $('BuildCorrectionQueries').first().json.original;\nconst channelId = original.channel_id;\nconst messageId = original.message_id;\n\n// Get voided projection types from Execute_Queries result\nconst voidedRows = ctx.db?.voided?.rows || [];\nconst voidedTypes = voidedRows.map(item => item.projection_type).filter(Boolean);\n\n// Map projection types to their emojis\nconst typeToEmoji = {\n  'activity': '🔘',\n  'note': '📝',\n  'todo': '✅'\n};\n\n// Only remove emojis for the projection types that were actually voided\nconst emojisToRemove = [...new Set(voidedTypes.map(t => typeToEmoji[t]).filter(Boolean))];\n\nif (emojisToRemove.length === 0) {\n  // No emojis to remove, return skip marker\n  return { json: { skip: true, ctx } };\n}\n\nreturn emojisToRemove.map(emoji => ({\n  json: {\n    channel_id: channelId,\n    message_id: messageId,\n    emoji: emoji,\n    encoded_emoji: encodeURIComponent(emoji),\n    skip: false,\n    ctx\n  }\n}));",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -261,7 +267,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build ctx for Capture_Projection, reusing original event data\nconst data = $json;\nconst original = data.original;\nconst correction = data.correction;\nconst existingCtx = data.ctx || {};\n\n// Map correction type to projection type\nconst typeMap = {\n  'activity': 'activity',\n  'note': 'note',\n  'todo': 'todo'\n};\n\nconst projectionType = typeMap[correction.type] || 'note';\n\n// Build new trace chain starting from correction event\nconst traceChain = [data.correction_event_id];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Construct message_url from original data\nconst messageUrl = `https://discord.com/channels/${original.guild_id}/${original.channel_id}/${original.message_id}`;\n\n// Pass voided projection IDs for supersedes linking\nconst voidedProjectionIds = data.voided_projection_ids || [];\n\nreturn {\n  ctx: {\n    ...existingCtx,\n    event: {\n      event_id: data.correction_event_id,\n      event_type: 'user_correction',\n      timestamp: new Date().toISOString(),\n      timezone: existingCtx.event?.timezone,\n      guild_id: original.guild_id,\n      channel_id: original.channel_id,\n      message_id: original.message_id,\n      message_url: messageUrl,\n      author_login: original.author_login,\n      raw_text: original.clean_text,\n      clean_text: original.clean_text,\n      tag: correction.tag,\n      trace_chain: traceChain,\n      trace_chain_pg: traceChainPg\n    },\n    projection: {\n      type: projectionType\n    },\n    correction: {\n      original_event_id: original.event_id,\n      emoji: correction.emoji,\n      voided_projection_ids: voidedProjectionIds\n    }\n  }\n};"
+        "jsCode": "// Build ctx for Capture_Projection, reusing original event data\nconst data = $json;\nconst original = data.original;\nconst correction = data.correction;\nconst existingCtx = data.ctx || {};\n\n// Map correction type to projection type\nconst typeMap = {\n  'activity': 'activity',\n  'note': 'note',\n  'todo': 'todo'\n};\n\nconst projectionType = typeMap[correction.type] || 'note';\n\n// Build new trace chain starting from correction event\nconst traceChain = [data.correction_event_id];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Construct message_url from original data\nconst messageUrl = `https://discord.com/channels/${original.guild_id}/${original.channel_id}/${original.message_id}`;\n\n// Pass voided projection IDs for supersedes linking\nconst voidedProjectionIds = data.voided_projection_ids || [];\n\nreturn {\n  json: {\n    ctx: {\n      ...existingCtx,\n      event: {\n        event_id: data.correction_event_id,\n        event_type: 'user_correction',\n        timestamp: new Date().toISOString(),\n        timezone: existingCtx.event?.timezone,\n        guild_id: original.guild_id,\n        channel_id: original.channel_id,\n        message_id: original.message_id,\n        message_url: messageUrl,\n        author_login: original.author_login,\n        raw_text: original.clean_text,\n        clean_text: original.clean_text,\n        tag: correction.tag,\n        trace_chain: traceChain,\n        trace_chain_pg: traceChainPg\n      },\n      projection: {\n        type: projectionType\n      },\n      correction: {\n        original_event_id: original.event_id,\n        emoji: correction.emoji,\n        voided_projection_ids: voidedProjectionIds\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -276,9 +283,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "Gu9mVRTwvJCq0Fpf",
           "mode": "list",
-          "cachedResultName": "Capture_Projection"
+          "cachedResultName": "Capture_Projection",
+          "cachedResultUrl": "/workflow/Gu9mVRTwvJCq0Fpf"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -535,9 +543,10 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false,
+    "executionOrder": "v1"
   },
   "staticData": null,
   "meta": null,

@@ -25,14 +25,14 @@ N8N_HOST="${N8N_HOST:-n8n.chrisirineo.com}"
 SSH_HOST="${REMOTE_HOST:-DigitalOcean}"
 WEBHOOK_PATH="${WEBHOOK_PATH:-asoiaf92746087}"
 
-# SSH with exponential backoff retry
+# SSH with exponential backoff retry (start 10s, doubles each attempt)
 ssh_retry() {
     local max_attempts=5
-    local delay=2
+    local delay=10
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if ssh -o ConnectTimeout=5 -o ServerAliveInterval=10 "$SSH_HOST" "$@" 2>/dev/null; then
+        if ssh -o ConnectTimeout=15 -o ServerAliveInterval=30 "$SSH_HOST" "$@" 2>/dev/null; then
             return 0
         fi
         

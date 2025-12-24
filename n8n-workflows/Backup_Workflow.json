@@ -17,7 +17,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst path = require('path');\nconst { execSync } = require('child_process');\n\n// Get current timestamp\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-');\nconst backupDir = `/tmp/n8n-backup-${timestamp}`;\n\n// Ensure backup directory exists\nexecSync(`mkdir -p ${backupDir}`);\n\n// Files to backup\nconst files = [\n  'n8n-workflows',\n  'n8n-workflows-dev',\n  'scripts',\n  '.env',\n  'DEPLOYMENT.md',\n  'README.md'\n];\n\nconst results = [];\n\nfor (const file of files) {\n  try {\n    if (fs.existsSync(file)) {\n      const dest = path.join(backupDir, file);\n      execSync(`cp -r ${file} ${dest}`);\n      results.push({ file, status: 'success', path: dest });\n    } else {\n      results.push({ file, status: 'not_found' });\n    }\n  } catch (error) {\n    results.push({ file, status: 'error', error: error.message });\n  }\n}\n\n// Create backup info file\nconst backupInfo = {\n  timestamp,\n  backupDir,\n  results,\n  createdAt: new Date().toISOString()\n};\n\nfs.writeFileSync(path.join(backupDir, 'backup-info.json'), JSON.stringify(backupInfo, null, 2));\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: $json.id || 'backup-' + timestamp,\n        event_type: 'backup_workflow',\n        clean_text: 'Backup workflow execution',\n        trace_chain: [timestamp],\n        author_login: 'system',\n        timestamp: new Date().toISOString()\n      },\n      backup: {\n        results,\n        backupDir,\n        timestamp\n      }\n    }\n  }\n}];"
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\nconst { execSync } = require('child_process');\n\n// Get current timestamp\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-');\nconst backupDir = `/tmp/n8n-backup-${timestamp}`;\n\n// Ensure backup directory exists\nexecSync(`mkdir -p ${backupDir}`);\n\n// Files to backup\nconst files = [\n  'n8n-workflows',\n  'n8n-workflows-dev',\n  'scripts',\n  '.env',\n  'DEPLOYMENT.md',\n  'README.md'\n];\n\nconst results = [];\n\nfor (const file of files) {\n  try {\n    if (fs.existsSync(file)) {\n      const dest = path.join(backupDir, file);\n      execSync(`cp -r ${file} ${dest}`);\n      results.push({ file, status: 'success', path: dest });\n    } else {\n      results.push({ file, status: 'not_found' });\n    }\n  } catch (error) {\n    results.push({ file, status: 'error', error: error.message });\n  }\n}\n\n// Create backup info file\nconst backupInfo = {\n  timestamp,\n  backupDir,\n  results,\n  createdAt: new Date().toISOString()\n};\n\nfs.writeFileSync(path.join(backupDir, 'backup-info.json'), JSON.stringify(backupInfo, null, 2));\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: $json.id || 'backup-' + timestamp,\n        event_type: 'backup_workflow',\n        clean_text: 'Backup workflow execution',\n        trace_chain: [timestamp],\n        author_login: 'system',\n        timestamp: new Date().toISOString()\n      },\n      backup: {\n        results,\n        backupDir,\n        timestamp\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "id": "2",
       "name": "CreateBackup",
@@ -41,7 +42,7 @@
           0,
           "system",
           "Backup created successfully",
-          1.0,
+          1,
           "Create backup",
           "Backup completed",
           "completed"
@@ -57,7 +58,7 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres DB"
+          "name": "Postgres account"
         }
       }
     },
@@ -69,7 +70,7 @@
           "={{$json.ctx.db.trace.id}}",
           "backup",
           "={{JSON.stringify($json.ctx.backup)}}",
-          1.0,
+          1,
           "system"
         ]
       },
@@ -83,13 +84,14 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres DB"
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n\ud83d\udcc1 Backup Directory: ${backupDir}\\n\u2705 Successfully backed up: ${successCount} items\\n\u274c Failed to backup: ${errorCount} items\\n\u26a0\ufe0f  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n}];"
+        "jsCode": "const backupDir = $json.ctx.backup.backupDir;\nconst results = $json.ctx.backup.results;\n\nconst successCount = results.filter(r => r.status === 'success').length;\nconst errorCount = results.filter(r => r.status === 'error').length;\nconst notFoundCount = results.filter(r => r.status === 'not_found').length;\n\nconst message = `Backup completed successfully!\\n\\n📁 Backup Directory: ${backupDir}\\n✅ Successfully backed up: ${successCount} items\\n❌ Failed to backup: ${errorCount} items\\n⚠️  Not found: ${notFoundCount} items\\n\\nDetails:\\n${results.map(r => `  - ${r.file}: ${r.status}${r.error ? ' (' + r.error + ')' : ''}`).join('\\n')}`;\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      message: message\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "id": "5",
       "name": "FormatSuccessMessage",
@@ -102,7 +104,8 @@
     },
     {
       "parameters": {
-        "jsCode": "const message = $json.ctx.message;\n\n// Send success message to Discord\nconst webhookUrl = process.env.DISCORD_WEBHOOK_URL;\nif (webhookUrl) {\n  const payload = {\n    content: message,\n    username: 'Kairon Backup Bot',\n    avatar_url: 'https://cdn.discordapp.com/emojis/123456789012345678.png' // Kairon logo\n  };\n  \n  await $node['HTTP Request'].run({\n    method: 'POST',\n    url: webhookUrl,\n    body: JSON.stringify(payload),\n    headers: {\n      'Content-Type': 'application/json'\n    }\n  });\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...$json.ctx,\n      discord_sent: true\n    }\n  }\n}];"
+        "jsCode": "const message = $json.ctx.message;\n\n// Send success message to Discord\nconst webhookUrl = process.env.DISCORD_WEBHOOK_URL;\nif (webhookUrl) {\n  const payload = {\n    content: message,\n    username: 'Kairon Backup Bot',\n    avatar_url: 'https://cdn.discordapp.com/emojis/123456789012345678.png' // Kairon logo\n  };\n  \n  await $node['HTTP Request'].run({\n    method: 'POST',\n    url: webhookUrl,\n    body: JSON.stringify(payload),\n    headers: {\n      'Content-Type': 'application/json'\n    }\n  });\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      discord_sent: true\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "id": "6",
       "name": "SendDiscordSuccess",
@@ -153,7 +156,7 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres DB"
+          "name": "Postgres account"
         }
       }
     }
@@ -226,7 +229,11 @@
       ]
     }
   },
-  "active": false,
-  "settings": {},
-  "id": "backup-workflow-id"
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
 }

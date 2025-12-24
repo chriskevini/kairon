@@ -37,7 +37,8 @@
       "name": "CheckNextPulse",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -91,7 +92,8 @@
       "name": "SetNextPulse(default)",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       }
     },
@@ -112,9 +114,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "PLACEHOLDER_WILL_BE_FIXED_BY_DEPLOY",
+          "value": "lnxlZ8AFe7LhMMEA",
           "mode": "list",
-          "cachedResultName": "Proactive_Agent"
+          "cachedResultName": "Proactive_Agent",
+          "cachedResultUrl": "/workflow/lnxlZ8AFe7LhMMEA"
         },
         "options": {
           "waitForSubWorkflow": false
@@ -189,10 +192,12 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false,
+    "executionOrder": "v1"
   },
+  "staticData": null,
   "meta": null,
   "active": false
 }

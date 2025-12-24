@@ -16,7 +16,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate input and initialize loop state\n// Execute_Queries: Unified sub-workflow for all database operations\n// - Executes queries sequentially (supports chaining via $results)\n// - Preserves ctx throughout\n// - Stores results in ctx.db[key] = { row, rows, count }\n\nconst ctx = $json.ctx;\n\n// If no queries or empty array, return state that will skip the loop gracefully\nif (!ctx?.db_queries || !Array.isArray(ctx.db_queries) || ctx.db_queries.length === 0) {\n  return [{\n    json: {\n      original_ctx: ctx || {},\n      queries: [],\n      current_index: 0,\n      results: {},\n      has_more: false\n    }\n  }];\n}\n\n// Validate each query has required fields\nfor (let i = 0; i < ctx.db_queries.length; i++) {\n  const q = ctx.db_queries[i];\n  if (!q.key) {\n    throw new Error(`Execute_Queries: Query at index ${i} missing 'key' field`);\n  }\n  if (!q.sql) {\n    throw new Error(`Execute_Queries: Query '${q.key}' at index ${i} missing 'sql' field`);\n  }\n}\n\n// Initialize loop state\nreturn [{\n  json: {\n    original_ctx: ctx,\n    queries: ctx.db_queries,\n    current_index: 0,\n    results: {},\n    has_more: true\n  }\n}];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Validate input and initialize loop state\n// Execute_Queries: Unified sub-workflow for all database operations\n// - Executes queries sequentially (supports chaining via $results)\n// - Preserves ctx throughout\n// - Stores results in ctx.db[key] = { row, rows, count }\n\nconst item = $input.first();\nconst ctx = item.json.ctx;\n\n// If no queries or empty array, return state that will skip the loop gracefully\nif (!ctx?.db_queries || !Array.isArray(ctx.db_queries) || ctx.db_queries.length === 0) {\n  return [{\n    json: {\n      original_ctx: ctx || {},\n      queries: [],\n      current_index: 0,\n      results: {},\n      has_more: false\n    }\n  }];\n}\n\n// Validate each query has required fields\nfor (let i = 0; i < ctx.db_queries.length; i++) {\n  const q = ctx.db_queries[i];\n  if (!q.key) {\n    throw new Error(`Execute_Queries: Query at index ${i} missing 'key' field`);\n  }\n  if (!q.sql) {\n    throw new Error(`Execute_Queries: Query '${q.key}' at index ${i} missing 'sql' field`);\n  }\n}\n\n// Initialize loop state\nreturn [{\n  json: {\n    original_ctx: ctx,\n    queries: ctx.db_queries,\n    current_index: 0,\n    results: {},\n    has_more: true\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -34,16 +35,16 @@
             "version": 2,
             "leftValue": "",
             "caseSensitive": true,
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
-              "id": "has-queries",
-              "leftValue": "={{ $json.queries.length }}",
-              "rightValue": 0,
+              "id": "has-more",
+              "leftValue": "={{ $json.has_more }}",
+              "rightValue": true,
               "operator": {
-                "type": "number",
-                "operation": "larger"
+                "type": "boolean",
+                "operation": "equals"
               }
             }
           ],
@@ -62,7 +63,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare current query for execution\n// Supports $results.key.field references in params for chaining\n// Also formats arrays as PostgreSQL array literals when needed\nconst state = $json;\nconst query = state.queries[state.current_index];\n\n// Helper to format JS arrays as PostgreSQL array literals\n// Handles special characters: commas, braces, quotes, backslashes\nfunction formatPgArray(arr) {\n  if (!Array.isArray(arr)) return arr;\n  \n  const formatted = arr.map(item => {\n    if (Array.isArray(item)) {\n      return formatPgArray(item); // Recursive for nested arrays\n    }\n    if (typeof item === 'string') {\n      // Escape and quote strings with special characters\n      if (item.includes(',') || item.includes('{') || item.includes('}') || \n          item.includes('\"') || item.includes('\\\\') || item.includes(' ')) {\n        return '\"' + item.replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"';\n      }\n    }\n    return item;\n  });\n  \n  return '{' + formatted.join(',') + '}';\n}\n\n// Process params to resolve $results references\nlet params = query.params || [];\n\nif (params.length > 0) {\n  params = params.map(param => {\n    if (typeof param === 'string' && param.startsWith('$results.')) {\n      // Parse reference like \"$results.trace.row.id\"\n      const path = param.substring('$results.'.length).split('.');\n      let value = state.results;\n      for (const key of path) {\n        if (value && typeof value === 'object') {\n          value = value[key];\n        } else {\n          value = undefined;\n          break;\n        }\n      }\n      if (value === undefined) {\n        throw new Error(`Execute_Queries: Could not resolve reference ${param}`);\n      }\n      // Auto-format arrays for PostgreSQL\n      return formatPgArray(value);\n    }\n    // Also format arrays that aren't references\n    if (Array.isArray(param)) {\n      return formatPgArray(param);\n    }\n    return param;\n  });\n}\n\nreturn [{\n  json: {\n    ...state,\n    current_query: query,\n    sql: query.sql,\n    params: params\n  }\n}];"
+        "jsCode": "// Prepare current query for execution\n// Supports $results.key.field references in params for chaining\n// Also formats arrays as PostgreSQL array literals when needed\nconst item = $input.first();\nconst state = item.json;\nconst query = state.queries[state.current_index];\n\n// Helper to format JS arrays as PostgreSQL array literals\n// Handles special characters: commas, braces, quotes, backslashes\nfunction formatPgArray(arr) {\n  if (!Array.isArray(arr)) return arr;\n  \n  const formatted = arr.map(item => {\n    if (Array.isArray(item)) {\n      return formatPgArray(item); // Recursive for nested arrays\n    }\n    if (typeof item === 'string') {\n      // Escape and quote strings with special characters\n      if (item.includes(',') || item.includes('{') || item.includes('}') || \n          item.includes('\"') || item.includes('\\\\') || item.includes(' ')) {\n        return '\"' + item.replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"';\n      }\n    }\n    return item;\n  });\n  \n  return '{' + formatted.join(',') + '}';\n}\n\n// Process params to resolve $results references\nlet params = query.params || [];\n\nif (params.length > 0) {\n  params = params.map(param => {\n    if (typeof param === 'string' && param.startsWith('$results.')) {\n      // Parse reference like \"$results.trace.row.id\"\n      const path = param.substring('$results.'.length).split('.');\n      let value = state.results;\n      for (const key of path) {\n        if (value && typeof value === 'object') {\n          value = value[key];\n        } else {\n          value = undefined;\n          break;\n        }\n      }\n      if (value === undefined) {\n        throw new Error(`Execute_Queries: Could not resolve reference ${param}`);\n      }\n      // Auto-format arrays for PostgreSQL\n      return formatPgArray(value);\n    }\n    // Also format arrays that aren't references\n    if (Array.isArray(param)) {\n      return formatPgArray(param);\n    }\n    return param;\n  });\n}\n\nreturn [{\n  json: {\n    ...state,\n    current_query: query,\n    sql: query.sql,\n    params: params\n  }\n}];",
+        "mode": "runOnceForAllItems"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -78,7 +80,7 @@
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
         "options": {
-          "queryReplacement": "={{ $json.params }}"
+          "values": "={{ $json.params }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -91,7 +93,8 @@
       "name": "ExecuteQuery",
       "credentials": {
         "postgres": {
-          "id": "p2SIY25QglSNcDnj"
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
         }
       },
       "alwaysOutputData": true
@@ -131,7 +134,7 @@
             "version": 2,
             "leftValue": "",
             "caseSensitive": true,
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
@@ -159,7 +162,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Restore ctx with all query results in ctx.db namespace\nconst state = $json;\n\n// Remove db_queries since it was consumed\nconst { db_queries, ...restCtx } = state.original_ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...restCtx,\n      db: {\n        ...(restCtx.db || {}),\n        ...state.results\n      }\n    }\n  }\n}];"
+        "jsCode": "// Restore ctx with all query results in ctx.db namespace\nconst item = $input.first();\nconst state = item.json;\n\n// Remove db_queries since it was consumed\nconst { db_queries, ...restCtx } = state.original_ctx;\n\nreturn [{\n  json: {\n    ctx: {\n      ...restCtx,\n      db: {\n        ...(restCtx.db || {}),\n        ...state.results\n      }\n    }\n  }\n}];",
+        "mode": "runOnceForAllItems"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -282,6 +286,10 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner"
-  }
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "active": false
 }

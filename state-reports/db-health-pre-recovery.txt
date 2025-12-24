@@ -1,0 +1,22 @@
+=== Kairon Database Health Check ===
+Time: Tue Dec 23 07:26:01 PM PST 2025
+
+--- Event Processing Pipeline ---
+     period     | events | traces | projections | events_without_traces 
+----------------+--------+--------+-------------+-----------------------
+ Last Hour:     |     15 |      2 |           0 |                    13
+ Last 24 Hours: |    240 |     37 |          21 |                   203
+(2 rows)
+
+
+--- Recent Activity ---
+       type       |        timestamp        |    age     
+------------------+-------------------------+------------
+ Last Event:      | 2025-12-24 03:00:39 UTC | 1523s ago
+ Last Trace:      | 2025-12-24 02:39:03 UTC | 2818s ago
+ Last Projection: | 2025-12-23 12:18:31 UTC | 54451s ago
+(3 rows)
+
+
+--- Health Status ---
+❌ DEGRADED - 13 events without traces in last hour

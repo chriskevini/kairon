@@ -16,7 +16,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse emoji to determine action type\n// Input is ctx pattern from Route_Reaction\nconst ctx = $input.first().json.ctx;\nconst event = ctx.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3, '4️⃣': 4, '5️⃣': 5,\n  '6️⃣': 6, '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\n\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '❌') {\n  actionType = 'dismiss';\n} else if (emoji === '🗑️') {\n  actionType = 'delete_thread';\n}\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      action: {\n        type: actionType,\n        display_order: displayOrder,\n        emoji: emoji\n      }\n    }\n  }\n}];"
+        "jsCode": "// Parse emoji to determine action type\n// Input is ctx pattern from Route_Reaction\nconst ctx = $json.ctx;\nconst event = ctx.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3, '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5,\n  '6\ufe0f\u20e3': 6, '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\n\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '\u274c') {\n  actionType = 'dismiss';\n} else if (emoji === '\ud83d\uddd1\ufe0f') {\n  actionType = 'delete_thread';\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      action: {\n        type: actionType,\n        display_order: displayOrder,\n        emoji: emoji\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -32,7 +33,7 @@
         "operation": "executeQuery",
         "query": "SELECT id FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND status = 'pending' LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.message_id }}"
+          "values": "={{ $json.ctx.event.message_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -45,7 +46,9 @@
       "name": "CheckIfSummaryMessage",
       "alwaysOutputData": false,
       "credentials": {
-        "postgres": {}
+        "postgres": {
+          "name": "Postgres account"
+        }
       }
     },
     {
@@ -159,7 +162,7 @@
         "operation": "executeQuery",
         "query": "SELECT id, data->>'thread_id' AS thread_id, data->>'item_type' AS item_type, data->>'text' AS text FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND (data->>'display_order')::int = $2 AND status = 'pending' LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.message_id }},={{ $json.ctx.action.display_order }}"
+          "values": "={{ $json.ctx.event.message_id }},={{ $json.ctx.action.display_order }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -172,7 +175,9 @@
       "name": "GetExtractionItem",
       "alwaysOutputData": false,
       "credentials": {
-        "postgres": {}
+        "postgres": {
+          "name": "Postgres account"
+        }
       }
     },
     {
@@ -238,7 +243,7 @@
         "operation": "executeQuery",
         "query": "UPDATE projections SET projection_type = 'note', status = 'confirmed', confirmed_at = NOW(), data = data || jsonb_build_object('category', data->>'item_type', 'promoted_from', 'thread_extraction', 'confirmed_via', 'reaction') WHERE id = $1::uuid AND projection_type = 'thread_extraction' RETURNING id, data->>'text' AS text;",
         "options": {
-          "queryReplacement": "={{ $json.id }}"
+          "values": "={{ $json.id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -251,7 +256,9 @@
       "name": "PromoteToNote",
       "alwaysOutputData": false,
       "credentials": {
-        "postgres": {}
+        "postgres": {
+          "name": "Postgres account"
+        }
       }
     },
     {
@@ -259,7 +266,7 @@
         "operation": "executeQuery",
         "query": "UPDATE projections SET projection_type = 'todo', status = 'confirmed', confirmed_at = NOW(), data = data || jsonb_build_object('promoted_from', 'thread_extraction', 'confirmed_via', 'reaction', 'todo_status', 'pending') WHERE id = $1::uuid AND projection_type = 'thread_extraction' RETURNING id, data->>'text' AS text;",
         "options": {
-          "queryReplacement": "={{ $json.id }}"
+          "values": "={{ $json.id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -272,7 +279,9 @@
       "name": "PromoteToTodo",
       "alwaysOutputData": false,
       "credentials": {
-        "postgres": {}
+        "postgres": {
+          "name": "Postgres account"
+        }
       }
     },
     {
@@ -315,7 +324,7 @@
         "operation": "executeQuery",
         "query": "-- Insert embedding for the saved projection (fire-and-forget)\nINSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding)\nSELECT \n  $1::uuid,\n  'all-MiniLM-L6-v2',\n  '{}',\n  $2,\n  $3::vector\nWHERE $3 IS NOT NULL\nON CONFLICT DO NOTHING;",
         "options": {
-          "queryReplacement": "={{ $('After Promote').first().json.id }},={{ $('After Promote').first().json.text }},={{ $json.embeddings && $json.embeddings[0] ? '[' + $json.embeddings[0].join(',') + ']' : null }}"
+          "values": "={{ $('After Promote').first().json.id }},={{ $('After Promote').first().json.text }},={{ $json.embeddings && $json.embeddings[0] ? '[' + $json.embeddings[0].join(',') + ']' : null }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -328,7 +337,9 @@
       "name": "InsertEmbedding",
       "continueOnFail": true,
       "credentials": {
-        "postgres": {}
+        "postgres": {
+          "name": "Postgres account"
+        }
       }
     },
     {
@@ -362,7 +373,7 @@
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as unsaved FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND status = 'pending' HAVING COUNT(*) = 0;",
         "options": {
-          "queryReplacement": "={{ $('What Action').item.json.ctx.event.message_id }}"
+          "values": "={{ $('What Action').item.json.ctx.event.message_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -375,7 +386,9 @@
       "name": "CheckAllSaved",
       "alwaysOutputData": false,
       "credentials": {
-        "postgres": {}
+        "postgres": {
+          "name": "Postgres account"
+        }
       }
     },
     {
@@ -386,7 +399,7 @@
         "nodeCredentialType": "discordBotApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"content\": \"✅ All items saved!\\n\\n🗑️ Delete thread • ❌ Dismiss\" } }}",
+        "jsonBody": "={{ { \"content\": \"\u2705 All items saved!\\n\\n\ud83d\uddd1\ufe0f Delete thread \u2022 \u274c Dismiss\" } }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -438,7 +451,7 @@
         "operation": "executeQuery",
         "query": "SELECT data->>'thread_id' AS discord_thread_id FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 LIMIT 1;",
         "options": {
-          "queryReplacement": "={{ $json.ctx.event.message_id }}"
+          "values": "={{ $json.ctx.event.message_id }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -451,7 +464,9 @@
       "name": "GetDiscordThreadId",
       "alwaysOutputData": false,
       "credentials": {
-        "postgres": {}
+        "postgres": {
+          "name": "Postgres account"
+        }
       }
     },
     {
@@ -783,9 +798,10 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "errorWorkflow": "JOXLqn9TTznBdo7Q",
+    "availableInMCP": false,
+    "executionOrder": "v1"
   },
   "staticData": null,
   "meta": null,
