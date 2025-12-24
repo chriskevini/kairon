@@ -104,7 +104,10 @@
       }
     },
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [

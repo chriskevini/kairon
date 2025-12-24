@@ -216,7 +216,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "fallbackOutput": 2
+        }
       },
       "id": "1c5b0871-58a8-457f-8b94-c1225e4e38b7",
       "name": "Route by Event Type",
