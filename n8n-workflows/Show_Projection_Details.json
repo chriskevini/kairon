@@ -9,64 +9,6 @@
   "nodes": [
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "CgUAxK0i4YhrZ2Wp",
-          "mode": "list",
-          "cachedResultName": "Execute_Queries",
-          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {},
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.1,
-      "position": [
-        0,
-        0
-      ],
-      "id": "workflow-trigger",
-      "name": "WhenCalledByAnotherWorkflow"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "CgUAxK0i4YhrZ2Wp",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "ctx": "={{ $json.ctx }}"
-          },
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {
-          "waitForSubWorkflow": true
-        }
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        0,
-        240
-      ],
-      "id": "execute-queries",
-      "name": "ExecuteQueries"
-    },
-    {
-      "parameters": {
         "inputSource": "passthrough"
       },
       "type": "n8n-nodes-base.executeWorkflowTrigger",
@@ -75,31 +17,41 @@
         -400,
         240
       ],
-      "id": "receive-event",
+      "id": "trigger-projection-details",
       "name": "ReceiveEvent"
     },
     {
       "parameters": {
-        "jsCode": "// Prepare db_queries for Execute_Queries sub-workflow\nreturn {\n  json: {\n    ctx: {\n      ...$json.ctx,\n      db_queries: [\n        {\n          key: 'projection_data',\n          sql: `WITH target_event AS (\n  -- Find the event for this Discord message\n  SELECT id, payload, received_at, payload->>'message_url' as message_url\n  FROM events\n  WHERE payload->>'discord_message_id' = $1\n    AND event_type = 'discord_message'\n  ORDER BY received_at DESC\n  LIMIT 1\n),\nbot_reply_projections AS (\n  -- Find projections for a bot reply message (no LIMIT - one message can have multiple)\n  SELECT p.id, p.trace_id, p.event_id, p.projection_type, p.data, p.status, p.quality_score, p.created_at, p.timezone\n  FROM projections p\n  WHERE (p.metadata->>'message_id' = $1 \n     OR p.data->>'discord_message_id' = $1\n     OR p.data->>'summary_message_id' = $1)\n    AND p.status IN ('auto_confirmed', 'confirmed', 'pending')\n),\nrelevant_projections AS (\n  -- Get projections either from the event or the bot reply\n  SELECT p.id as projection_id, p.trace_id, p.event_id, p.projection_type, p.data, p.status, p.quality_score, p.created_at, p.timezone\n  FROM projections p\n  WHERE p.event_id = (SELECT id FROM target_event)\n    AND p.status IN ('auto_confirmed', 'confirmed', 'pending')\n  UNION\n  SELECT id, trace_id, event_id, projection_type, data, status, quality_score, created_at, timezone\n  FROM bot_reply_projections\n),\nrelevant_traces AS (\n  -- Get ONLY the traces linked to these projections (not all traces for the event)\n  SELECT DISTINCT ON (t.id)\n    t.id as trace_id,\n    t.event_id,\n    COALESCE(t.data->>'prompt', t.data->>'input') as prompt_text,\n    t.data->>'completion' as output_text,\n    t.data->>'model' as model,\n    (t.data->>'duration_ms')::numeric as duration_ms,\n    t.created_at as trace_created_at\n  FROM traces t\n  WHERE t.id IN (SELECT trace_id FROM relevant_projections WHERE trace_id IS NOT NULL)\n  ORDER BY t.id, t.created_at DESC\n)\nSELECT \n  COALESCE((SELECT id FROM target_event), (SELECT event_id FROM bot_reply_projections LIMIT 1)) as event_id,\n  (SELECT payload->>'original_text' FROM target_event) as original_text,\n  (SELECT message_url FROM target_event) as message_url,\n  COALESCE(\n    (SELECT json_agg(rp.*) FROM relevant_projections rp),\n    '[]'::json\n  ) as projections,\n  COALESCE(\n    (SELECT json_agg(rt.*) FROM relevant_traces rt),\n    '[]'::json\n  ) as traces`,\n          params: ['$json.ctx.event.message_id']\n        }\n      ]\n    }\n  }\n};"
+        "operation": "executeQuery",
+        "query": "WITH target_event AS (\n  -- Find the event for this Discord message\n  SELECT id, payload, received_at, payload->>'message_url' as message_url\n  FROM events\n  WHERE payload->>'discord_message_id' = $1\n    AND event_type = 'discord_message'\n  ORDER BY received_at DESC\n  LIMIT 1\n),\nbot_reply_projections AS (\n  -- Find projections for a bot reply message (no LIMIT - one message can have multiple)\n  SELECT p.id, p.trace_id, p.event_id, p.projection_type, p.data, p.status, p.quality_score, p.created_at, p.timezone\n  FROM projections p\n  WHERE (p.metadata->>'message_id' = $1 \n     OR p.data->>'discord_message_id' = $1\n     OR p.data->>'summary_message_id' = $1)\n    AND p.status IN ('auto_confirmed', 'confirmed', 'pending')\n),\nrelevant_projections AS (\n  -- Get projections either from the event or the bot reply\n  SELECT p.id as projection_id, p.trace_id, p.event_id, p.projection_type, p.data, p.status, p.quality_score, p.created_at, p.timezone\n  FROM projections p\n  WHERE p.event_id = (SELECT id FROM target_event)\n    AND p.status IN ('auto_confirmed', 'confirmed', 'pending')\n  UNION\n  SELECT id, trace_id, event_id, projection_type, data, status, quality_score, created_at, timezone\n  FROM bot_reply_projections\n),\nrelevant_traces AS (\n  -- Get ONLY the traces linked to these projections (not all traces for the event)\n  SELECT DISTINCT ON (t.id)\n    t.id as trace_id,\n    t.event_id,\n    COALESCE(t.data->>'prompt', t.data->>'input') as prompt_text,\n    t.data->>'completion' as output_text,\n    t.data->>'model' as model,\n    (t.data->>'duration_ms')::numeric as duration_ms,\n    t.created_at as trace_created_at\n  FROM traces t\n  WHERE t.id IN (SELECT trace_id FROM relevant_projections WHERE trace_id IS NOT NULL)\n  ORDER BY t.id, t.created_at DESC\n)\nSELECT \n  COALESCE((SELECT id FROM target_event), (SELECT event_id FROM bot_reply_projections LIMIT 1)) as event_id,\n  (SELECT payload->>'original_text' FROM target_event) as original_text,\n  (SELECT payload->>'tag' FROM target_event) as tag,\n  COALESCE((SELECT received_at FROM target_event), (SELECT created_at FROM bot_reply_projections LIMIT 1)) as event_time,\n  CASE WHEN EXISTS (SELECT 1 FROM target_event) THEN 'user_message' ELSE 'bot_reply' END as source,\n  COALESCE(\n    (SELECT message_url FROM target_event),\n    (SELECT e.payload->>'message_url' FROM events e WHERE e.id = (SELECT event_id FROM bot_reply_projections LIMIT 1))\n  ) as message_url,\n  (SELECT json_agg(jsonb_build_object(\n    'trace_id', t.trace_id,\n    'model', t.model,\n    'duration_ms', t.duration_ms,\n    'prompt', t.prompt_text,\n    'output_preview', LEFT(t.output_text, 200)\n  )) FROM relevant_traces t) as traces,\n  (SELECT json_agg(jsonb_build_object(\n    'projection_id', p.projection_id,\n    'trace_id', p.trace_id,\n    'projection_type', p.projection_type,\n    'status', p.status,\n    'quality_score', p.quality_score,\n    'data', p.data\n  )) FROM relevant_projections p) as projections;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.event.message_id }}"
+        }
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
       "position": [
         -176,
         240
       ],
-      "id": "prepare-db-queries",
-      "name": "PrepareDbQueries"
+      "id": "lookup-projection-chain",
+      "name": "LookupProjectionChain",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Merge ctx from trigger with db results from Execute_Queries\nconst ctx = $('ReceiveEvent').first().json.ctx;\nconst db = $json.ctx.db.projection_data.rows[0] || {};\n\nreturn {\n  json: {\n    ctx,\n    db\n  }\n};"
+        "jsCode": "// Merge ctx from trigger with db results\nconst ctx = $('ReceiveEvent').first().json.ctx;\nconst db = $json || {};\n\nreturn {\n  json: {\n    ctx,\n    db\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
+        48,
         240
       ],
       "id": "merge-ctx-db",
@@ -108,12 +60,12 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Format projection chain details for Discord\n// ❔ (grey) = projections only\n// ❓ (red) = prompt message + projections message (two separate messages)\n// verbose mode = no emoji, automatic trigger, simple view\nconst ctx = $json.ctx;\nconst result = $json.db;\nconst emoji = ctx.event?.emoji || '❔'; // Default to grey for verbose mode\nconst isDetailedView = emoji === '❓';\nconst isVerboseMode = ctx.verbose === true || ctx.verbose === 'true';\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '🔘',\n  'note': '📝',\n  'command': '💻',\n  'todo': '🔲',\n  'nudge': '💡',\n  'daily_summary': '📊',\n  'thread_response': '🗨️',\n  'thread_extraction': '🔍'\n};\n\nif (!result || !result.event_id) {\n  return {\n    json: {\n      ctx,\n      content: `${emoji} No projection data found for this message.`,\n      isLast: true\n    }\n  };\n}\n\nconst projections = result.projections || [];\nconst validProjections = projections.filter(p => p && p.projection_id);\n\nif (validProjections.length === 0) {\n  return { json: { ctx, content: `${emoji} No saved projections.`, isLast: true } };\n}\n\n// Build projections content (used by both views)\nlet projectionsContent = '';\nfor (const proj of validProjections) {\n  const projEmoji = typeEmojis[proj.projection_type] || '📦';\n  let text = '';\n  \n  if (proj.projection_type === 'activity') {\n    text = proj.data?.description || '(no description)';\n  } else if (proj.projection_type === 'note') {\n    text = proj.data?.text || '(no text)';\n  } else if (proj.projection_type === 'todo') {\n    text = proj.data?.description || proj.data?.text || '(no description)';\n  } else if (proj.projection_type === 'nudge') {\n    text = proj.data?.text || '(no text)';\n  } else if (proj.projection_type === 'daily_summary') {\n    text = '(daily summary)';\n  } else if (proj.projection_type === 'thread_response') {\n    const respText = proj.data?.response_text || '';\n    text = respText.length > 60 ? respText.slice(0, 60) + '...' : respText;\n  } else if (proj.projection_type === 'thread_extraction') {\n    text = `[${proj.data?.item_type}] ${proj.data?.text || ''}`;\n  } else {\n    text = JSON.stringify(proj.data).slice(0, 60) + '...';\n  }\n  \n  projectionsContent += `${projEmoji} ${text}\\n`;\n}\nprojectionsContent = projectionsContent.trim();\n\n// === SIMPLE VIEW (❔) - projections only ===\nif (!isDetailedView) {\n  return { json: { ctx, content: projectionsContent, isLast: true } };\n}\n\n// === DETAILED VIEW (❓) - prompt + projections (two messages) ===\nconst traces = result.traces || [];\nconst messageUrl = result.message_url;\nconst validTraces = traces.filter(t => t && t.trace_id);\nconst outputs = [];\n\n// Message 1: Prompt(s)\nif (validTraces.length === 0) {\n  outputs.push({ json: { ctx, content: '(no prompt found)', isLast: false } });\n} else {\n  for (let i = 0; i < validTraces.length; i++) {\n    const trace = validTraces[i];\n    const isLastTrace = i === validTraces.length - 1;\n    \n    let content = '';\n    \n    // Show full prompt\n    if (trace.prompt_text) {\n      let promptText = trace.prompt_text;\n      \n      // Check if it's JSON (old format) or full text (new format)\n      try {\n        const parsed = JSON.parse(promptText);\n        if (parsed.text) {\n          promptText = parsed.text;\n        } else {\n          const lines = [];\n          if (parsed.timestamp) lines.push(`Time: ${parsed.timestamp}`);\n          if (parsed.north_star) lines.push(`North star: ${parsed.north_star}`);\n          if (parsed.recent_activities) lines.push(`Recent activities:\\n${parsed.recent_activities}`);\n          if (parsed.last_note) lines.push(`Last note: ${parsed.last_note}`);\n          promptText = lines.join('\\n') || JSON.stringify(parsed, null, 2);\n        }\n      } catch {\n        // Already a string (new format) - use as-is\n      }\n      \n      // Truncate if too long\n      if (promptText.length > 1800) {\n        promptText = promptText.slice(0, 1800) + '\\n... (truncated)';\n      }\n      \n      content += '```\\n' + promptText + '\\n```';\n    }\n    \n    // Duration and link after prompt\n    let footer = '';\n    if (trace.duration_ms) {\n      footer += `${trace.duration_ms}ms`;\n    }\n    if (messageUrl && i === 0) {\n      footer += footer ? ' ' : '';\n      footer += `[→](${messageUrl})`;\n    }\n    if (footer) {\n      content += '\\n' + footer;\n    }\n    \n    // This is NOT the last message - projections come after\n    outputs.push({ json: { ctx, content: content.trim(), isLast: false } });\n  }\n}\n\n// Message 2: Projections (last message)\noutputs.push({ json: { ctx, content: projectionsContent, isLast: true } });\n\nreturn outputs;"
+        "jsCode": "// Format projection chain details for Discord\n// ❔ (grey) = projections only\n// ❓ (red) = prompt message + projections message (two separate messages)\n// verbose mode = no emoji, automatic trigger, simple view\nconst ctx = $json.ctx;\nconst result = $json.db;\nconst emoji = ctx.event?.emoji || '❔'; // Default to grey for verbose mode\nconst isDetailedView = emoji === '❓';\nconst isVerboseMode = ctx.verbose === true || ctx.verbose === 'true';\n\n// Standard emoji mapping\nconst typeEmojis = {\n  'activity': '🔘',\n  'note': '📝',\n  'command': '💻',\n  'todo': '🔲',\n  'nudge': '💡',\n  'daily_summary': '📊',\n  'thread_response': '🗨️',\n  'thread_extraction': '🔍'\n};\n\nif (!result || !result.event_id) {\n  return {\n    json: {\n      ctx,\n      content: `${emoji} No projection data found for this message.`,\n      isLast: true\n    }\n  };\n}\n\nconst projections = result.projections || [];\nconst validProjections = projections.filter(p => p && p.projection_id);\n\nif (validProjections.length === 0) {\n  return { json: { ctx, content: `${emoji} No saved projections.`, isLast: true } };\n}\n\n// Build projections content (used by both views)\nlet projectionsContent = '';\nfor (const proj of validProjections) {\n  const projEmoji = typeEmojis[proj.projection_type] || '📦';\n  let text = '';\n  \n  if (proj.projection_type === 'activity') {\n    text = proj.data?.description || '(no description)';\n  } else if (proj.projection_type === 'note') {\n    text = proj.data?.text || '(no text)';\n  } else if (proj.projection_type === 'todo') {\n    text = proj.data?.description || proj.data?.text || '(no description)';\n  } else if (proj.projection_type === 'nudge') {\n    text = proj.data?.text || '(no text)';\n  } else if (proj.projection_type === 'daily_summary') {\n    text = '(daily summary)';\n  } else if (proj.projection_type === 'thread_response') {\n    const respText = proj.data?.response_text || '';\n    text = respText.length > 60 ? respText.slice(0, 60) + '...' : respText;\n  } else if (proj.projection_type === 'thread_extraction') {\n    text = `[${proj.data?.item_type}] ${proj.data?.text || ''}`;\n  } else {\n    text = JSON.stringify(proj.data).slice(0, 60) + '...';\n  }\n  \n  projectionsContent += `${projEmoji} ${text}\\n`;\n}\nprojectionsContent = projectionsContent.trim();\n\n// === SIMPLE VIEW (❔) - projections only ===\nif (!isDetailedView) {\n  return { json: { ctx, content: projectionsContent, isLast: true } };\n}\n\n// === DETAILED VIEW (❓) - prompt + projections (two messages) ===\nconst traces = result.traces || [];\nconst messageUrl = result.message_url;\nconst validTraces = traces.filter(t => t && t.trace_id);\nconst outputs = [];\n\n// Message 1: Prompt(s)\nif (validTraces.length === 0) {\n  outputs.push({ json: { ctx, content: '(no prompt found)', isLast: false } });\n} else {\n  for (let i = 0; i < validTraces.length; i++) {\n    const trace = validTraces[i];\n    const isLastTrace = i === validTraces.length - 1;\n    \n    let content = '';\n    \n    // Show full prompt\n    if (trace.prompt) {\n      let promptText = trace.prompt;\n      \n      // Check if it's JSON (old format) or full text (new format)\n      try {\n        const parsed = JSON.parse(promptText);\n        if (parsed.text) {\n          promptText = parsed.text;\n        } else {\n          const lines = [];\n          if (parsed.timestamp) lines.push(`Time: ${parsed.timestamp}`);\n          if (parsed.north_star) lines.push(`North star: ${parsed.north_star}`);\n          if (parsed.recent_activities) lines.push(`Recent activities:\\n${parsed.recent_activities}`);\n          if (parsed.last_note) lines.push(`Last note: ${parsed.last_note}`);\n          promptText = lines.join('\\n') || JSON.stringify(parsed, null, 2);\n        }\n      } catch {\n        // Already a string (new format) - use as-is\n      }\n      \n      // Truncate if too long\n      if (promptText.length > 1800) {\n        promptText = promptText.slice(0, 1800) + '\\n... (truncated)';\n      }\n      \n      content += '```\\n' + promptText + '\\n```';\n    }\n    \n    // Duration and link after prompt\n    let footer = '';\n    if (trace.duration_ms) {\n      footer += `${trace.duration_ms}ms`;\n    }\n    if (messageUrl && i === 0) {\n      footer += footer ? ' ' : '';\n      footer += `[→](${messageUrl})`;\n    }\n    if (footer) {\n      content += '\\n' + footer;\n    }\n    \n    // This is NOT the last message - projections come after\n    outputs.push({ json: { ctx, content: content.trim(), isLast: false } });\n  }\n}\n\n// Message 2: Projections (last message)\noutputs.push({ json: { ctx, content: projectionsContent, isLast: true } });\n\nreturn outputs;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        496,
+        272,
         240
       ],
       "id": "format-details",
@@ -236,30 +188,19 @@
       "continueOnFail": true
     }
   ],
-      "connections": {
+  "connections": {
     "ReceiveEvent": {
       "main": [
         [
           {
-            "node": "PrepareDbQueries",
+            "node": "LookupProjectionChain",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "PrepareDbQueries": {
-      "main": [
-        [
-          {
-            "node": "ExecuteQueries",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "ExecuteQueries": {
+    "LookupProjectionChain": {
       "main": [
         [
           {
