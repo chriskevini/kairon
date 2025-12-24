@@ -310,6 +310,14 @@ def check_execute_workflow_nodes(workflow: dict, result: LintResult):
                         f"'{name}': ExecuteWorkflow with cachedResultName='Execute_Queries' must have cachedResultUrl"
                     )
 
+            # Check for required cachedResult fields when using Execute_Queries
+            cached_name = workflow_id.get("cachedResultName")
+            if cached_name == "Execute_Queries":
+                if not workflow_id.get("cachedResultUrl"):
+                    result.error(
+                        f"'{name}': ExecuteWorkflow with cachedResultName='Execute_Queries' must have cachedResultUrl"
+                    )
+
 
 def check_node_references(workflow: dict, result: LintResult):
     """Check for scattered node references that should use ctx instead"""
