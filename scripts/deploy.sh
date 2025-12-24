@@ -79,11 +79,8 @@ deploy_dev() {
     fi
     
     TEMP_DIR=$(mktemp -d)
-    trap "rm -rf $TEMP_DIR" EXIT
-    
-    # Capture output for diagnostics
-    local OUTPUT_FILE=$(mktemp)
-    local DEPLOY_LOG=$(mktemp)
+    OUTPUT_FILE=$(mktemp)
+    DEPLOY_LOG=$(mktemp)
     trap "rm -rf $TEMP_DIR $OUTPUT_FILE $DEPLOY_LOG" EXIT
     
     # Get workflow IDs upfront for ID remapping and post-deployment verification
@@ -201,8 +198,8 @@ deploy_prod() {
     local PROD_API_KEY="$N8N_API_KEY"
     
     # Capture output for diagnostics
-    local OUTPUT_FILE=$(mktemp)
-    local DEPLOY_LOG=$(mktemp)
+    OUTPUT_FILE=$(mktemp)
+    DEPLOY_LOG=$(mktemp)
     trap "rm -f $OUTPUT_FILE $DEPLOY_LOG" EXIT
     
     # Get workflow IDs before for verification
