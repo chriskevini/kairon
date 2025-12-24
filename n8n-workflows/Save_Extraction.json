@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse emoji to determine action type\n// Input is ctx pattern from Route_Reaction\nconst ctx = $json.ctx;\nconst event = ctx.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3, '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5,\n  '6\ufe0f\u20e3': 6, '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\n\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '\u274c') {\n  actionType = 'dismiss';\n} else if (emoji === '\ud83d\uddd1\ufe0f') {\n  actionType = 'delete_thread';\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      action: {\n        type: actionType,\n        display_order: displayOrder,\n        emoji: emoji\n      }\n    }\n  }\n};",
+        "jsCode": "// Parse emoji to determine action type\n// Input is ctx pattern from Route_Reaction\nconst ctx = $json.ctx;\nconst event = ctx.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3, '4️⃣': 4, '5️⃣': 5,\n  '6️⃣': 6, '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\n\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '❌') {\n  actionType = 'dismiss';\n} else if (emoji === '🗑️') {\n  actionType = 'delete_thread';\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      action: {\n        type: actionType,\n        display_order: displayOrder,\n        emoji: emoji\n      }\n    }\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
@@ -399,7 +399,7 @@
         "nodeCredentialType": "discordBotApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"content\": \"\u2705 All items saved!\\n\\n\ud83d\uddd1\ufe0f Delete thread \u2022 \u274c Dismiss\" } }}",
+        "jsonBody": "={{ { \"content\": \"✅ All items saved!\\n\\n🗑️ Delete thread • ❌ Dismiss\" } }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
