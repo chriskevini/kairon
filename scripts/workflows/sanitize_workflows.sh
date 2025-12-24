@@ -11,9 +11,9 @@ for file in "$WORKFLOW_DIR"/*.json; do
   filename=$(basename "$file")
   
   # Remove pinData section (test execution data with real IDs)
-  if jq -e '.pinData' "$file" > /dev/null 2>&1; then
+  if grep -q '"pinData"' "$file" 2>/dev/null; then
     echo "Sanitizing $filename (pinData)..."
-    jq 'del(.pinData)' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+    jq 'del(.pinData) | del(.nodes[]?.pinData)' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
   fi
 
   # Remove credential IDs (forces deployment script to look them up by name)
