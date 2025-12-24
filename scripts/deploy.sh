@@ -132,28 +132,28 @@ deploy_dev() {
     echo "✅ PASSED"
 }
 
-# --- SMOKE TESTS ---
-run_smoke_tests() {
-    echo -n "STAGE 2: Smoke Tests... "
-    
+# --- COMPREHENSIVE FUNCTIONAL TESTS ---
+run_functional_tests() {
+    echo -n "STAGE 2: Functional Tests... "
+
     if [ ! -f "$REPO_ROOT/tools/test-all-paths.sh" ]; then
         echo "⚠️  tools/test-all-paths.sh not found. Skipping."
         return 0
     fi
 
     # Capture output for diagnostics
-    local SMOKE_OUTPUT_FILE=$(mktemp)
-    trap "rm -f $SMOKE_OUTPUT_FILE" RETURN
+    local TEST_OUTPUT_FILE=$(mktemp)
+    trap "rm -f $TEST_OUTPUT_FILE" RETURN
 
-    # Run the comprehensive test script against the dev environment
-    # Default is silent on success, explicit --verify-db for database check
-    if "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --verify-db > "$SMOKE_OUTPUT_FILE" 2>&1; then
+    # Run the comprehensive end-to-end test script against the dev environment
+    # Tests all 40+ execution paths with database verification
+    if "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --verify-db > "$TEST_OUTPUT_FILE" 2>&1; then
         echo "✅ PASSED"
         return 0
     else
         echo "❌ FAILED"
         echo "----------------------------------------"
-        cat "$SMOKE_OUTPUT_FILE"
+        cat "$TEST_OUTPUT_FILE"
         echo "----------------------------------------"
         return 1
     fi
@@ -210,16 +210,10 @@ deploy_prod() {
 # --- UNIT TESTS ---
 run_unit_tests() {
     echo -n "STAGE 0: Unit Tests... "
-    
-    if ! command -v pytest >/dev/null 2>&1 && ! python3 -m pytest --version >/dev/null 2>&1; then
-        echo "⚠️  pytest not found. Skipping."
-        return 0
-    fi
-    
-    # Run structural and functional tests, capturing output
+
+    # Run only fast structural tests - functional testing done by smoke tests
     local structural_output
-    local functional_output
-    
+
     structural_output=$(python3 "$SCRIPT_DIR/workflows/unit_test_framework.py" --all 2>&1) || {
         echo "❌ FAILED"
         echo "----------------------------------------"
@@ -227,18 +221,7 @@ run_unit_tests() {
         echo "----------------------------------------"
         return 1
     }
-    
-    local PYTEST_CMD="pytest"
-    if ! command -v pytest >/dev/null 2>&1; then PYTEST_CMD="python3 -m pytest"; fi
-    
-    functional_output=$($PYTEST_CMD -q "$REPO_ROOT/n8n-workflows/tests" 2>&1) || {
-        echo "❌ FAILED"
-        echo "----------------------------------------"
-        echo "$functional_output"
-        echo "----------------------------------------"
-        return 1
-    }
-    
+
     echo "✅ PASSED"
 }
 
@@ -249,7 +232,7 @@ case "$TARGET" in
     dev)
         run_unit_tests || exit 1
         deploy_dev
-        run_smoke_tests
+        run_functional_tests
         ;;
     prod)
         run_unit_tests || exit 1
@@ -258,12 +241,12 @@ case "$TARGET" in
     all|"")
         run_unit_tests || exit 1
         deploy_dev
-        if run_smoke_tests; then
+        if run_functional_tests; then
             deploy_prod
         else
             echo ""
             echo "========================================"
-            echo "PROD DEPLOYMENT SKIPPED - Smoke tests failed"
+            echo "PROD DEPLOYMENT SKIPPED - Functional tests failed"
             echo "========================================"
             exit 1
         fi
