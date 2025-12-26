@@ -227,5 +227,6 @@ See `AGENTS.md` for detailed workflow development guidelines.
 
 - **[docs/](docs/)** - Complete documentation suite
 - **[AGENTS.md](AGENTS.md)** - Agent guidelines and best practices
-- **[docs/TOOLING.md](docs/TOOLING.md)** - Development and operations tooling
+- **[docs/TOOLING-LOCAL.md](docs/TOOLING-LOCAL.md)** - Local development with Docker
+- **[docs/TOOLING-PROD.md](docs/TOOLING-PROD.md)** - Production operations and remote management
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment pipeline documentation

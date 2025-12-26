@@ -6,41 +6,14 @@ Instructions for AI agents working on Kairon - a life-tracking system using n8n 
 
 ## Local Development
 
-Kairon supports local development testing with Docker containers.
+For complete local development setup with Docker containers, see `docs/TOOLING-LOCAL.md`.
 
-### Environment Variables
-
-For local development, these variables are optional (docker-compose.dev.yml provides defaults):
-
-- `DB_USER` - Database user (default: postgres)
-- `DB_NAME` - Database name (default: kairon_dev)
-- `N8N_DEV_ENCRYPTION_KEY` - n8n encryption key (default: dev-local-encryption-key-32chars)
-- `NO_MOCKS` - Set to "1" to use real APIs instead of mocks
-
-### Setup
-
+**Quick Start:**
 ```bash
-# Start local n8n + PostgreSQL
+# Start local environment
 docker-compose -f docker-compose.dev.yml up -d
 
-# Load database schema
-docker exec -i postgres-dev-local psql -U ${DB_USER:-postgres} -d ${DB_NAME:-kairon_dev} < db/schema.sql
-
-# Transform workflows for dev
-mkdir -p n8n-workflows-transformed
-for wf in n8n-workflows/*.json; do
-  if ! cat "$wf" | python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")" 2>/dev/null; then
-    echo "Warning: Failed to transform $(basename "$wf")"
-  fi
-done
-
-# Push all transformed workflows
-N8N_API_URL=http://localhost:5679 N8N_API_KEY="" WORKFLOW_DIR=n8n-workflows-transformed ./scripts/workflows/n8n-push-local.sh
-
-# Or push single workflow manually (for quick iteration)
-curl -X POST http://localhost:5679/api/v1/workflows \
-  -H "Content-Type: application/json" \
-  -d "$(jq '{name, nodes, connections, settings}' n8n-workflows-transformed/Route_Event.json)"
+# Follow setup in docs/TOOLING-LOCAL.md
 ```
 
 ### Services
