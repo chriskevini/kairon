@@ -95,29 +95,17 @@ deploy_dev() {
     DEPLOY_LOG=$(mktemp)
     CLEANUP_FILES+=("$TEMP_DIR" "$OUTPUT_FILE" "$DEPLOY_LOG")
     
-    # Get workflow IDs upfront for ID remapping and post-deployment verification
-    local DEV_WORKFLOW_IDS_BEFORE
-    DEV_WORKFLOW_IDS_BEFORE=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
-        "$API_URL/api/v1/workflows?limit=100" | \
-        jq -c '[.data[]? | {(.name): .id}] | add // {}')
+    # Note: No ID remapping needed for mode:list with cachedResultName (portable workflow references)
+    # Workflows use cachedResultName instead of hardcoded IDs, making them environment-agnostic
+    # WORKFLOW_ID_REMAP='{}'
     
     # Wrap actual deployment in a block to capture output
     {
         PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
         PROD_API_KEY="${N8N_API_KEY:-}"
         
-        if [ -n "$PROD_API_KEY" ] && [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
-            PROD_WORKFLOW_IDS=$(ssh "$N8N_DEV_SSH_HOST" \
-                "source /opt/n8n-docker-caddy/.env && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
-                jq -c '[.data[]? | {(.name): .id}] | add // {}')
-            
-            WORKFLOW_ID_REMAP=$(echo "$PROD_WORKFLOW_IDS" "$DEV_WORKFLOW_IDS_BEFORE" | \
-                jq -sc '.[0] as $prod | .[1] as $dev | 
-                    [$prod | to_entries[] | {(.value): $dev[.key]}] | 
-                    add // {}')
-        else
-            WORKFLOW_ID_REMAP='{}'
-        fi
+        # ID remapping disabled - using mode:list for portable workflows
+        WORKFLOW_ID_REMAP='{}'
 
         # Single pass transformation & push
         for workflow in "$WORKFLOW_DIR"/*.json; do

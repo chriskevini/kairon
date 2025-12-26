@@ -148,11 +148,10 @@ return [{{
             value = workflow_ref.get("value", "")
 
             # Remap prod ID to dev ID
-            # Also handle mode="list" which is used in newer n8n versions
+            # Keep mode="list" as per AGENTS.md guidelines - don't force to "id"
             if (mode == "id" or mode == "list") and value in WORKFLOW_ID_REMAP:
                 workflow_ref["value"] = WORKFLOW_ID_REMAP[value]
-                # Force mode to "id" for cleaner mapping in dev
-                workflow_ref["mode"] = "id"
+                # Keep the original mode (list or id) - don't force conversion
 
         return node
 
