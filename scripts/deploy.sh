@@ -210,6 +210,15 @@ run_functional_tests() {
         return 1
     fi
     echo "  ✅ PASSED (mocks)"
+
+    # Stage 2d: Run Python tag parsing tests
+    echo ""
+    echo "  Stage 2d: Python tag parsing tests..."
+    if ! pytest "$REPO_ROOT/n8n-workflows/tests/test_tag_parsing.py" > /dev/null 2>&1; then
+        echo "❌ FAILED (tag parsing)"
+        return 1
+    fi
+    echo "  ✅ PASSED (tag parsing)"
     
     # Stage 1b: Redeploy with real APIs (between test stages)
     echo ""

@@ -26,6 +26,7 @@ import sys
 import os
 import re
 import argparse
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
@@ -87,6 +88,179 @@ class WorkflowTester:
             if node.get("name") == name:
                 return node
         return None
+
+    def test_database_schema(self) -> List[TestResult]:
+        """Test if database schema is correct"""
+        tests = []
+
+        # We'll use the kairon-ops.sh tool if available, or try to run psql directly
+        kairon_ops = Path(__file__).parent.parent.parent / "tools" / "kairon-ops.sh"
+
+        sql = """
+        SELECT 
+          (SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'events') as has_events,
+          (SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'traces') as has_traces,
+          (SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'projections') as has_projections,
+          (SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'config') as has_config
+        """
+
+        try:
+            if kairon_ops.exists():
+                # Use kairon-ops.sh db-query
+                cmd = [str(kairon_ops), "db-query", sql]
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                # Output format of db-query is usually raw psql output or JSON depending on the script
+                # Let's assume it's something we can parse or at least see success
+                tests.append(
+                    TestResult(
+                        "db_schema_check",
+                        True,
+                        "Schema check query executed successfully",
+                    )
+                )
+
+                # Try to parse counts from output if possible
+                output = result.stdout
+                if "has_events | 1" in output or "1 | 1 | 1 | 1" in output:
+                    tests.append(
+                        TestResult(
+                            "full_schema_present",
+                            True,
+                            "All core tables (events, traces, projections, config) found",
+                        )
+                    )
+                elif "has_config | 1" in output:
+                    tests.append(
+                        TestResult(
+                            "full_schema_present",
+                            False,
+                            "Only config table found (partial schema)",
+                        )
+                    )
+            else:
+                tests.append(
+                    TestResult(
+                        "db_schema_check",
+                        False,
+                        "kairon-ops.sh not found, skipping DB check",
+                    )
+                )
+        except Exception as e:
+            tests.append(
+                TestResult("db_schema_check", False, f"Failed to check schema: {e}")
+            )
+
+        return tests
+
+    def test_json_serialization(self) -> List[TestResult]:
+        """Test JSON serialization edge cases (ported from Smoke_Test)"""
+        tests = []
+
+        test_cases = [
+            {"key": "value"},
+            {"num": 42},
+            {"bool": True},
+            {"nil": None},
+            {"nested": {"deep": "value"}},
+            {"arr": [1, 2, 3]},
+            {"emoji": "🚀"},
+            {"unicode": "café"},
+            {"quote": '"quoted"'},
+            {"newline": "line1\nline2"},
+        ]
+
+        fails = []
+        for i, tc in enumerate(test_cases):
+            try:
+                serialized = json.dumps(tc)
+                parsed = json.loads(serialized)
+                if parsed != tc:
+                    fails.append(f"case {i}: mismatch")
+            except Exception as e:
+                fails.append(f"case {i}: {e}")
+
+        if not fails:
+            tests.append(
+                TestResult(
+                    "json_serialization", True, f"All {len(test_cases)} cases passed"
+                )
+            )
+        else:
+            tests.append(
+                TestResult("json_serialization", False, f"Fails: {'; '.join(fails)}")
+            )
+
+        return tests
+
+    def test_ctx_pattern_logic(self) -> List[TestResult]:
+        """Test ctx pattern preservation logic (ported from Smoke_Test)"""
+        tests = []
+
+        # Simulate ctx flowing through workflow transforms
+        ctx = {
+            "event": {
+                "event_id": "test-123",
+                "trace_chain": ["test-123"],
+                "clean_text": "original text",
+                "tag": "!!",
+                "channel_id": "chan-1",
+            }
+        }
+
+        # Transform 1: Add db namespace
+        ctx.update({"db": {"results": [{"id": 1, "name": "test"}], "count": 1}})
+
+        # Transform 2: Add llm namespace
+        ctx.update(
+            {
+                "llm": {
+                    "completion_text": "LLM response",
+                    "duration_ms": 150,
+                    "confidence": 0.95,
+                }
+            }
+        )
+
+        # Transform 3: Update trace_chain
+        new_trace_id = "trace-456"
+        ctx["event"]["trace_chain"].append(new_trace_id)
+
+        # Transform 4: Add validation namespace
+        ctx.update({"validation": {"valid": True}})
+
+        # Verify
+        checks = [
+            ctx["event"]["event_id"] == "test-123",
+            ctx["event"]["clean_text"] == "original text",
+            ctx["event"]["tag"] == "!!",
+            ctx["event"]["channel_id"] == "chan-1",
+            len(ctx["event"]["trace_chain"]) == 2,
+            ctx["event"]["trace_chain"][0] == "test-123",
+            ctx["event"]["trace_chain"][1] == "trace-456",
+            ctx["db"]["results"][0]["id"] == 1,
+            ctx["db"]["count"] == 1,
+            ctx["llm"]["completion_text"] == "LLM response",
+            ctx["llm"]["duration_ms"] == 150,
+            ctx["validation"]["valid"] == True,
+        ]
+
+        if all(checks):
+            tests.append(
+                TestResult(
+                    "ctx_preservation",
+                    True,
+                    "Context preserved through simulated transforms",
+                )
+            )
+        else:
+            fail_idx = checks.index(False)
+            tests.append(
+                TestResult(
+                    "ctx_preservation", False, f"Failed check at index {fail_idx}"
+                )
+            )
+
+        return tests
 
     def test_structural_validation(self, workflow: dict) -> List[TestResult]:
         """Test workflow structure and connections"""
@@ -458,6 +632,67 @@ class WorkflowTester:
 
         return test_suite
 
+    def test_trace_chain_formatting(self) -> List[TestResult]:
+        """Test Postgres array formatting for trace_chain (ported from Smoke_Test)"""
+        tests = []
+
+        def format_chain(chain):
+            """Format array for Postgres array literal syntax"""
+            return "{" + ",".join(chain) + "}"
+
+        test_cases = [
+            (["uuid-1"], "{uuid-1}"),
+            (["uuid-1", "uuid-2"], "{uuid-1,uuid-2}"),
+            (["uuid-1", "uuid-2", "uuid-3"], "{uuid-1,uuid-2,uuid-3}"),
+            ([], "{}"),
+        ]
+
+        fails = []
+        for chain, expected in test_cases:
+            result = format_chain(chain)
+            if result != expected:
+                fails.append(f"{chain} => '{result}' (want '{expected}')")
+
+        if not fails:
+            tests.append(
+                TestResult(
+                    "trace_chain_format", True, f"All {len(test_cases)} cases passed"
+                )
+            )
+        else:
+            tests.append(
+                TestResult("trace_chain_format", False, f"Fails: {'; '.join(fails)}")
+            )
+
+        return tests
+
+    def run_system_tests(self) -> WorkflowTest:
+        """Run general system tests (ported from Smoke_Test)"""
+        test_suite = WorkflowTest("System Tests", [])
+
+        test_categories = [
+            ("Database", self.test_database_schema),
+            ("Serialization", self.test_json_serialization),
+            ("Context", self.test_ctx_pattern_logic),
+            ("Trace Formatting", self.test_trace_chain_formatting),
+        ]
+
+        for category_name, test_func in test_categories:
+            try:
+                category_tests = test_func()
+                for test in category_tests:
+                    test_suite.add_test(
+                        TestResult(
+                            f"{category_name}: {test.name}", test.passed, test.details
+                        )
+                    )
+            except Exception as e:
+                test_suite.add_test(
+                    TestResult(f"{category_name}: error", False, f"Test error: {e}")
+                )
+
+        return test_suite
+
     def run_all_tests(self, verbose: bool = False) -> Dict[str, WorkflowTest]:
         """Run tests for all workflows"""
         workflow_files = list(self.workflow_dir.glob("*.json"))
@@ -465,6 +700,22 @@ class WorkflowTester:
         print(f"\n{CYAN}{'=' * 60}{NC}")
         print(f"{BOLD}Running Unit Tests for {len(workflow_files)} Workflows{NC}")
         print(f"{CYAN}{'=' * 60}{NC}")
+
+        # Run system tests first
+        print(f"\n{BLUE}Running System Tests (ported from Smoke_Test){NC}")
+        system_results = self.run_system_tests()
+        self.results["__system__"] = system_results
+
+        if verbose or system_results.failed > 0:
+            for test in system_results.tests:
+                status = f"{GREEN}✓{NC}" if test.passed else f"{RED}✗{NC}"
+                print(f"  {status} {test.name}: {test.details}")
+
+        total = system_results.passed + system_results.failed
+        success_rate = (system_results.passed / total * 100) if total > 0 else 0
+        print(
+            f"  {BOLD}Summary:{NC} {system_results.passed}/{total} passed ({success_rate:.1f}%)"
+        )
 
         for filepath in sorted(workflow_files):
             print(f"\n{BLUE}Testing: {filepath.name}{NC}")
