@@ -1,0 +1,16 @@
+[Unit]
+Description=Kairon Production Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/kairon
+ExecStart=/root/kairon/scripts/monitor-prod.sh
+Restart=always
+RestartSec=60
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -237,7 +237,7 @@ run_functional_tests() {
      echo "  Stage 2b: Realistic tests (real APIs)..."
      echo "    Note: Cron workflows now testable via webhook (Schedule → Webhook transform)"
      
-     if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick > "$TEST_OUTPUT_FILE" 2>&1; then
+     if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --no-mocks > "$TEST_OUTPUT_FILE" 2>&1; then
         echo "❌ FAILED (real APIs)"
         echo "----------------------------------------"
         cat "$TEST_OUTPUT_FILE"
@@ -587,8 +587,18 @@ case "$TARGET" in
         run_functional_tests
         ;;
     prod)
+        echo "⚠️  Direct production deployment is deprecated. Running full pipeline..."
         run_unit_tests || exit 1
-        deploy_prod
+        deploy_dev false
+        if run_functional_tests; then
+            deploy_prod
+        else
+            echo ""
+            echo "========================================"
+            echo "PROD DEPLOYMENT SKIPPED - Functional tests failed"
+            echo "========================================"
+            exit 1
+        fi
         ;;
     all|"")
         run_unit_tests || exit 1

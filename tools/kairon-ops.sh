@@ -430,6 +430,9 @@ Commands:
   backup              Backup all workflows and database
   verify              Run full system verification
   test-api            Test n8n API connectivity
+  monitor-status      Show monitor status
+  monitor-restart     Restart monitor service
+  monitor-logs        Show monitor logs
   help                Show this help
 
 Examples:
@@ -483,6 +486,15 @@ main() {
             ;;
         test-api)
             cmd_test_api "$@"
+            ;;
+        monitor-status)
+            execute_remote "sudo systemctl status kairon-monitor"
+            ;;
+        monitor-restart)
+            execute_remote "sudo systemctl restart kairon-monitor"
+            ;;
+        monitor-logs)
+            execute_remote "sudo journalctl -u kairon-monitor -f"
             ;;
         help|--help|-h|"")
             show_help
