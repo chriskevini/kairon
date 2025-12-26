@@ -6,14 +6,14 @@ Instructions for AI agents working on Kairon - a life-tracking system using n8n 
 
 ## Local Development
 
-For complete local development setup with Docker containers, see `docs/TOOLING-LOCAL.md`.
+For complete local development setup with Docker containers, see `docs/DEVELOPMENT.md`.
 
 **Quick Start:**
 ```bash
 # Start local environment
 docker-compose -f docker-compose.dev.yml up -d
 
-# Follow setup in docs/TOOLING-LOCAL.md
+# Follow setup in docs/DEVELOPMENT.md
 ```
 
 ### Services

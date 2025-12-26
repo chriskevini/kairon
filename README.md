@@ -234,11 +234,11 @@ The `docs/` directory contains comprehensive documentation for development, oper
 | Document | Purpose | Audience | Quick Access |
 |----------|---------|----------|--------------|
 | **[AGENTS.md](AGENTS.md)** | Agent guidelines, ctx pattern, n8n best practices | All developers | Root directory |
-| **[docs/TOOLING-LOCAL.md](docs/TOOLING-LOCAL.md)** | Local development with Docker containers | Developers | Local setup |
-| **[docs/TOOLING-PROD.md](docs/TOOLING-PROD.md)** | Production operations and remote management | DevOps, Operations | Production ops |
+| **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** | Local development with Docker containers | Developers | Local setup |
+| **[docs/PRODUCTION.md](docs/PRODUCTION.md)** | Production operations and remote management | DevOps, Operations | Production ops |
 | **[docs/DEBUG.md](docs/DEBUG.md)** | Debugging tools, techniques, and troubleshooting | All users | Debug guide |
 | **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** | Deployment pipeline and workflow management | DevOps, CI/CD | Deployment |
-| **[docs/testing/n8n-ui-compatibility-testing.md](docs/testing/n8n-ui-compatibility-testing.md)** | Workflow validation and testing system | Developers | Testing |
+| **[docs/TESTING.md](docs/TESTING.md)** | Workflow validation and testing system | Developers | Testing |
 
 ### 🗂️ Archived Documentation
 
@@ -251,8 +251,8 @@ Historical documentation is stored in `docs/archive/` for reference:
 ### 🚀 Quick Start by Role
 
 1. **New to Kairon?** Start here for project overview and architecture
-2. **Setting up local development?** → `docs/TOOLING-LOCAL.md`
-3. **Managing production systems?** → `docs/TOOLING-PROD.md`
+2. **Setting up local development?** → `docs/DEVELOPMENT.md`
+3. **Managing production systems?** → `docs/PRODUCTION.md`
 4. **Debugging issues?** → `docs/DEBUG.md`
 5. **Deploying changes?** → `docs/DEPLOYMENT.md`
 6. **Understanding the codebase?** → `AGENTS.md`

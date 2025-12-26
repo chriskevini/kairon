@@ -259,7 +259,7 @@ scripts/
 
 docs/
 ├── DEPLOYMENT.md          # Deployment pipeline docs
-└── TOOLING-PROD.md        # This file
+└── PRODUCTION.md        # This file
 ```
 
 ## Quick Tips
