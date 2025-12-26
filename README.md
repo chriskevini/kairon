@@ -234,6 +234,8 @@ The `docs/` directory contains comprehensive documentation for development, oper
 | Document | Purpose | Audience | Quick Access |
 |----------|---------|----------|--------------|
 | **[AGENTS.md](AGENTS.md)** | Agent guidelines, ctx pattern, n8n best practices | All developers | Root directory |
+| **[AGENTS.md](AGENTS.md)** | Agent guidelines and system overview | All users | Core concepts |
+| **[docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md)** | n8n workflow patterns and conventions | Developers | Implementation |
 | **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** | Local development with Docker containers | Developers | Local setup |
 | **[docs/PRODUCTION.md](docs/PRODUCTION.md)** | Production operations and remote management | DevOps, Operations | Production ops |
 | **[docs/DEBUG.md](docs/DEBUG.md)** | Debugging tools, techniques, and troubleshooting | All users | Debug guide |
@@ -251,11 +253,12 @@ Historical documentation is stored in `docs/archive/` for reference:
 ### 🚀 Quick Start by Role
 
 1. **New to Kairon?** Start here for project overview and architecture
-2. **Setting up local development?** → `docs/DEVELOPMENT.md`
-3. **Managing production systems?** → `docs/PRODUCTION.md`
-4. **Debugging issues?** → `docs/DEBUG.md`
-5. **Deploying changes?** → `docs/DEPLOYMENT.md`
-6. **Understanding the codebase?** → `AGENTS.md`
+2. **Understanding the system?** → `AGENTS.md` for core concepts
+3. **Learning implementation patterns?** → `docs/BEST_PRACTICES.md` for n8n conventions
+4. **Setting up local development?** → `docs/DEVELOPMENT.md`
+5. **Managing production systems?** → `docs/PRODUCTION.md`
+6. **Debugging issues?** → `docs/DEBUG.md`
+7. **Deploying changes?** → `docs/DEPLOYMENT.md`
 
 ### 🔑 Key Concepts
 
