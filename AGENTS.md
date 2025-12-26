@@ -5,18 +5,68 @@ Instructions for AI agents working on Kairon - a life-tracking system using n8n 
 ## Project Structure
 
 ```
-n8n-workflows/       # Workflow JSON files
+n8n-workflows/           # Workflow JSON files
+n8n-workflows-transformed/  # Transformed workflows for dev testing
 db/
-  migrations/        # SQL migrations (numbered, run in order)
-  schema.sql         # Current database schema (reference only)
-  seeds/             # Initial seed data
+  migrations/            # SQL migrations (numbered, run in order)
+  schema.sql             # Current database schema (reference only)
+  seeds/                 # Initial seed data
 scripts/
-  db/                # Database health checks and utilities
-  workflows/         # Workflow JSON tools (lint, inspect, validate)
-prompts/             # LLM prompts used in workflows
-docs/                # Documentation
-discord_relay.py     # Discord bot that forwards to n8n
+  db/                    # Database health checks and utilities
+  workflows/             # Workflow JSON tools (lint, inspect, validate)
+  transform_for_dev.py   # Transform workflows for local testing
+docker-compose.dev.yml   # Local dev environment
+prompts/                 # LLM prompts used in workflows
+docs/                    # Documentation
+discord_relay.py         # Discord bot that forwards to n8n
 ```
+
+## Local Development
+
+Kairon supports local development testing with Docker containers.
+
+### Setup
+
+```bash
+# Start local n8n + PostgreSQL
+docker-compose -f docker-compose.dev.yml up -d
+
+# Load database schema
+source .env
+docker exec -i postgres-dev-local psql -U $DB_USER -d $DB_NAME < db/schema.sql
+
+# Transform workflows for dev
+mkdir -p n8n-workflows-transformed
+for wf in n8n-workflows/*.json; do
+  cat "$wf" | python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")"
+done
+
+# Push to local n8n
+curl -X POST http://localhost:5679/api/v1/workflows \
+  -H "Content-Type: application/json" \
+  -d "$(jq '{name, nodes, connections, settings}' n8n-workflows-transformed/Route_Event.json)"
+```
+
+### Services
+
+- **n8n:** http://localhost:5679 (no auth required)
+- **PostgreSQL:** localhost:5433, database: kairon
+
+### Testing Webhooks
+
+```bash
+# Send test message
+curl -X POST http://localhost:5679/webhook/kairon-dev-test \
+  -H "Content-Type: application/json" \
+  -d '{"event_type": "message", "content": "$$ buy milk", "guild_id": "test", "channel_id": "test", "message_id": "test123", "author": {"login": "test"}, "timestamp": "2025-12-26T12:00:00Z"}'
+```
+
+### Workflow Transformation
+
+`transform_for_dev.py` modifies workflows for local testing:
+- Converts Schedule Triggers to Webhook Triggers
+- Mocks external APIs (Discord, LLM) with Code nodes
+- Preserves webhook paths for testing
 
 ## n8n Best Practices
 
@@ -303,7 +353,9 @@ Tags are parsed at the start of messages. See `docs/tag-parsing-reference.md` fo
 
 ## Deployment
 
-Use `scripts/deploy.sh` for all workflow deployments with comprehensive testing and automatic rollback:
+Use `scripts/deploy.sh` for production workflow deployments with comprehensive testing and automatic rollback. For development testing, use local containers.
+
+### Production Deployment
 
 ```bash
 # Full pipeline: unit tests → dev → functional tests → prod + rollback protection
@@ -329,14 +381,33 @@ The script automatically detects environment and includes safety features like p
 
 **Safety features:** Production deployments are protected by automated rollback - any failure triggers immediate restoration to the previous working state.
 
+### Local Development Testing
+
+For iterative development, use local Docker containers:
+
+```bash
+# Start local environment
+docker-compose -f docker-compose.dev.yml up -d
+
+# Transform and push workflows
+./scripts/transform_for_dev.py < n8n-workflows/Route_Event.json > temp.json
+curl -X POST http://localhost:5679/api/v1/workflows -H "Content-Type: application/json" -d "$(jq . temp.json)"
+```
+
+**Note:** Local testing uses mock APIs by default. Set `NO_MOCKS=1` for real API testing.
+
 ### Workflow ID References
 
 **Always use the n8n API to get workflow IDs** - never hardcode them or guess from the UI.
 
 ```bash
-# Get workflow IDs from n8n
+# Production: Get workflow IDs from n8n
 curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
   "http://localhost:5678/api/v1/workflows" | \
+  jq '.data[] | {name, id}'
+
+# Development (local): No API key needed
+curl -s "http://localhost:5679/api/v1/workflows" | \
   jq '.data[] | {name, id}'
 
 # Get a specific workflow by name
@@ -346,7 +417,7 @@ curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
 ```
 
 **Why API over UI:**
-- IDs differ between prod and dev instances
+- IDs differ between prod, dev, and local instances
 - UI can show stale cached values
 - API is the source of truth for what n8n actually uses
 
@@ -429,8 +500,12 @@ SQL scripts in `scripts/db/` for checking database state:
 
 **Usage:**
 ```bash
-# Run a health check
+# Production: Run a health check
 docker exec -i postgres-db psql -U $DB_USER -d $DB_NAME < scripts/db/check_migration_status.sql
+
+# Local dev: Run a health check
+source .env
+docker exec -i postgres-dev-local psql -U $DB_USER -d $DB_NAME < scripts/db/check_migration_status.sql
 
 # Check processing by tag
 docker exec -i postgres-db psql -U $DB_USER -d $DB_NAME < scripts/db/check_orphans_by_tag.sql

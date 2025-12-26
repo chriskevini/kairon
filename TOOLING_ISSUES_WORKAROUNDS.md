@@ -1,21 +1,94 @@
-# Kairon Development Tooling Issues & Workarounds
+# Kairon Development Tooling
 
 ## Overview
-This document details the problems encountered during the debugging and deployment of Issue #68 (Message Validation System) and the workarounds used to resolve them.
+This document describes the current development tooling for Kairon, including local testing setup and historical issues/workarounds.
 
-## Problem 1: kairon-ops.sh Targets Production, Not Dev
+## Local Development Setup
+
+Kairon now supports local development testing with Docker containers for n8n and PostgreSQL.
+
+### Prerequisites
+- Docker and Docker Compose installed
+- Python 3.8+ for transformation scripts
+
+### Quick Start
+
+1. **Start local dev environment:**
+   ```bash
+   docker-compose -f docker-compose.dev.yml up -d
+   ```
+
+2. **Set up database:**
+   ```bash
+   # Load schema
+   docker exec -i postgres-dev-local psql -U n8n_user -d kairon < db/schema.sql
+
+   # Or for custom DB_USER/DB_NAME from .env:
+   source .env
+   docker exec -i postgres-dev-local psql -U $DB_USER -d $DB_NAME < db/schema.sql
+   ```
+
+3. **Transform workflows for dev:**
+   ```bash
+   # Create transformed workflows with mocks
+   mkdir -p n8n-workflows-transformed
+   for wf in n8n-workflows/*.json; do
+     cat "$wf" | python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")"
+   done
+
+   # For real API testing (no mocks):
+   NO_MOCKS=1 cat workflow.json | python scripts/transform_for_dev.py
+   ```
+
+4. **Push workflows to local n8n:**
+   ```bash
+   # Note: Local n8n runs without API key authentication
+   curl -X POST http://localhost:5679/api/v1/workflows \
+     -H "Content-Type: application/json" \
+     -d "$(jq '{name, nodes, connections, settings}' n8n-workflows-transformed/Route_Event.json)"
+   ```
+
+5. **Test webhooks:**
+   ```bash
+   # Send test message
+   curl -X POST http://localhost:5679/webhook/kairon-dev-test \
+     -H "Content-Type: application/json" \
+     -d '{"event_type": "message", "content": "$$ buy milk", ...}'
+   ```
+
+### Services
+
+- **n8n:** http://localhost:5679 (no auth for dev)
+- **PostgreSQL:** localhost:5433, user: n8n_user, db: kairon
+
+### Workflow Transformation
+
+The `transform_for_dev.py` script modifies workflows for local testing:
+- Converts Schedule Triggers to Webhook Triggers
+- Mocks Discord/LLM nodes with Code nodes
+- Remaps Execute Workflow nodes for dev IDs
+- Preserves webhook paths for testing
+
+## Historical Issues & Workarounds
+
+This section details problems encountered during development and their resolutions.
+
+## Problem 1: kairon-ops.sh Targets Production, Not Dev (RESOLVED)
 
 ### Issue Description
-The `kairon-ops.sh` tool is designed for remote production server operations using `rdev`, but was being used to check local dev deployments. This caused confusion when verifying workflow deployments.
+The `kairon-ops.sh` tool is designed for remote production server operations using `rdev`. Local development testing was not available at the time.
 
-### Evidence
+### Resolution
+Local development testing is now available via `docker-compose.dev.yml`. Use local containers for dev testing instead of remote connections.
+
+### Current Usage
 ```bash
-# What I expected to work:
-./tools/kairon-ops.sh n8n-get IdpHzWCchShvArHM
+# Production operations (remote server)
+./tools/kairon-ops.sh --prod status
 
-# What actually happened:
-# Connected to PRODUCTION n8n instance (localhost:5678 on remote server)
-# Returned workflow data from production, not dev
+# Development operations (local containers)
+docker-compose -f docker-compose.dev.yml up -d
+curl "http://localhost:5679/api/v1/workflows"
 ```
 
 ### Root Cause
@@ -247,25 +320,30 @@ export N8N_API_KEY="$(grep N8N_DEV_API_KEY .env | cut -d'=' -f2)"
 curl -H "X-N8N-API-KEY: $N8N_API_KEY" "http://localhost:5679/api/v1/..."  # ✅ Works
 ```
 
-## Summary of Workarounds
+## Summary
 
-1. **Use direct API calls for dev environment operations**
-2. **Manually update workflows when deployment fails**
-3. **Explicitly export and verify API credentials**
-4. **Always verify actual deployed workflow IDs**
-5. **Use intermediate files for complex JSON parsing**
-6. **Use kairon-ops.sh exclusively for database operations**
-7. **Verify workflow behavior through database inspection**
-8. **Document environment-specific tool usage**
+The tooling issues have been largely resolved with the introduction of local development testing. Key improvements:
 
-## Recommendations for Future Improvements
+1. **Local dev environment** with Docker containers
+2. **Workflow transformation** for mock testing
+3. **Direct API access** for local n8n instance
+4. **Database setup** scripts for local testing
 
-1. **Update kairon-ops.sh** to support both dev and prod environments
-2. **Improve deployment script** error handling and logging
-3. **Add integration testing** for webhook → workflow → database flows
-4. **Create environment-specific documentation** for all tools
-5. **Add workflow ID verification** to deployment scripts
-6. **Implement automated workflow updates** with proper error handling
+## Current Best Practices
+
+1. **Use local containers** for development testing
+2. **Transform workflows** with `transform_for_dev.py` for mocks
+3. **Push via API** to local n8n instance
+4. **Test webhooks** directly against local instance
+5. **Use kairon-ops.sh** only for production operations
+6. **Verify database** state through local connections
+
+## Future Improvements
+
+1. **Automated local testing** pipeline
+2. **Integration tests** for webhook flows
+3. **UI for workflow management** in dev
+4. **Database seeding** for consistent test data
 
 ## Impact Assessment
 
