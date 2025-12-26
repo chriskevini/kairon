@@ -88,18 +88,39 @@ setup_local_dev() {
     else
         echo "Starting..."
         docker-compose -f "$REPO_ROOT/docker-compose.dev.yml" up -d
-        echo "Waiting for services to start..."
-        sleep 10
+        echo "Waiting for services to be ready..."
+        
+        # Wait for PostgreSQL to be ready
+        local max_wait=30
+        local wait_count=0
+        while [ $wait_count -lt $max_wait ]; do
+            if docker exec postgres-dev-local pg_isready -U postgres > /dev/null 2>&1; then
+                break
+            fi
+            sleep 1
+            wait_count=$((wait_count + 1))
+        done
+        
+        if [ $wait_count -ge $max_wait ]; then
+            echo "❌ PostgreSQL failed to start"
+            exit 1
+        fi
+        
+        # Wait a bit more for n8n
+        sleep 5
         echo "✅ Containers started"
     fi
     
     # 2. Check database initialization
     echo -n "Checking database schema... "
-    if docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "\dt events" 2>/dev/null | grep -q events; then
+    local DB_USER="${DB_USER:-postgres}"
+    local DB_NAME="${DB_NAME:-kairon_dev}"
+    
+    if docker exec postgres-dev-local psql -U "$DB_USER" -d "$DB_NAME" -c "\dt events" 2>/dev/null | grep -q events; then
         echo "✅ Already initialized"
     else
         echo "Initializing..."
-        docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < "$REPO_ROOT/db/schema.sql"
+        docker exec -i postgres-dev-local psql -U "$DB_USER" -d "$DB_NAME" < "$REPO_ROOT/db/schema.sql"
         echo "✅ Schema loaded"
     fi
     

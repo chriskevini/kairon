@@ -27,7 +27,7 @@ services:
       - kairon-dev
 
   postgres-dev:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: postgres-dev-local
     restart: unless-stopped
     ports:
