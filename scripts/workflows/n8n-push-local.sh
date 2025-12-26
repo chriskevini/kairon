@@ -16,6 +16,18 @@ WORKFLOW_DIR="${WORKFLOW_DIR:-$REPO_ROOT/n8n-workflows}"
 N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
 N8N_API_KEY="${N8N_API_KEY:-}"
 
+# Support basic auth for local development
+N8N_BASIC_AUTH_USER="${N8N_BASIC_AUTH_USER:-}"
+N8N_BASIC_AUTH_PASSWORD="${N8N_BASIC_AUTH_PASSWORD:-}"
+
+# Build auth header based on available credentials
+AUTH_HEADER=""
+if [ -n "$N8N_API_KEY" ]; then
+    AUTH_HEADER="-H X-N8N-API-KEY: $N8N_API_KEY"
+elif [ -n "$N8N_BASIC_AUTH_USER" ] && [ -n "$N8N_BASIC_AUTH_PASSWORD" ]; then
+    AUTH_HEADER="-u $N8N_BASIC_AUTH_USER:$N8N_BASIC_AUTH_PASSWORD"
+fi
+
 # Initialize associative array
 declare -A WORKFLOW_IDS=()
 
@@ -25,7 +37,7 @@ echo ""
 
 # Fetch existing workflows
 echo "Fetching existing workflows..."
-RESPONSE=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/rest/workflows?take=100")
+RESPONSE=$(curl -s $AUTH_HEADER "$N8N_API_URL/rest/workflows?take=100")
 REMOTE_WORKFLOWS=$(echo "$RESPONSE" | jq -r '.data? // []')
 
 if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "null" ]; then
@@ -76,7 +88,7 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
     if [ -n "$existing_id" ]; then
         # Update existing workflow
         result=$(echo "$cleaned" | curl -s -X PUT \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            $AUTH_HEADER \
             -H "Content-Type: application/json" \
             "$N8N_API_URL/rest/workflows/$existing_id" \
             -d @-)
@@ -88,7 +100,7 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
             # Activate if needed
             if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
                 curl -s -X POST \
-                    -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                    $AUTH_HEADER \
                     "$N8N_API_URL/rest/workflows/$existing_id/activate" > /dev/null
             fi
         else
@@ -99,7 +111,7 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
     else
         # Create new workflow
         result=$(echo "$cleaned" | curl -s -X POST \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            $AUTH_HEADER \
             -H "Content-Type: application/json" \
             "$N8N_API_URL/rest/workflows" \
             -d @-)
@@ -112,7 +124,7 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
             # Activate if needed
             if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
                 curl -s -X POST \
-                    -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                    $AUTH_HEADER \
                     "$N8N_API_URL/rest/workflows/$new_id/activate" > /dev/null
             fi
         else

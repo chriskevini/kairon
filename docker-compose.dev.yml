@@ -12,7 +12,10 @@ services:
       - N8N_PATH=/
       - WEBHOOK_URL=http://localhost:5679/
       - N8N_ENCRYPTION_KEY=${N8N_DEV_ENCRYPTION_KEY:-dev-local-encryption-key-32chars}
-      - N8N_USER_MANAGEMENT_DISABLED=true
+      # Authentication setup for local development
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_DEV_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_DEV_PASSWORD:-admin}
       - N8N_DIAGNOSTICS_ENABLED=false
       - EXECUTIONS_MODE=manual
       - EXECUTIONS_TIMEOUT=300

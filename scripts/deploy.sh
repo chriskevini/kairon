@@ -120,7 +120,26 @@ setup_local_dev() {
         echo "✅ Already initialized"
     else
         echo "Initializing..."
-        docker exec -i postgres-dev-local psql -U "$DB_USER" -d "$DB_NAME" < "$REPO_ROOT/db/schema.sql"
+        local SCHEMA_OUTPUT=$(mktemp)
+        CLEANUP_FILES+=("$SCHEMA_OUTPUT")
+        
+        if ! docker exec -i postgres-dev-local psql -U "$DB_USER" -d "$DB_NAME" < "$REPO_ROOT/db/schema.sql" > "$SCHEMA_OUTPUT" 2>&1; then
+            echo "❌ Schema loading failed"
+            echo "----------------------------------------"
+            cat "$SCHEMA_OUTPUT"
+            echo "----------------------------------------"
+            exit 1
+        fi
+        
+        # Check for ROLLBACK in output (indicates transaction failure)
+        if grep -q "ROLLBACK" "$SCHEMA_OUTPUT"; then
+            echo "❌ Schema loading failed (transaction rolled back)"
+            echo "----------------------------------------"
+            cat "$SCHEMA_OUTPUT"
+            echo "----------------------------------------"
+            exit 1
+        fi
+        
         echo "✅ Schema loaded"
     fi
     
@@ -141,7 +160,10 @@ deploy_dev() {
     local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
     local API_KEY="${N8N_DEV_API_KEY:-}"
     
-    # For localhost, we use basic auth instead of API key
+    # For localhost, use basic auth instead of API key
+    local BASIC_AUTH_USER="${N8N_DEV_USER:-admin}"
+    local BASIC_AUTH_PASSWORD="${N8N_DEV_PASSWORD:-admin}"
+    
     if [[ "$API_URL" == http://localhost* ]]; then
         API_KEY=""
     fi
@@ -201,6 +223,7 @@ deploy_dev() {
         fi
 
         WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
+            N8N_BASIC_AUTH_USER="$BASIC_AUTH_USER" N8N_BASIC_AUTH_PASSWORD="$BASIC_AUTH_PASSWORD" \
             "$SCRIPT_DIR/workflows/n8n-push-local.sh" > "$DEPLOY_LOG" 2>&1
     } || {
         echo "❌ FAILED"
@@ -217,22 +240,15 @@ deploy_dev() {
     echo "   Deployment Summary:"
     echo "   Source: $TEMP_DIR"
 
-    local DEV_WORKFLOW_IDS_AFTER
-    DEV_WORKFLOW_IDS_AFTER=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
-        "$API_URL/rest/workflows?take=100" | \
-        jq -c '[.data[]? | {(.name): .id}] | add // {}')
-
-    # Count and show workflow changes
-    local workflow_count
-    workflow_count=$(echo "$DEV_WORKFLOW_IDS_AFTER" | jq 'keys | length')
-    echo "   Accessible workflows: $workflow_count"
-
     # Show the deploy log output
     if [ -f "$DEPLOY_LOG" ] && [ -s "$DEPLOY_LOG" ]; then
         echo ""
         echo "   Push details:"
         cat "$DEPLOY_LOG" | sed 's/^/   /'
     fi
+    
+    # Note: Workflow ID verification removed for local dev (basic auth makes it complex)
+    # Stage 2 tests will catch any deployment issues
 }
 
 # --- COMPREHENSIVE FUNCTIONAL TESTS ---
