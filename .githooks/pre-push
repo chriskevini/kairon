@@ -17,8 +17,44 @@ echo ""
 # Check if any workflow files are being pushed
 WORKFLOW_CHANGES=$(git diff --name-only HEAD @{upstream} 2>/dev/null | grep -c "n8n-workflows/" || true)
 
+# Check if any migration files are being pushed
+MIGRATION_CHANGES=$(git diff --name-only HEAD @{upstream} 2>/dev/null | grep "db/migrations/.*\.sql$" || true)
+
+if [ "$WORKFLOW_CHANGES" -eq 0 ] && [ -z "$MIGRATION_CHANGES" ]; then
+    echo "No workflow or migration changes detected, skipping deployment"
+    exit 0
+fi
+
+# Run migration tests if migrations changed
+if [ -n "$MIGRATION_CHANGES" ]; then
+    echo "========================================"
+    echo "Detected migration file(s) changed"
+    echo "========================================"
+    echo ""
+
+    for migration in $MIGRATION_CHANGES; do
+        if [ -f "$migration" ]; then
+            echo "Testing migration: $migration"
+            "$REPO_ROOT/scripts/db/test-migration.sh" "$migration" || {
+                echo ""
+                echo "========================================"
+                echo "MIGRATION TEST FAILED: $migration"
+                echo "========================================"
+                echo ""
+                echo "Fix the migration issues and try again."
+                exit 1
+            }
+            echo ""
+        fi
+    done
+
+    echo "========================================"
+    echo "All migration tests passed"
+    echo "========================================"
+    echo ""
+fi
+
 if [ "$WORKFLOW_CHANGES" -eq 0 ]; then
-    echo "No workflow changes detected, skipping deployment"
     exit 0
 fi
 
