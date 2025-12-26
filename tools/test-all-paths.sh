@@ -262,36 +262,90 @@ else
     EXIT_CODE=1
 fi
 
-if [ "$VERIFY_DB" = true ] && [ -f "$SCRIPT_DIR/kairon-ops.sh" ]; then
+# Enhanced database verification
+verify_database_processing() {
     [ "$QUIET_MODE" = false ] && echo ""
-    log_info "=== Database Verification ==="
-    log_info "Waiting 3s for async processing..."
-    sleep 3
+    echo -e "${BLUE}=== Database Verification ===${NC}"
+    echo -e "${YELLOW}Waiting for async processing (30s timeout)...${NC}"
     
+    # Set up db query function based on environment
+    # Extract just the numeric result using grep to avoid psql format dependencies
     if [ "$DEV_MODE" = true ]; then
-        # Use rdev directly with dev container settings
         db_verify() {
-            CONTAINER_DB=postgres-dev DB_NAME=kairon_dev rdev db "$1"
+            CONTAINER_DB=postgres-dev DB_NAME=kairon_dev rdev db "$1" 2>/dev/null | grep -oE '[0-9]+' | head -1
         }
     else
         db_verify() {
-            "$SCRIPT_DIR/kairon-ops.sh" db-query "$1"
+            "$SCRIPT_DIR/kairon-ops.sh" db-query "$1" 2>/dev/null | grep -oE '[0-9]+' | head -1
         }
     fi
-
-    test_count=$(db_verify \
-        "SELECT COUNT(*) FROM events WHERE (idempotency_key LIKE 'test-msg-%' OR payload->>'discord_message_id' LIKE 'test-msg-%') AND received_at > NOW() - INTERVAL '5 minutes';" \
-        | awk 'NR==3 {print $1}')
     
-    # Try a broader search if count is 0
-    if [ "${test_count:-0}" -eq 0 ]; then
-        log_info "Retrying broader search..."
+    # Wait for events to be processed with periodic checks
+    local elapsed=0
+    local timeout=30
+    local test_count=0
+    
+    while [ $elapsed -lt $timeout ]; do
         test_count=$(db_verify \
-            "SELECT COUNT(*) FROM events WHERE (idempotency_key LIKE 'test-msg-%' OR payload->>'discord_message_id' LIKE 'test-msg-%') AND received_at > NOW() - INTERVAL '10 minutes';" \
-            | awk 'NR==3 {print $1}')
+            "SELECT COUNT(*) FROM events WHERE (idempotency_key LIKE 'test-msg-%' OR payload->>'discord_message_id' LIKE 'test-msg-%') AND received_at > NOW() - INTERVAL '5 minutes';" \
+            || echo "0")
+        
+        if [ "${test_count:-0}" -gt 0 ]; then
+            break
+        fi
+        
+        sleep 2
+        elapsed=$((elapsed + 2))
+        [ "$QUIET_MODE" = false ] && echo -n "."
+    done
+    [ "$QUIET_MODE" = false ] && echo ""
+    
+    if [ "${test_count:-0}" -eq 0 ]; then
+        echo -e "${RED}  ✗ No test events found in database${NC}"
+        echo -e "${YELLOW}     Tip: n8n may be down or webhook not reachable${NC}"
+        return 1
     fi
     
-    log_info "Test events in DB: ${test_count:-0} / $TOTAL_TESTS"
+    echo -e "${GREEN}  ✓ Found $test_count / $TOTAL_TESTS test events in database${NC}"
+    
+    # Check for traces (workflow processing)
+    local traced_count
+    traced_count=$(db_verify \
+        "SELECT COUNT(DISTINCT t.event_id) FROM traces t JOIN events e ON e.id = t.event_id WHERE (e.idempotency_key LIKE 'test-msg-%' OR e.payload->>'discord_message_id' LIKE 'test-msg-%') AND e.received_at > NOW() - INTERVAL '5 minutes';" \
+        || echo "0")
+    
+    if [ "${traced_count:-0}" -gt 0 ]; then
+        echo -e "${GREEN}  ✓ $traced_count events processed by workflows (have traces)${NC}"
+    else
+        echo -e "${YELLOW}  ⚠ No workflow traces found (workflows may not be processing)${NC}"
+    fi
+    
+    # Check for projections (data extraction)
+    local projection_count
+    projection_count=$(db_verify \
+        "SELECT COUNT(DISTINCT p.trace_id) FROM projections p JOIN traces t ON t.id = p.trace_id JOIN events e ON e.id = t.event_id WHERE (e.idempotency_key LIKE 'test-msg-%' OR e.payload->>'discord_message_id' LIKE 'test-msg-%') AND e.received_at > NOW() - INTERVAL '5 minutes';" \
+        || echo "0")
+    
+    if [ "${projection_count:-0}" -gt 0 ]; then
+        echo -e "${GREEN}  ✓ $projection_count events created projections${NC}"
+    fi
+    
+    # Summary
+    echo ""
+    if [ "${traced_count:-0}" -lt "${test_count:-0}" ]; then
+        echo -e "${YELLOW}  ⚠ Some events not fully processed by workflows${NC}"
+        return 1
+    else
+        echo -e "${GREEN}  ✓ All test events successfully processed${NC}"
+        return 0
+    fi
+}
+
+if [ "$VERIFY_DB" = true ] && [ -f "$SCRIPT_DIR/kairon-ops.sh" ]; then
+    verify_database_processing || {
+        echo -e "${RED}Database verification failed${NC}"
+        EXIT_CODE=1
+    }
 fi
 
 exit $EXIT_CODE
