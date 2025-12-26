@@ -269,13 +269,14 @@ verify_database_processing() {
     echo -e "${YELLOW}Waiting for async processing (30s timeout)...${NC}"
     
     # Set up db query function based on environment
+    # Extract just the numeric result using grep to avoid psql format dependencies
     if [ "$DEV_MODE" = true ]; then
         db_verify() {
-            CONTAINER_DB=postgres-dev DB_NAME=kairon_dev rdev db "$1" 2>/dev/null
+            CONTAINER_DB=postgres-dev DB_NAME=kairon_dev rdev db "$1" 2>/dev/null | grep -oE '[0-9]+' | head -1
         }
     else
         db_verify() {
-            "$SCRIPT_DIR/kairon-ops.sh" db-query "$1" 2>/dev/null
+            "$SCRIPT_DIR/kairon-ops.sh" db-query "$1" 2>/dev/null | grep -oE '[0-9]+' | head -1
         }
     fi
     
@@ -287,7 +288,7 @@ verify_database_processing() {
     while [ $elapsed -lt $timeout ]; do
         test_count=$(db_verify \
             "SELECT COUNT(*) FROM events WHERE (idempotency_key LIKE 'test-msg-%' OR payload->>'discord_message_id' LIKE 'test-msg-%') AND received_at > NOW() - INTERVAL '5 minutes';" \
-            | awk 'NR==3 {print $1}' 2>/dev/null || echo "0")
+            || echo "0")
         
         if [ "${test_count:-0}" -gt 0 ]; then
             break
@@ -311,7 +312,7 @@ verify_database_processing() {
     local traced_count
     traced_count=$(db_verify \
         "SELECT COUNT(DISTINCT t.event_id) FROM traces t JOIN events e ON e.id = t.event_id WHERE (e.idempotency_key LIKE 'test-msg-%' OR e.payload->>'discord_message_id' LIKE 'test-msg-%') AND e.received_at > NOW() - INTERVAL '5 minutes';" \
-        | awk 'NR==3 {print $1}' 2>/dev/null || echo "0")
+        || echo "0")
     
     if [ "${traced_count:-0}" -gt 0 ]; then
         echo -e "${GREEN}  ✓ $traced_count events processed by workflows (have traces)${NC}"
@@ -323,7 +324,7 @@ verify_database_processing() {
     local projection_count
     projection_count=$(db_verify \
         "SELECT COUNT(DISTINCT p.trace_id) FROM projections p JOIN traces t ON t.id = p.trace_id JOIN events e ON e.id = t.event_id WHERE (e.idempotency_key LIKE 'test-msg-%' OR e.payload->>'discord_message_id' LIKE 'test-msg-%') AND e.received_at > NOW() - INTERVAL '5 minutes';" \
-        | awk 'NR==3 {print $1}' 2>/dev/null || echo "0")
+        || echo "0")
     
     if [ "${projection_count:-0}" -gt 0 ]; then
         echo -e "${GREEN}  ✓ $projection_count events created projections${NC}"
