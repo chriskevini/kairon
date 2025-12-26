@@ -49,7 +49,6 @@ NC='\033[0m'
 # Flags
 DRY_RUN=false
 STATUS_ONLY=false
-ROLLBACK=false
 SPECIFIC_VERSION=""
 VERIFY_CHECKSUMS=false
 
@@ -84,7 +83,6 @@ Commands:
     status          Show migration status (applied vs pending)
     --dry-run       Show pending migrations without executing
     --version N     Run specific migration (e.g., --version 025)
-    --rollback      Rollback last migration
     --verify        Verify checksums of all applied migrations
 
 Options:
@@ -101,7 +99,6 @@ Examples:
     $0 --dry-run                # Show pending migrations
     $0                          # Run pending migrations
     $0 --version 025            # Run specific migration
-    $0 --rollback               # Rollback last migration
     $0 --verify                 # Verify all applied migration checksums
 
 EOF
@@ -123,11 +120,7 @@ while [[ $# -gt 0 ]]; do
             SPECIFIC_VERSION="$2"
             shift 2
             ;;
-        --rollback)
-            ROLLBACK=true
-            shift
-            ;;
-    --verify)
+        --verify)
             VERIFY_CHECKSUMS=true
             shift
             ;;
@@ -169,7 +162,7 @@ if [ "$SCHEMA_MIGRATIONS_EXISTS" != "t" ]; then
 fi
 
 # Get list of migration files
-MIGRATION_FILES=($(find "$MIGRATIONS_DIR" -name "*.sql" -type f | sort))
+MIGRATION_FILES=($(find "$MIGRATIONS_DIR" -maxdepth 1 -name "*.sql" -type f | sort))
 
 if [ ${#MIGRATION_FILES[@]} -eq 0 ]; then
     log_info "No migration files found in $MIGRATIONS_DIR"
@@ -268,10 +261,11 @@ if [ -n "$SPECIFIC_VERSION" ]; then
     mkdir -p "$(dirname "$LOG_FILE")"
 
     if $PSQL -f "$MIGRATION_FILE" 2>&1 | tee "$LOG_FILE"; then
-        # Record migration
+        # Record migration (escape description to prevent SQL injection)
+        description_escaped=$(printf '%s' "$description" | sed "s/'/''/g")
         $PSQL -c "
             INSERT INTO schema_migrations (version, description, checksum)
-            VALUES ('$SPECIFIC_VERSION', '$description', '$checksum');
+            VALUES ('$SPECIFIC_VERSION', '$description_escaped', '$checksum');
         " > /dev/null
 
         log_success "Migration $SPECIFIC_VERSION applied successfully"
@@ -318,10 +312,11 @@ for migration_file in "${MIGRATION_FILES[@]}"; do
     mkdir -p "$(dirname "$LOG_FILE")"
 
     if $PSQL -f "$migration_file" 2>&1 | tee "$LOG_FILE"; then
-        # Record migration
+        # Record migration (escape description to prevent SQL injection)
+        description_escaped=$(printf '%s' "$description" | sed "s/'/''/g")
         $PSQL -c "
             INSERT INTO schema_migrations (version, description, checksum)
-            VALUES ('$version', '$description', '$checksum');
+            VALUES ('$version', '$description_escaped', '$checksum');
         " > /dev/null
 
         log_success "Migration $version applied successfully"
@@ -354,12 +349,8 @@ if [ "$VERIFY_CHECKSUMS" = true ]; then
     VERIFICATION_FAILED=false
     VERIFIED_COUNT=0
 
-    # Get all applied migrations with their checksums
-    $PSQL -c "
-        SELECT version, checksum
-        FROM schema_migrations
-        ORDER BY version;
-    " | while IFS='|' read -r version stored_checksum; do
+    # Get all applied migrations with their checksums (using process substitution to avoid subshell)
+    while IFS='|' read -r version stored_checksum; do
         # Skip header
         if [ "$version" = "version" ]; then
             continue
@@ -385,7 +376,11 @@ if [ "$VERIFY_CHECKSUMS" = true ]; then
             log_warning "  Migration file has been modified since application"
             VERIFICATION_FAILED=true
         fi
-    done
+    done < <($PSQL -c "
+        SELECT version, checksum
+        FROM schema_migrations
+        ORDER BY version;
+    ")
 
     echo ""
     if [ "$VERIFICATION_FAILED" = true ]; then
