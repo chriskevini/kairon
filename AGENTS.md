@@ -8,6 +8,15 @@ Instructions for AI agents working on Kairon - a life-tracking system using n8n 
 
 Kairon supports local development testing with Docker containers.
 
+### Environment Variables
+
+For local development, these variables are optional (docker-compose.dev.yml provides defaults):
+
+- `DB_USER` - Database user (default: postgres)
+- `DB_NAME` - Database name (default: kairon_dev)
+- `N8N_DEV_ENCRYPTION_KEY` - n8n encryption key (default: dev-local-encryption-key-32chars)
+- `NO_MOCKS` - Set to "1" to use real APIs instead of mocks
+
 ### Setup
 
 ```bash
@@ -15,16 +24,20 @@ Kairon supports local development testing with Docker containers.
 docker-compose -f docker-compose.dev.yml up -d
 
 # Load database schema
-source .env
-docker exec -i postgres-dev-local psql -U $DB_USER -d $DB_NAME < db/schema.sql
+docker exec -i postgres-dev-local psql -U ${DB_USER:-postgres} -d ${DB_NAME:-kairon_dev} < db/schema.sql
 
 # Transform workflows for dev
 mkdir -p n8n-workflows-transformed
 for wf in n8n-workflows/*.json; do
-  cat "$wf" | python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")"
+  if ! cat "$wf" | python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")" 2>/dev/null; then
+    echo "Warning: Failed to transform $(basename "$wf")"
+  fi
 done
 
-# Push to local n8n
+# Push all transformed workflows
+N8N_API_URL=http://localhost:5679 N8N_API_KEY="" WORKFLOW_DIR=n8n-workflows-transformed ./scripts/workflows/n8n-push-local.sh
+
+# Or push single workflow manually (for quick iteration)
 curl -X POST http://localhost:5679/api/v1/workflows \
   -H "Content-Type: application/json" \
   -d "$(jq '{name, nodes, connections, settings}' n8n-workflows-transformed/Route_Event.json)"
@@ -32,8 +45,8 @@ curl -X POST http://localhost:5679/api/v1/workflows \
 
 ### Services
 
-- **n8n:** http://localhost:5679 (no auth required)
-- **PostgreSQL:** localhost:5433, database: kairon
+- **n8n:** http://localhost:5679 (no API authentication - N8N_API_KEY is empty)
+- **PostgreSQL:** localhost:5433, database: kairon_dev (default)
 
 ### Testing Webhooks
 
@@ -41,7 +54,15 @@ curl -X POST http://localhost:5679/api/v1/workflows \
 # Send test message
 curl -X POST http://localhost:5679/webhook/kairon-dev-test \
   -H "Content-Type: application/json" \
-  -d '{"event_type": "message", "content": "$$ buy milk", "guild_id": "test", "channel_id": "test", "message_id": "test123", "author": {"login": "test"}, "timestamp": "2025-12-26T12:00:00Z"}'
+  -d '{
+    "event_type": "message",
+    "guild_id": "test-guild",
+    "channel_id": "test-channel",
+    "message_id": "test123",
+    "author": {"login": "testuser", "id": "12345", "display_name": "Test User"},
+    "content": "$$ buy milk",
+    "timestamp": "2025-12-26T12:00:00Z"
+  }'
 ```
 
 ### Workflow Transformation
@@ -487,8 +508,7 @@ SQL scripts in `scripts/db/` for checking database state:
 docker exec -i postgres-db psql -U $DB_USER -d $DB_NAME < scripts/db/check_migration_status.sql
 
 # Local dev: Run a health check
-source .env
-docker exec -i postgres-dev-local psql -U $DB_USER -d $DB_NAME < scripts/db/check_migration_status.sql
+docker exec -i postgres-dev-local psql -U ${DB_USER:-postgres} -d ${DB_NAME:-kairon_dev} < scripts/db/check_migration_status.sql
 
 # Check processing by tag
 docker exec -i postgres-db psql -U $DB_USER -d $DB_NAME < scripts/db/check_orphans_by_tag.sql

@@ -21,12 +21,55 @@ Kairon now supports local development testing with Docker containers for n8n and
 2. **Set up database:**
    ```bash
    # Load schema
-   docker exec -i postgres-dev-local psql -U n8n_user -d kairon < db/schema.sql
+   docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < db/schema.sql
 
-   # Or for custom DB_USER/DB_NAME from .env:
-   source .env
-   docker exec -i postgres-dev-local psql -U $DB_USER -d $DB_NAME < db/schema.sql
-   ```
+    # Or for custom DB_USER/DB_NAME from .env:
+    source .env
+    docker exec -i postgres-dev-local psql -U ${DB_USER:-postgres} -d ${DB_NAME:-kairon_dev} < db/schema.sql
+    ```
+
+### Complete First-Time Setup
+
+```bash
+# 1. Clone and enter repo
+cd /path/to/kairon
+
+# 2. Start containers
+docker-compose -f docker-compose.dev.yml up -d
+
+# 3. Wait for services (optional but recommended)
+sleep 10
+
+# 4. Load database schema
+docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < db/schema.sql
+
+# 5. Transform workflows
+mkdir -p n8n-workflows-transformed
+for wf in n8n-workflows/*.json; do
+  if ! cat "$wf" | python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")" 2>/dev/null; then
+    echo "Warning: Failed to transform $(basename "$wf")"
+  fi
+done
+
+# 6. Push to n8n
+N8N_API_URL=http://localhost:5679 N8N_API_KEY="" WORKFLOW_DIR=n8n-workflows-transformed ./scripts/workflows/n8n-push-local.sh
+
+# 7. Test webhook
+curl -X POST http://localhost:5679/webhook/kairon-dev-test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_type": "message",
+    "guild_id": "test-guild",
+    "channel_id": "test-channel",
+    "message_id": "test123",
+    "author": {"login": "testuser", "id": "12345", "display_name": "Test User"},
+    "content": "!! test activity",
+    "timestamp": "2025-12-26T12:00:00Z"
+  }'
+
+# 8. Check database for results
+docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT COUNT(*) FROM events;"
+```
 
 3. **Transform workflows for dev:**
    ```bash
@@ -151,17 +194,15 @@ echo $N8N_API_KEY # Empty because not exported properly
 - Inconsistent API endpoint usage
 
 ### Workaround
-Explicitly export and verify API keys:
+Use authentication appropriate for each environment:
 ```bash
-# Extract and export the correct key
+# For local dev (no auth required - N8N_API_KEY is empty in docker-compose.dev.yml)
+curl "http://localhost:5679/api/v1/workflows"
+
+# For remote dev/prod instances (authentication required)
 export N8N_API_KEY="$(grep N8N_DEV_API_KEY .env | cut -d'=' -f2)"
-
-# Verify key is set
-echo "Key starts with: $(echo $N8N_API_KEY | cut -c1-20)..."
-
-# Use consistent curl commands
 curl -H "X-N8N-API-KEY: $N8N_API_KEY" \
-     "http://localhost:5679/api/v1/workflows"
+      "http://remote-dev:5679/api/v1/workflows"
 ```
 
 ## Problem 4: Workflow ID Mismatches
@@ -344,6 +385,39 @@ The tooling issues have been largely resolved with the introduction of local dev
 2. **Integration tests** for webhook flows
 3. **UI for workflow management** in dev
 4. **Database seeding** for consistent test data
+
+### Troubleshooting Local Development
+
+#### "Connection refused" when accessing n8n
+```bash
+# Check if container is running
+docker ps | grep n8n-dev-local
+
+# Check logs
+docker logs n8n-dev-local
+```
+
+#### "Workflow not found" after pushing
+```bash
+# List all workflows
+curl -s http://localhost:5679/api/v1/workflows | jq '.data[] | {name, id, active}'
+```
+
+#### Database schema not loading
+```bash
+# Check if database exists
+docker exec postgres-dev-local psql -U postgres -l
+```
+
+### Cleanup
+
+```bash
+# Stop containers
+docker-compose -f docker-compose.dev.yml down
+
+# Remove volumes (WARNING: deletes all data)
+docker-compose -f docker-compose.dev.yml down -v
+```
 
 ## Impact Assessment
 
