@@ -75,49 +75,40 @@ setup_ssh_tunnel() {
 # --- DEV DEPLOYMENT ---
 deploy_dev() {
     echo -n "STAGE 1: Deploy to DEV... "
-    
+
     if [ -z "${N8N_DEV_API_KEY:-}" ]; then
         echo "❌ FAILED (N8N_DEV_API_KEY not set)"
         exit 1
     fi
-    
+
     local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
     local API_KEY="$N8N_DEV_API_KEY"
-    
+
     # Check if dev stack is running
     if ! curl -s -o /dev/null -w "" "$API_URL/" 2>/dev/null; then
         echo "❌ FAILED (Dev n8n not responding at $API_URL)"
         exit 1
     fi
-    
+
+    # Validate workflow names are unique
+    validate_workflow_names || exit 1
+
     TEMP_DIR=$(mktemp -d)
     OUTPUT_FILE=$(mktemp)
     DEPLOY_LOG=$(mktemp)
     CLEANUP_FILES+=("$TEMP_DIR" "$OUTPUT_FILE" "$DEPLOY_LOG")
-    
-    # Get workflow IDs upfront for ID remapping and post-deployment verification
-    local DEV_WORKFLOW_IDS_BEFORE
-    DEV_WORKFLOW_IDS_BEFORE=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
-        "$API_URL/api/v1/workflows?limit=100" | \
-        jq -c '[.data[]? | {(.name): .id}] | add // {}')
-    
+
+    # Note: No ID remapping needed for mode:list with cachedResultName (portable workflow references)
+    # Workflows use cachedResultName instead of hardcoded IDs, making them environment-agnostic
+    WORKFLOW_ID_REMAP='{}'
+
     # Wrap actual deployment in a block to capture output
     {
         PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
         PROD_API_KEY="${N8N_API_KEY:-}"
-        
-        if [ -n "$PROD_API_KEY" ] && [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
-            PROD_WORKFLOW_IDS=$(ssh "$N8N_DEV_SSH_HOST" \
-                "source /opt/n8n-docker-caddy/.env && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
-                jq -c '[.data[]? | {(.name): .id}] | add // {}')
-            
-            WORKFLOW_ID_REMAP=$(echo "$PROD_WORKFLOW_IDS" "$DEV_WORKFLOW_IDS_BEFORE" | \
-                jq -sc '.[0] as $prod | .[1] as $dev | 
-                    [$prod | to_entries[] | {(.value): $dev[.key]}] | 
-                    add // {}')
-        else
-            WORKFLOW_ID_REMAP='{}'
-        fi
+
+        # ID remapping disabled - using mode:list for portable workflows
+        WORKFLOW_ID_REMAP='{}'
 
         # Single pass transformation & push
         for workflow in "$WORKFLOW_DIR"/*.json; do
@@ -126,7 +117,7 @@ deploy_dev() {
             workflow_name=$(basename "$workflow" .json)
             WORKFLOW_NAME="$workflow_name" WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
         done
-        
+
         if [ -d "$WORKFLOW_DEV_DIR" ]; then
             for workflow in "$WORKFLOW_DEV_DIR"/*.json; do
                 [ -f "$workflow" ] || continue
@@ -134,7 +125,7 @@ deploy_dev() {
                 cp "$workflow" "$TEMP_DIR/$filename"
             done
         fi
-        
+
         WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
             "$SCRIPT_DIR/workflows/n8n-push-local.sh" > "$DEPLOY_LOG" 2>&1
     } || {
@@ -144,24 +135,24 @@ deploy_dev() {
         echo "----------------------------------------"
         return 1
     }
-    
+
     echo "✅ PASSED"
-    
+
     # Verify deployment - show what was created/updated
     echo ""
     echo "   Deployment Summary:"
     echo "   Source: $TEMP_DIR"
-    
+
     local DEV_WORKFLOW_IDS_AFTER
     DEV_WORKFLOW_IDS_AFTER=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
         "$API_URL/api/v1/workflows?limit=100" | \
         jq -c '[.data[]? | {(.name): .id}] | add // {}')
-    
+
     # Count and show workflow changes
     local workflow_count
     workflow_count=$(echo "$DEV_WORKFLOW_IDS_AFTER" | jq 'keys | length')
     echo "   Accessible workflows: $workflow_count"
-    
+
     # Show the deploy log output
     if [ -f "$DEPLOY_LOG" ] && [ -s "$DEPLOY_LOG" ]; then
         echo ""
@@ -200,20 +191,23 @@ run_functional_tests() {
 # --- PROD DEPLOYMENT ---
 deploy_prod() {
     echo -n "STAGE 3: Deploy to PROD... "
-    
+
     if [ -z "${N8N_API_KEY:-}" ]; then
         echo "❌ FAILED (N8N_API_KEY not set)"
         exit 1
     fi
-    
+
     local PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
     local PROD_API_KEY="$N8N_API_KEY"
-    
+
+    # Validate workflow names are unique
+    validate_workflow_names || exit 1
+
     # Capture output for diagnostics
     OUTPUT_FILE=$(mktemp)
     DEPLOY_LOG=$(mktemp)
     CLEANUP_FILES+=("$OUTPUT_FILE" "$DEPLOY_LOG")
-    
+
     # Get workflow IDs before for verification
     local PROD_WORKFLOW_IDS_BEFORE=""
     if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
@@ -225,7 +219,7 @@ deploy_prod() {
             "$PROD_API_URL/api/v1/workflows?limit=100" | \
             jq -c '[.data[]? | {(.name): .id}] | add // {}')
     fi
-    
+
     {
         # Determine if we're on the remote server or local machine
         if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
@@ -234,11 +228,11 @@ deploy_prod() {
                 --exclude '.git' \
                 "$REPO_ROOT/n8n-workflows/" \
                 "$N8N_DEV_SSH_HOST:/opt/kairon/n8n-workflows/"
-            
+
             rsync -az \
                 "$SCRIPT_DIR/workflows/n8n-push-prod.sh" \
                 "$N8N_DEV_SSH_HOST:/opt/kairon/scripts/workflows/"
-            
+
             ssh "$N8N_DEV_SSH_HOST" "cd /opt/kairon && \
                 export \$(grep -E '^(N8N_API_KEY|N8N_API_URL)=' /opt/n8n-docker-caddy/.env) && \
                 WORKFLOW_DIR='/opt/kairon/n8n-workflows' \
@@ -256,13 +250,13 @@ deploy_prod() {
         echo "----------------------------------------"
         return 1
     }
-    
+
     echo "✅ PASSED"
-    
+
     # Verify deployment
     echo ""
     echo "   Deployment Summary:"
-    
+
     local PROD_WORKFLOW_IDS_AFTER=""
     if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
         PROD_WORKFLOW_IDS_AFTER=$(ssh "$N8N_DEV_SSH_HOST" \
@@ -273,17 +267,38 @@ deploy_prod() {
             "$PROD_API_URL/api/v1/workflows?limit=100" | \
             jq -c '[.data[]? | {(.name): .id}] | add // {}')
     fi
-    
+
     local workflow_count
     workflow_count=$(echo "$PROD_WORKFLOW_IDS_AFTER" | jq 'keys | length')
     echo "   Accessible workflows: $workflow_count"
-    
+
     # Show the deploy log output
     if [ -f "$DEPLOY_LOG" ] && [ -s "$DEPLOY_LOG" ]; then
         echo ""
         echo "   Push details:"
         cat "$DEPLOY_LOG" | sed 's/^/   /'
     fi
+}
+
+# --- WORKFLOW NAME VALIDATION ---
+validate_workflow_names() {
+    echo -n "Validating workflow names... "
+
+    local duplicates
+    duplicates=$(jq -r '.name' "$WORKFLOW_DIR"/*.json 2>/dev/null | sort | uniq -d)
+
+    if [ -n "$duplicates" ]; then
+        echo "❌ FAILED"
+        echo "ERROR: Duplicate workflow names found:"
+        echo "$duplicates"
+        echo ""
+        echo "Duplicate workflow names will cause mode:list references to fail."
+        echo "Please rename workflows to have unique names."
+        return 1
+    fi
+
+    echo "✅ PASSED"
+    return 0
 }
 
 # --- UNIT TESTS ---

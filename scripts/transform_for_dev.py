@@ -33,7 +33,12 @@ def load_workflow_id_remap():
 
 
 def transform_node(node: dict) -> dict:
-    """Transform a single node if it matches replacement criteria."""
+    """Transform a single node if it matches replacement criteria.
+
+    Note: mode:list Execute Workflow nodes are preserved to maintain
+    portable workflow references across environments. Workflow names are
+    stable across dev/prod/staging, while IDs change.
+    """
     node_type = node.get("type", "")
 
     # Webhook Trigger → Execute Workflow Trigger
