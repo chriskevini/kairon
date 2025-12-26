@@ -249,35 +249,86 @@ run_functional_tests() {
     echo "  ✅ PASSED (real APIs)"
 
     # Stage 2c: Quick prod verification
-    echo ""
-    echo "  Stage 2c: Quick prod verification..."
-    verify_prod_webhook_accessible || return 1
+    # echo ""
+    # echo "  Stage 2c: Quick prod verification..."
+    # verify_prod_webhook_accessible || return 1
 
     return 0
 }
 
 verify_prod_webhook_accessible() {
     local PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
+    local SMOKE_TEST_CONTENT="smoke_test_$(date +%s)"
     
-    # Lightweight check - just verify webhook accepts requests
+    echo "    1. Sending test webhook to Route_Event..."
     local RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
         -X POST "$PROD_API_URL/webhook/asoiaf92746087" \
         -H 'Content-Type: application/json' \
-        -d '{
-            "event_type": "test",
-            "content": "health_check",
-            "guild_id": "test",
-            "channel_id": "test",
-            "message_id": "test-'$(date +%s)'",
-            "author": {"login": "system"},
-            "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
-        }')
+        -d "{
+            \"event_type\": \"message\",
+            \"content\": \"$SMOKE_TEST_CONTENT\",
+            \"guild_id\": \"test\",
+            \"channel_id\": \"test\",
+            \"message_id\": \"smoke-$(date +%s)\",
+            \"author\": {\"login\": \"smoke_test\"},
+            \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+        }")
 
     if [ "$RESPONSE" != "200" ]; then
-        echo "❌ Prod webhook not responding (HTTP $RESPONSE)"
+        echo "❌ SMOKE TEST FAILED: Prod webhook not responding (HTTP $RESPONSE)"
         return 1
     fi
-    echo "  ✅ Prod webhook responding"
+    echo "    ✅ Webhook accepted"
+
+    echo "    2. Verifying execution success in n8n..."
+    local MAX_RETRIES=5
+    local RETRY_COUNT=0
+    local EXEC_STATUS=""
+    
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        sleep 2
+        local EXEC_DATA=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$PROD_API_URL/api/v1/executions?limit=5")
+        
+        EXEC_STATUS=$(echo "$EXEC_DATA" | jq -r --arg content "$SMOKE_TEST_CONTENT" '
+            .data[] | 
+            select(.workflowData.name == "Route_Message") | 
+            .status
+        ' | head -1)
+        
+        if [ "$EXEC_STATUS" = "success" ]; then
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+    done
+
+    if [ "$EXEC_STATUS" != "success" ]; then
+        echo "❌ SMOKE TEST FAILED: Route_Message execution status: ${EXEC_STATUS:-unknown} (after $MAX_RETRIES retries)"
+        return 1
+    fi
+    echo "    ✅ Execution status: $EXEC_STATUS"
+
+    echo "    3. Verifying event created in database..."
+    local EVENT_COUNT
+    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        EVENT_COUNT=$(ssh "$N8N_DEV_SSH_HOST" "docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -t -c \"SELECT COUNT(*) FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'\"" | tr -d '[:space:]')
+    else
+        EVENT_COUNT=$(docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -t -c "SELECT COUNT(*) FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'" | tr -d '[:space:]')
+    fi
+
+    if [ "$EVENT_COUNT" -lt 1 ]; then
+        echo "❌ SMOKE TEST FAILED: Event not found in database"
+        return 1
+    fi
+    echo "    ✅ Event found in database"
+
+    # Cleanup test event
+    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        ssh "$N8N_DEV_SSH_HOST" "docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -c \"DELETE FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'\"" > /dev/null
+    else
+        docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -c "DELETE FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'" > /dev/null
+    fi
+
     return 0
 }
 
@@ -480,11 +531,8 @@ deploy_prod() {
         echo "----------------------------------------"
         
         if [ -n "${LATEST_DEPLOY_BACKUP:-}" ]; then
-            read -p "      Deployment failed. Rollback to pre-deployment state? [y/N] " -n 1 -r
-            echo ""
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                rollback_prod "$LATEST_DEPLOY_BACKUP"
-            fi
+            echo "   Deployment failed. Rolling back automatically..."
+            rollback_prod "$LATEST_DEPLOY_BACKUP"
         fi
         return 1
     }
@@ -516,6 +564,18 @@ deploy_prod() {
         echo "   Push details:"
         cat "$DEPLOY_LOG" | sed 's/^/   /'
     fi
+
+    # Run deep smoke tests after production deployment
+    echo ""
+    echo "   Running post-deployment deep smoke tests..."
+    if ! verify_prod_webhook_accessible; then
+        if [ -n "${LATEST_DEPLOY_BACKUP:-}" ]; then
+            echo "   Smoke tests failed. Rolling back automatically..."
+            rollback_prod "$LATEST_DEPLOY_BACKUP"
+        fi
+        return 1
+    fi
+    echo "   ✅ Smoke tests passed"
 }
 
 # --- WORKFLOW NAME VALIDATION ---
