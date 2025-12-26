@@ -95,7 +95,7 @@ setup_local_dev() {
     
     # 2. Check database initialization
     echo -n "Checking database schema... "
-    if docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT 1 FROM events LIMIT 1" > /dev/null 2>&1; then
+    if docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "\dt events" 2>/dev/null | grep -q events; then
         echo "✅ Already initialized"
     else
         echo "Initializing..."
@@ -164,12 +164,11 @@ deploy_dev() {
             
 
             
-            # Only set NO_MOCKS env var when enabled
-            local no_mocks_var=""
+            # Set NO_MOCKS env var when enabled
             if [ "$NO_MOCKS" != "false" ]; then
-                no_mocks_var="NO_MOCKS=1"
+                export NO_MOCKS=1
             fi
-            env WORKFLOW_NAME="$workflow_name" WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" $no_mocks_var python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
+            env WORKFLOW_NAME="$workflow_name" WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
         done
 
         if [ -d "$WORKFLOW_DEV_DIR" ]; then
@@ -199,7 +198,7 @@ deploy_dev() {
 
     local DEV_WORKFLOW_IDS_AFTER
     DEV_WORKFLOW_IDS_AFTER=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
-        "$API_URL/api/v1/workflows?limit=100" | \
+        "$API_URL/rest/workflows?take=100" | \
         jq -c '[.data[]? | {(.name): .id}] | add // {}')
 
     # Count and show workflow changes

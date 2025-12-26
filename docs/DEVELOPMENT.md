@@ -48,11 +48,11 @@ This will:
 
 ### Authentication
 
-Local n8n uses basic authentication:
-- **Username:** admin
-- **Password:** admin
-- **Web UI:** http://localhost:5679
-- **API:** REST API uses basic auth (no API key needed)
+Local n8n has authentication disabled for development ease:
+- **Web UI:** http://localhost:5679 (no login required)
+- **REST API:** No authentication required
+- **Configuration:** `N8N_USER_MANAGEMENT_DISABLED=true` in docker-compose.dev.yml
+- **Deployment scripts:** No API key needed for localhost deployments
 
 ## Core Tools
 
@@ -63,7 +63,7 @@ Docker Compose configuration for local n8n and PostgreSQL development.
 **Location:** `docker-compose.dev.yml`
 
 **Services:**
-- **n8n-dev-local:** n8n instance on port 5679 (no authentication)
+- **n8n-dev-local:** n8n instance on port 5679 (authentication disabled)
 - **postgres-dev-local:** PostgreSQL on port 5433
 
 **Usage:**
@@ -179,11 +179,11 @@ For local development, these variables are optional (docker-compose.dev.yml prov
 
 ### Authentication
 
-Local n8n instance uses basic authentication for security while maintaining ease of development:
+Local n8n instance has authentication disabled for development ease:
 
-- **Web UI:** http://localhost:5679 (username: admin, password: admin)
-- **REST API:** Uses basic auth automatically (no API key configuration needed)
-- **Deployment scripts:** Automatically detect localhost and use basic auth
+- **Web UI:** http://localhost:5679 (no login required)
+- **REST API:** No authentication required (API calls work without credentials)
+- **Deployment scripts:** Automatically detect localhost and skip authentication
 
 ### Workflow Transformation Details
 
