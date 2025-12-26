@@ -126,11 +126,11 @@ deploy_dev() {
             filename=$(basename "$workflow")
             workflow_name=$(basename "$workflow" .json)
             # Only set NO_MOCKS env var when enabled
-            local env_vars="WORKFLOW_NAME=$workflow_name WORKFLOW_ID_REMAP=$WORKFLOW_ID_REMAP"
+            local no_mocks_var=""
             if [ "$NO_MOCKS" = "true" ]; then
-                env_vars="$env_vars NO_MOCKS=1"
+                no_mocks_var="NO_MOCKS=1"
             fi
-            $env_vars python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
+            env WORKFLOW_NAME="$workflow_name" WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" $no_mocks_var python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
         done
 
         if [ -d "$WORKFLOW_DEV_DIR" ]; then
