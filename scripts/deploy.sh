@@ -11,13 +11,15 @@
 #
 # Usage:
 #   ./scripts/deploy.sh           # Full pipeline: dev → test → prod
+#   ./scripts/deploy.sh local     # Set up local dev + deploy + test
 #   ./scripts/deploy.sh dev       # Deploy to dev only + run smoke tests
 #   ./scripts/deploy.sh prod      # Deploy to prod only (no tests)
 #
 # Prerequisites:
+#   - Local: docker-compose.dev.yml (./scripts/deploy.sh local handles setup)
 #   - Dev: docker-compose.dev.yml running on server
-#   - N8N_DEV_API_KEY and N8N_API_KEY set in .env
-#   - SSH access to remote server (N8N_DEV_SSH_HOST in .env)
+#   - Prod: N8N_API_KEY set in .env
+#   - Remote: SSH access to remote server (N8N_DEV_SSH_HOST in .env)
 
 set -euo pipefail
 
@@ -72,6 +74,38 @@ setup_ssh_tunnel() {
     fi
 }
 
+# --- LOCAL DEV ENVIRONMENT SETUP ---
+setup_local_dev() {
+    echo ""
+    echo "=========================================="
+    echo "Setting up local development environment"
+    echo "=========================================="
+    
+    # 1. Check if containers are running
+    echo -n "Checking Docker containers... "
+    if docker ps | grep -q "n8n-dev-local"; then
+        echo "✅ Already running"
+    else
+        echo "Starting..."
+        docker-compose -f "$REPO_ROOT/docker-compose.dev.yml" up -d
+        echo "Waiting for services to start..."
+        sleep 10
+        echo "✅ Containers started"
+    fi
+    
+    # 2. Check database initialization
+    echo -n "Checking database schema... "
+    if docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT 1 FROM events LIMIT 1" > /dev/null 2>&1; then
+        echo "✅ Already initialized"
+    else
+        echo "Initializing..."
+        docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < "$REPO_ROOT/db/schema.sql"
+        echo "✅ Schema loaded"
+    fi
+    
+    echo ""
+}
+
 # --- DEV DEPLOYMENT ---
 deploy_dev() {
     local NO_MOCKS="${1:-false}"
@@ -83,14 +117,10 @@ deploy_dev() {
 
     echo -n "$STAGE_NAME... "
 
-    if [ -z "${N8N_DEV_API_KEY:-}" ]; then
-        echo "❌ FAILED (N8N_DEV_API_KEY not set)"
-        exit 1
-    fi
-
     local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
-    local API_KEY="$N8N_DEV_API_KEY"
-    # For local dev, use basic auth instead of API key
+    local API_KEY="${N8N_DEV_API_KEY:-}"
+    
+    # For localhost, we use basic auth instead of API key
     if [[ "$API_URL" == http://localhost* ]]; then
         API_KEY=""
     fi
@@ -98,14 +128,16 @@ deploy_dev() {
     # Check if dev stack is running
     if ! curl -s -o /dev/null -w "" "$API_URL/" 2>/dev/null; then
         echo "❌ FAILED (Dev n8n not responding at $API_URL)"
+        echo ""
+        echo "Tip: Run './scripts/deploy.sh local' to set up the local environment"
         exit 1
     fi
 
-    # Validate workflow names are unique
+    # Validate workflows before deployment
+    echo ""
     validate_workflow_names || exit 1
-
-    # Validate workflows use mode:list for portability
     validate_mode_list_usage || exit 1
+    validate_workflow_structure || exit 1
 
     TEMP_DIR=$(mktemp -d)
     OUTPUT_FILE=$(mktemp)
@@ -217,12 +249,13 @@ run_functional_tests() {
 
     # Stage 2d: Run Python tag parsing tests
     echo ""
-    echo "  Stage 2d: Python tag parsing tests..."
-    if ! pytest "$REPO_ROOT/n8n-workflows/tests/test_tag_parsing.py" > /dev/null 2>&1; then
-        echo "❌ FAILED (tag parsing)"
+    echo "  Stage 2d: Python unit tests..."
+    if ! pytest "$REPO_ROOT/n8n-workflows/tests/" -v > /dev/null 2>&1; then
+        echo "❌ FAILED (pytest)"
+        pytest "$REPO_ROOT/n8n-workflows/tests/" -v
         return 1
     fi
-    echo "  ✅ PASSED (tag parsing)"
+    echo "  ✅ PASSED (pytest)"
     
     # Stage 1b: Redeploy with real APIs (between test stages)
     echo ""
@@ -631,6 +664,24 @@ validate_mode_list_usage() {
     return 0
 }
 
+# --- WORKFLOW STRUCTURE VALIDATION ---
+validate_workflow_structure() {
+    echo -n "Validating workflow structure... "
+    
+    local validation_output
+    validation_output=$(bash "$SCRIPT_DIR/workflows/validate_workflows.sh" 2>&1)
+    local exit_code=$?
+    
+    if [ $exit_code -ne 0 ]; then
+        echo "❌ FAILED"
+        echo "$validation_output"
+        return 1
+    fi
+    
+    echo "✅ PASSED"
+    return 0
+}
+
 # --- UNIT TESTS ---
 run_unit_tests() {
     echo -n "STAGE 0: Unit Tests... "
@@ -653,6 +704,13 @@ run_unit_tests() {
 setup_ssh_tunnel
 
 case "$TARGET" in
+    local)
+        # Local development setup and deployment
+        setup_local_dev
+        run_unit_tests || exit 1
+        deploy_dev false
+        run_functional_tests
+        ;;
     dev)
         run_unit_tests || exit 1
         deploy_dev false
@@ -686,10 +744,11 @@ case "$TARGET" in
         fi
         ;;
     *)
-        echo "Usage: $0 [dev|prod|all]"
-        echo "  dev  - Deploy to dev + run smoke tests"
-        echo "  prod - Deploy to prod only"
-        echo "  all  - Full pipeline: dev → test → prod (default)"
+        echo "Usage: $0 [local|dev|prod|all]"
+        echo "  local - Set up local dev environment + deploy + test"
+        echo "  dev   - Deploy to dev + run smoke tests"
+        echo "  prod  - Deploy to prod only"
+        echo "  all   - Full pipeline: dev → test → prod (default)"
         exit 1
         ;;
 esac
