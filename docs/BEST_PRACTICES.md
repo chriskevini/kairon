@@ -267,7 +267,7 @@ Tags are parsed at the start of messages:
 | `++` | `chat` | Start thread | Thread agent |
 | `--` | `save` | Save & close thread | Save thread |
 | `::` | `cmd` | Execute command | Command handler |
-| `$$` | `todo` | Create todo | Todo handler |
+| `$$` | `todo`, `to-do` | Create todo | Todo handler |
 | (none) | - | Auto-classify | LLM router → multi-extraction |
 
 ## Testing Conventions

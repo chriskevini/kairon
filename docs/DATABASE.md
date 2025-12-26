@@ -37,11 +37,11 @@ Kairon uses PostgreSQL with a normalized schema designed around the principle: *
 
 ```sql
 CREATE TABLE events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   event_type TEXT NOT NULL,                    -- 'discord_message', 'system'
   payload JSONB NOT NULL DEFAULT '{}',         -- Full event data
-  idempotency_key TEXT,                        -- Prevents duplicate processing
+  idempotency_key TEXT NOT NULL,               -- Prevents duplicate processing
   UNIQUE(event_type, idempotency_key)          -- Enforce idempotency
 );
 ```
@@ -74,7 +74,7 @@ LIMIT 10;
 
 ```sql
 CREATE TABLE traces (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   llm_model TEXT,                             -- 'openai/gpt-4', 'anthropic/claude'
@@ -114,7 +114,7 @@ GROUP BY llm_model;
 
 ```sql
 CREATE TABLE projections (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   trace_id UUID REFERENCES traces(id) ON DELETE CASCADE,
   event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   trace_chain UUID[] NOT NULL DEFAULT '{}',     -- Ancestry for complex processing
@@ -199,36 +199,67 @@ SELECT key, value FROM config WHERE key IN ('timezone', 'north_star');
 
 ### prompt_modules
 
-**Purpose**: Reusable prompt templates for LLM interactions
+**Purpose**: Composable prompt building blocks for the proactive agent
 
 ```sql
 CREATE TABLE prompt_modules (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL UNIQUE,
-  description TEXT,
-  prompt_template TEXT NOT NULL,
-  variables JSONB DEFAULT '[]'::jsonb,    -- Array of variable names
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  content TEXT NOT NULL,
+  module_type TEXT NOT NULL,
+  tags TEXT[] DEFAULT '{}',
+  priority INTEGER DEFAULT 50,
+  active BOOLEAN DEFAULT true,
+  embedding vector(384),  -- pgvector column for semantic selection
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  CONSTRAINT valid_module_type CHECK (
+    module_type IN ('persona', 'technique', 'guardrail', 'format', 'context')
+  )
 );
 ```
 
 **Key Fields:**
 - `name`: Unique identifier for the prompt module
-- `prompt_template`: The template text with {{variable}} placeholders
-- `variables`: JSON array of variable names used in template
-- `description`: Human-readable description
+- `content`: The prompt content/template text
+- `module_type`: Type of module ('persona', 'technique', 'guardrail', 'format', 'context')
+- `tags`: Array of tags for categorization
+- `priority`: Priority for selection (default 50)
+- `active`: Whether module is currently active
+- `embedding`: Vector embedding for semantic selection
+
+**Module Types:**
+- `persona`: Defines agent personality and behavior
+- `technique`: Specific prompting techniques (e.g., chain-of-thought)
+- `guardrail`: Safety and constraint rules
+- `format`: Output formatting instructions
+- `context`: Contextual information for the agent
 
 **Usage Patterns:**
 ```sql
 -- Create a prompt module
-INSERT INTO prompt_modules (name, description, prompt_template, variables)
-VALUES ('activity_extraction', 'Extract activity from message', 'Extract the activity from: {{message}}', '["message"]');
+INSERT INTO prompt_modules (name, content, module_type, tags, priority)
+VALUES (
+  'helpful_persona',
+  'You are a helpful assistant focused on productivity and well-being.',
+  'persona',
+  ARRAY['friendly', 'supportive'],
+  100
+);
 
--- Use in workflow
-SELECT prompt_template, variables
+-- Get active modules by type
+SELECT name, content, priority
 FROM prompt_modules
-WHERE name = 'activity_extraction';
+WHERE module_type = 'persona'
+  AND active = true
+ORDER BY priority DESC;
+
+-- Find modules by tag
+SELECT name, content, module_type
+FROM prompt_modules
+WHERE 'chain-of-thought' = ANY(tags)
+  AND active = true;
 ```
 
 ### embeddings
@@ -237,7 +268,7 @@ WHERE name = 'activity_extraction';
 
 ```sql
 CREATE TABLE embeddings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   projection_id UUID NOT NULL REFERENCES projections(id) ON DELETE CASCADE,
   content TEXT NOT NULL,                        -- Text that was embedded
   embedding vector(1536),                       -- Vector representation
