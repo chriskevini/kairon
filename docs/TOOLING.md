@@ -187,6 +187,55 @@ Comprehensive test suite covering all system paths.
 2. Workflows created traces (LLM ran)
 3. Projections created (data extracted)
 
+**Arbitrary Payload Testing:**
+
+Send custom payloads directly to test specific scenarios:
+
+```bash
+# Send custom message to dev environment
+curl -X POST "http://localhost:5679/webhook/kairon-dev-test" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_type": "message",
+    "guild_id": "123456789",
+    "channel_id": "987654321",
+    "message_id": "custom-msg-123",
+    "author": {
+      "login": "test-user",
+      "id": "12345",
+      "display_name": "Test User"
+    },
+    "content": "!!Your custom test activity",
+    "timestamp": "2025-12-26T00:00:00.000Z",
+    "thread_id": null
+  }'
+
+# Send reaction payload
+curl -X POST "http://localhost:5679/webhook/kairon-dev-test" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_type": "reaction",
+    "guild_id": "123456789",
+    "channel_id": "987654321",
+    "message_id": "custom-msg-123",
+    "user_id": "12345",
+    "emoji": "1️⃣",
+    "action": "add",
+    "timestamp": "2025-12-26T00:00:00.000Z"
+  }'
+
+# Test with custom webhook URL
+./tools/test-all-paths.sh --webhook "https://your-custom-webhook.com/endpoint"
+```
+
+**Payload Format:**
+- `event_type`: "message" or "reaction"
+- `guild_id`, `channel_id`, `message_id`: Discord identifiers
+- `content`: Message text (messages only)
+- `author`: User info (messages) or `user_id` (reactions)
+- `timestamp`: ISO format
+- `thread_id`: null or thread ID
+
 ---
 
 ### 4. kairon-credentials.sh - Credential Management
