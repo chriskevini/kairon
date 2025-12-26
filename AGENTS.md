@@ -30,7 +30,7 @@ For detailed n8n workflow patterns, conventions, and implementation guidelines:
 
 **📖 Details:** See `docs/BEST_PRACTICES.md` for workflow development best practices
 
-### Workflow Architecture
+### System Data Flow
 
 ```
 Discord → Route_Event → Route_Message → Multi_Capture/Execute_Command/etc.
@@ -44,7 +44,7 @@ Discord → Route_Event → Route_Message → Multi_Capture/Execute_Command/etc.
 - **Multi_Capture**: Extracts activities/notes/todos from untagged messages
 - **Execute_Command**: Handles system commands (`::help`, `::recent`, etc.)
 
-**📖 Details:** See `docs/DEPLOYMENT.md` for workflow architecture
+**📖 Details:** See `docs/BEST_PRACTICES.md` for workflow development patterns
 
 ### Database Schema
 
