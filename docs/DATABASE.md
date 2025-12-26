@@ -197,7 +197,41 @@ ON CONFLICT (key) UPDATE SET value = EXCLUDED.value, updated_at = NOW();
 SELECT key, value FROM config WHERE key IN ('timezone', 'north_star');
 ```
 
-### embeddings (Future)
+### prompt_modules
+
+**Purpose**: Reusable prompt templates for LLM interactions
+
+```sql
+CREATE TABLE prompt_modules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  prompt_template TEXT NOT NULL,
+  variables JSONB DEFAULT '[]'::jsonb,    -- Array of variable names
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+**Key Fields:**
+- `name`: Unique identifier for the prompt module
+- `prompt_template`: The template text with {{variable}} placeholders
+- `variables`: JSON array of variable names used in template
+- `description`: Human-readable description
+
+**Usage Patterns:**
+```sql
+-- Create a prompt module
+INSERT INTO prompt_modules (name, description, prompt_template, variables)
+VALUES ('activity_extraction', 'Extract activity from message', 'Extract the activity from: {{message}}', '["message"]');
+
+-- Use in workflow
+SELECT prompt_template, variables
+FROM prompt_modules
+WHERE name = 'activity_extraction';
+```
+
+### embeddings
 
 **Purpose**: Vector storage for Retrieval-Augmented Generation (RAG)
 
@@ -470,4 +504,4 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 ---
 
 **Last Updated:** 2025-12-26
-**Schema Version:** See `db/schema.sql`
+**Schema Version:** 25 (see `db/schema.sql`)

@@ -1,6 +1,10 @@
 -- Kairon Database Schema
 -- This is the canonical schema. For fresh installs, run this file.
 -- Historical migrations are archived in db/migrations/archive/
+--
+-- SYNC REQUIREMENT: When this file changes, update docs/DATABASE.md
+-- Last synced: 2025-12-26
+-- Schema version: 25
 
 BEGIN;
 
