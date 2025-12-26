@@ -69,9 +69,14 @@ def transform_node(node: dict) -> dict:
         node.pop("webhookId", None)
         return node
 
-    # Schedule Trigger → Execute Workflow Trigger
+    # Schedule Trigger → Execute Workflow Trigger (for testing)
     # Allows smoke tests to invoke cron workflows directly
+    # ONLY transform in mock mode - preserve in real mode
     if node_type == "n8n-nodes-base.scheduleTrigger":
+        # Skip transformation if NO_MOCKS is set (keep schedule for real testing)
+        if os.environ.get("NO_MOCKS") == "1":
+            return node
+
         node["type"] = "n8n-nodes-base.executeWorkflowTrigger"
         node["typeVersion"] = 1
         node["parameters"] = {}
