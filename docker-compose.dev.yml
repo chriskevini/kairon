@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  n8n-dev:
+    image: n8nio/n8n:latest
+    container_name: n8n-dev-local
+    restart: unless-stopped
+    ports:
+      - "5679:5679"
+    environment:
+      - N8N_PORT=5679
+      - N8N_HOST=localhost
+      - N8N_PROTOCOL=http
+      - N8N_PATH=/
+      - WEBHOOK_URL=http://localhost:5679/
+      - N8N_ENCRYPTION_KEY=${N8N_DEV_ENCRYPTION_KEY:-dev-local-encryption-key-32chars}
+      - EXECUTIONS_MODE=manual
+      - EXECUTIONS_TIMEOUT=300
+      - EXECUTIONS_TIMEOUT_MAX=3600
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-admin}
+      - WEBHOOK_TUNNEL_URL=${WEBHOOK_TUNNEL_URL:-}
+      - GENERIC_TIMEZONE=${TIMEZONE:-UTC}
+      - NODE_ENV=development
+      - NODE_OPTIONS=--max-old-space-size=4096
+    volumes:
+      - n8n-dev-data:/home/node/.n8n
+    networks:
+      - kairon-dev
+
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: postgres-dev-local
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-kairon_dev}
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    networks:
+      - kairon-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  kairon-dev:
+    driver: bridge
+
+volumes:
+  n8n-dev-data:
+  postgres-dev-data:

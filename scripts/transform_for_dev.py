@@ -39,6 +39,10 @@ def transform_node(node: dict) -> dict:
     portable workflow references across environments. Workflow names are
     stable across dev/prod/staging, while IDs change.
     """
+    # Skip transformation if NO_MOCKS is set - use real APIs
+    if os.environ.get("NO_MOCKS") == "1":
+        return node
+
     node_type = node.get("type", "")
 
     # Webhook Trigger → Execute Workflow Trigger
