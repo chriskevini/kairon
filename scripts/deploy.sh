@@ -141,7 +141,7 @@ deploy_dev() {
     } || {
         echo "❌ FAILED"
         echo "----------------------------------------"
-        cat "$OUTPUT_FILE"
+        cat "$DEPLOY_LOG"
         echo "----------------------------------------"
         return 1
     }
@@ -310,7 +310,7 @@ deploy_prod() {
     } || {
         echo "❌ FAILED"
         echo "----------------------------------------"
-        cat "$OUTPUT_FILE"
+        cat "$DEPLOY_LOG"
         echo "----------------------------------------"
         return 1
     }
