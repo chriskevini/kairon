@@ -303,22 +303,31 @@ Tags are parsed at the start of messages. See `docs/tag-parsing-reference.md` fo
 
 ## Deployment
 
-Use `scripts/deploy.sh` for all workflow deployments:
+Use `scripts/deploy.sh` for all workflow deployments with comprehensive testing and automatic rollback:
 
 ```bash
-# Full pipeline: dev → smoke tests → prod
+# Full pipeline: unit tests → dev → functional tests → prod + rollback protection
 ./scripts/deploy.sh
 
-# Dev environment only (with smoke tests)
+# Dev environment only + comprehensive functional tests
 ./scripts/deploy.sh dev
 
-# Prod environment only (not recommended - skip tests)
+# Prod environment only (deprecated - bypasses safety testing)
 ./scripts/deploy.sh prod
 ```
 
-The script automatically detects whether it's running locally or on the server and uses the appropriate deployment method.
+**Pipeline stages:**
+- **Stage 0:** Unit tests (structural + Python tests)
+- **Stage 1:** Dev deployment (transform workflows, push to dev n8n)
+- **Stage 1b:** Redeploy (optional, with real APIs for testing)
+- **Stage 2:** Functional tests (2a: mock, 2b: real APIs, 2d: tag parsing)
+- **Stage 3:** Prod deployment (backup → deploy → deep smoke tests → **automatic rollback on failure**)
+
+The script automatically detects environment and includes safety features like proactive backups and fail-safe rollback.
 
 **Pre-push hook:** Workflow changes trigger automatic deployment. Skip with `git push --no-verify` if needed.
+
+**Safety features:** Production deployments are protected by automated rollback - any failure triggers immediate restoration to the previous working state.
 
 ### Workflow ID References
 
