@@ -293,6 +293,21 @@ deploy_prod() {
     local PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
     local PROD_API_KEY="$N8N_API_KEY"
 
+    # Create backup before deployment
+    echo ""
+    echo "   Creating pre-deployment backup..."
+    if [ -f "$REPO_ROOT/tools/kairon-ops.sh" ]; then
+        if ! "$REPO_ROOT/tools/kairon-ops.sh" backup > /dev/null 2>&1; then
+            echo "   ⚠️  Backup failed! Please check system status."
+            read -p "      Continue deployment without backup? [y/N] " -n 1 -r
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                echo "      Deployment aborted."
+                exit 1
+            fi
+        fi
+    fi
+
     # Validate workflow names are unique
     validate_workflow_names || exit 1
 

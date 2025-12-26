@@ -262,6 +262,131 @@ class WorkflowTester:
 
         return tests
 
+    def test_switch_node_validation(self, workflow: dict) -> List[TestResult]:
+        """Validate Switch node configurations match n8n v3 requirements."""
+        tests = []
+        errors = []
+
+        for node in workflow.get("nodes", []):
+            if self.get_node_type(node) == "switch":
+                type_version = node.get("typeVersion", 1)
+                fallback = (
+                    node.get("parameters", {}).get("options", {}).get("fallbackOutput")
+                )
+
+                # n8n v3 Switch nodes require string fallback values
+                if type_version >= 3 and fallback is not None:
+                    if not isinstance(fallback, str):
+                        errors.append(
+                            f"Node '{node['name']}': fallbackOutput must be string ('extra', 'none'), got: {fallback}"
+                        )
+                    elif fallback not in ["extra", "none"]:
+                        errors.append(
+                            f"Node '{node['name']}': Invalid fallbackOutput value: {fallback}"
+                        )
+
+        if not errors:
+            tests.append(
+                TestResult(
+                    "switch_node_validation",
+                    True,
+                    "All Switch nodes correctly configured",
+                )
+            )
+        else:
+            tests.append(TestResult("switch_node_validation", False, "; ".join(errors)))
+
+        return tests
+
+    def test_http_node_credentials(self, workflow: dict) -> List[TestResult]:
+        """Validate HTTP Request nodes have credential configurations."""
+        tests = []
+        errors = []
+
+        for node in workflow.get("nodes", []):
+            if self.get_node_type(node) == "httpRequest":
+                auth = node.get("parameters", {}).get("authentication")
+                creds = node.get("credentials", {})
+
+                if auth == "predefinedCredentialType" and not creds:
+                    errors.append(
+                        f"Node '{node['name']}': HTTP node requires credentials but none configured"
+                    )
+
+        if not errors:
+            tests.append(
+                TestResult(
+                    "http_node_credentials",
+                    True,
+                    "All HTTP nodes have required credentials",
+                )
+            )
+        else:
+            tests.append(TestResult("http_node_credentials", False, "; ".join(errors)))
+
+        return tests
+
+    def test_postgres_node_validation(self, workflow: dict) -> List[TestResult]:
+        """Validate Postgres nodes for common issues."""
+        tests = []
+        errors = []
+
+        for node in workflow.get("nodes", []):
+            if self.get_node_type(node) == "postgres":
+                operation = node.get("parameters", {}).get("operation")
+                query = node.get("parameters", {}).get("query", "")
+
+                if operation == "executeQuery":
+                    # Check for basic SQL injection or parameter mismatch if possible
+                    # This is basic - looking for $1, $2 etc without replacements
+                    replacements = (
+                        node.get("parameters", {})
+                        .get("options", {})
+                        .get("queryReplacement")
+                    )
+
+                    param_matches = re.findall(r"\$\d+", query)
+                    param_count = len(param_matches)
+                    if param_count > 0:
+                        if not replacements:
+                            errors.append(
+                                f"Node '{node['name']}': Query has {param_count} parameters but no replacements configured"
+                            )
+                        else:
+                            # replacements is often a string with comma-separated values if using expressions
+                            # like '={{ $json.ctx.id }},={{ $json.ctx.name }}'
+                            # or it can be a list in some n8n versions
+                            replacement_count = 0
+                            if isinstance(replacements, str):
+                                if replacements.startswith("="):
+                                    # Very basic check: count occurrences of ",=" which separates expressions
+                                    # or just the starting "="
+                                    replacement_count = replacements.count("=")
+                                else:
+                                    replacement_count = replacements.count(",") + 1
+                            elif isinstance(replacements, list):
+                                replacement_count = len(replacements)
+
+                            if replacement_count < param_count:
+                                errors.append(
+                                    f"Node '{node['name']}': Query has {param_count} parameters but only {replacement_count} replacements found"
+                                )
+
+        if not errors:
+            tests.append(
+                TestResult(
+                    "postgres_node_validation",
+                    True,
+                    "All Postgres nodes correctly configured",
+                )
+            )
+        else:
+            tests.append(
+                TestResult("postgres_node_validation", False, "; ".join(errors))
+            )
+
+        return tests
+
     def test_structural_validation(self, workflow: dict) -> List[TestResult]:
         """Test workflow structure and connections"""
         tests = []
@@ -609,6 +734,9 @@ class WorkflowTester:
         # Run all test categories
         test_categories = [
             ("Structural", self.test_structural_validation),
+            ("Switch Node", self.test_switch_node_validation),
+            ("HTTP Credentials", self.test_http_node_credentials),
+            ("Postgres Node", self.test_postgres_node_validation),
             ("Context Patterns", self.test_ctx_patterns),
             ("Database Patterns", self.test_database_patterns),
             ("API Patterns", self.test_api_patterns),

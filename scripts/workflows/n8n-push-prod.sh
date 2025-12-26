@@ -287,6 +287,21 @@ for workflow_name in $(echo "$WORKFLOW_NAME_TO_ID" | jq -r 'keys[]'); do
             end
         )
     ')
+
+    # Validate all credentials found their IDs
+    missing_creds=$(echo "$updated_json" | jq -r '
+      .nodes[] 
+      | select(.credentials) 
+      | .name as $node 
+      | .credentials 
+      | to_entries[] 
+      | select(.value.id == null) 
+      | "      ⚠️  Node \"\($node)\" missing \(.key) credential: \(.value.name // "unnamed")"
+    ')
+    if [ -n "$missing_creds" ]; then
+        echo "    Warning: Some credentials could not be mapped in \"$workflow_name\":"
+        echo "$missing_creds"
+    fi
     
     # Update workflow
     update_payload=$(echo "$updated_json" | jq '{name, nodes, connections, settings}')
