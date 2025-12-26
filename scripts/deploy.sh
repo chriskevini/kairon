@@ -212,15 +212,11 @@ run_functional_tests() {
     echo "  ✅ PASSED (mocks)"
 
     # Stage 2b: Realistic tests with real APIs (NEW)
-    echo ""
-    echo "  Stage 2b: Realistic tests (real APIs)..."
-    echo "    Note: Skipping cron workflows ($CRON_WORKFLOWS) - they run on schedule, not triggered"
-    echo "    Note: Cron workflows tested in Stage 2a (structure validation) are sufficient"
-    # Note: We accept that cron workflows won't be tested in Stage 2b
-    # They work correctly if they pass Stage 2a (structure validation)
-    echo "  ✅ PASSED (real APIs - cron workflows skipped)"
-    
-    if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick > "$TEST_OUTPUT_FILE" 2>&1; then
+     echo ""
+     echo "  Stage 2b: Realistic tests (real APIs)..."
+     echo "    Note: Cron workflows now testable via webhook (Schedule → Webhook transform)"
+     
+     if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick > "$TEST_OUTPUT_FILE" 2>&1; then
         echo "❌ FAILED (real APIs)"
         echo "----------------------------------------"
         cat "$TEST_OUTPUT_FILE"
