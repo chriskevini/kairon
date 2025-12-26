@@ -62,13 +62,22 @@ while true; do
     fi
     
     if [ -n "$FAILED_DATA" ] && [ "$FAILED_DATA" != "null" ]; then
-        # Filter failures that happened since last check
-        # workflowData.name is typically available in execution data
-        NEW_FAILURES=$(echo "$FAILED_DATA" | jq -r --arg last "$LAST_CHECK" --arg url "$N8N_API_URL" '
+        # 1. Get workflow list for name mapping
+        # Store in a temporary file to avoid "Argument list too long"
+        WORKFLOWS_FILE=$(mktemp)
+        curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows" > "$WORKFLOWS_FILE"
+        
+        # 2. Filter failures that happened since last check
+        NEW_FAILURES=$(echo "$FAILED_DATA" | jq -r --arg last "$LAST_CHECK" --arg url "$N8N_API_URL" --slurpfile workflows "$WORKFLOWS_FILE" '
+            ($workflows[0].data | map({(.id): .name}) | add) as $names |
             .data[] | 
-            select((.stoppedAt | fromdateiso8601) > ($last | tonumber)) | 
-            "• **\(.workflowData.name // "Unknown Workflow")** (ID: \(.id))\n  Error: \(.data?.error?.message // "Unknown error")\n  [View Execution](\($url)/execution/\(.id))\n  Time: \(.stoppedAt)"
+            select(.stoppedAt != null) |
+            (.stoppedAt | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) as $stopped_ts |
+            select($stopped_ts > ($last | tonumber)) | 
+            "• **\($names[.workflowId] // .workflowId)** (ID: \(.id))\n  [View Execution](\($url)/execution/\(.id))\n  Time: \(.stoppedAt)"
         ')
+        
+        rm -f "$WORKFLOWS_FILE"
         
         if [ -n "$NEW_FAILURES" ]; then
             echo -e "Failures detected:\n$NEW_FAILURES"

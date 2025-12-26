@@ -56,9 +56,32 @@ def transform_node(node: dict) -> dict:
         node.pop("webhookId", None)
         return node
 
+    # Webhook Trigger transformations (Entry path MUST be transformed for testing)
+    if node_type == "n8n-nodes-base.webhook":
+        node_name = node.get("name", "").lower()
+        if "discord webhook entry" in node_name or "test webhook" in node_name:
+            node["parameters"]["path"] = "kairon-dev-test"
+            node["parameters"]["responseMode"] = "onReceived"
+            return node
+
     # Skip transformation if NO_MOCKS is set - use real APIs
-    # Only applies to Discord/LLM/HTTP node mocking, not Schedule→Webhook
+    # Only applies to Discord/LLM/HTTP node mocking, not Schedule→Webhook or Entry Webhook
     if os.environ.get("NO_MOCKS") == "1":
+        return node
+
+    # Webhook Trigger → Execute Workflow Trigger
+    if node_type == "n8n-nodes-base.webhook":
+        node_name = node.get("name", "").lower()
+
+        # Entry point for smoke tests (old method)
+        if "smoke_test" in node_name or "test" in node_name:
+            return node
+
+        node["type"] = "n8n-nodes-base.executeWorkflowTrigger"
+        node["typeVersion"] = 1
+        node["parameters"] = {}
+        # Remove webhook-specific fields
+        node.pop("webhookId", None)
         return node
 
     # Webhook Trigger → Execute Workflow Trigger
