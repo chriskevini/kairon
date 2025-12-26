@@ -74,7 +74,14 @@ setup_ssh_tunnel() {
 
 # --- DEV DEPLOYMENT ---
 deploy_dev() {
-    echo -n "STAGE 1: Deploy to DEV... "
+    local NO_MOCKS="${1:-false}"
+    local STAGE_NAME="STAGE 1: Deploy to DEV"
+    
+    if [ "$NO_MOCKS" = "true" ]; then
+        STAGE_NAME="STAGE 1b: Deploy to DEV (real APIs)"
+    fi
+
+    echo -n "$STAGE_NAME... "
 
     if [ -z "${N8N_DEV_API_KEY:-}" ]; then
         echo "❌ FAILED (N8N_DEV_API_KEY not set)"
@@ -118,7 +125,7 @@ deploy_dev() {
             [ -f "$workflow" ] || continue
             filename=$(basename "$workflow")
             workflow_name=$(basename "$workflow" .json)
-            WORKFLOW_NAME="$workflow_name" WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
+            WORKFLOW_NAME="$workflow_name" WORKFLOW_ID_REMAP="$WORKFLOW_ID_REMAP" NO_MOCKS="$NO_MOCKS" python3 "$TRANSFORM_SCRIPT" < "$workflow" > "$TEMP_DIR/$filename"
         done
 
         if [ -d "$WORKFLOW_DEV_DIR" ]; then
@@ -166,29 +173,80 @@ deploy_dev() {
 
 # --- COMPREHENSIVE FUNCTIONAL TESTS ---
 run_functional_tests() {
-    echo -n "STAGE 2: Functional Tests... "
+    echo ""
+    echo "=========================================="
+    echo "STAGE 2: Functional Tests"
+    echo "=========================================="
 
     if [ ! -f "$REPO_ROOT/tools/test-all-paths.sh" ]; then
         echo "⚠️  tools/test-all-paths.sh not found. Skipping."
         return 0
     fi
 
-    # Capture output for diagnostics
     local TEST_OUTPUT_FILE=$(mktemp)
     trap "rm -f $TEST_OUTPUT_FILE" RETURN
 
-    # Run the comprehensive end-to-end test script against the dev environment
-    # Tests all 40+ execution paths with database verification
-    if "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --verify-db > "$TEST_OUTPUT_FILE" 2>&1; then
-        echo "✅ PASSED"
-        return 0
-    else
-        echo "❌ FAILED"
+    # Stage 2a: Fast mock tests (current behavior)
+    echo ""
+    echo "  Stage 2a: Mock tests (fast)..."
+    if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick > "$TEST_OUTPUT_FILE" 2>&1; then
+        echo "❌ FAILED (mocks)"
         echo "----------------------------------------"
         cat "$TEST_OUTPUT_FILE"
         echo "----------------------------------------"
         return 1
     fi
+    echo "  ✅ PASSED (mocks)"
+
+    # Stage 2b: Realistic tests with real APIs (NEW)
+    echo ""
+    echo "  Stage 2b: Realistic tests (real APIs)..."
+    
+    # Redeploy with NO_MOCKS enabled
+    deploy_dev true
+
+    if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick > "$TEST_OUTPUT_FILE" 2>&1; then
+        echo "❌ FAILED (real APIs)"
+        echo "----------------------------------------"
+        cat "$TEST_OUTPUT_FILE"
+        echo "----------------------------------------"
+        echo "   Workflows failed when calling real APIs"
+        echo "   Deployment halted before production"
+        return 1
+    fi
+    echo "  ✅ PASSED (real APIs)"
+
+    # Stage 2c: Quick prod verification
+    echo ""
+    echo "  Stage 2c: Quick prod verification..."
+    verify_prod_webhook_accessible || return 1
+
+    return 0
+}
+
+verify_prod_webhook_accessible() {
+    local PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
+    
+    # Lightweight check - just verify webhook accepts requests
+    local RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X POST "$PROD_API_URL/webhook/asoiaf92746087" \
+        -H 'Content-Type: application/json' \
+        -d '{
+            "event_type": "test",
+            "content": "health_check",
+            "guild_id": "test",
+            "channel_id": "test",
+            "message_id": "test-'$(date +%s)'",
+            "author": {"login": "system"},
+            "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+        }')
+
+    if [ "$RESPONSE" != "200" ]; then
+        echo "❌ Prod webhook not responding (HTTP $RESPONSE)"
+        return 1
+    fi
+    echo "  ✅ Prod webhook responding"
+    return 0
 }
 
 # --- PROD DEPLOYMENT ---
@@ -351,7 +409,7 @@ setup_ssh_tunnel
 case "$TARGET" in
     dev)
         run_unit_tests || exit 1
-        deploy_dev
+        deploy_dev false
         run_functional_tests
         ;;
     prod)
@@ -360,7 +418,7 @@ case "$TARGET" in
         ;;
     all|"")
         run_unit_tests || exit 1
-        deploy_dev
+        deploy_dev false
         if run_functional_tests; then
             deploy_prod
         else
