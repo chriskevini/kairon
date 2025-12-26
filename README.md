@@ -225,8 +225,41 @@ See `AGENTS.md` for detailed workflow development guidelines.
 
 ## Documentation
 
-- **[docs/](docs/)** - Complete documentation suite
-- **[AGENTS.md](AGENTS.md)** - Agent guidelines and best practices
-- **[docs/TOOLING-LOCAL.md](docs/TOOLING-LOCAL.md)** - Local development with Docker
-- **[docs/TOOLING-PROD.md](docs/TOOLING-PROD.md)** - Production operations and remote management
-- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment pipeline documentation
+### 📚 Documentation Overview
+
+The `docs/` directory contains comprehensive documentation for development, operations, and maintenance.
+
+### 📋 Documentation Guide
+
+| Document | Purpose | Audience | Quick Access |
+|----------|---------|----------|--------------|
+| **[AGENTS.md](AGENTS.md)** | Agent guidelines, ctx pattern, n8n best practices | All developers | Root directory |
+| **[docs/TOOLING-LOCAL.md](docs/TOOLING-LOCAL.md)** | Local development with Docker containers | Developers | Local setup |
+| **[docs/TOOLING-PROD.md](docs/TOOLING-PROD.md)** | Production operations and remote management | DevOps, Operations | Production ops |
+| **[docs/DEBUG.md](docs/DEBUG.md)** | Debugging tools, techniques, and troubleshooting | All users | Debug guide |
+| **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** | Deployment pipeline and workflow management | DevOps, CI/CD | Deployment |
+| **[docs/testing/n8n-ui-compatibility-testing.md](docs/testing/n8n-ui-compatibility-testing.md)** | Workflow validation and testing system | Developers | Testing |
+
+### 🗂️ Archived Documentation
+
+Historical documentation is stored in `docs/archive/` for reference:
+- Implementation plans and design decisions
+- Postmortems and recovery plans
+- Deprecated features and approaches
+- Historical migrations and changes
+
+### 🚀 Quick Start by Role
+
+1. **New to Kairon?** Start here for project overview and architecture
+2. **Setting up local development?** → `docs/TOOLING-LOCAL.md`
+3. **Managing production systems?** → `docs/TOOLING-PROD.md`
+4. **Debugging issues?** → `docs/DEBUG.md`
+5. **Deploying changes?** → `docs/DEPLOYMENT.md`
+6. **Understanding the codebase?** → `AGENTS.md`
+
+### 🔑 Key Concepts
+
+- **ctx Pattern**: Standardized data flow between n8n workflow nodes
+- **Local Development**: Docker-based isolated testing environment
+- **Deployment Pipeline**: Automated testing and rollback for production
+- **Workflow Transformation**: Converting workflows for different environments
