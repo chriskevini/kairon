@@ -39,11 +39,27 @@ def transform_node(node: dict) -> dict:
     portable workflow references across environments. Workflow names are
     stable across dev/prod/staging, while IDs change.
     """
-    # Skip transformation if NO_MOCKS is set - use real APIs
-    if os.environ.get("NO_MOCKS") == "1":
+    node_type = node.get("type", "")
+
+    # Schedule Trigger → Webhook Trigger (ALWAYS - for testing)
+    # Needed for both mock and real API testing stages
+    if node_type == "n8n-nodes-base.scheduleTrigger":
+        node["type"] = "n8n-nodes-base.webhook"
+        node["typeVersion"] = 1
+        node["parameters"] = {
+            "httpMethod": "POST",
+            "path": f"kairon-dev-test/{node.get('name', 'workflow')}",
+            "options": {},
+            "responseMode": "onReceived",
+        }
+        # Remove schedule-specific fields
+        node.pop("webhookId", None)
         return node
 
-    node_type = node.get("type", "")
+    # Skip transformation if NO_MOCKS is set - use real APIs
+    # Only applies to Discord/LLM/HTTP node mocking, not Schedule→Webhook
+    if os.environ.get("NO_MOCKS") == "1":
+        return node
 
     # Webhook Trigger → Execute Workflow Trigger
     # Allows smoke tests to invoke workflows directly without HTTP
