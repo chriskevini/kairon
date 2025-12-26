@@ -10,6 +10,7 @@ This directory contains all documentation for the Kairon life-tracking system.
 |----------|---------|----------|
 | **[TOOLING-LOCAL.md](TOOLING-LOCAL.md)** | Local development with Docker containers | Developers |
 | **[TOOLING-PROD.md](TOOLING-PROD.md)** | Production operations and remote management | DevOps, Operations |
+| **[DEBUG.md](DEBUG.md)** | Debugging tools, techniques, and troubleshooting | All users |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Deployment pipeline and workflow management | DevOps, CI/CD |
 | **[testing/n8n-ui-compatibility-testing.md](testing/n8n-ui-compatibility-testing.md)** | Workflow validation and testing system | Developers |
 
@@ -34,8 +35,9 @@ Historical documentation is stored in `docs/archive/` for reference:
 1. **New to Kairon?** Start with `../README.md` for project overview
 2. **Setting up local development?** Read `TOOLING-LOCAL.md` for Docker-based testing
 3. **Managing production systems?** Read `TOOLING-PROD.md` for remote operations
-4. **Deploying changes?** Read `DEPLOYMENT.md` for pipeline details
-5. **Understanding the codebase?** Read `../AGENTS.md` for patterns and guidelines
+4. **Debugging issues?** Read `DEBUG.md` for troubleshooting tools and techniques
+5. **Deploying changes?** Read `DEPLOYMENT.md` for pipeline details
+6. **Understanding the codebase?** Read `../AGENTS.md` for patterns and guidelines
 
 ## Key Concepts
 

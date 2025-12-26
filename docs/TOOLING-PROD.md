@@ -8,8 +8,7 @@ Complete guide to production operations and remote server management.
 - [Core Tools](#core-tools)
 - [Environment Setup](#environment-setup)
 - [Common Workflows](#common-workflows)
-- [Troubleshooting](#troubleshooting)
-- [Advanced Usage](#advanced-usage)
+- [Debugging](#debugging)
 - [Deployment](#deployment)
 - [File Structure](#file-structure)
 
@@ -163,18 +162,43 @@ watch ./tools/kairon-ops.sh status
 "
 ```
 
-## Troubleshooting
+## Debugging
 
-### Production Issues
+For comprehensive debugging tools and techniques, see `DEBUG.md`. Here are quick production debug commands:
 
-#### "Connection failed" to production server
+### Quick Debug Commands
+
 ```bash
-# Check SSH connectivity
-ssh -T production-server "echo 'SSH works'"
+# System overview
+./tools/kairon-ops.sh status
 
-# Verify services are running
-ssh production-server "docker ps | grep -E '(n8n|postgres)'"
+# Check recent activity
+./tools/kairon-ops.sh db-query "
+  SELECT event_type, COUNT(*) as count,
+         MAX(received_at) as latest
+  FROM events
+  WHERE received_at > NOW() - INTERVAL '1 hour'
+  GROUP BY event_type
+"
+
+# Check for errors
+./tools/kairon-ops.sh db-query "
+  SELECT e.event_type, e.clean_text, t.error_message
+  FROM events e
+  JOIN traces t ON t.event_id = e.id
+  WHERE t.error_message IS NOT NULL
+  ORDER BY t.created_at DESC
+  LIMIT 5
+"
+
+# Test database connectivity
+./tools/kairon-ops.sh db-query "SELECT version()"
+
+# List active workflows
+./tools/kairon-ops.sh n8n-list
 ```
+
+For detailed debugging workflows and advanced troubleshooting, see `DEBUG.md`.
 
 #### Workflow not processing messages
 ```bash

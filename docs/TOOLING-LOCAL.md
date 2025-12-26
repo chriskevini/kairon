@@ -8,7 +8,7 @@ Complete guide to local development with Docker containers.
 - [Core Tools](#core-tools)
 - [Environment Setup](#environment-setup)
 - [Common Workflows](#common-workflows)
-- [Troubleshooting](#troubleshooting)
+- [Debugging](#debugging)
 - [Advanced Usage](#advanced-usage)
 - [File Structure](#file-structure)
 
@@ -250,48 +250,32 @@ done
 watch "docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c 'SELECT COUNT(*) FROM events;'"
 ```
 
-## Troubleshooting
+## Debugging
 
-### Local Development Issues
+For comprehensive debugging tools and techniques, see `DEBUG.md`. Here are quick local development debug commands:
 
-#### "Connection refused" when accessing n8n
+### Quick Debug Commands
+
 ```bash
-# Check if container is running
-docker ps | grep n8n-dev-local
+# Check container status
+docker-compose -f docker-compose.dev.yml ps
 
-# Check logs
-docker logs n8n-dev-local
+# View n8n logs
+docker-compose -f docker-compose.dev.yml logs -f n8n-dev
+
+# Check database connectivity
+docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT COUNT(*) FROM events"
+
+# List active workflows
+curl -s http://localhost:5679/api/v1/workflows | jq '.data[] | select(.active == true) | {name, id}'
+
+# Test webhook manually
+curl -X POST http://localhost:5679/webhook/kairon-dev-test \
+  -H "Content-Type: application/json" \
+  -d '{"event_type": "message", "content": "!! debug", "guild_id": "test", "channel_id": "test", "message_id": "debug-123", "author": {"login": "test"}, "timestamp": "'$(date -Iseconds)'"}'
 ```
 
-#### "Workflow not found" after pushing
-```bash
-# List all workflows
-curl -s http://localhost:5679/api/v1/workflows | jq '.data[] | {name, id, active}'
-```
-
-#### Database schema not loading
-```bash
-# Check if database exists
-docker exec postgres-dev-local psql -U postgres -l
-```
-
-#### Webhook returns 404
-```bash
-# Check if workflow is active
-curl -s http://localhost:5679/api/v1/workflows | jq '.data[] | select(.name | contains("Route_Event")) | {name, active}'
-
-# Check webhook path in workflow
-curl -s http://localhost:5679/api/v1/workflows/MyJjkffMBakCABI1 | jq '.nodes[] | select(.type == "n8n-nodes-base.webhook") | .parameters.path'
-```
-
-#### Transform script fails
-```bash
-# Check Python syntax
-python -m py_compile scripts/transform_for_dev.py
-
-# Test on single workflow
-cat n8n-workflows/Route_Event.json | python scripts/transform_for_dev.py 2>&1
-```
+For detailed debugging workflows, see `DEBUG.md`.
 
 ## Advanced Usage
 
