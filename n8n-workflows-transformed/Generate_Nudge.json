@@ -1,0 +1,641 @@
+{
+  "updatedAt": "2025-12-24T10:31:53.897Z",
+  "createdAt": "2025-12-23T09:30:28.256Z",
+  "id": "ujGErhNkQv4hkJxB",
+  "name": "Generate_Nudge",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "workflow-trigger",
+      "name": "WhenCalledByAnotherWorkflow"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract trigger_reason from caller, default to 'cron'\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst now = new Date();\nconst idempotencyKey = `scheduled:nudge:${now.toISOString().slice(0, 16)}:${triggerReason}`;\n\nreturn {\n  json: {\n    idempotency_key: idempotencyKey,\n    trigger_reason: triggerReason,\n    timestamp: now.toISOString()\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "prepare-event",
+      "name": "PrepareEvent"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert system event for nudge\nINSERT INTO events (idempotency_key, event_type, payload, timezone)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'nudge',\n    'trigger_reason', $2\n  ),\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id, timezone = EXCLUDED.timezone\nRETURNING id, timezone;",
+        "options": {
+          "queryReplacement": "={{ $json.idempotency_key }},{{ $json.trigger_reason }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "insert-event",
+      "name": "InsertEvent",
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Initialize ctx with event_id and prepare batch database queries\nconst eventResult = $json;\nconst prepareData = $(\"PrepareEvent\").first().json;\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '4 hours'\n          ORDER BY (p.data->>'timestamp')::timestamptz DESC`\n  },\n  {\n    key: 'last_note',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n          ORDER BY (p.data->>'timestamp')::timestamptz DESC\n          LIMIT 1`\n  },\n  {\n    key: 'timezone',\n    sql: `SELECT value as timezone FROM config WHERE key = 'timezone'`\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"nudge\",\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id]\n      },\n      db_queries\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "init-ctx",
+      "name": "InitializeCtx"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "execute-query-db",
+      "name": "ExecuteQueries(read)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build LLM prompt context from Execute_Queries results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract timezone from db results, fallback to event timezone or UTC\nconst timezone = db.timezone?.row?.timezone || ctx.event.timezone || 'UTC';\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    // Fallback if timezone is invalid\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\n// Extract north star (fallback to introspection prompt)\nconst northStar = db.north_star?.row?.value || 'To determine my north star from deep introspection';\n\n// Extract activities from db results (use .rows for arrays)\nconst activityItems = db.activities?.rows || [];\n\n// Extract last note from db results (use .row for LIMIT 1)\nconst lastNote = db.last_note?.row;\n\n// Format activities list with user's timezone\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No logged activity)';\n} else {\n  activityItems.forEach(item => {\n    const time = formatTime(item.timestamp);\n    activitiesList += `- ${time}: [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format last note\nlet lastNoteText = '(No recent notes)';\nif (lastNote) {\n  const time = formatTime(lastNote.timestamp);\n  lastNoteText = `${time}: [${lastNote.category}] ${lastNote.text}`;\n}\n\n// Get current time in user's timezone\nlet currentTime;\ntry {\n  currentTime = new Date().toLocaleString('en-US', {\n    timeZone: timezone,\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n} catch (e) {\n  currentTime = new Date().toLocaleString('en-US', {\n    weekday: 'long',\n    hour: 'numeric',\n    minute: '2-digit'\n  });\n}\n\nreturn {\n  json: {\n    ctx,\n    north_star: northStar,\n    recent_activities: activitiesList.trim(),\n    last_note: lastNoteText,\n    timestamp: currentTime,\n    activity_count: activityItems.length,\n    inference_start: Date.now()\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "prepare-prompt-data",
+      "name": "PreparePromptData"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock LLM Chain node: GenerateNudgeWithLlm\nconst input = $input.first().json;\nconst inputText = input.ctx?.event?.clean_text \n  || input.text \n  || input.prompt \n  || \"\";\n\n// Check for specific keywords to provide more realistic mocks\nlet response = \"[MOCK LLM] I processed your request.\";\n\nif (inputText.includes(\"!!\") || inputText.toLowerCase().includes(\"act\")) {\n  response = \"[MOCK LLM] Activity recorded: \" + inputText.replace(/!!|act/i, \"\").trim();\n} else if (inputText.includes(\"..\") || inputText.toLowerCase().includes(\"note\")) {\n  response = \"[MOCK LLM] Note saved.\";\n} else if (inputText.includes(\"$$\") || inputText.toLowerCase().includes(\"todo\")) {\n  response = \"[MOCK LLM] Added to your todo list.\";\n} else if (inputText.includes(\"++\")) {\n  response = \"[MOCK LLM] I am starting a new thread for you. How can I help?\";\n} else if (inputText.includes(\"--\")) {\n  response = \"[MOCK LLM] Thread summarized and closed.\";\n}\n\nreturn [{ \n  json: { \n    text: response,\n    _mock: true,\n    _original_node: \"GenerateNudgeWithLlm\",\n    _input_preview: inputText.substring(0, 200)\n  } \n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "generate-nudge-llm",
+      "name": "GenerateNudgeWithLlm"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1352,
+        224
+      ],
+      "id": "nemotron-nano-9b",
+      "name": "NemotronNano9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1480,
+        224
+      ],
+      "id": "mimo-v2-flash",
+      "name": "MimoV2Flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse LLM response and prepare trace write query\nconst prepareData = $('PreparePromptData').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Parse the decision from first line\nconst lines = llmText.split('\\n').filter(l => l.trim());\nconst decision = (lines[0] || '').trim().toUpperCase();\n\n// Extract message (everything after first line)\nconst message = lines.slice(1).join('\\n').trim();\n\n// Determine if we should skip\nconst shouldSkip = decision === 'SKIP' || !['ENCOURAGE', 'REDIRECT'].includes(decision);\n\n// Prepare db_queries for trace INSERT\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES ($1::uuid, 'nudge',\n            jsonb_build_object(\n              'input', $2::jsonb,\n              'prompt', 'nudge-prompt',\n              'completion', $3,\n              'result', jsonb_build_object(\n                'decision', $4,\n                'message', $5,\n                'should_skip', $6::boolean\n              ),\n              'duration_ms', $7::integer\n            ), $8::uuid[])\n          RETURNING id, trace_chain || id AS updated_trace_chain`,\n    params: [\n      ctx.event.event_id,\n      {\n        north_star: prepareData.north_star,\n        recent_activities: prepareData.recent_activities,\n        last_note: prepareData.last_note,\n        timestamp: prepareData.timestamp,\n        activity_count: prepareData.activity_count\n      },\n      llmText,\n      decision,\n      message,\n      shouldSkip,\n      durationMs,\n      ctx.event.trace_chain || []\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    decision,\n    message,\n    should_skip: shouldSkip\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        0
+      ],
+      "id": "prepare-trace-query",
+      "name": "PrepareTraceQuery"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "check-skip",
+              "leftValue": "={{ $json.should_skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2368,
+        0
+      ],
+      "id": "if-should-skip",
+      "name": "IfShouldSkip"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock Discord node: SendNudge\n// Returns fake Discord API response for dev testing\nconst input = $input.first().json;\nreturn [{ \n  json: { \n    id: \"mock-discord-\" + Date.now(),\n    channel_id: input.channelId || \"mock-channel\",\n    content: input.content || \"\",\n    success: true,\n    _mock: true,\n    _original_node: \"SendNudge\"\n  } \n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3264,
+        0
+      ],
+      "id": "send-nudge",
+      "name": "SendNudge",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "webhookId": "cc71b2ab-c6db-4b95-b420-d02fec8c7aeb"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1920,
+        0
+      ],
+      "id": "execute-trace-query",
+      "name": "ExecuteQueries(trace)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check if should skip and prepare for projection branch\nconst ctx = $json.ctx;\nconst traceRow = ctx.db?.trace?.row;\nconst prepData = $('PrepareTraceQuery').first().json;\n\nreturn {\n  json: {\n    ctx,\n    trace_id: traceRow?.id,\n    updated_trace_chain: traceRow?.updated_trace_chain || [],\n    decision: prepData.decision,\n    message: prepData.message,\n    should_skip: prepData.should_skip\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        0
+      ],
+      "id": "check-skip",
+      "name": "CheckSkip"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare projection + final update queries\nconst checkData = $json;\nconst ctx = checkData.ctx;\n\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  decision: checkData.decision,\n  text: checkData.message\n};\n\nconst db_queries = [\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n          VALUES ($1::uuid, $2::uuid, $3::uuid[], 'nudge', $4::jsonb, 'auto_confirmed', $5)\n          RETURNING id`,\n    params: [\n      checkData.trace_id,\n      ctx.event.event_id,\n      checkData.updated_trace_chain,\n      projectionData,\n      ctx.event.timezone\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    message: checkData.message,\n    decision: checkData.decision\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2592,
+        0
+      ],
+      "id": "prepare-projection-query",
+      "name": "PrepareProjectionQuery"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2816,
+        0
+      ],
+      "id": "execute-projection-query",
+      "name": "ExecuteQueries(projection)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare for Discord post\nconst ctx = $json.ctx;\nconst projectionId = ctx.db?.projection?.row?.id;\nconst prepData = $('PrepareProjectionQuery').first().json;\n\nreturn {\n  json: {\n    ctx,\n    projection_id: projectionId,\n    message: prepData.message\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3040,
+        0
+      ],
+      "id": "prepare-for-discord",
+      "name": "PrepareForDiscord"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare final update query with Discord message ID\nconst discordResult = $json;\nconst prepData = $('PrepareForDiscord').first().json;\nconst ctx = prepData.ctx;\n\nconst db_queries = [\n  {\n    key: 'update_projection',\n    sql: `UPDATE projections \n          SET data = data || jsonb_build_object(\n            'discord_message_id', $1,\n            'discord_channel_id', $2,\n            'discord_guild_id', $3\n          )\n          WHERE id = $4::uuid\n          RETURNING id`,\n    params: [\n      discordResult.id,\n      $env.DISCORD_CHANNEL_ARCANE_SHELL || '',\n      $env.DISCORD_GUILD_ID || '',\n      prepData.projection_id\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3488,
+        0
+      ],
+      "id": "prepare-final-update",
+      "name": "PrepareFinalUpdate"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3712,
+        0
+      ],
+      "id": "execute-final-update",
+      "name": "ExecuteQueries(final)"
+    }
+  ],
+  "connections": {
+    "WhenCalledByAnotherWorkflow": {
+      "main": [
+        [
+          {
+            "node": "PrepareEvent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareEvent": {
+      "main": [
+        [
+          {
+            "node": "InsertEvent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "InsertEvent": {
+      "main": [
+        [
+          {
+            "node": "InitializeCtx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "InitializeCtx": {
+      "main": [
+        [
+          {
+            "node": "ExecuteQueries(read)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteQueries(read)": {
+      "main": [
+        [
+          {
+            "node": "PreparePromptData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PreparePromptData": {
+      "main": [
+        [
+          {
+            "node": "GenerateNudgeWithLlm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GenerateNudgeWithLlm": {
+      "main": [
+        [
+          {
+            "node": "PrepareTraceQuery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareTraceQuery": {
+      "main": [
+        [
+          {
+            "node": "ExecuteQueries(trace)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteQueries(trace)": {
+      "main": [
+        [
+          {
+            "node": "CheckSkip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CheckSkip": {
+      "main": [
+        [
+          {
+            "node": "IfShouldSkip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfShouldSkip": {
+      "main": [
+        [],
+        [
+          {
+            "node": "PrepareProjectionQuery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareProjectionQuery": {
+      "main": [
+        [
+          {
+            "node": "ExecuteQueries(projection)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteQueries(projection)": {
+      "main": [
+        [
+          {
+            "node": "PrepareForDiscord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareForDiscord": {
+      "main": [
+        [
+          {
+            "node": "SendNudge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendNudge": {
+      "main": [
+        [
+          {
+            "node": "PrepareFinalUpdate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareFinalUpdate": {
+      "main": [
+        [
+          {
+            "node": "ExecuteQueries(final)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NemotronNano9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "GenerateNudgeWithLlm",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MimoV2Flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "GenerateNudgeWithLlm",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "NOJ7FqVhVLqw0n8D",
+    "availableInMCP": false,
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "transformedForDev": true
+  },
+  "versionId": "c91e75de-747d-4be3-8495-04aed2541f83",
+  "activeVersionId": null,
+  "versionCounter": 187,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:28.256Z",
+      "createdAt": "2025-12-23T09:30:28.256Z",
+      "role": "workflow:owner",
+      "workflowId": "ujGErhNkQv4hkJxB",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

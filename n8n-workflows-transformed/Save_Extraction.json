@@ -1,0 +1,859 @@
+{
+  "updatedAt": "2025-12-24T11:29:01.502Z",
+  "createdAt": "2025-12-23T09:30:31.825Z",
+  "id": "dzbXvPNPoYdpaXGT",
+  "name": "Save_Extraction",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1792,
+        608
+      ],
+      "id": "c14595cb-2101-462a-a7f3-8179adcb9a48",
+      "name": "ExecuteWorkflowTrigger"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse emoji to determine action type\n// Input is ctx pattern from Route_Reaction\nconst ctx = $json.ctx;\nconst event = ctx.event;\nconst emoji = event.emoji;\n\n// Number emoji map\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3, '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5,\n  '6\ufe0f\u20e3': 6, '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst displayOrder = emojiMap[emoji];\n\nlet actionType = 'unknown';\n\nif (displayOrder) {\n  actionType = 'save_item';\n} else if (emoji === '\u274c') {\n  actionType = 'dismiss';\n} else if (emoji === '\ud83d\uddd1\ufe0f') {\n  actionType = 'delete_thread';\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      action: {\n        type: actionType,\n        display_order: displayOrder,\n        emoji: emoji\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1568,
+        608
+      ],
+      "id": "cf81fc06-c1a9-4b0b-9ad6-4b11f4db7f78",
+      "name": "ParseEmojiType"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND status = 'pending' LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.event.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -1344,
+        688
+      ],
+      "id": "check-summary-message",
+      "name": "CheckIfSummaryMessage",
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -1120,
+        608
+      ],
+      "id": "merge-after-check",
+      "name": "RestoreCtx"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.action.type }}",
+                    "rightValue": "save_item",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "54e06574-e0c8-4af0-a9eb-087988e52cbe"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Save"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f6c15010-c1d3-4a8c-89eb-46ef5a2eb3a6",
+                    "leftValue": "={{ $json.ctx.action.type }}",
+                    "rightValue": "dismiss",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Dismiss"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "2f9ef712-182c-40b7-b550-b66951bdecd2",
+                    "leftValue": "={{ $json.ctx.action.type }}",
+                    "rightValue": "delete_thread",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Delete Thread"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -896,
+        592
+      ],
+      "id": "17c95810-f72f-46ff-8f0e-c84eed006985",
+      "name": "WhatAction"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, data->>'thread_id' AS thread_id, data->>'item_type' AS item_type, data->>'text' AS text FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND (data->>'display_order')::int = $2 AND status = 'pending' LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -672,
+        272
+      ],
+      "id": "b35330b9-f750-4616-9b84-ce6d19b84ab6",
+      "name": "GetExtractionItem",
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -448,
+        304
+      ],
+      "id": "merge-extraction-ctx",
+      "name": "MergeExtractionWithCtx"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.item_type }}",
+                    "rightValue": "todo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "is-todo"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Todo"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        304
+      ],
+      "id": "70fe2723-8181-4e57-98e7-d3fc4484f4c7",
+      "name": "IsTodo?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE projections SET projection_type = 'note', status = 'confirmed', confirmed_at = NOW(), data = data || jsonb_build_object('category', data->>'item_type', 'promoted_from', 'thread_extraction', 'confirmed_via', 'reaction') WHERE id = $1::uuid AND projection_type = 'thread_extraction' RETURNING id, data->>'text' AS text;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        0,
+        272
+      ],
+      "id": "81de3319-4c05-48cc-9cb8-f4e8278bfad9",
+      "name": "PromoteToNote",
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE projections SET projection_type = 'todo', status = 'confirmed', confirmed_at = NOW(), data = data || jsonb_build_object('promoted_from', 'thread_extraction', 'confirmed_via', 'reaction', 'todo_status', 'pending') WHERE id = $1::uuid AND projection_type = 'thread_extraction' RETURNING id, data->>'text' AS text;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        0,
+        544
+      ],
+      "id": "87dbb168-a1c3-4e8c-8547-dbcc69a33849",
+      "name": "PromoteToTodo",
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        224,
+        304
+      ],
+      "id": "d87f449e-a026-4d48-aa08-e9489c352b51",
+      "name": "AfterPromote"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EMBEDDING_SERVICE_URL }}/embed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"texts\": [{{ JSON.stringify($json.text || '') }}]\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        80
+      ],
+      "id": "embed-projection-text",
+      "name": "EmbedProjectionText",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert embedding for the saved projection (fire-and-forget)\nINSERT INTO embeddings (projection_id, model, embedding_data, embedded_text, embedding)\nSELECT \n  $1::uuid,\n  'all-MiniLM-L6-v2',\n  '{}',\n  $2,\n  $3::vector\nWHERE $3 IS NOT NULL\nON CONFLICT DO NOTHING;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        80
+      ],
+      "id": "insert-embedding",
+      "name": "InsertEmbedding",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $('What Action').item.json.ctx.event.channel_id }}/messages/{{ $('What Action').item.json.ctx.event.message_id }}/reactions/{{ encodeURIComponent($('What Action').item.json.ctx.action.emoji) }}/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        304
+      ],
+      "id": "51af8a9d-7ace-4b47-a579-4efa1886e799",
+      "name": "RemoveNumberEmoji",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as unsaved FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 AND status = 'pending' HAVING COUNT(*) = 0;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        304
+      ],
+      "id": "6c50df92-a223-416d-87c6-7f7aa5841f48",
+      "name": "CheckAllSaved",
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/channels/{{ $('What Action').item.json.ctx.event.channel_id }}/messages/{{ $('What Action').item.json.ctx.event.message_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"content\": \"\u2705 All items saved!\\n\\n\ud83d\uddd1\ufe0f Delete thread \u2022 \u274c Dismiss\" } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        304
+      ],
+      "id": "90af10c8-1c74-467e-ae4e-dbd793ddd892",
+      "name": "UpdateSummary(allSaved)",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -672,
+        560
+      ],
+      "id": "8e521696-abc7-42b6-b5fd-74c679809412",
+      "name": "DeleteSummary(dismiss)",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT data->>'thread_id' AS discord_thread_id FROM projections WHERE projection_type = 'thread_extraction' AND data->>'summary_message_id' = $1 LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -672,
+        752
+      ],
+      "id": "f0bf81d2-b00c-4009-a86b-a7f48ae744fc",
+      "name": "GetDiscordThreadId",
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.discord_thread_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -448,
+        944
+      ],
+      "id": "1b798d04-8f99-4a90-b37d-81b891a35c8b",
+      "name": "DeleteDiscordThread",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -448,
+        752
+      ],
+      "id": "merge-thread-ctx",
+      "name": "RestoreCtxForThread"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -224,
+        944
+      ],
+      "id": "merge-status-ctx",
+      "name": "RestoreCtxForDeleteMsg"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        944
+      ],
+      "id": "45c43642-ffd9-45a0-9c83-f10fdc226336",
+      "name": "DeleteSummaryMessage",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "ExecuteWorkflowTrigger": {
+      "main": [
+        [
+          {
+            "node": "ParseEmojiType",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ParseEmojiType": {
+      "main": [
+        [
+          {
+            "node": "CheckIfSummaryMessage",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RestoreCtx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CheckIfSummaryMessage": {
+      "main": [
+        [
+          {
+            "node": "RestoreCtx",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "RestoreCtx": {
+      "main": [
+        [
+          {
+            "node": "WhatAction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatAction": {
+      "main": [
+        [
+          {
+            "node": "GetExtractionItem",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MergeExtractionWithCtx",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "DeleteSummary(dismiss)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GetDiscordThreadId",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RestoreCtxForThread",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "RestoreCtxForDeleteMsg",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "GetExtractionItem": {
+      "main": [
+        [
+          {
+            "node": "MergeExtractionWithCtx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MergeExtractionWithCtx": {
+      "main": [
+        [
+          {
+            "node": "IsTodo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IsTodo?": {
+      "main": [
+        [
+          {
+            "node": "PromoteToTodo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PromoteToNote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PromoteToNote": {
+      "main": [
+        [
+          {
+            "node": "AfterPromote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PromoteToTodo": {
+      "main": [
+        [
+          {
+            "node": "AfterPromote",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "AfterPromote": {
+      "main": [
+        [
+          {
+            "node": "RemoveNumberEmoji",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EmbedProjectionText",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmbedProjectionText": {
+      "main": [
+        [
+          {
+            "node": "InsertEmbedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RemoveNumberEmoji": {
+      "main": [
+        [
+          {
+            "node": "CheckAllSaved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CheckAllSaved": {
+      "main": [
+        [
+          {
+            "node": "UpdateSummary(allSaved)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetDiscordThreadId": {
+      "main": [
+        [
+          {
+            "node": "DeleteDiscordThread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RestoreCtxForThread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeleteDiscordThread": {
+      "main": [
+        []
+      ]
+    },
+    "RestoreCtxForThread": {
+      "main": [
+        [
+          {
+            "node": "RestoreCtxForDeleteMsg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RestoreCtxForDeleteMsg": {
+      "main": [
+        [
+          {
+            "node": "DeleteSummaryMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "NOJ7FqVhVLqw0n8D",
+    "availableInMCP": false,
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "transformedForDev": true
+  },
+  "versionId": "54c52bad-1560-49dc-9959-7d0245b4af15",
+  "activeVersionId": null,
+  "versionCounter": 126,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:31.825Z",
+      "createdAt": "2025-12-23T09:30:31.825Z",
+      "role": "workflow:owner",
+      "workflowId": "dzbXvPNPoYdpaXGT",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

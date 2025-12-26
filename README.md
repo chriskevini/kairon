@@ -222,3 +222,10 @@ All workflows pass data through a `ctx` object to prevent data loss:
 ```
 
 See `AGENTS.md` for detailed workflow development guidelines.
+
+## Documentation
+
+- **[docs/](docs/)** - Complete documentation suite
+- **[AGENTS.md](AGENTS.md)** - Agent guidelines and best practices
+- **[docs/TOOLING.md](docs/TOOLING.md)** - Development and operations tooling
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment pipeline documentation

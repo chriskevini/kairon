@@ -1,0 +1,203 @@
+{
+  "updatedAt": "2025-12-24T08:53:14.532Z",
+  "createdAt": "2025-12-23T09:30:29.200Z",
+  "id": "887fJOHvjP78PQoO",
+  "name": "Handle_Quality_Rating",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -400,
+        300
+      ],
+      "id": "trigger-quality-rating",
+      "name": "ReceiveEvent"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse quality rating from emoji\nconst ctx = $json.ctx;\nconst emoji = ctx.event.emoji;\n\n// Map emoji to quality score\nconst qualityMap = {\n  '\ud83d\udc4d': 1.0,\n  '\ud83d\udc4e': 0.0\n};\n\nconst qualityScore = qualityMap[emoji];\n\nif (qualityScore === undefined) {\n  throw new Error(`Unknown quality emoji: ${emoji}`);\n}\n\nreturn {\n  json: {\n    ctx,\n    quality_score: qualityScore,\n    emoji\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        300
+      ],
+      "id": "parse-quality",
+      "name": "ParseQualityRating"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Find projections by either the original user message or the bot reply message\nWITH target_projections AS (\n  -- Option 1: User message that triggered projections\n  SELECT p.id\n  FROM projections p\n  JOIN events e ON p.event_id = e.id\n  WHERE e.payload->>'discord_message_id' = $3\n    AND e.event_type = 'discord_message'\n    AND p.status IN ('auto_confirmed', 'confirmed')\n  UNION\n  -- Option 2: Bot reply message (projection stores the message ID)\n  SELECT p.id\n  FROM projections p\n  WHERE (p.data->>'discord_message_id' = $3\n     OR p.metadata->>'message_id' = $3)\n    AND p.status IN ('auto_confirmed', 'confirmed')\n)\nUPDATE projections\nSET \n  quality_score = $1,\n  metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(\n    'quality_rated_at', NOW(),\n    'quality_emoji', $2\n  )\nWHERE id IN (SELECT id FROM target_projections)\nRETURNING id, projection_type, quality_score;",
+        "options": {
+          "values": "={{ [  $json.quality_score ,  $json.emoji ,  $json.ctx.event.message_id  ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        40,
+        300
+      ],
+      "id": "update-quality-score",
+      "name": "UpdateQualityScore",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const result = $json;\nconst rating = result.rating;\nconst projectionId = result.projection_id;\nconst qualityScore = result.quality_score;\nconst userFeedback = result.user_feedback;\n\nconst response = `\u2705 Quality rating recorded!`;\n\nif (userFeedback) {\n  response += `\\n\\n**Your feedback:** ${userFeedback}`;\n}\n\nresponse += `\\n\\n**Rating Summary:**\\n- Rating: ${rating}/5\\n- Projection: ${projectionId}\\n- Score: ${qualityScore}`;\n\nreturn {\n  json: {\n    response: response,\n    channel_id: result.ctx.event.channel_id\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        300
+      ],
+      "id": "format-response",
+      "name": "FormatResponse"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock Discord node: SendResponse\n// Returns fake Discord API response for dev testing\nconst input = $input.first().json;\nreturn [{ \n  json: { \n    id: \"mock-discord-\" + Date.now(),\n    channel_id: input.channelId || \"mock-channel\",\n    content: input.content || \"\",\n    success: true,\n    _mock: true,\n    _original_node: \"SendResponse\"\n  } \n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ],
+      "id": "send-response",
+      "name": "SendResponse",
+      "webhookId": "quality-rating-response",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "connections": {
+    "ReceiveEvent": {
+      "main": [
+        [
+          {
+            "node": "ParseQualityRating",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ParseQualityRating": {
+      "main": [
+        [
+          {
+            "node": "UpdateQualityScore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UpdateQualityScore": {
+      "main": [
+        [
+          {
+            "node": "FormatResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "NOJ7FqVhVLqw0n8D",
+    "availableInMCP": false,
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "transformedForDev": true
+  },
+  "versionId": "9271c0f2-3250-4718-b3b8-aaaf9a4d1f23",
+  "activeVersionId": null,
+  "versionCounter": 126,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:29.200Z",
+      "createdAt": "2025-12-23T09:30:29.200Z",
+      "role": "workflow:owner",
+      "workflowId": "887fJOHvjP78PQoO",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

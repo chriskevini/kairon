@@ -6,6 +6,8 @@ Complete guide to Kairon's development and operations tools.
 
 - [Quick Reference](#quick-reference)
 - [Core Tools](#core-tools)
+- [Local Development](#local-development)
+- [Production Operations](#production-operations)
 - [Environment Setup](#environment-setup)
 - [Common Workflows](#common-workflows)
 - [Troubleshooting](#troubleshooting)
@@ -14,83 +16,274 @@ Complete guide to Kairon's development and operations tools.
 
 ## Quick Reference
 
-| Task | Dev Command | Prod Command |
-|------|-------------|--------------|
+### Local Development (Docker Containers)
+| Task | Command |
+|------|---------|
+| **Setup** |
+| Start local containers | `docker-compose -f docker-compose.dev.yml up -d` |
+| Load database schema | `docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < db/schema.sql` |
+| Transform workflows | `mkdir -p n8n-workflows-transformed && for wf in n8n-workflows/*.json; do cat "$wf" \| python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")"; done` |
+| Push workflows | `N8N_API_URL=http://localhost:5679 N8N_API_KEY="" WORKFLOW_DIR=n8n-workflows-transformed ./scripts/workflows/n8n-push-local.sh` |
+| Test webhook | `curl -X POST http://localhost:5679/webhook/kairon-dev-test -H "Content-Type: application/json" -d '{"event_type": "message", "content": "!! test", "guild_id": "test", "channel_id": "test", "message_id": "test123", "author": {"login": "test"}}'` |
+| **Database** |
+| Run SQL query | `docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 5"` |
+| Interactive psql | `docker exec -it postgres-dev-local psql -U postgres -d kairon_dev` |
+
+### Production Operations (Remote Server)
+| Task | Command |
+|------|---------|
 | **System Status** |
-| Check n8n + DB health | `./tools/kairon-ops.sh --dev status` | `./tools/kairon-ops.sh status` |
-| Test API connectivity | `./tools/kairon-ops.sh --dev test-api` | `./tools/kairon-ops.sh test-api` |
+| Check n8n + DB health | `./tools/kairon-ops.sh status` |
+| Test API connectivity | `./tools/kairon-ops.sh test-api` |
 | **Workflow Operations** |
-| List all workflows | `./tools/kairon-ops.sh --dev n8n-list` | `./tools/kairon-ops.sh n8n-list` |
-| Get workflow JSON | `./tools/kairon-ops.sh --dev n8n-get <ID>` | `./tools/kairon-ops.sh n8n-get <ID>` |
-| Backup workflows | `./tools/kairon-ops.sh --dev backup` | `./tools/kairon-ops.sh backup` |
+| List all workflows | `./tools/kairon-ops.sh n8n-list` |
+| Get workflow JSON | `./tools/kairon-ops.sh n8n-get <ID>` |
+| Backup workflows | `./tools/kairon-ops.sh backup` |
 | **Database Operations** |
-| Run SQL query | `./tools/kairon-ops.sh --dev db-query "SQL"` | `./tools/kairon-ops.sh db-query "SQL"` |
-| Interactive psql | `./tools/kairon-ops.sh --dev db -i` | `./tools/kairon-ops.sh db -i` |
-| Backup database | `./tools/kairon-ops.sh --dev db --backup` | `./tools/kairon-ops.sh db --backup` |
+| Run SQL query | `./tools/kairon-ops.sh db-query "SQL"` |
+| Interactive psql | `./tools/kairon-ops.sh db -i` |
+| Backup database | `./tools/kairon-ops.sh db --backup` |
 | **Testing** |
-| Quick smoke test | `./tools/test-all-paths.sh --dev --quick` | `./tools/test-all-paths.sh --quick` |
-| Full test suite | `./tools/test-all-paths.sh --dev` | `./tools/test-all-paths.sh` |
-| With DB verification | `./tools/test-all-paths.sh --dev --verify-db` | `./tools/test-all-paths.sh --verify-db` |
+| Quick smoke test | `./tools/test-all-paths.sh --quick` |
+| Full test suite | `./tools/test-all-paths.sh` |
+| With DB verification | `./tools/test-all-paths.sh --verify-db` |
 | **Deployment** |
-| Deploy to environment | `./scripts/deploy.sh dev` | `./scripts/deploy.sh prod` |
-| Deploy with tests | `./scripts/deploy.sh dev` (automatic) | `./scripts/deploy.sh` (all stages) |
+| Deploy to production | `./scripts/deploy.sh` |
+| Deploy with all tests | `./scripts/deploy.sh` (includes dev deployment + testing) |
 
 ## Core Tools
 
-### 1. kairon-ops.sh - Operations Hub
+### 1. kairon-ops.sh - Production Operations Hub
 
-Central command for all development and production operations.
+Central command for production server operations and remote management.
 
 **Location:** `tools/kairon-ops.sh`
 
 **Usage:**
 ```bash
-./tools/kairon-ops.sh [--dev|--prod] <command> [args]
+./tools/kairon-ops.sh [--prod] <command> [args]
 ```
 
+**Note:** `kairon-ops.sh` is designed for production operations. For local development, use Docker containers directly (see Local Development section).
+
 **Environment Flags:**
-- `--dev` - Use development environment (localhost:5679, postgres-dev)
 - `--prod` - Use production environment (default, remote server)
+- `--dev` - Currently targets remote dev servers, not local containers
+
+### 2. docker-compose.dev.yml - Local Development Environment
+
+Docker Compose configuration for local n8n and PostgreSQL development.
+
+**Location:** `docker-compose.dev.yml`
+
+**Services:**
+- **n8n-dev-local:** n8n instance on port 5679 (no authentication)
+- **postgres-dev-local:** PostgreSQL on port 5433
+
+**Usage:**
+```bash
+# Start containers
+docker-compose -f docker-compose.dev.yml up -d
+
+# Stop containers
+docker-compose -f docker-compose.dev.yml down
+
+# View logs
+docker-compose -f docker-compose.dev.yml logs -f n8n-dev
+
+# Access n8n UI
+open http://localhost:5679
+```
+
+### 3. transform_for_dev.py - Workflow Transformation
+
+Transforms workflows for local development with mock APIs.
+
+**Location:** `scripts/transform_for_dev.py`
+
+**Features:**
+- Converts Schedule Triggers to Webhook Triggers
+- Mocks Discord and LLM nodes with Code nodes
+- Preserves webhook paths for testing
+
+**Usage:**
+```bash
+# Transform single workflow
+cat n8n-workflows/Route_Event.json | python scripts/transform_for_dev.py > transformed.json
+
+# Transform all workflows
+mkdir -p n8n-workflows-transformed
+for wf in n8n-workflows/*.json; do
+  cat "$wf" | python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")"
+done
+
+# Use real APIs instead of mocks
+NO_MOCKS=1 cat workflow.json | python scripts/transform_for_dev.py
+```
+
+### 4. n8n-push-local.sh - Local Workflow Deployment
+
+Pushes transformed workflows to local n8n instance.
+
+**Location:** `scripts/workflows/n8n-push-local.sh`
+
+**Usage:**
+```bash
+N8N_API_URL=http://localhost:5679 N8N_API_KEY="" WORKFLOW_DIR=n8n-workflows-transformed ./scripts/workflows/n8n-push-local.sh
+```
+
+---
+
+## Local Development
+
+Local development uses Docker containers for isolated testing without affecting production systems.
+
+### Prerequisites
+
+- Docker and Docker Compose installed
+- Python 3.8+ for transformation scripts
+
+### Complete Setup Workflow
+
+1. **Start containers:**
+   ```bash
+   docker-compose -f docker-compose.dev.yml up -d
+   sleep 10  # Wait for services to start
+   ```
+
+2. **Initialize database:**
+   ```bash
+   # Load schema
+   docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < db/schema.sql
+   ```
+
+3. **Transform workflows:**
+   ```bash
+   # Create transformed workflows with mocks
+   mkdir -p n8n-workflows-transformed
+   for wf in n8n-workflows/*.json; do
+     if ! cat "$wf" | python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")" 2>/dev/null; then
+       echo "Warning: Failed to transform $(basename "$wf")"
+     fi
+   done
+   ```
+
+4. **Deploy workflows:**
+   ```bash
+   N8N_API_URL=http://localhost:5679 N8N_API_KEY="" WORKFLOW_DIR=n8n-workflows-transformed ./scripts/workflows/n8n-push-local.sh
+   ```
+
+5. **Test functionality:**
+   ```bash
+   # Send test message
+   curl -X POST http://localhost:5679/webhook/kairon-dev-test \
+     -H "Content-Type: application/json" \
+     -d '{
+       "event_type": "message",
+       "guild_id": "test-guild",
+       "channel_id": "test-channel",
+       "message_id": "test123",
+       "author": {"login": "testuser", "id": "12345", "display_name": "Test User"},
+       "content": "$$ buy milk",
+       "timestamp": "2025-12-26T12:00:00Z"
+     }'
+   ```
+
+6. **Verify results:**
+   ```bash
+   # Check database
+   docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT COUNT(*) FROM events;"
+
+   # View n8n UI
+   open http://localhost:5679
+   ```
+
+### Environment Variables
+
+For local development, these variables are optional (docker-compose.dev.yml provides defaults):
+
+- `DB_USER` - Database user (default: postgres)
+- `DB_NAME` - Database name (default: kairon_dev)
+- `N8N_DEV_ENCRYPTION_KEY` - n8n encryption key (default: dev-local-encryption-key-32chars)
+- `NO_MOCKS` - Set to "1" to use real APIs instead of mocks
+
+### Workflow Transformation Details
+
+The `transform_for_dev.py` script modifies workflows for local testing:
+
+- **Schedule → Webhook:** Converts Schedule Triggers to Webhook Triggers for manual testing
+- **Discord Mocking:** Replaces Discord nodes with Code nodes that return fake API responses
+- **LLM Mocking:** Replaces LLM nodes with Code nodes that return predictable responses
+- **Webhook Paths:** Preserves webhook paths for testing (e.g., `kairon-dev-test`)
+
+### Database Operations
+
+```bash
+# Run SQL query
+docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 5"
+
+# Interactive session
+docker exec -it postgres-dev-local psql -U postgres -d kairon_dev
+
+# Run query from file
+docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < query.sql
+```
+
+### Cleanup
+
+```bash
+# Stop containers
+docker-compose -f docker-compose.dev.yml down
+
+# Remove containers and volumes (WARNING: deletes all data)
+docker-compose -f docker-compose.dev.yml down -v
+```
+
+---
+
+## Production Operations
+
+Production operations use remote servers and the kairon-ops.sh tool.
 
 **Commands:**
 
 #### System Status
 ```bash
 # Full system check (n8n, database, connectivity)
-./tools/kairon-ops.sh --dev status
+./tools/kairon-ops.sh status
 
 # Test n8n API only
-./tools/kairon-ops.sh --dev test-api
+./tools/kairon-ops.sh test-api
 ```
 
 #### Workflow Management
 ```bash
 # List all workflows with IDs
-./tools/kairon-ops.sh --dev n8n-list
+./tools/kairon-ops.sh n8n-list
 
 # Get specific workflow JSON
-./tools/kairon-ops.sh --dev n8n-get F60v1kSn9JKWkZgZ
+./tools/kairon-ops.sh n8n-get F60v1kSn9JKWkZgZ
 
 # Save workflow to file
-./tools/kairon-ops.sh --dev n8n-get F60v1kSn9JKWkZgZ > Route_Event_backup.json
+./tools/kairon-ops.sh n8n-get F60v1kSn9JKWkZgZ > Route_Event_backup.json
 
 # Backup all workflows
-./tools/kairon-ops.sh --dev backup
+./tools/kairon-ops.sh backup
 ```
 
 #### Database Operations
 ```bash
 # Run query
-./tools/kairon-ops.sh --dev db-query "SELECT COUNT(*) FROM events"
+./tools/kairon-ops.sh db-query "SELECT COUNT(*) FROM events"
 
 # Interactive psql session
-./tools/kairon-ops.sh --dev db -i
+./tools/kairon-ops.sh db -i
 
 # Run query from file
-./tools/kairon-ops.sh --dev db -f query.sql
+./tools/kairon-ops.sh db -f query.sql
 
 # Backup database
-./tools/kairon-ops.sh --dev db --backup
+./tools/kairon-ops.sh db --backup
 ```
 
 ---
@@ -156,7 +349,7 @@ Comprehensive test suite covering all system paths.
 ```
 
 **Options:**
-- `--dev` - Test dev environment (localhost:5679)
+- `--dev` - Test production dev environment (remote server)
 - `--quick` - Quick test (~10 tests instead of ~45)
 - `--verify-db` - Verify database processing (Phase 5)
 - `--quiet` - Minimal output (default)
@@ -172,14 +365,16 @@ Comprehensive test suite covering all system paths.
 
 **Examples:**
 ```bash
-# Quick dev test
+# Production dev environment test (after deployment)
 ./tools/test-all-paths.sh --dev --quick
 
-# Full test with database verification
+# Full test with database verification (production dev)
 ./tools/test-all-paths.sh --dev --verify-db
 
 # Production smoke test
 ./tools/test-all-paths.sh --quick
+
+# For local development testing, see Local Development section
 ```
 
 **Database Verification** (--verify-db):
@@ -309,18 +504,20 @@ db_query "SELECT COUNT(*) FROM events WHERE received_at > NOW() - INTERVAL '1 ho
    - ControlMaster enabled for multiplexing
    - Used by `rdev` and `kairon-ops.sh`
 
-### Development Environment Setup
+### Remote Development Environment Setup
 
 ```bash
-# 1. Ensure dev n8n is running on server
+# 1. Ensure dev n8n is running on remote server
 ssh Oracle "cd /opt/n8n-docker-caddy && docker-compose -f docker-compose.dev.yml up -d"
 
-# 2. Verify connectivity
+# 2. Verify connectivity to remote dev server
 ./tools/kairon-ops.sh --dev status
 
 # 3. Load credentials for shell work
 source ./scripts/kairon-credentials.sh dev
 ```
+
+**Note:** For local development with Docker containers, see the Local Development section above.
 
 ### Production Environment Setup
 
@@ -761,11 +958,18 @@ kairon/
 
 ## Quick Tips
 
+### Production Operations
 - **Always test in dev first:** `./scripts/deploy.sh dev`
 - **Use --verify-db for confidence:** `./tools/test-all-paths.sh --dev --verify-db`
 - **Source credentials for direct API/DB access:** `source ./scripts/kairon-credentials.sh dev`
 - **Check system health before debugging:** `./tools/kairon-ops.sh --dev status`
 - **Backup before major changes:** `./tools/kairon-ops.sh --dev backup`
+
+### Local Development
+- **Start local environment:** `docker-compose -f docker-compose.dev.yml up -d`
+- **Test webhooks directly:** `curl -X POST http://localhost:5679/webhook/kairon-dev-test ...`
+- **Check local database:** `docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT * FROM events"`
+- **Transform workflows for testing:** `cat workflow.json | python scripts/transform_for_dev.py`
 
 ---
 

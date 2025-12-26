@@ -1,0 +1,1788 @@
+{
+  "updatedAt": "2025-12-24T10:24:27.974Z",
+  "createdAt": "2025-12-23T22:21:12.978Z",
+  "id": "IdpHzWCchShvArHM",
+  "name": "Route_Event",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kairon-dev-test",
+        "options": {},
+        "responseMode": "onReceived"
+      },
+      "id": "cd624af2-2b2d-4c54-a6f2-c16f72817ee4",
+      "name": "Discord Webhook Entry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -768,
+        192
+      ],
+      "webhookId": "discord-events"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kairon-dev-test/Nudge Cron (Every 15 Min)",
+        "options": {},
+        "responseMode": "onReceived"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -768,
+        -128
+      ],
+      "id": "cron-nudge",
+      "name": "Nudge Cron (Every 15 Min)"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kairon-dev-test/Summary Cron (Every 5 Min)",
+        "options": {},
+        "responseMode": "onReceived"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -768,
+        512
+      ],
+      "id": "cron-summary",
+      "name": "Summary Cron (Every 5 Min)"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ujGErhNkQv4hkJxB",
+          "mode": "list",
+          "cachedResultName": "Generate_Nudge",
+          "cachedResultUrl": "/workflow/ujGErhNkQv4hkJxB"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "trigger_reason": "cron"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -544,
+        -128
+      ],
+      "id": "execute-nudge-cron",
+      "name": "Execute Generate_Nudge"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT key, value FROM config WHERE key IN ('summary_time', 'last_summary_date');",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -544,
+        512
+      ],
+      "id": "get-summary-config",
+      "name": "Get Summary Config",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if we should run summary (time matches AND not already run today)\nconst currentHour = $now.hour;\nconst todayDate = $now.toFormat('yyyy-MM-dd');\nconst inputItems = $input.all();\n\n// Extract config values\nlet targetHour = 20; // default\nlet lastSummaryDate = null;\n\nfor (const item of inputItems) {\n  if (item.json.key === 'summary_time') {\n    const configTime = item.json.value;\n    if (configTime.includes(':')) {\n      targetHour = parseInt(configTime.split(':')[0]);\n    } else {\n      targetHour = parseInt(configTime);\n    }\n  } else if (item.json.key === 'last_summary_date') {\n    lastSummaryDate = item.json.value;\n  }\n}\n\n// Check 1: Is it the right hour?\nif (currentHour !== targetHour) {\n  return [];\n}\n\n// Check 2: Already ran today?\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - time matches and not run today\nreturn [{ json: { should_run: true, today: todayDate, trigger_reason: 'cron' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        512
+      ],
+      "id": "check-summary-time",
+      "name": "Check Should Run Summary"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "tpkLfvOCAeN5YzMR",
+          "mode": "list",
+          "cachedResultName": "Generate_Daily_Summary",
+          "cachedResultUrl": "/workflow/tpkLfvOCAeN5YzMR"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "trigger_reason": "cron"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        512
+      ],
+      "id": "execute-summary-cron",
+      "name": "Execute Generate_Daily_Summary"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "condition-message",
+                    "leftValue": "={{ $json.body.event_type }}",
+                    "rightValue": "message",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "message"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "condition-reaction",
+                    "leftValue": "={{ $json.body.event_type }}",
+                    "rightValue": "reaction",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reaction"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "1c5b0871-58a8-457f-8b94-c1225e4e38b7",
+      "name": "Route by Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -544,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const reaction = $input.first().json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        288
+      ],
+      "id": "1ffa970a-a79d-4d92-ad89-666e68c48276",
+      "name": "Parse Reaction"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.message_event.row;\nconst webhook = ctx.webhook_data;\nconst validation_result = ctx.validation?.result;\n\n// Tier 3: Skip projections if 'no_projections' tier was hit\nif (validation_result === 'no_projections') {\n  return [];\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: webhook.clean_text,\n        tag: webhook.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        96
+      ],
+      "id": "ebc352f8-4d54-4ecd-9aee-d6e36d191099",
+      "name": "Initialize Message Context"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.reaction_event.row;\nconst webhook = ctx.webhook_data;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: webhook.emoji,\n        extraction_index: webhook.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        288
+      ],
+      "id": "9377cd32-3d33-458d-9cb9-bca0ffb63490",
+      "name": "Initialize Reaction Context"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "TiwH9iJRRV8ZRtrs",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/TiwH9iJRRV8ZRtrs",
+          "cachedResultName": "Route_Reaction"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        576,
+        288
+      ],
+      "id": "a03ea0a9-a9d2-4ce7-bb70-3a12397a5719",
+      "name": "Route Reaction"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "G0XzfbZiT3P98B4S",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/G0XzfbZiT3P98B4S",
+          "cachedResultName": "Route_Message"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        576,
+        96
+      ],
+      "id": "29f4a14c-4ba5-481b-9ac0-7d8200241a40",
+      "name": "Route Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const json = $input.first().json;\nconst content = (json.body.content || \"\").trim();\nconst lowerContent = content.toLowerCase();\n\nconst TAG_TABLE = [\n  [\"!!\", \"act\"],\n  [\"..\", \"note\"],\n  [\"++\", \"chat\"],\n  [\"--\", \"save\"],\n  [\"::\", \"cmd\"],\n  [\"$$\", \"todo\", \"to-do\"]\n];\n\nlet tag = null;\nlet clean_text = content;\n\nfor (const row of TAG_TABLE) {\n  const normalized = row[0];\n  \n  const match = row.find(alias => {\n    const a = alias.toLowerCase();\n    \n    // Check if alias is strictly symbols (no letters or numbers)\n    const isSymbolOnly = !/[a-z0-9]/i.test(a);\n\n    if (isSymbolOnly) {\n      // Symbols match even if glued to text: \"!!task\"\n      return lowerContent.startsWith(a);\n    } else {\n      // Words require a space or exact match: \"act task\" or \"act\"\n      return lowerContent.startsWith(a + \" \") || lowerContent === a;\n    }\n  });\n\n  if (match) {\n    tag = normalized;\n    clean_text = content.slice(match.length).trim();\n    break;\n  }\n}\n\nreturn [{ json: { ...json.body, tag, clean_text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        96
+      ],
+      "id": "5f108e4e-41d7-4284-be7e-dcd784e855e6",
+      "name": "Parse Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cleanText = $json.clean_text || \"\";\nconst tag = $json.tag;\n\n// Tier 1: Empty/whitespace (NO TAG)\nif (!cleanText.trim() && !tag) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"block\" }\n      }\n    }\n  };\n}\n\n// Tier 2: Tag-only (HAS TAG but no content)\nif (tag && cleanText.trim() === \"\") {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"warn\" }\n      }\n    }\n  };\n}\n\n// Tier 3: Test keywords\nconst testKeywords = /\\b(test|testing|aaaaa)\\b/i;\nif (testKeywords.test(cleanText)) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"no_projections\" }\n      }\n    }\n  };\n}\n\n// Tier 4: Continue\nreturn {\n  json: {\n    ctx: {\n      webhook_data: $json,\n      validation: { result: \"continue\" }\n      }\n  }\n};"
+      },
+      "id": "validate-message",
+      "name": "Validate Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-block",
+                    "leftValue": "={{ $json.ctx.validation.result }}",
+                    "rightValue": "block",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "block"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-warn",
+                    "leftValue": "={{ $json.ctx.validation.result }}",
+                    "rightValue": "warn",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "warn"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-no-projections",
+                    "leftValue": "={{ $json.ctx.validation.result }}",
+                    "rightValue": "no_projections",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no_projections"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "switch-validation",
+      "name": "Switch on Validation",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        0,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.webhook_data.channel_id }}/messages/{{ $json.ctx.webhook_data.message_id }}/reactions/%E2%9B%94/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "react-block",
+      "name": "React: Block Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        -256
+      ],
+      "credentials": {
+        "discordBotApi": {
+          "id": "placeholder-will-be-replaced",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.webhook_data.channel_id }}/messages/{{ $json.ctx.webhook_data.message_id }}/reactions/%E2%9A%A0%EF%B8%8F/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "react-warn",
+      "name": "React: Warn Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        -96
+      ],
+      "credentials": {
+        "discordBotApi": {
+          "id": "placeholder-will-be-replaced",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.webhook_data.channel_id }}/messages/{{ $json.ctx.webhook_data.message_id }}/reactions/%F0%9F%92%80/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "react-no-projections",
+      "name": "React: No Projections",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        64
+      ],
+      "credentials": {
+        "discordBotApi": {
+          "id": "placeholder-will-be-replaced",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "merge-validation",
+      "name": "Merge: Continue Paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        448,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build DB query context for Execute_Queries\n// Prepares INSERT query for discord_message event\nconst parsed = $input.first().json;\nconst webhook_data = parsed.ctx?.webhook_data || parsed;\n\n// Build parameters array\nconst params = [\n    webhook_data.guild_id,\n    webhook_data.channel_id,\n    webhook_data.message_id,\n    `https://discord.com/channels/${webhook_data.guild_id}/${webhook_data.channel_id}/${webhook_data.message_id}`,\n    webhook_data.author?.login || webhook_data.author_login,\n    webhook_data.thread_id || null,\n    webhook_data.content,\n    webhook_data.clean_text,\n    webhook_data.tag || null,\n    webhook_data.timestamp\n];\n\nconst db_queries = [{\n        key: 'message_event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;`,\n        params: params\n      }];\n\n// Return ctx with db_queries array (Execute_Queries pattern)\nreturn [{\n  json: {\n    ctx: {\n      ...parsed.ctx,\n      db_queries\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        96
+      ],
+      "id": "1dee35fc-7a2a-4e70-b541-e25450738f82",
+      "name": "Build Message DB Query"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        96
+      ],
+      "id": "execute-queries-message",
+      "name": "Execute Store Message Query"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build DB query context for Execute_Queries\n// Prepares INSERT query for discord_reaction event\nconst parsed = $input.first().json;\n\n// Build parameters array\nconst params = [\n    parsed.guild_id,\n    parsed.channel_id,\n    parsed.message_id,\n    parsed.user?.login || parsed.user_id,\n    parsed.thread_id || null,\n    parsed.emoji,\n    parsed.extraction_index,\n    parsed.action,\n    parsed.synthetic_id\n];\n\n// Return ctx with db_queries array (Execute_Queries pattern)\nreturn [{\n  json: {\n    ctx: {\n      webhook_data: parsed,\n      db_queries: [{\n        key: 'reaction_event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING *;`,\n        params: params\n      }]\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        288
+      ],
+      "id": "1e599c77-83a3-488c-990c-27fda94c4a92",
+      "name": "Build Reaction DB Query"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        288
+      ],
+      "id": "execute-queries-reaction",
+      "name": "Execute Store Reaction Query"
+    }
+  ],
+  "connections": {
+    "Discord Webhook Entry": {
+      "main": [
+        [
+          {
+            "node": "Route by Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nudge Cron (Every 15 Min)": {
+      "main": [
+        [
+          {
+            "node": "Execute Generate_Nudge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary Cron (Every 5 Min)": {
+      "main": [
+        [
+          {
+            "node": "Get Summary Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Summary Config": {
+      "main": [
+        [
+          {
+            "node": "Check Should Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Should Run Summary": {
+      "main": [
+        [
+          {
+            "node": "Execute Generate_Daily_Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Event Type": {
+      "main": [
+        [
+          {
+            "node": "Parse Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Reaction": {
+      "main": [
+        [
+          {
+            "node": "Build Reaction DB Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Message Context": {
+      "main": [
+        [
+          {
+            "node": "Route Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Reaction Context": {
+      "main": [
+        [
+          {
+            "node": "Route Reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Validate Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Message": {
+      "main": [
+        [
+          {
+            "node": "Switch on Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch on Validation": {
+      "main": [
+        [
+          {
+            "node": "React: Block Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "React: Warn Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "React: No Projections",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge: Continue Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "React: No Projections": {
+      "main": [
+        [
+          {
+            "node": "Merge: Continue Paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge: Continue Paths": {
+      "main": [
+        [
+          {
+            "node": "Build Message DB Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Message DB Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Store Message Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reaction DB Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Store Reaction Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Store Message Query": {
+      "main": [
+        [
+          {
+            "node": "Initialize Message Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Store Reaction Query": {
+      "main": [
+        [
+          {
+            "node": "Initialize Reaction Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": ""
+  },
+  "staticData": {
+    "node:NudgeCron(every15Min)": {
+      "recurrenceRules": []
+    },
+    "node:SummaryCron(every5Min)": {
+      "recurrenceRules": []
+    },
+    "node:Nudge Cron (Every 15 Min)": {
+      "recurrenceRules": []
+    },
+    "node:Summary Cron (Every 5 Min)": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "transformedForDev": true
+  },
+  "versionId": "3c61f01e-9eed-4d91-b028-b0e11ee44e07",
+  "activeVersionId": "3c61f01e-9eed-4d91-b028-b0e11ee44e07",
+  "versionCounter": 193,
+  "triggerCount": 3,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T22:21:12.978Z",
+      "createdAt": "2025-12-23T22:21:12.978Z",
+      "role": "workflow:owner",
+      "workflowId": "IdpHzWCchShvArHM",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2025-12-24T10:24:27.989Z",
+    "createdAt": "2025-12-24T10:24:27.989Z",
+    "versionId": "3c61f01e-9eed-4d91-b028-b0e11ee44e07",
+    "workflowId": "IdpHzWCchShvArHM",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "={{ $env.WEBHOOK_PATH }}",
+          "options": {}
+        },
+        "id": "cd624af2-2b2d-4c54-a6f2-c16f72817ee4",
+        "name": "Discord Webhook Entry",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [
+          -768,
+          192
+        ],
+        "webhookId": "discord-events"
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 15
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -768,
+          -128
+        ],
+        "id": "cron-nudge",
+        "name": "Nudge Cron (Every 15 Min)"
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "*/5 * * * *"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -768,
+          512
+        ],
+        "id": "cron-summary",
+        "name": "Summary Cron (Every 5 Min)"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "ujGErhNkQv4hkJxB",
+            "mode": "list",
+            "cachedResultName": "Generate_Nudge",
+            "cachedResultUrl": "/workflow/ujGErhNkQv4hkJxB"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "trigger_reason": "cron"
+            },
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {
+            "waitForSubWorkflow": false
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          -544,
+          -128
+        ],
+        "id": "execute-nudge-cron",
+        "name": "Execute Generate_Nudge"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT key, value FROM config WHERE key IN ('summary_time', 'last_summary_date');",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.4,
+        "position": [
+          -544,
+          512
+        ],
+        "id": "get-summary-config",
+        "name": "Get Summary Config",
+        "alwaysOutputData": true,
+        "credentials": {
+          "postgres": {
+            "id": "GIpVtzgs3wiCmQBQ",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Check if we should run summary (time matches AND not already run today)\nconst currentHour = $now.hour;\nconst todayDate = $now.toFormat('yyyy-MM-dd');\nconst inputItems = $input.all();\n\n// Extract config values\nlet targetHour = 20; // default\nlet lastSummaryDate = null;\n\nfor (const item of inputItems) {\n  if (item.json.key === 'summary_time') {\n    const configTime = item.json.value;\n    if (configTime.includes(':')) {\n      targetHour = parseInt(configTime.split(':')[0]);\n    } else {\n      targetHour = parseInt(configTime);\n    }\n  } else if (item.json.key === 'last_summary_date') {\n    lastSummaryDate = item.json.value;\n  }\n}\n\n// Check 1: Is it the right hour?\nif (currentHour !== targetHour) {\n  return [];\n}\n\n// Check 2: Already ran today?\nif (lastSummaryDate === todayDate) {\n  return [];\n}\n\n// Continue - time matches and not run today\nreturn [{ json: { should_run: true, today: todayDate, trigger_reason: 'cron' } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -320,
+          512
+        ],
+        "id": "check-summary-time",
+        "name": "Check Should Run Summary"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "tpkLfvOCAeN5YzMR",
+            "mode": "list",
+            "cachedResultName": "Generate_Daily_Summary",
+            "cachedResultUrl": "/workflow/tpkLfvOCAeN5YzMR"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "trigger_reason": "cron"
+            },
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {
+            "waitForSubWorkflow": false
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          -96,
+          512
+        ],
+        "id": "execute-summary-cron",
+        "name": "Execute Generate_Daily_Summary"
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 1
+                  },
+                  "conditions": [
+                    {
+                      "id": "condition-message",
+                      "leftValue": "={{ $json.body.event_type }}",
+                      "rightValue": "message",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "message"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 1
+                  },
+                  "conditions": [
+                    {
+                      "id": "condition-reaction",
+                      "leftValue": "={{ $json.body.event_type }}",
+                      "rightValue": "reaction",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "reaction"
+              }
+            ]
+          },
+          "options": {
+            "fallbackOutput": 3
+          }
+        },
+        "id": "1c5b0871-58a8-457f-8b94-c1225e4e38b7",
+        "name": "Route by Event Type",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3,
+        "position": [
+          -544,
+          192
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const reaction = $input.first().json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -320,
+          288
+        ],
+        "id": "1ffa970a-a79d-4d92-ad89-666e68c48276",
+        "name": "Parse Reaction"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.message_event.row;\nconst webhook = ctx.webhook_data;\nconst validation_result = ctx.validation?.result;\n\n// Tier 3: Skip projections if 'no_projections' tier was hit\nif (validation_result === 'no_projections') {\n  return [];\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: webhook.clean_text,\n        tag: webhook.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          352,
+          96
+        ],
+        "id": "ebc352f8-4d54-4ecd-9aee-d6e36d191099",
+        "name": "Initialize Message Context"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.reaction_event.row;\nconst webhook = ctx.webhook_data;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_reaction',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.user?.login || webhook.user_id,\n        thread_id: webhook.thread_id || null,\n        emoji: webhook.emoji,\n        extraction_index: webhook.extraction_index,\n        action: webhook.action,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          352,
+          288
+        ],
+        "id": "9377cd32-3d33-458d-9cb9-bca0ffb63490",
+        "name": "Initialize Reaction Context"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "TiwH9iJRRV8ZRtrs",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/TiwH9iJRRV8ZRtrs",
+            "cachedResultName": "Route_Reaction"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          576,
+          288
+        ],
+        "id": "a03ea0a9-a9d2-4ce7-bb70-3a12397a5719",
+        "name": "Route Reaction"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "G0XzfbZiT3P98B4S",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/G0XzfbZiT3P98B4S",
+            "cachedResultName": "Route_Message"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          576,
+          96
+        ],
+        "id": "29f4a14c-4ba5-481b-9ac0-7d8200241a40",
+        "name": "Route Message"
+      },
+      {
+        "parameters": {
+          "jsCode": "const json = $input.first().json;\nconst content = (json.body.content || \"\").trim();\nconst lowerContent = content.toLowerCase();\n\nconst TAG_TABLE = [\n  [\"!!\", \"act\"],\n  [\"..\", \"note\"],\n  [\"++\", \"chat\"],\n  [\"--\", \"save\"],\n  [\"::\", \"cmd\"],\n  [\"$$\", \"todo\", \"to-do\"]\n];\n\nlet tag = null;\nlet clean_text = content;\n\nfor (const row of TAG_TABLE) {\n  const normalized = row[0];\n  \n  const match = row.find(alias => {\n    const a = alias.toLowerCase();\n    \n    // Check if alias is strictly symbols (no letters or numbers)\n    const isSymbolOnly = !/[a-z0-9]/i.test(a);\n\n    if (isSymbolOnly) {\n      // Symbols match even if glued to text: \"!!task\"\n      return lowerContent.startsWith(a);\n    } else {\n      // Words require a space or exact match: \"act task\" or \"act\"\n      return lowerContent.startsWith(a + \" \") || lowerContent === a;\n    }\n  });\n\n  if (match) {\n    tag = normalized;\n    clean_text = content.slice(match.length).trim();\n    break;\n  }\n}\n\nreturn [{ json: { ...json.body, tag, clean_text } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -320,
+          96
+        ],
+        "id": "5f108e4e-41d7-4284-be7e-dcd784e855e6",
+        "name": "Parse Message"
+      },
+      {
+        "parameters": {
+          "jsCode": "const cleanText = $json.clean_text || \"\";\nconst tag = $json.tag;\n\n// Tier 1: Empty/whitespace (NO TAG)\nif (!cleanText.trim() && !tag) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"block\" }\n      }\n    }\n  };\n}\n\n// Tier 2: Tag-only (HAS TAG but no content)\nif (tag && cleanText.trim() === \"\") {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"warn\" }\n      }\n    }\n  };\n}\n\n// Tier 3: Test keywords\nconst testKeywords = /\\b(test|testing|aaaaa)\\b/i;\nif (testKeywords.test(cleanText)) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"no_projections\" }\n      }\n    }\n  };\n}\n\n// Tier 4: Continue\nreturn {\n  json: {\n    ctx: {\n      webhook_data: $json,\n      validation: { result: \"continue\" }\n      }\n  }\n};"
+        },
+        "id": "validate-message",
+        "name": "Validate Message",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -224,
+          -64
+        ]
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 1
+                  },
+                  "conditions": [
+                    {
+                      "id": "cond-block",
+                      "leftValue": "={{ $json.ctx.validation.result }}",
+                      "rightValue": "block",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "block"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 1
+                  },
+                  "conditions": [
+                    {
+                      "id": "cond-warn",
+                      "leftValue": "={{ $json.ctx.validation.result }}",
+                      "rightValue": "warn",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "warn"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 1
+                  },
+                  "conditions": [
+                    {
+                      "id": "cond-no-projections",
+                      "leftValue": "={{ $json.ctx.validation.result }}",
+                      "rightValue": "no_projections",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "no_projections"
+              }
+            ]
+          },
+          "options": {
+            "fallbackOutput": 3
+          }
+        },
+        "id": "switch-validation",
+        "name": "Switch on Validation",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3,
+        "position": [
+          0,
+          -64
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.webhook_data.channel_id }}/messages/{{ $json.ctx.webhook_data.message_id }}/reactions/%E2%9B%94/@me",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "discordBotApi",
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "id": "react-block",
+        "name": "React: Block Message",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          224,
+          -256
+        ],
+        "credentials": {
+          "discordBotApi": {
+            "id": "f5k6f7g8-h9i0-j1k2-l3m4-n5o6p7q8r9s0",
+            "name": "Discord Bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.webhook_data.channel_id }}/messages/{{ $json.ctx.webhook_data.message_id }}/reactions/%E2%9A%A0%EF%B8%8F/@me",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "discordBotApi",
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "id": "react-warn",
+        "name": "React: Warn Message",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          224,
+          -96
+        ],
+        "credentials": {
+          "discordBotApi": {
+            "id": "f5k6f7g8-h9i0-j1k2-l3m4-n5o6p7q8r9s0",
+            "name": "Discord Bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.webhook_data.channel_id }}/messages/{{ $json.ctx.webhook_data.message_id }}/reactions/%F0%9F%92%80/@me",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "discordBotApi",
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        "id": "react-no-projections",
+        "name": "React: No Projections",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          224,
+          64
+        ],
+        "credentials": {
+          "discordBotApi": {
+            "id": "f5k6f7g8-h9i0-j1k2-l3m4-n5o6p7q8r9s0",
+            "name": "Discord Bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "append",
+          "numberInputs": 2
+        },
+        "id": "merge-validation",
+        "name": "Merge: Continue Paths",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3,
+        "position": [
+          448,
+          64
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Build DB query context for Execute_Queries\n// Prepares INSERT query for discord_message event\nconst parsed = $input.first().json;\nconst webhook_data = parsed.ctx?.webhook_data || parsed;\n\n// Build parameters array\nconst params = [\n    webhook_data.guild_id,\n    webhook_data.channel_id,\n    webhook_data.message_id,\n    `https://discord.com/channels/${webhook_data.guild_id}/${webhook_data.channel_id}/${webhook_data.message_id}`,\n    webhook_data.author?.login || webhook_data.author_login,\n    webhook_data.thread_id || null,\n    webhook_data.content,\n    webhook_data.clean_text,\n    webhook_data.tag || null,\n    webhook_data.timestamp\n];\n\nconst db_queries = [{\n        key: 'message_event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_message',\n  jsonb_build_object(\n    'content', $7,\n    'clean_text', $8,\n    'tag', $9,\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'message_url', $4,\n    'author_login', $5,\n    'thread_id', $6,\n    'timestamp', $10::timestamptz\n  ),\n  $3\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE\nSET payload = EXCLUDED.payload\nRETURNING *;`,\n        params: params\n      }];\n\n// Return ctx with db_queries array (Execute_Queries pattern)\nreturn [{\n  json: {\n    ctx: {\n      ...parsed.ctx,\n      db_queries\n    }\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          672,
+          96
+        ],
+        "id": "1dee35fc-7a2a-4e70-b541-e25450738f82",
+        "name": "Build Message DB Query"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "CgUAxK0i4YhrZ2Wp",
+            "mode": "list",
+            "cachedResultName": "Execute_Queries",
+            "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "ctx": "={{ $json.ctx }}"
+            }
+          },
+          "options": {
+            "waitForSubWorkflow": true
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          128,
+          96
+        ],
+        "id": "execute-queries-message",
+        "name": "Execute Store Message Query"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Build DB query context for Execute_Queries\n// Prepares INSERT query for discord_reaction event\nconst parsed = $input.first().json;\n\n// Build parameters array\nconst params = [\n    parsed.guild_id,\n    parsed.channel_id,\n    parsed.message_id,\n    parsed.user?.login || parsed.user_id,\n    parsed.thread_id || null,\n    parsed.emoji,\n    parsed.extraction_index,\n    parsed.action,\n    parsed.synthetic_id\n];\n\n// Return ctx with db_queries array (Execute_Queries pattern)\nreturn [{\n  json: {\n    ctx: {\n      webhook_data: parsed,\n      db_queries: [{\n        key: 'reaction_event',\n        sql: `INSERT INTO events (\n  event_type,\n  payload,\n  idempotency_key\n) VALUES (\n  'discord_reaction',\n  jsonb_build_object(\n    'discord_guild_id', $1,\n    'discord_channel_id', $2,\n    'discord_message_id', $3,\n    'author_login', $4,\n    'thread_id', $5,\n    'emoji', $6,\n    'extraction_index', $7,\n    'action', $8\n  ),\n  $9\n)\nON CONFLICT (event_type, idempotency_key) DO NOTHING\nRETURNING *;`,\n        params: params\n      }]\n    }\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -96,
+          288
+        ],
+        "id": "1e599c77-83a3-488c-990c-27fda94c4a92",
+        "name": "Build Reaction DB Query"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "CgUAxK0i4YhrZ2Wp",
+            "mode": "list",
+            "cachedResultName": "Execute_Queries",
+            "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "ctx": "={{ $json.ctx }}"
+            }
+          },
+          "options": {
+            "waitForSubWorkflow": true
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          128,
+          288
+        ],
+        "id": "execute-queries-reaction",
+        "name": "Execute Store Reaction Query"
+      }
+    ],
+    "connections": {
+      "Discord Webhook Entry": {
+        "main": [
+          [
+            {
+              "node": "Route by Event Type",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Nudge Cron (Every 15 Min)": {
+        "main": [
+          [
+            {
+              "node": "Execute Generate_Nudge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Summary Cron (Every 5 Min)": {
+        "main": [
+          [
+            {
+              "node": "Get Summary Config",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Summary Config": {
+        "main": [
+          [
+            {
+              "node": "Check Should Run Summary",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check Should Run Summary": {
+        "main": [
+          [
+            {
+              "node": "Execute Generate_Daily_Summary",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Route by Event Type": {
+        "main": [
+          [
+            {
+              "node": "Parse Message",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Parse Reaction",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Reaction": {
+        "main": [
+          [
+            {
+              "node": "Build Reaction DB Query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Initialize Message Context": {
+        "main": [
+          [
+            {
+              "node": "Route Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Initialize Reaction Context": {
+        "main": [
+          [
+            {
+              "node": "Route Reaction",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Message": {
+        "main": [
+          [
+            {
+              "node": "Validate Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate Message": {
+        "main": [
+          [
+            {
+              "node": "Switch on Validation",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch on Validation": {
+        "main": [
+          [
+            {
+              "node": "React: Block Message",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "React: Warn Message",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "React: No Projections",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Merge: Continue Paths",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "React: No Projections": {
+        "main": [
+          [
+            {
+              "node": "Merge: Continue Paths",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Merge: Continue Paths": {
+        "main": [
+          [
+            {
+              "node": "Build Message DB Query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Message DB Query": {
+        "main": [
+          [
+            {
+              "node": "Execute Store Message Query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Reaction DB Query": {
+        "main": [
+          [
+            {
+              "node": "Execute Store Reaction Query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Execute Store Message Query": {
+        "main": [
+          [
+            {
+              "node": "Initialize Message Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Execute Store Reaction Query": {
+        "main": [
+          [
+            {
+              "node": "Initialize Reaction Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Chris Irineo",
+    "name": null,
+    "description": null
+  }
+}

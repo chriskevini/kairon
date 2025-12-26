@@ -1,0 +1,526 @@
+{
+  "updatedAt": "2025-12-26T06:27:53.321Z",
+  "createdAt": "2025-12-23T09:30:27.792Z",
+  "id": "tpkLfvOCAeN5YzMR",
+  "name": "Generate_Daily_Summary",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        1856
+      ],
+      "id": "workflow-trigger",
+      "name": "WhenCalledByAnotherWorkflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract trigger_reason from caller, prepare event data\nconst input = $json;\nconst triggerReason = input.trigger_reason || 'cron';\nconst today = $now.toFormat('yyyy-MM-dd');\n\nreturn { json: { should_run: true, today: today, trigger_reason: triggerReason } };",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        1856
+      ],
+      "id": "prepare-event-data",
+      "name": "PrepareEventData"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert system event for daily summary\nINSERT INTO events (idempotency_key, event_type, payload)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'daily_summary',\n    'trigger_reason', $2,\n    'scheduled_date', $3\n  )\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id\nRETURNING id, idempotency_key;",
+        "options": {
+          "values": "=scheduled:daily_summary:{{ $json.today }}:{{ $json.trigger_reason }},={{ $json.trigger_reason }},={{ $json.today }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        592,
+        1856
+      ],
+      "id": "insert-event",
+      "name": "InsertEvent",
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize ctx with event_id and prepare db_queries for Execute_Queries\nconst eventResult = $json;\nconst checkResult = $(\"PrepareEventData\").first().json;\n\nconst db_queries = [\n  {\n    key: 'north_star',\n    sql: `SELECT value FROM config WHERE key = 'north_star'`\n  },\n  {\n    key: 'activities',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'description' as description\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n  },\n  {\n    key: 'notes',\n    sql: `SELECT \n            (p.data->>'timestamp')::timestamptz as timestamp,\n            p.data->>'category' as category,\n            p.data->>'text' as text\n          FROM projections p\n          WHERE p.projection_type = 'note'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          ORDER BY (p.data->>'timestamp')::timestamptz`\n  },\n  {\n    key: 'breakdown',\n    sql: `SELECT \n            p.data->>'category' as category,\n            COUNT(*) as count\n          FROM projections p\n          WHERE p.projection_type = 'activity'\n            AND p.status IN ('auto_confirmed', 'confirmed')\n            AND DATE((p.data->>'timestamp')::timestamptz) = CURRENT_DATE\n          GROUP BY p.data->>'category'\n          ORDER BY count DESC`\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: \"daily_summary\",\n        trigger_reason: checkResult.trigger_reason,\n        today: checkResult.today,\n        trace_chain: [eventResult.id]\n      },\n      db_queries\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        1856
+      ],
+      "id": "init-ctx",
+      "name": "InitializeCtx"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        1856
+      ],
+      "id": "execute-query-db",
+      "name": "ExecuteQueries(read)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build LLM context from Execute_Queries results\nconst ctx = $json.ctx;\nconst db = ctx.db || {};\n\n// Extract north star (use .row for single result)\nconst northStar = db.north_star?.row?.value || 'Not set';\n\n// Extract activities (use .rows for arrays)\nconst activityItems = db.activities?.rows || [];\n\n// Extract notes\nconst noteItems = db.notes?.rows || [];\n\n// Extract breakdown\nconst breakdownItems = db.breakdown?.rows || [];\n\n// Format activities list\nlet activitiesList = '';\nif (activityItems.length === 0) {\n  activitiesList = '(No activities logged today)';\n} else {\n  activityItems.forEach(item => {\n    const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    activitiesList += `- ${time} [${item.category}] ${item.description}\\n`;\n  });\n}\n\n// Format notes list\nlet notesList = '';\nif (noteItems.length === 0) {\n  notesList = '(No notes captured today)';\n} else {\n  noteItems.forEach(item => {\n    const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });\n    notesList += `- ${time} [${item.category}] ${item.text}\\n`;\n  });\n}\n\n// Format category breakdown\nlet categoryBreakdown = '';\nif (breakdownItems.length === 0) {\n  categoryBreakdown = '(No data)';\n} else {\n  breakdownItems.forEach(item => {\n    categoryBreakdown += `- ${item.category}: ${item.count}\\n`;\n  });\n}\n\nreturn {\n  json: {\n    ctx,\n    north_star: northStar,\n    activities_list: activitiesList,\n    notes_list: notesList,\n    category_breakdown: categoryBreakdown,\n    activity_count: activityItems.length,\n    note_count: noteItems.length,\n    inference_start: Date.now(),\n    llm_input: {\n      north_star: northStar,\n      activity_count: activityItems.length,\n      note_count: noteItems.length\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        1856
+      ],
+      "id": "e29ca6f7-efbc-418c-b9cd-e61fa111e178",
+      "name": "PrepareSummaryData"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a life coach reviewing a new client's daily logging data. Current date: {{ $now.format('yyyy-MM-dd') }}\n\n**Client's North Star:** {{ $json.north_star }}\n\n**Today's Activities ({{ $json.activity_count }} logged):**\n{{ $json.activities_list }}\n\n**Today's Notes ({{ $json.note_count }} logged):**\n{{ $json.notes_list }}\n\n**Category Breakdown:**\n{{ $json.category_breakdown }}\n\n---\n\n## Your Task\nProvide meta-feedback about HOW the client is logging, not just WHAT they logged. You're helping them become better at self-tracking.\n\n**Consider:**\n1. **Logging frequency** - Are they logging consistently? Gaps that suggest untracked time?\n2. **Detail quality** - Are descriptions rich enough to be useful later? Too terse? Too verbose?\n3. **Category usage** - Are they using categories effectively? Missing obvious ones?\n4. **Note vs Activity** - Are they distinguishing observations from actions well?\n5. **Alignment signals** - Does the day's shape move toward their north star?\n\n**Output Format:**\nStart with `# Daily Review - {{ $now.format('MMM d') }}`\n\nThen 2-3 short paragraphs:\n- First: One specific observation about their logging patterns today\n- Second: One concrete suggestion to improve their tracking (be specific!)\n- Third (optional): Brief encouragement or connection to their north star\n\n**Tone:** Warm but direct. A coach who cares about their growth, not a cheerleader.\n\n**If minimal data:** Note the gap honestly. Suggest what they might track tomorrow. Don't fill silence with generic encouragement.",
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1488,
+        1856
+      ],
+      "id": "4c73ad0b-072b-41c5-a6a7-5e3069f63663",
+      "name": "GenerateSummaryWithLlm"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse LLM response and prepare write queries for trace + projection\nconst prepareData = $('PrepareSummaryData').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Build projection data\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  summary_date: ctx.event.today,\n  text: llmText,\n  activity_count: prepareData.llm_input?.activity_count || 0,\n  note_count: prepareData.llm_input?.note_count || 0\n};\n\n// Prepare db_queries for Execute_Queries (Write)\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES ($1::uuid, 'daily_summary', \n            jsonb_build_object(\n              'input', $2::jsonb,\n              'prompt', 'daily-summary-prompt',\n              'completion', $3,\n              'result', jsonb_build_object('summary', $3),\n              'duration_ms', $4::integer\n            ), $5::uuid[])\n          RETURNING id, trace_chain || id AS updated_trace_chain`,\n    params: [\n      ctx.event.event_id,\n      prepareData.llm_input,\n      llmText,\n      durationMs,\n      ctx.event.trace_chain || []\n    ]\n  },\n  {\n    key: 'projection',\n    sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n          VALUES ($1::uuid, $2::uuid, $3::uuid[], 'daily_summary', $4::jsonb, 'auto_confirmed',\n            (SELECT value FROM config WHERE key = 'timezone'))\n          RETURNING id`,\n    params: [\n      '$results.trace.row.id',\n      ctx.event.event_id,\n      '$results.trace.row.updated_trace_chain',\n      projectionData\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    summary_text: llmText\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        1856
+      ],
+      "id": "parse-llm-response",
+      "name": "PrepareWriteQueries"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1936,
+        1856
+      ],
+      "id": "execute-write-queries",
+      "name": "ExecuteQueries(write)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare for Discord - extract projection_id from write results\nconst ctx = $json.ctx;\nconst projectionId = ctx.db?.projection?.row?.id;\n\nreturn {\n  json: {\n    ctx,\n    projection_id: projectionId,\n    summary_text: $('PrepareWriteQueries').first().json.summary_text\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        1856
+      ],
+      "id": "prepare-for-discord",
+      "name": "PrepareForDiscord"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_GUILD_ID }}",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.DISCORD_CHANNEL_OBSIDIAN_BOARD }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.summary_text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2384,
+        1856
+      ],
+      "id": "2d3ec420-6f75-49e0-8851-af9ba845977d",
+      "name": "PostTo#obsidianBoard",
+      "webhookId": "58ab7668-0a2a-4b1e-8245-a70e0ae0054d",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare final update queries after Discord post\nconst discordResult = $json;\nconst prepData = $('PrepareForDiscord').first().json;\nconst ctx = prepData.ctx;\n\nconst db_queries = [\n  {\n    key: 'update_projection',\n    sql: `UPDATE projections \n          SET data = data || jsonb_build_object(\n            'discord_message_id', $1,\n            'discord_channel_id', $2,\n            'discord_guild_id', $3\n          )\n          WHERE id = $4::uuid\n          RETURNING id`,\n    params: [\n      discordResult.id,\n      $env.DISCORD_CHANNEL_OBSIDIAN_BOARD || '',\n      $env.DISCORD_GUILD_ID || '',\n      prepData.projection_id\n    ]\n  },\n  {\n    key: 'update_config',\n    sql: `INSERT INTO config (key, value) VALUES ('last_summary_date', $1) \n          ON CONFLICT (key) DO UPDATE SET value = $1 \n          RETURNING *`,\n    params: [ctx.event.today]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        1856
+      ],
+      "id": "prepare-final-updates",
+      "name": "PrepareFinalUpdates"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2832,
+        1856
+      ],
+      "id": "execute-final-updates",
+      "name": "ExecuteQueries(final)"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1496,
+        2080
+      ],
+      "id": "c8b0b429-e702-4351-8fdd-72d096e1898b",
+      "name": "NemotronNano9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1624,
+        2080
+      ],
+      "id": "e496385a-60a2-4122-a8b3-ede7452fc36d",
+      "name": "MimoV2Flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
+          "name": "OpenRouter account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "WhenCalledByAnotherWorkflow": {
+      "main": [
+        [
+          {
+            "node": "PrepareEventData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareEventData": {
+      "main": [
+        [
+          {
+            "node": "InsertEvent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "InsertEvent": {
+      "main": [
+        [
+          {
+            "node": "InitializeCtx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "InitializeCtx": {
+      "main": [
+        [
+          {
+            "node": "ExecuteQueries(read)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteQueries(read)": {
+      "main": [
+        [
+          {
+            "node": "PrepareSummaryData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareSummaryData": {
+      "main": [
+        [
+          {
+            "node": "GenerateSummaryWithLlm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GenerateSummaryWithLlm": {
+      "main": [
+        [
+          {
+            "node": "PrepareWriteQueries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareWriteQueries": {
+      "main": [
+        [
+          {
+            "node": "ExecuteQueries(write)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteQueries(write)": {
+      "main": [
+        [
+          {
+            "node": "PrepareForDiscord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareForDiscord": {
+      "main": [
+        [
+          {
+            "node": "PostTo#obsidianBoard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostTo#obsidianBoard": {
+      "main": [
+        [
+          {
+            "node": "PrepareFinalUpdates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareFinalUpdates": {
+      "main": [
+        [
+          {
+            "node": "ExecuteQueries(final)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NemotronNano9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "GenerateSummaryWithLlm",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MimoV2Flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "GenerateSummaryWithLlm",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "NOJ7FqVhVLqw0n8D",
+    "availableInMCP": false,
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "5a53317c-0ce2-46bc-b51c-cc0ed96ba018",
+  "activeVersionId": null,
+  "versionCounter": 239,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:27.792Z",
+      "createdAt": "2025-12-23T09:30:27.792Z",
+      "role": "workflow:owner",
+      "workflowId": "tpkLfvOCAeN5YzMR",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-26T19:45:31.067Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-26",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

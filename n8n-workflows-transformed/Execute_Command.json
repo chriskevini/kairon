@@ -1,0 +1,2131 @@
+{
+  "updatedAt": "2025-12-24T10:26:39.506Z",
+  "createdAt": "2025-12-23T09:30:26.164Z",
+  "id": "ZwuxCuNFykFxgD3e",
+  "name": "Execute_Command",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1584,
+        9616
+      ],
+      "id": "de6befd4-4882-4e2c-97b1-62f920df6d66",
+      "name": "WhenExecutedByAnotherWorkflow"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "command",
+              "name": "ctx.command.name",
+              "value": "={{ $json.ctx.event.clean_text.trim().split(/\\s+/)[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "args",
+              "name": "ctx.command.args",
+              "value": "={{ $json.ctx.event.clean_text.trim().split(/\\s+/).slice(1) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1360,
+        9616
+      ],
+      "id": "c204a8a7-abe4-45a8-ac75-2d842f69bbd3",
+      "name": "ParseCommandAndArgs"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "get",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "33cb86c7-ccaf-4e61-bc6a-e8ed32676451"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "get"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "set",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "2150078e-a4bb-4872-bfdb-36245afa5701"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "set"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "recent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a807c42d-404f-419d-8129-d7c71ed6051c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "recent"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "d8a3f1e9-2c4b-4d7e-9a1f-3e5c7b9d1a2b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delete"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "stats",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "fe31fc91-b7dc-4554-97bf-8024d8f6af25"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "stats"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "5094be05-8bc0-4702-a6da-ecbd5913c93f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "status"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "ping",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9e2a0d1b-6254-4b67-a743-3e5b2367a01c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ping"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "generate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "generate-cmd-id"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "generate"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "pulse",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "pulse-cmd-id"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pulse"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c42b06ed-ca87-489d-a4d8-d2e861db2239"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.ctx.command.name }}",
+                    "rightValue": "modules",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "modules-cmd-id"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "modules"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1136,
+        9504
+      ],
+      "id": "82eda145-e9cb-43da-a242-e7bf654ca38e",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle ping command\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: '\ud83c\udfd3 pong'\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        10000
+      ],
+      "id": "a07e31ae-ae03-4838-b91e-13e3c2f52c86",
+      "name": "HandlePing"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT key, value FROM config WHERE key = COALESCE($1, '')",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -464,
+        8816
+      ],
+      "id": "c04cc95d-922c-48fb-9004-faf36ff52204",
+      "name": "QueryGetConfig",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO config (key, value, updated_at)\nVALUES ($1, $2, NOW())\nON CONFLICT (key) DO UPDATE\nSET value = EXCLUDED.value, updated_at = NOW()\nRETURNING key, value",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -464,
+        9040
+      ],
+      "id": "2296ca6d-1789-4986-a245-f2f16e88a92f",
+      "name": "QuerySetConfig",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  (SELECT COUNT(*) FROM projections WHERE projection_type = 'activity' AND status IN ('auto_confirmed', 'confirmed') AND (data->>'timestamp')::timestamptz >= CURRENT_DATE) as activities_today,\n  (SELECT COUNT(*) FROM projections WHERE projection_type = 'note' AND status IN ('auto_confirmed', 'confirmed') AND (data->>'timestamp')::timestamptz >= DATE_TRUNC('week', CURRENT_DATE)) as notes_this_week,\n  (SELECT COUNT(*) FROM events WHERE event_type = 'discord_message') as total_events,\n  (SELECT MAX(received_at) FROM events) as last_activity",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -464,
+        9616
+      ],
+      "id": "c1663df9-a24b-4805-aed0-9946a2e5a9cc",
+      "name": "QueryStats",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH activities_data AS (\n  SELECT \n    'activity' as type,\n    p.id,\n    (p.data->>'timestamp')::timestamptz as timestamp,\n    p.data->>'category' as category,\n    p.data->>'description' as text,\n    p.data->>'message_url' as message_url\n  FROM projections p\n  WHERE p.projection_type = 'activity'\n    AND p.status IN ('auto_confirmed', 'confirmed')\n    AND ($1::text = '' OR $1::text IN ('activities', 'activity'))\n  ORDER BY (p.data->>'timestamp')::timestamptz DESC\n  LIMIT $2::int\n),\nnotes_data AS (\n  SELECT \n    'note' as type,\n    p.id,\n    (p.data->>'timestamp')::timestamptz as timestamp,\n    p.data->>'category' as category,\n    p.data->>'text' as text,\n    p.data->>'message_url' as message_url\n  FROM projections p\n  WHERE p.projection_type = 'note'\n    AND p.status IN ('auto_confirmed', 'confirmed')\n    AND ($1::text = '' OR $1::text IN ('notes', 'note'))\n  ORDER BY (p.data->>'timestamp')::timestamptz DESC\n  LIMIT $2::int\n),\ntodos_data AS (\n  SELECT \n    'todo' as type,\n    p.id,\n    (p.data->>'timestamp')::timestamptz as timestamp,\n    COALESCE(p.data->>'status', 'pending') as category,\n    p.data->>'text' as text,\n    p.data->>'message_url' as message_url\n  FROM projections p\n  WHERE p.projection_type = 'todo'\n    AND p.status IN ('auto_confirmed', 'confirmed')\n    AND ($1::text = '' OR $1::text IN ('todos', 'todo'))\n  ORDER BY (p.data->>'timestamp')::timestamptz DESC\n  LIMIT $2::int\n)\nSELECT * FROM activities_data\nUNION ALL\nSELECT * FROM notes_data\nUNION ALL\nSELECT * FROM todos_data\nORDER BY timestamp DESC\nLIMIT $2::int;",
+        "options": {
+          "queryReplacement": "={{ $json.ctx.validation.normalized_type }},{{ $json.ctx.validation.normalized_limit }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -464,
+        9232
+      ],
+      "id": "cdd4aab7-7649-4dd9-9574-3003796f3d3b",
+      "name": "QueryRecentEvents",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH user_events AS (\n  SELECT \n    payload->>'author_login' as user_login,\n    MAX(received_at) as last_observation_at\n  FROM events\n  WHERE payload->>'author_login' IS NOT NULL\n  GROUP BY payload->>'author_login'\n  LIMIT 1\n)\nSELECT \n  ue.user_login,\n  ue.last_observation_at,\n  p.data->>'category' as last_activity_category,\n  EXTRACT(EPOCH FROM (NOW() - ue.last_observation_at))/60 as minutes_since_activity\nFROM user_events ue\nLEFT JOIN projections p ON p.projection_type = 'activity' \n  AND p.data->>'timestamp' = (\n    SELECT MAX(data->>'timestamp') \n    FROM projections \n    WHERE projection_type = 'activity'\n  )",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -464,
+        9808
+      ],
+      "id": "ace9000d-af6f-4eb7-90ac-6169a08148e9",
+      "name": "QueryUserStatus",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle help command\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\n\nconst helpText = `\ud83d\udcda **Kairon Help**\n\n**Message Tags**\nTag your messages to classify them:\n\n\\`!! <message>\\` or \\`act <message>\\` - Log an activity\n\\`.. <message>\\` or \\`note <message>\\` - Capture a note\n\\`++ <message>\\` or \\`chat <message>\\` - Start a conversation thread\n\\`-- <message>\\` or \\`save <message>\\` - Save thread insights (coming soon)\n\\`:: <command>\\` or \\`cmd <command>\\` - Execute a command\n\\`$$ <message>\\` or \\`todo <message>\\` - Create a todo (coming soon)\n\n**Semantic Tagging**\nNo tag? Kairon uses AI to classify your message:\n- First-person actions \u2192 !! (activity)\n- Observations/notes \u2192 .. (note)\n- Questions/requests \u2192 ++ (conversation)\n\n**Commands**\n\n**Configuration:**\n\\`::get <key>\\` - Get a config value\n\\`::set <key> <value>\\` - Set a config value\n\n**Prompt Modules:**\n\\`::modules\\` - List all prompt modules\n\\`::get module <name>\\` - View module details\n\\`::set module <name> on\\` - Enable module\n\\`::set module <name> off\\` - Disable module\n\\`::set module <name> <content>\\` - Update content\n\n**Information:**\n\\`::stats\\` - Show activity statistics\n\\`::recent [type] [N]\\` - Show recent items\n\\`::status\\` - Show your current state\n\n**Data Management:**\n\\`::delete activity <number>\\` - Delete activity by index\n\\`::delete note <number>\\` - Delete note by index\n\n**Generation:**\n\\`::generate summary\\` - Generate daily summary now\n\\`::pulse\\` - Send a pulse message now\n\n**System:**\n\\`::ping\\` - Test if system is working\n\\`::help\\` - Show this message\n\n**Config Keys:**\n- \\`north_star\\` - Your guiding principle\n- \\`summary_time\\` - Daily summary time (HH:MM)\n- \\`timezone\\` - Your timezone (e.g. \\`pacific\\`, \\`vancouver\\`)\n- \\`verbose\\` - Always show projection details (true/false)\n\n**Examples:**\n\\`!! working on the router\\`\n\\`.. John loves dark roast coffee\\`\n\\`::set timezone vancouver\\`\n\\`::modules\\`\n\\`::get module base_persona\\`\n\\`::set module base_persona off\\``;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: helpText\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        10192
+      ],
+      "id": "08ba42dd-9ee4-40fe-bb1a-3f6bf264f200",
+      "name": "HandleHelp"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format get command response - merge DB result into ctx\nconst ctx = $('IfValidGet').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if query returned data\nif (!result || !result.key || !result.value) {\n  const key = ctx.validation.normalized_key;\n  return {\n    json: {\n        ctx: {\n          ...ctx,\n          response: {\n            content: `\u274c Config key \\`${key}\\` not found.\\n\\nUse \\`::set ${key} <value>\\` to set it first.\\n\\nAvailable keys: north_star, summary_time, verbose`\n          }\n        }\n    }\n  };\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db: { config_key: result.key, config_value: result.value },\n      response: {\n        content: `**${result.key}:** ${result.value}`\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        8816
+      ],
+      "id": "ed79c164-c1c3-40b9-adfb-6cb9d3ca307d",
+      "name": "FormatGetResponse"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format set command response - merge DB result into ctx\nconst ctx = $('IfValidSet').first().json.ctx;\nconst result = $input.item?.json;\n\n// Check if database operation succeeded\nif (!result || !result.key) {\n  return {\n    json: {\n        ctx: {\n          ...ctx,\n          response: {\n            content: `\u274c Failed to set config value. Please try again.`\n          }\n        }\n    }\n  };\n}\n\n// Special confirmation for timezone - show current time\nlet content = `\u2705 Set **${result.key}** = ${result.value}`;\nif (result.key === 'timezone') {\n  try {\n    const now = new Date();\n    const timeStr = now.toLocaleString('en-US', { \n      timeZone: result.value, \n      hour: 'numeric', \n      minute: '2-digit',\n      hour12: true \n    });\n    content += `\\n\\n\ud83d\udd50 Current time: **${timeStr}**`;\n  } catch (e) {\n    // Timezone validation should catch this, but just in case\n  }\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db: { config_key: result.key, config_value: result.value },\n      response: {\n        content\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        9040
+      ],
+      "id": "8e523999-62d1-4f38-8fd3-22e5708e9325",
+      "name": "FormatSetResponse"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format stats response - merge DB result into ctx\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst stats = $input.item?.json;\n\nif (!stats) {\n  return {\n    json: {\n        ctx: {\n          ...ctx,\n          response: {\n            content: `\u274c Unable to retrieve statistics. Please try again.`\n          }\n        }\n    }\n  };\n}\n\nconst lastActivity = stats.last_activity \n  ? new Date(stats.last_activity).toLocaleString()\n  : 'Never';\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db: { stats },\n      response: {\n        content: `\ud83d\udcca **Statistics**\\n\\n` +\n          `Activities today: ${stats.activities_today || 0}\\n` +\n          `Notes this week: ${stats.notes_this_week || 0}\\n` +\n          `Total events: ${stats.total_events || 0}\\n` +\n          `Last activity: ${lastActivity}`\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        9616
+      ],
+      "id": "fba83474-329f-4db6-9939-11cfe17a7a3d",
+      "name": "FormatStatsResponse"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format recent items response (numbered list for easy deletion)\nconst ctx = $('IfValidRecent').first().json.ctx;\nconst items = $input.all();\nconst itemType = ctx.validation.normalized_type;\nconst MAX_LENGTH = 1900; // Discord limit is 2000, leave margin for safety\n\nif (!items || items.length === 0) {\n  const typeLabel = itemType || 'projections';\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\ud83d\udced No recent ${typeLabel} found`\n      }\n    }\n  };\n}\n\n// Determine if mixed types or single type\nconst types = [...new Set(items.map(i => i.json.type))];\nconst isMixed = types.length > 1 || itemType === '';\n\n// Icons for each type (match bot confirmation emojis)\nconst icons = { activity: '\ud83d\udd18', note: '\ud83d\udcdd', todo: '\u2705' };\nconst titles = { activity: 'Activities', note: 'Notes', todo: 'Todos' };\n\nlet title, icon;\nif (isMixed) {\n  icon = '\ud83d\udccb';\n  title = 'Recent Projections';\n} else {\n  const firstType = items[0].json.type;\n  icon = icons[firstType] || '\ud83d\udccb';\n  title = titles[firstType] || 'Items';\n}\n\nlet responseText = `${icon} **${title} (${items.length})**\n\n`;\nlet itemsShown = 0;\nlet truncated = false;\n\nfor (let i = 0; i < items.length; i++) {\n  const data = items[i].json;\n  const dt = DateTime.fromISO(data.timestamp, { zone: 'utc' }).setZone('America/Los_Angeles');\n  const dateStr = dt.toFormat('MMM d');\n  const timeStr = dt.toFormat('HH:mm');\n  \n  const text = data.text && data.text.length > 50 \n    ? data.text.substring(0, 50) + '...' \n    : (data.text || '(no text)');\n  \n  // Build Discord message link from message_url in projection data\n  let link = '';\n  if (data.message_url) {\n    link = ` [\u2197](${data.message_url})`;\n  }\n  \n  // Type indicator for mixed view\n  const typeIcon = isMixed ? `${icons[data.type] || '\u2022'} ` : '';\n  \n  const line = `${i + 1}. ${typeIcon}${dateStr} ${timeStr} - **${data.category}** - ${text}${link}\n`;\n  \n  // Check if adding this line would exceed limit\n  if (responseText.length + line.length > MAX_LENGTH - 100) {\n    truncated = true;\n    break;\n  }\n  \n  responseText += line;\n  itemsShown++;\n}\n\n// Add truncation notice if needed\nif (truncated) {\n  responseText += `\n... and ${items.length - itemsShown} more (use a smaller limit)`;\n}\n\n// Add delete hint based on type\nif (!isMixed && !truncated) {\n  const deleteType = items[0].json.type;\n  responseText += `\n\ud83d\udca1 Use \\`::delete ${deleteType} <number>\\` to delete items`;\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    db: { recent_items: items.map(i => i.json) },\n    response: {\n      content: responseText\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        9232
+      ],
+      "id": "a38c0645-066f-4591-b097-de21fb82b1c1",
+      "name": "FormatRecentResponse"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format status response - merge DB result into ctx\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst status = $input.item?.json;\n\nif (!status) {\n  return {\n    json: {\n        ctx: {\n          ...ctx,\n          response: {\n            content: `\u274c Unable to retrieve status. Please try again.`\n          }\n        }\n    }\n  };\n}\n\nconst isSleeping = status.last_activity_category === 'sleep';\nconst sleepIcon = isSleeping ? '\ud83d\ude34' : '\ud83d\udc41\ufe0f';\nconst sleepStatus = isSleeping ? 'Sleeping' : 'Awake';\nconst lastActivity = status.last_observation_at\n  ? new Date(status.last_observation_at).toLocaleString()\n  : 'Never';\nconst minutesAgo = Math.round(status.minutes_since_activity || 0);\nconst lastCategory = status.last_activity_category || 'unknown';\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db: { user_status: status },\n      response: {\n        content: `${sleepIcon} **Status**\\n\\n` +\n          `State: ${sleepStatus}\\n` +\n          `Last activity: ${lastActivity}\\n` +\n          `Last category: ${lastCategory}\\n` +\n          `Time since: ${minutesAgo} minutes ago`\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        9808
+      ],
+      "id": "6e1f0ee3-6930-49e6-a76a-3a5b85d942f3",
+      "name": "FormatStatusResponse"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Unknown command handler\nconst ctx = $json.ctx;\nconst command = ctx.command?.name || 'unknown';\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c Unknown command: \\`${command}\\`\\n\\nUse \\`::help\\` to see available commands.`\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        10384
+      ],
+      "id": "f76de764-c075-42cc-95e3-538852ab8b22",
+      "name": "HandleUnknownCommand"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Void projection by index (1-based position in recent list) - NEVER DELETE\nWITH input_array AS (\n  SELECT ARRAY[\n    NULLIF($2, '')::int,\n    NULLIF($3, '')::int,\n    NULLIF($4, '')::int,\n    NULLIF($5, '')::int,\n    NULLIF($6, '')::int,\n    NULLIF($7, '')::int,\n    NULLIF($8, '')::int,\n    NULLIF($9, '')::int,\n    NULLIF($10, '')::int\n  ] as indices\n),\ntarget_indices AS (\n  SELECT (unnest(indices) - 1) AS idx\n  FROM input_array\n),\nrecent_activities AS (\n  SELECT \n    p.id,\n    (p.data->>'timestamp')::timestamptz as timestamp,\n    p.data->>'description' as text,\n    'activity' as type,\n    (ROW_NUMBER() OVER (ORDER BY (p.data->>'timestamp')::timestamptz DESC) - 1) as idx\n  FROM projections p\n  WHERE p.projection_type = 'activity'\n    AND p.status IN ('auto_confirmed', 'confirmed')\n    AND $1::text = 'activity'\n  ORDER BY (p.data->>'timestamp')::timestamptz DESC\n  LIMIT 100\n),\nrecent_notes AS (\n  SELECT \n    p.id,\n    (p.data->>'timestamp')::timestamptz as timestamp,\n    p.data->>'text' as text,\n    'note' as type,\n    (ROW_NUMBER() OVER (ORDER BY (p.data->>'timestamp')::timestamptz DESC) - 1) as idx\n  FROM projections p\n  WHERE p.projection_type = 'note'\n    AND p.status IN ('auto_confirmed', 'confirmed')\n    AND $1::text = 'note'\n  ORDER BY (p.data->>'timestamp')::timestamptz DESC\n  LIMIT 100\n),\nvoided_activities AS (\n  UPDATE projections\n  SET status = 'voided',\n      voided_at = NOW(),\n      voided_reason = 'user_deleted'\n  WHERE id IN (\n    SELECT ra.id FROM recent_activities ra\n    INNER JOIN target_indices ti ON ra.idx = ti.idx\n  )\n  RETURNING id, (data->>'timestamp')::timestamptz as timestamp, data->>'description' as text, 'activity' as type\n),\nvoided_notes AS (\n  UPDATE projections\n  SET status = 'voided',\n      voided_at = NOW(),\n      voided_reason = 'user_deleted'\n  WHERE id IN (\n    SELECT rn.id FROM recent_notes rn\n    INNER JOIN target_indices ti ON rn.idx = ti.idx\n  )\n  RETURNING id, (data->>'timestamp')::timestamptz as timestamp, data->>'text' as text, 'note' as type\n)\nSELECT * FROM voided_activities\nUNION ALL\nSELECT * FROM voided_notes;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -464,
+        9424
+      ],
+      "id": "9eca4f90-6b61-48e7-8fd6-295adcdca359",
+      "name": "VoidProjections",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format void response (index-based soft-delete)\nconst ctx = $('IfValidDelete').first().json.ctx;\nconst voided = $input.all();\nconst itemType = ctx.validation.normalized_item_type || 'activity';\nconst indices = ctx.validation.indices || [];\n\n// Check if any items were actually voided\nif (!voided || voided.length === 0) {\n  const indexStr = indices.join(', ');\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u274c No ${itemType}s found at position(s): ${indexStr}\\n\\nUse \\`::recent ${itemType}s\\` to see the current numbered list.`\n      }\n    }\n  };\n}\n\nif (voided.length === 1) {\n  const item = voided[0].json;\n  const text = item.text.length > 60 ? item.text.substring(0, 60) + '...' : item.text;\n  return {\n    ctx: {\n      ...ctx,\n      db: { voided_items: [item] },\n      response: {\n        content: `\u2705 Removed ${item.type} #${indices[0]}: \"${text}\"`\n      }\n    }\n  };\n}\n\nconst typeLabel = voided[0].json.type === 'activity' ? 'activities' : 'notes';\nreturn {\n  ctx: {\n    ...ctx,\n    db: { voided_items: voided.map(d => d.json) },\n    response: {\n      content: `\u2705 Removed ${voided.length} ${typeLabel} at positions: ${indices.join(', ')}`\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        9424
+      ],
+      "id": "1bc87344-c616-42bd-8fe4-8882e2174430",
+      "name": "FormatVoidResponse"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate GET command\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst args = $('ParseCommandAndArgs').first()?.json?.ctx?.command?.args || [];\n\n// Check for module subcommand: ::get module <name>\nif (args[0] === 'module' || args[0] === 'modules') {\n  const moduleName = args[1];\n  \n  if (!moduleName) {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Missing module name. Syntax: \\`::get module <name>\\`\\n\\nUse \\`::modules\\` to see available modules.`\n        }\n      }\n    };\n  }\n  \n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: true,\n        target: 'module',\n        module_name: moduleName\n      }\n    }\n  };\n}\n\n// Standard config get\nconst key = args.join('_');\n\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing config key. Syntax: \\`::get <key>\\`\\n\\nAvailable keys: north_star, summary_time, timezone, verbose\\nFor modules: \\`::get module <name>\\`\\nUse \\`::help\\` for more info.`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      target: 'config',\n      normalized_key: key\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        8768
+      ],
+      "id": "b665e2c9-44f1-48ed-a0dc-5ab2cae4e2ed",
+      "name": "ValidateGet"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate SET command\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst args = $('ParseCommandAndArgs').first()?.json?.ctx?.command?.args || [];\n\n// Check for module subcommand: ::set module <name> <on|off|content>\nif (args[0] === 'module' || args[0] === 'modules') {\n  const moduleName = args[1];\n  const action = args[2];\n  \n  if (!moduleName) {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Missing module name. Syntax:\\n\\`::set module <name> on\\` - Enable module\\n\\`::set module <name> off\\` - Disable module\\n\\`::set module <name> <content>\\` - Update content\\n\\nUse \\`::modules\\` to see available modules.`\n        }\n      }\n    };\n  }\n  \n  if (!action) {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Missing action. Syntax:\\n\\`::set module ${moduleName} on\\` - Enable\\n\\`::set module ${moduleName} off\\` - Disable\\n\\`::set module ${moduleName} <content>\\` - Update content`\n        }\n      }\n    };\n  }\n  \n  // Check for on/off toggle\n  if (action.toLowerCase() === 'on') {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: true,\n          target: 'module',\n          operation: 'toggle',\n          module_name: moduleName,\n          new_active: true\n        }\n      }\n    };\n  }\n  \n  if (action.toLowerCase() === 'off') {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: true,\n          target: 'module',\n          operation: 'toggle',\n          module_name: moduleName,\n          new_active: false\n        }\n      }\n    };\n  }\n  \n  // Otherwise it's a content update - join all remaining args\n  const newContent = args.slice(2).join(' ');\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: true,\n        target: 'module',\n        operation: 'update',\n        module_name: moduleName,\n        new_content: newContent\n      }\n    }\n  };\n}\n\n// Standard config set - need at least 2 args (key and value)\nif (!args || args.length < 2) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing arguments. Syntax: \\`::set <key> <value>\\`\\n\\nExample: \\`::set north_star Be present and intentional\\`\\nFor modules: \\`::set module <name> on|off|<content>\\`\\n\\nAvailable keys: north_star, summary_time, timezone, verbose`\n      }\n    }\n  };\n}\n\nconst key = args[0];\nif (!key || key.trim() === '') {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid config key (empty string).\\n\\nExample: \\`::set north_star <your principle>\\``\n      }\n    }\n  };\n}\n\nlet valToSet = args.slice(1).join(' ');\n\n// Special handling for verbose key\nif (key === 'verbose') {\n  const val = valToSet.toLowerCase().trim();\n  if (val !== 'true' && val !== 'false') {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Invalid value for \\`verbose\\`. Use \\`true\\` or \\`false\\`.`\n        }\n      }\n    };\n  }\n  valToSet = val;\n}\n\n// Special handling for timezone key\nif (key === 'timezone' || key === 'tz') {\n  const input = valToSet.toLowerCase().trim();\n  \n  const aliases = {\n    'pacific': 'America/Los_Angeles',\n    'pst': 'America/Los_Angeles',\n    'pdt': 'America/Los_Angeles',\n    'la': 'America/Los_Angeles',\n    'los angeles': 'America/Los_Angeles',\n    'vancouver': 'America/Vancouver',\n    'seattle': 'America/Los_Angeles',\n    'sf': 'America/Los_Angeles',\n    'mountain': 'America/Denver',\n    'mst': 'America/Denver',\n    'mdt': 'America/Denver',\n    'denver': 'America/Denver',\n    'central': 'America/Chicago',\n    'cst': 'America/Chicago',\n    'cdt': 'America/Chicago',\n    'chicago': 'America/Chicago',\n    'eastern': 'America/New_York',\n    'est': 'America/New_York',\n    'edt': 'America/New_York',\n    'new york': 'America/New_York',\n    'nyc': 'America/New_York',\n    'toronto': 'America/Toronto',\n    'utc': 'UTC',\n    'gmt': 'UTC',\n    'london': 'Europe/London',\n    'uk': 'Europe/London',\n    'paris': 'Europe/Paris',\n    'berlin': 'Europe/Berlin',\n    'tokyo': 'Asia/Tokyo',\n    'sydney': 'Australia/Sydney',\n    'melbourne': 'Australia/Melbourne'\n  };\n  \n  const resolved = aliases[input] || valToSet;\n  \n  try {\n    const testDate = new Date();\n    testDate.toLocaleString('en-US', { timeZone: resolved });\n    valToSet = resolved;\n  } catch (e) {\n    return {\n      ctx: {\n        ...ctx,\n        validation: {\n          valid: false,\n          error_message: `\u274c Invalid timezone: \\`${valToSet}\\`\\n\\nExamples: \\`pacific\\`, \\`vancouver\\`, \\`America/Los_Angeles\\``\n        }\n      }\n    };\n  }\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      target: 'config',\n      normalized_key: key === 'tz' ? 'timezone' : key,\n      normalized_value: valToSet\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        8960
+      ],
+      "id": "14603be3-d751-4be9-a5a1-46ad5f7249a7",
+      "name": "ValidateSet"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate DELETE command (uses indices, not short IDs)\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst args = $('ParseCommandAndArgs').first()?.json?.ctx?.command?.args || [];\nconst itemType = args[0];\n\n// Validation: need item type (activity/note)\nif (!itemType || !['activity', 'note', 'activities', 'notes'].includes(itemType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid item type. Syntax: \\`::delete activity <index>\\` or \\`::delete note <index>\\`\\n\\nUse \\`::recent activities\\` or \\`::recent notes\\` to see numbered list.`\n      }\n    }\n  };\n}\n\n// Validation: need at least one index\nif (args.length < 2 || !args[1]) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing index. Syntax: \\`::delete ${itemType} <index>\\`\\n\\nExample: \\`::delete ${itemType} 1\\` (deletes first item)\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`\n      }\n    }\n  };\n}\n\n// Validation: check indices are valid numbers (1-100)\nconst indices = args.slice(1).filter(arg => arg !== null && arg !== undefined);\nconst invalidIndices = [];\nconst validIndices = [];\n\nfor (const idx of indices) {\n  const num = parseInt(idx);\n  if (isNaN(num) || num < 1 || num > 100) {\n    invalidIndices.push(idx);\n  } else {\n    validIndices.push(num);\n  }\n}\n\nif (invalidIndices.length > 0) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid index: ${invalidIndices.join(', ')}\\n\\nIndices must be numbers between 1 and 100.\\nUse \\`::recent ${itemType === 'activity' || itemType === 'activities' ? 'activities' : 'notes'}\\` to see numbered list.`\n      }\n    }\n  };\n}\n\nif (validIndices.length === 0) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c No valid indices provided.\\n\\nExample: \\`::delete ${itemType} 1 2 3\\``\n      }\n    }\n  };\n}\n\n// Normalize type to singular form\nconst normalizedItemType = itemType === 'activities' ? 'activity' : (itemType === 'notes' ? 'note' : itemType);\n\n// Valid - pass normalized values and indices\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_item_type: normalizedItemType,\n      indices: validIndices\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        9344
+      ],
+      "id": "99805555-a99c-4559-b170-f18f40233457",
+      "name": "ValidateDelete"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate RECENT command\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst args = $('ParseCommandAndArgs').first()?.json?.ctx?.command?.args || [];\n\n// Default values - empty string means show all projections\nconst itemType = args[0] || '';\nconst limit = args[1] ? parseInt(args[1]) : 10;\n\n// Validation: check item type is valid\nconst validTypes = ['activities', 'activity', 'notes', 'note', 'todos', 'todo', ''];\nif (!validTypes.includes(itemType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid item type: \\`${itemType}\\`\\n\\nValid types: activities, notes, todos (or blank for all)\\nSyntax: \\`::recent [activities|notes|todos] [limit]\\`\\n\\nExample: \\`::recent todos 20\\``\n      }\n    }\n  };\n}\n\n// Validation: check limit is a valid number (1-100)\nif (isNaN(limit) || limit < 1 || limit > 100) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid limit: \\`${args[1]}\\`\\n\\nLimit must be a number between 1 and 100.\\nExample: \\`::recent activities 20\\``\n      }\n    }\n  };\n}\n\n// Normalize type to plural form for query\nlet normalizedType = itemType;\nif (itemType === 'activity') normalizedType = 'activities';\nelse if (itemType === 'note') normalizedType = 'notes';\nelse if (itemType === 'todo') normalizedType = 'todos';\n\n// Valid - pass normalized values\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      normalized_type: normalizedType,\n      normalized_limit: limit\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        9152
+      ],
+      "id": "4bf45858-8e0b-4aca-8713-44bf3f9627ab",
+      "name": "ValidateRecent"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check-recent",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -688,
+        9152
+      ],
+      "id": "db6e02d4-93be-4ebf-b85a-96aade6217dd",
+      "name": "IfValidRecent"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -688,
+        8768
+      ],
+      "id": "0cb57d2d-bb81-4fd9-a1c8-6d4b3d2f8868",
+      "name": "IfValidGet"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -688,
+        8960
+      ],
+      "id": "dbbb373a-e421-44cb-acdf-9ddd121a659d",
+      "name": "IfValidSet"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -688,
+        9344
+      ],
+      "id": "f2b3226c-7f08-4e93-9684-8467d9fd3458",
+      "name": "IfValidDelete"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock Discord node: SendResponse\n// Returns fake Discord API response for dev testing\nconst input = $input.first().json;\nreturn [{ \n  json: { \n    id: \"mock-discord-\" + Date.now(),\n    channel_id: input.channelId || \"mock-channel\",\n    content: input.content || \"\",\n    success: true,\n    _mock: true,\n    _original_node: \"SendResponse\"\n  } \n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        9664
+      ],
+      "id": "4ed54e00-c7e3-4db6-94c0-c525d95534e3",
+      "name": "SendResponse",
+      "webhookId": "26f551ce-e3bd-40ae-953b-33588a9edcd8",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "discordBotApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1360,
+        9808
+      ],
+      "id": "remove-blue-reaction-execute-cmd",
+      "name": "Remove\ud83d\udd35Reaction",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "credentials": {
+        "discordBotApi": {
+          "id": "HzhURrgtJQZuwPMZ",
+          "name": "Discord Bot account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock Discord node: ReactWith\ud83d\udcbb\n// Returns fake Discord API response for dev testing\nconst input = $input.first().json;\nreturn [{ \n  json: { \n    id: \"mock-discord-\" + Date.now(),\n    channel_id: input.channelId || \"mock-channel\",\n    content: input.content || \"\",\n    success: true,\n    _mock: true,\n    _original_node: \"ReactWith\ud83d\udcbb\"\n  } \n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        9424
+      ],
+      "id": "e5ebd093-f037-4d4a-94a8-5830869a2dbc",
+      "name": "ReactWith\ud83d\udcbb",
+      "webhookId": "7d6473eb-7f05-4fc7-ba61-8a8ae16deae0",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate GENERATE command\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst args = $('ParseCommandAndArgs').first()?.json?.ctx?.command?.args || [];\nconst generateType = args[0]?.toLowerCase();\n\n// Valid types: summary, nudge, pulse\nconst validTypes = ['summary', 'nudge', 'pulse'];\n\nif (!generateType) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Missing type. Syntax: \\`::generate <type>\\`\\n\\nValid types:\\n- \\`summary\\` - Generate daily summary now\\n- \\`pulse\\` - Send pulse now`\n      }\n    }\n  };\n}\n\nif (!validTypes.includes(generateType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `\u274c Invalid type: \\`${generateType}\\`\\n\\nValid types: summary, pulse`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      generate_type: generateType === 'pulse' ? 'nudge' : generateType\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        9536
+      ],
+      "id": "validate-generate",
+      "name": "ValidateGenerate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "valid-check-generate",
+              "leftValue": "={{ $json.ctx.validation.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -688,
+        9536
+      ],
+      "id": "if-valid-generate",
+      "name": "IfValidGenerate"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-nudge",
+                    "leftValue": "={{ $json.ctx.validation.generate_type }}",
+                    "rightValue": "nudge",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "nudge"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-summary",
+                    "leftValue": "={{ $json.ctx.validation.generate_type }}",
+                    "rightValue": "summary",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "summary"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -464,
+        9536
+      ],
+      "id": "switch-generate-type",
+      "name": "SwitchGenerateType"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ujGErhNkQv4hkJxB",
+          "mode": "list",
+          "cachedResultName": "Generate_Nudge",
+          "cachedResultUrl": "/workflow/ujGErhNkQv4hkJxB"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "trigger_reason": "manual"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -240,
+        9472
+      ],
+      "id": "execute-nudge",
+      "name": "ExecuteGenerateNudge"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "tpkLfvOCAeN5YzMR",
+          "mode": "list",
+          "cachedResultName": "Generate_Daily_Summary",
+          "cachedResultUrl": "/workflow/tpkLfvOCAeN5YzMR"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "trigger_reason": "manual"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -240,
+        9600
+      ],
+      "id": "execute-summary",
+      "name": "ExecuteGenerateDailySummary"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response for generate command\nconst ctx = $('IfValidGenerate').first().json.ctx;\nconst generateType = ctx.validation.generate_type;\nconst typeLabel = generateType === 'summary' ? 'daily summary' : 'pulse';\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: `\u2705 Generating ${typeLabel}...`,\n      channel_id: $env.DISCORD_CHANNEL_KAIRON_LOGS\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        9536
+      ],
+      "id": "format-generate-response",
+      "name": "FormatGenerateResponse"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format validation error for response\nconst ctx = $json.ctx;\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        content: ctx.validation.error_message\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        9856
+      ],
+      "id": "send-error-message",
+      "name": "SendErrorMessage"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT name, module_type, active, priority, array_length(tags, 1) as tag_count\nFROM prompt_modules\nORDER BY module_type, priority, name",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -464,
+        10576
+      ],
+      "id": "query-list-modules",
+      "name": "QueryListModules",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format modules list response\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst modules = $input.all();\n\nif (!modules || modules.length === 0) {\n  return {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\ud83d\udced No prompt modules found.`\n      }\n    }\n  };\n}\n\n// Group by module_type\nconst byType = {};\nfor (const mod of modules) {\n  const m = mod.json;\n  const type = m.module_type || 'unknown';\n  if (!byType[type]) byType[type] = [];\n  byType[type].push(m);\n}\n\nconst typeIcons = {\n  persona: '\ud83c\udfad',\n  technique: '\ud83e\udde0',\n  guardrail: '\ud83d\udee1\ufe0f',\n  format: '\ud83d\udcdd',\n  context: '\ud83d\udcca'\n};\n\nlet response = `\ud83e\udde9 **Prompt Modules (${modules.length})**\\n\\n`;\n\nfor (const [type, mods] of Object.entries(byType)) {\n  const icon = typeIcons[type] || '\u2022';\n  response += `**${icon} ${type}**\\n`;\n  for (const m of mods) {\n    const status = m.active ? '\u2705' : '\u274c';\n    response += `  ${status} \\`${m.name}\\` (priority: ${m.priority})\\n`;\n  }\n  response += '\\n';\n}\n\nresponse += `\ud83d\udca1 Use \\`::module <name>\\` to view details\\n`;\nresponse += `\ud83d\udca1 Use \\`::module <name> on/off\\` to toggle`;\n\nreturn {\n  ctx: {\n    ...ctx,\n    response: {\n      content: response\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        10576
+      ],
+      "id": "format-modules-response",
+      "name": "FormatModulesResponse"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-view",
+                    "leftValue": "={{ $json.ctx.validation.operation }}",
+                    "rightValue": "view",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "view"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-toggle",
+                    "leftValue": "={{ $json.ctx.validation.operation }}",
+                    "rightValue": "toggle",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "toggle"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-update",
+                    "leftValue": "={{ $json.ctx.validation.operation }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "update"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -464,
+        10768
+      ],
+      "id": "switch-module-operation",
+      "name": "SwitchModuleOperation"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, content, module_type, tags, priority, active, created_at, updated_at\nFROM prompt_modules\nWHERE name = $1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -240,
+        10672
+      ],
+      "id": "query-view-module",
+      "name": "QueryViewModule",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE prompt_modules\nSET active = $2, updated_at = NOW()\nWHERE name = $1\nRETURNING name, active",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -240,
+        10864
+      ],
+      "id": "query-toggle-module",
+      "name": "QueryToggleModule",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE prompt_modules\nSET content = $2, updated_at = NOW()\nWHERE name = $1\nRETURNING name, content",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -240,
+        11056
+      ],
+      "id": "query-update-module",
+      "name": "QueryUpdateModule",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format view module response\n// Can be called from ::get module <name> or ::module <name> (if we keep that)\nconst allItems = $input.all();\n\n// Find the ctx - could be from different sources\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\n// Fallback to input item\nif (!ctx) {\n  ctx = $json.ctx;\n}\n\nconst result = $input.item?.json;\nconst moduleName = ctx?.validation?.module_name || 'unknown';\n\nif (!result || !result.name) {\n  return [{\n    json: {\n        ctx: {\n          ...ctx,\n          response: {\n            content: `\u274c Module \\`${moduleName}\\` not found.\\n\\nUse \\`::modules\\` to see available modules.`\n          }\n        }\n    }\n  };\n}\n\nconst statusIcon = result.active ? '\u2705' : '\u274c';\nconst status = result.active ? 'Active' : 'Inactive';\nconst tags = result.tags?.length > 0 ? result.tags.join(', ') : '(none)';\n\n// Truncate content if too long for Discord\nlet content = result.content;\nif (content.length > 1000) {\n  content = content.substring(0, 1000) + '...';\n}\n\nconst response = `\ud83e\udde9 **Module: ${result.name}**\\n\\n` +\n  `**Type:** ${result.module_type}\\n` +\n  `**Status:** ${statusIcon} ${status}\\n` +\n  `**Priority:** ${result.priority}\\n` +\n  `**Tags:** ${tags}\\n\\n` +\n  `**Content:**\\n\\`\\`\\`\\n${content}\\n\\`\\`\\`\\n\\n` +\n  `\ud83d\udca1 \\`::set module ${result.name} on/off\\` to toggle\\n` +\n  `\ud83d\udca1 \\`::set module ${result.name} <content>\\` to update`;\n\nreturn [{\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        content: response\n      }\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        10672
+      ],
+      "id": "format-view-module-response",
+      "name": "FormatViewModuleResponse"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format toggle module response\nconst ctx = $json.ctx;\nconst result = $json;\nconst moduleName = ctx?.validation?.module_name || 'unknown';\n\nif (!result || !result.name) {\n  return {\n    json: {\n        ctx: {\n          ...ctx,\n          response: {\n            content: `\u274c Module \\`${moduleName}\\` not found.\\n\\nUse \\`::modules\\` to see available modules.`\n          }\n        }\n    }\n  };\n}\n\nconst statusIcon = result.active ? '\u2705' : '\u274c';\nconst status = result.active ? 'enabled' : 'disabled';\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `${statusIcon} Module \\`${result.name}\\` ${status}`\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        10864
+      ],
+      "id": "format-toggle-module-response",
+      "name": "FormatToggleModuleResponse"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format update module response\nconst ctx = $json.ctx;\nconst result = $json;\nconst moduleName = ctx?.validation?.module_name || 'unknown';\n\nif (!result || !result.name) {\n  return {\n    json: {\n        ctx: {\n          ...ctx,\n          response: {\n            content: `\u274c Module \\`${moduleName}\\` not found.\\n\\nUse \\`::modules\\` to see available modules.`\n          }\n        }\n    }\n  };\n}\n\n// Show preview of new content\nlet preview = result.content;\nif (preview.length > 100) {\n  preview = preview.substring(0, 100) + '...';\n}\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      response: {\n        content: `\u2705 Updated module \\`${result.name}\\`\\n\\n**New content:** ${preview}`\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        11056
+      ],
+      "id": "format-update-module-response",
+      "name": "FormatUpdateModuleResponse"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-config",
+                    "leftValue": "={{ $json.ctx.validation.target }}",
+                    "rightValue": "config",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "config"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-module",
+                    "leftValue": "={{ $json.ctx.validation.target }}",
+                    "rightValue": "module",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "module"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -560,
+        8768
+      ],
+      "id": "switch-get-target",
+      "name": "SwitchGetTarget"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-config",
+                    "leftValue": "={{ $json.ctx.validation.target }}",
+                    "rightValue": "config",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "config"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "check-module",
+                    "leftValue": "={{ $json.ctx.validation.target }}",
+                    "rightValue": "module",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "module"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -560,
+        8960
+      ],
+      "id": "switch-set-target",
+      "name": "SwitchSetTarget"
+    }
+  ],
+  "connections": {
+    "WhenExecutedByAnotherWorkflow": {
+      "main": [
+        [
+          {
+            "node": "ParseCommandAndArgs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remove\ud83d\udd35Reaction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ReactWith\ud83d\udcbb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ParseCommandAndArgs": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "ValidateGet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ValidateSet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ValidateRecent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ValidateDelete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QueryStats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QueryUserStatus",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HandlePing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ValidateGenerate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ValidateGenerate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HandleHelp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QueryListModules",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HandleUnknownCommand",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HandlePing": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryGetConfig": {
+      "main": [
+        [
+          {
+            "node": "FormatGetResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QuerySetConfig": {
+      "main": [
+        [
+          {
+            "node": "FormatSetResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryStats": {
+      "main": [
+        [
+          {
+            "node": "FormatStatsResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryRecentEvents": {
+      "main": [
+        [
+          {
+            "node": "FormatRecentResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryUserStatus": {
+      "main": [
+        [
+          {
+            "node": "FormatStatusResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HandleHelp": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatGetResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatSetResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatStatsResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatRecentResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatStatusResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HandleUnknownCommand": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VoidProjections": {
+      "main": [
+        [
+          {
+            "node": "FormatVoidResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatVoidResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateGet": {
+      "main": [
+        [
+          {
+            "node": "IfValidGet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateSet": {
+      "main": [
+        [
+          {
+            "node": "IfValidSet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateDelete": {
+      "main": [
+        [
+          {
+            "node": "IfValidDelete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateRecent": {
+      "main": [
+        [
+          {
+            "node": "IfValidRecent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidRecent": {
+      "main": [
+        [
+          {
+            "node": "QueryRecentEvents",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidGet": {
+      "main": [
+        [
+          {
+            "node": "SwitchGetTarget",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidSet": {
+      "main": [
+        [
+          {
+            "node": "SwitchSetTarget",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidDelete": {
+      "main": [
+        [
+          {
+            "node": "VoidProjections",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendResponse": {
+      "main": [
+        []
+      ]
+    },
+    "SendErrorMessage": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ValidateGenerate": {
+      "main": [
+        [
+          {
+            "node": "IfValidGenerate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfValidGenerate": {
+      "main": [
+        [
+          {
+            "node": "SwitchGenerateType",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendErrorMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SwitchGenerateType": {
+      "main": [
+        [
+          {
+            "node": "ExecuteGenerateNudge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ExecuteGenerateDailySummary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteGenerateNudge": {
+      "main": [
+        [
+          {
+            "node": "FormatGenerateResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExecuteGenerateDailySummary": {
+      "main": [
+        [
+          {
+            "node": "FormatGenerateResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatGenerateResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryListModules": {
+      "main": [
+        [
+          {
+            "node": "FormatModulesResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatModulesResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SwitchModuleOperation": {
+      "main": [
+        [
+          {
+            "node": "QueryViewModule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QueryToggleModule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QueryUpdateModule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryViewModule": {
+      "main": [
+        [
+          {
+            "node": "FormatViewModuleResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryToggleModule": {
+      "main": [
+        [
+          {
+            "node": "FormatToggleModuleResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QueryUpdateModule": {
+      "main": [
+        [
+          {
+            "node": "FormatUpdateModuleResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatViewModuleResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatToggleModuleResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatUpdateModuleResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SwitchGetTarget": {
+      "main": [
+        [
+          {
+            "node": "QueryGetConfig",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QueryViewModule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "SwitchSetTarget": {
+      "main": [
+        [
+          {
+            "node": "QuerySetConfig",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SwitchModuleOperation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "NOJ7FqVhVLqw0n8D",
+    "availableInMCP": false,
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "transformedForDev": true
+  },
+  "versionId": "2351094b-788f-4f1a-a3c8-26c3312fbaa5",
+  "activeVersionId": null,
+  "versionCounter": 191,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2025-12-23T09:30:26.164Z",
+      "createdAt": "2025-12-23T09:30:26.164Z",
+      "role": "workflow:owner",
+      "workflowId": "ZwuxCuNFykFxgD3e",
+      "projectId": "erM3nntdLL53noWi",
+      "project": {
+        "updatedAt": "2025-12-23T09:23:39.658Z",
+        "createdAt": "2025-12-23T09:16:56.460Z",
+        "id": "erM3nntdLL53noWi",
+        "name": "Chris Irineo <chriskevini@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2025-12-23T09:16:56.460Z",
+            "createdAt": "2025-12-23T09:16:56.460Z",
+            "userId": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+            "projectId": "erM3nntdLL53noWi",
+            "user": {
+              "updatedAt": "2025-12-24T08:40:46.063Z",
+              "createdAt": "2025-12-23T09:16:54.881Z",
+              "id": "2a851a2d-b7e5-4b3c-aefb-6eaaa79e0659",
+              "email": "chriskevini@gmail.com",
+              "firstName": "Chris",
+              "lastName": "Irineo",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2025-12-23T09:23:43.723Z",
+                "personalization_survey_n8n_version": "1.123.5"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "CgUAxK0i4YhrZ2Wp",
+                "userActivatedAt": 1766487000077,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2025-12-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

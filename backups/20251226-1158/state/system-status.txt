@@ -1,0 +1,44 @@
+[0;34mℹ[0m Checking system status [PROD]...
+
+=== Docker Containers ===
+NAMES                      STATUS      PORTS
+n8n-docker-caddy-n8n-1     Up 2 days   0.0.0.0:5678->5678/tcp, [::]:5678->5678/tcp
+n8n-dev                    Up 3 days   0.0.0.0:5679->5678/tcp, [::]:5679->5678/tcp
+postgres-db                Up 3 days   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+postgres-dev               Up 3 days   5432/tcp
+embedding-service          Up 3 days   0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp
+n8n-docker-caddy-caddy-1   Up 4 days   0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp, 443/udp, 2019/tcp
+
+=== Discord Relay ===
+● kairon-relay.service - Kairon Discord Relay Bot
+     Loaded: loaded (/etc/systemd/system/kairon-relay.service; disabled; preset: enabled)
+     Active: active (running) since Wed 2025-12-24 23:17:37 UTC; 1 day 20h ago
+   Main PID: 357217 (python)
+      Tasks: 3 (limit: 2318)
+     Memory: 19.3M (peak: 49.5M swap: 20.2M swap peak: 25.1M)
+        CPU: 5.180s
+     CGroup: /system.slice/kairon-relay.service
+             └─357217 /root/kairon/.venv/bin/python /root/kairon/scripts/discord_relay.py
+
+Dec 26 01:51:09 n8n python[357217]: [2025-12-26 01:51:09] [INFO    ] discord.gateway: Shard ID None has successfully RESUMED session b565cff8414e30ca854bbdbcd14dfb66.
+Dec 26 02:21:07 n8n python[357217]: [2025-12-26 02:21:07] [INFO    ] discord.gateway: Shard ID None has successfully RESUMED session b565cff8414e30ca854bbdbcd14dfb66.
+Dec 26 05:34:45 n8n python[357217]: [2025-12-26 05:34:45] [INFO    ] discord.gateway: Shard ID None has successfully RESUMED session b565cff8414e30ca854bbdbcd14dfb66.
+Dec 26 08:15:51 n8n python[357217]: [2025-12-26 08:15:51] [INFO    ] discord.gateway: Shard ID None has successfully RESUMED session b565cff8414e30ca854bbdbcd14dfb66.
+Dec 26 08:53:55 n8n python[357217]: [2025-12-26 08:53:55] [INFO    ] discord.gateway: Shard ID None has successfully RESUMED session b565cff8414e30ca854bbdbcd14dfb66.
+
+=== Database Health (Last 24 Hours) ===
+   metric    | count |         latest          
+-------------+-------+-------------------------
+ Events      | 103   | 2025-12-26 19:45:34 UTC
+ Traces      | 98    | 2025-12-26 19:45:41 UTC
+ Projections | 62    | 2025-12-26 19:45:42 UTC
+(3 rows)
+
+
+=== Data Pipeline Health ===
+ events_1h | traces_1h | events_without_traces 
+-----------+-----------+-----------------------
+         9 |         5 |                     4
+(1 row)
+
+[0;32m✓[0m Status check complete
