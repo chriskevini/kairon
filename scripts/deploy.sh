@@ -355,9 +355,17 @@ rollback_prod() {
     local PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
     
     # Check if n8n is responding
-    if ! curl -s -f -H "X-N8N-API-KEY: $N8N_API_KEY" "$PROD_API_URL/api/v1/workflows?limit=1" > /dev/null 2>&1; then
-        echo "❌ Rollback failed: n8n API not responding at $PROD_API_URL"
-        return 1
+    local CHECK_CMD="curl -s -f -H \"X-N8N-API-KEY: $N8N_API_KEY\" \"$PROD_API_URL/api/v1/workflows?limit=1\""
+    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        if ! ssh "$N8N_DEV_SSH_HOST" "source /opt/n8n-docker-caddy/.env && $CHECK_CMD" > /dev/null 2>&1; then
+            echo "❌ Rollback failed: n8n API not responding on $N8N_DEV_SSH_HOST at $PROD_API_URL"
+            return 1
+        fi
+    else
+        if ! eval "$CHECK_CMD" > /dev/null 2>&1; then
+            echo "❌ Rollback failed: n8n API not responding at $PROD_API_URL"
+            return 1
+        fi
     fi
 
     # Database parameters
