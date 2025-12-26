@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   n8n-dev:
     image: n8nio/n8n:latest
@@ -13,14 +11,12 @@ services:
       - N8N_PROTOCOL=http
       - N8N_PATH=/
       - WEBHOOK_URL=http://localhost:5679/
-       - N8N_ENCRYPTION_KEY=${N8N_DEV_ENCRYPTION_KEY:-dev-local-encryption-key-32chars}
-       - N8N_API_KEY=
-       - EXECUTIONS_MODE=manual
-       - EXECUTIONS_TIMEOUT=300
-       - EXECUTIONS_TIMEOUT_MAX=3600
-       - N8N_BASIC_AUTH_ACTIVE=false
-       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
-       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-admin}
+      - N8N_ENCRYPTION_KEY=${N8N_DEV_ENCRYPTION_KEY:-dev-local-encryption-key-32chars}
+      - N8N_USER_MANAGEMENT_DISABLED=true
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - EXECUTIONS_MODE=manual
+      - EXECUTIONS_TIMEOUT=300
+      - EXECUTIONS_TIMEOUT_MAX=3600
       - WEBHOOK_TUNNEL_URL=${WEBHOOK_TUNNEL_URL:-}
       - GENERIC_TIMEZONE=${TIMEZONE:-UTC}
       - NODE_ENV=development
@@ -31,7 +27,7 @@ services:
       - kairon-dev
 
   postgres-dev:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: postgres-dev-local
     restart: unless-stopped
     ports:
