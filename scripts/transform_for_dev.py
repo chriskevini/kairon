@@ -57,6 +57,7 @@ def transform_node(node: dict) -> dict:
         return node
 
     # Webhook Trigger transformations (Entry path MUST be transformed for testing)
+    # This must happen before NO_MOCKS check to ensure entry points are always reachable
     if node_type == "n8n-nodes-base.webhook":
         node_name = node.get("name", "").lower()
         if "discord webhook entry" in node_name or "test webhook" in node_name:
@@ -75,30 +76,6 @@ def transform_node(node: dict) -> dict:
 
         # Entry point for smoke tests (old method)
         if "smoke_test" in node_name or "test" in node_name:
-            return node
-
-        node["type"] = "n8n-nodes-base.executeWorkflowTrigger"
-        node["typeVersion"] = 1
-        node["parameters"] = {}
-        # Remove webhook-specific fields
-        node.pop("webhookId", None)
-        return node
-
-    # Webhook Trigger → Execute Workflow Trigger
-    # Allows smoke tests to invoke workflows directly without HTTP
-    # Exception: Smoke_Test entry point webhook should not be transformed
-    if node_type == "n8n-nodes-base.webhook":
-        node_name = node.get("name", "").lower()
-
-        # Entry point for smoke tests (old method)
-        if "smoke_test" in node_name or "test" in node_name:
-            return node
-
-        # Entry point for external test-all-paths.sh script
-        if "discord webhook entry" in node_name or "test webhook" in node_name:
-            node["parameters"]["path"] = "kairon-dev-test"
-            # Switch to production response mode to ensure it's registered properly
-            node["parameters"]["responseMode"] = "onReceived"
             return node
 
         node["type"] = "n8n-nodes-base.executeWorkflowTrigger"
