@@ -73,7 +73,7 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
         name: .name,
         nodes: .nodes,
         connections: .connections,
-        settings: (.settings // {})
+        settings: {}
     }' "$json_file")
     
     existing_id="${WORKFLOW_IDS[$name]:-}"
