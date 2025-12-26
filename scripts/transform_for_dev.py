@@ -85,21 +85,6 @@ def transform_node(node: dict) -> dict:
         node.pop("webhookId", None)
         return node
 
-    # Schedule Trigger → Webhook Trigger (for testing)
-    # Allows smoke tests to trigger all workflows via HTTP
-    if node_type == "n8n-nodes-base.scheduleTrigger":
-        node["type"] = "n8n-nodes-base.webhook"
-        node["typeVersion"] = 1
-        node["parameters"] = {
-            "httpMethod": "POST",
-            "path": f"kairon-dev-test/{node.get('name', 'workflow')}",
-            "options": {},
-            "responseMode": "onReceived",
-        }
-        # Remove schedule-specific fields
-        node.pop("webhookId", None)
-        return node
-
     # Discord Node → Mock Code Node
     # Returns fake Discord API response
     if node_type == "n8n-nodes-base.discord":

@@ -24,6 +24,7 @@ QUICK_MODE=false
 VERIFY_DB=false
 DEV_MODE=false
 QUIET_MODE=true
+NO_MOCKS=false
 
 # Colors
 GREEN='\033[0;32m'
@@ -121,6 +122,7 @@ while [[ "$#" -gt 0 ]]; do
         --quick) QUICK_MODE=true ;;
         --verify-db) VERIFY_DB=true ;;
         --dev) DEV_MODE=true ;;
+        --no-mocks) NO_MOCKS=true ;;
         --verbose) QUIET_MODE=false ;;
         --webhook) WEBHOOK="$2"; shift ;;
         --guild-id) GUILD_ID="$2"; shift ;;
@@ -132,6 +134,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --quick          Run quick test suite (skip exhaustive aliases)"
             echo "  --verify-db      Verify database after tests"
             echo "  --dev            Run against dev environment (port 5679)"
+            echo "  --no-mocks       Indicate that tests are running against real APIs"
             echo "  --verbose        Show full output (default is silent on success)"
             echo "  --webhook URL    Use custom webhook URL"
             echo "  --guild-id ID    Discord guild ID"
@@ -146,7 +149,11 @@ done
 
 if [ "$DEV_MODE" = true ]; then
     WEBHOOK="http://localhost:5679/webhook/kairon-dev-test"
-    log_info "Running in DEV mode (port 5679)"
+    if [ "$NO_MOCKS" = true ]; then
+        log_info "Running in DEV mode (port 5679) with REAL APIs (NO_MOCKS)"
+    else
+        log_info "Running in DEV mode (port 5679) with MOCK APIs"
+    fi
 fi
 
 
