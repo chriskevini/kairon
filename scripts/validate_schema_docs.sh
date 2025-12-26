@@ -52,7 +52,7 @@ fi
 
 # Check schema version in header
 SCHEMA_VERSION=$(grep "Schema version:" "$SCHEMA_FILE" | sed 's/.*Schema version: //' || echo "unknown")
-DOCS_VERSION=$(grep "**Schema Version:**" "$DOCS_FILE" | sed 's/.*Schema Version:** \([0-9]*\).*/\1/' || echo "unknown")
+DOCS_VERSION=$(grep "**Schema Version:**" "$DOCS_FILE" | awk '{print $3}' | grep -E '^[0-9]+$' || echo "unknown")
 
 if [ "$SCHEMA_VERSION" != "$DOCS_VERSION" ] && [ "$SCHEMA_VERSION" != "unknown" ]; then
     echo "⚠️  Schema version mismatch!"
