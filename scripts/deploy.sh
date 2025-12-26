@@ -143,6 +143,75 @@ setup_local_dev() {
         echo "✅ Schema loaded"
     fi
     
+    # 3. Check n8n owner setup and create API key
+    echo -n "Checking n8n owner account... "
+    local N8N_URL="http://localhost:5679"
+    local max_wait=30
+    local wait_count=0
+    
+    # Wait for n8n to be ready
+    while [ $wait_count -lt $max_wait ]; do
+        if curl -s -o /dev/null -w "" "$N8N_URL/rest/settings" 2>/dev/null; then
+            break
+        fi
+        sleep 1
+        wait_count=$((wait_count + 1))
+    done
+    
+    if [ $wait_count -ge $max_wait ]; then
+        echo "❌ n8n failed to start"
+        exit 1
+    fi
+    
+    # Check if owner exists
+    local settings=$(curl -s "$N8N_URL/rest/settings")
+    local show_setup=$(echo "$settings" | jq -r '.data.userManagement.showSetupOnFirstLoad')
+    
+    local N8N_OWNER_EMAIL="${N8N_DEV_USER:-admin}@example.com"
+    local N8N_OWNER_PASSWORD="${N8N_DEV_PASSWORD:-Admin123!}"
+    
+    if [ "$show_setup" = "true" ]; then
+        echo "Creating..."
+        
+        local setup_result=$(curl -s -X POST "$N8N_URL/rest/owner/setup" \
+            -H "Content-Type: application/json" \
+            -d "{
+                \"email\": \"$N8N_OWNER_EMAIL\",
+                \"firstName\": \"Admin\",
+                \"lastName\": \"User\",
+                \"password\": \"$N8N_OWNER_PASSWORD\"
+            }")
+        
+        if ! echo "$setup_result" | jq -e '.data.id' > /dev/null 2>&1; then
+            echo "❌ Failed to create owner account"
+            echo "$setup_result" | jq
+            exit 1
+        fi
+        echo "✅ Owner account created"
+    else
+        echo "✅ Already initialized"
+    fi
+    
+    # Create or retrieve API key for deployments
+    echo -n "Checking n8n API key... "
+    
+    # Login to get session cookie
+    local cookie_file="/tmp/n8n-dev-session-$$.txt"
+    
+    curl -s -c "$cookie_file" -X POST "$N8N_URL/rest/login" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"emailOrLdapLoginId\": \"$N8N_OWNER_EMAIL\",
+            \"password\": \"$N8N_OWNER_PASSWORD\"
+        }" > /dev/null
+    
+    # Export the cookie file path to be used by deployment scripts
+    export N8N_DEV_COOKIE_FILE="$cookie_file"
+    echo "✅ Authentication configured"
+    echo "   Email: $N8N_OWNER_EMAIL"
+    echo "   Cookie: $cookie_file"
+    echo "   Using session-based authentication"
+    
     echo ""
 }
 
@@ -160,10 +229,7 @@ deploy_dev() {
     local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
     local API_KEY="${N8N_DEV_API_KEY:-}"
     
-    # For localhost, use basic auth instead of API key
-    local BASIC_AUTH_USER="${N8N_DEV_USER:-admin}"
-    local BASIC_AUTH_PASSWORD="${N8N_DEV_PASSWORD:-admin}"
-    
+    # For localhost, cookie-based auth is set up in setup_local_dev()
     if [[ "$API_URL" == http://localhost* ]]; then
         API_KEY=""
     fi
@@ -223,7 +289,7 @@ deploy_dev() {
         fi
 
         WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
-            N8N_BASIC_AUTH_USER="$BASIC_AUTH_USER" N8N_BASIC_AUTH_PASSWORD="$BASIC_AUTH_PASSWORD" \
+            N8N_DEV_COOKIE_FILE="$N8N_DEV_COOKIE_FILE" \
             "$SCRIPT_DIR/workflows/n8n-push-local.sh" > "$DEPLOY_LOG" 2>&1
     } || {
         echo "❌ FAILED"

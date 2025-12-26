@@ -19,11 +19,14 @@ N8N_API_KEY="${N8N_API_KEY:-}"
 # Support basic auth for local development
 N8N_BASIC_AUTH_USER="${N8N_BASIC_AUTH_USER:-}"
 N8N_BASIC_AUTH_PASSWORD="${N8N_BASIC_AUTH_PASSWORD:-}"
+N8N_DEV_COOKIE_FILE="${N8N_DEV_COOKIE_FILE:-}"
 
 # Helper function to make authenticated curl requests
 curl_auth() {
     if [ -n "$N8N_API_KEY" ]; then
         curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$@"
+    elif [ -n "$N8N_DEV_COOKIE_FILE" ] && [ -f "$N8N_DEV_COOKIE_FILE" ]; then
+        curl -s -b "$N8N_DEV_COOKIE_FILE" "$@"
     elif [ -n "$N8N_BASIC_AUTH_USER" ] && [ -n "$N8N_BASIC_AUTH_PASSWORD" ]; then
         curl -s -u "$N8N_BASIC_AUTH_USER:$N8N_BASIC_AUTH_PASSWORD" "$@"
     else
@@ -83,7 +86,8 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
         name: .name,
         nodes: .nodes,
         connections: .connections,
-        settings: {}
+        settings: {},
+        active: (.active // false)
     }' "$json_file")
     
     existing_id="${WORKFLOW_IDS[$name]:-}"
