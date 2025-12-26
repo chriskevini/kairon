@@ -90,6 +90,10 @@ deploy_dev() {
 
     local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
     local API_KEY="$N8N_DEV_API_KEY"
+    # For local dev, use basic auth instead of API key
+    if [[ "$API_URL" == http://localhost* ]]; then
+        API_KEY=""
+    fi
 
     # Check if dev stack is running
     if ! curl -s -o /dev/null -w "" "$API_URL/" 2>/dev/null; then

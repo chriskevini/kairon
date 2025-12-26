@@ -16,10 +16,22 @@ WORKFLOW_DIR="${WORKFLOW_DIR:-$REPO_ROOT/n8n-workflows}"
 N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
 N8N_API_KEY="${N8N_API_KEY:-}"
 
+# For local dev, use basic auth if no API key
 if [ -z "$N8N_API_KEY" ]; then
-    echo "Error: N8N_API_KEY not set"
-    exit 1
+    echo "Using basic auth for local dev (no API key set)"
+    USE_BASIC_AUTH=true
+else
+    USE_BASIC_AUTH=false
 fi
+
+# Helper function for curl with appropriate auth
+n8n_curl() {
+    if [ "$USE_BASIC_AUTH" = true ]; then
+        curl -s -u admin:admin "$@"
+    else
+        curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$@"
+    fi
+}
 
 # Initialize associative array
 declare -A WORKFLOW_IDS=()
@@ -30,7 +42,7 @@ echo ""
 
 # Fetch existing workflows
 echo "Fetching existing workflows..."
-RESPONSE=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows?limit=100")
+RESPONSE=$(n8n_curl "$N8N_API_URL/rest/workflows?take=100")
 REMOTE_WORKFLOWS=$(echo "$RESPONSE" | jq -r '.data? // []')
 
 if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "null" ]; then
@@ -80,10 +92,9 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
     
     if [ -n "$existing_id" ]; then
         # Update existing workflow
-        result=$(echo "$cleaned" | curl -s -X PUT \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+        result=$(echo "$cleaned" | n8n_curl -X PUT \
             -H "Content-Type: application/json" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id" \
+            "$N8N_API_URL/rest/workflows/$existing_id" \
             -d @-)
         
         if echo "$result" | jq -e '.id' > /dev/null 2>&1; then
@@ -92,9 +103,8 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
             
             # Activate if needed
             if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
-                curl -s -X POST \
-                    -H "X-N8N-API-KEY: $N8N_API_KEY" \
-                    "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null
+                n8n_curl -X POST \
+                    "$N8N_API_URL/rest/workflows/$existing_id/activate" > /dev/null
             fi
         else
             echo "   Failed to update: $name"
@@ -103,10 +113,9 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
         fi
     else
         # Create new workflow
-        result=$(echo "$cleaned" | curl -s -X POST \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+        result=$(echo "$cleaned" | n8n_curl -X POST \
             -H "Content-Type: application/json" \
-            "$N8N_API_URL/api/v1/workflows" \
+            "$N8N_API_URL/rest/workflows" \
             -d @-)
         
         new_id=$(echo "$result" | jq -r '.id // empty')
@@ -116,9 +125,8 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
             
             # Activate if needed
             if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
-                curl -s -X POST \
-                    -H "X-N8N-API-KEY: $N8N_API_KEY" \
-                    "$N8N_API_URL/api/v1/workflows/$new_id/activate" > /dev/null
+                n8n_curl -X POST \
+                    "$N8N_API_URL/rest/workflows/$new_id/activate" > /dev/null
             fi
         else
             echo "   Failed to create: $name"
