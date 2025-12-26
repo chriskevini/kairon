@@ -233,8 +233,7 @@ The `docs/` directory contains comprehensive documentation for development, oper
 
 | Document | Purpose | Audience | Quick Access |
 |----------|---------|----------|--------------|
-| **[AGENTS.md](AGENTS.md)** | Agent guidelines, ctx pattern, n8n best practices | All developers | Root directory |
-| **[AGENTS.md](AGENTS.md)** | Agent guidelines and system overview | All users | Core concepts |
+| **[AGENTS.md](AGENTS.md)** | Agent guidelines, ctx pattern, system overview, n8n best practices | All developers | Core concepts |
 | **[docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md)** | n8n workflow patterns and conventions | Developers | Implementation |
 | **[docs/DATABASE.md](docs/DATABASE.md)** | Complete database schema and relationships | Developers, DBA | Schema reference |
 | **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** | Local development with Docker containers | Developers | Local setup |
