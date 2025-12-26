@@ -210,7 +210,19 @@ run_functional_tests() {
         return 1
     fi
     echo "  ✅ PASSED (mocks)"
-
+    
+    # Stage 1b: Redeploy with real APIs (between test stages)
+    echo ""
+    echo "  Redeploying workflows for realistic API testing..."
+    if ! deploy_dev true; then
+        echo "❌ FAILED (redeployment)"
+        echo "----------------------------------------"
+        cat "$DEPLOY_LOG"
+        echo "----------------------------------------"
+        return 1
+    fi
+    echo "  ✅ Redeployment PASSED"
+    
     # Stage 2b: Realistic tests with real APIs (NEW)
      echo ""
      echo "  Stage 2b: Realistic tests (real APIs)..."

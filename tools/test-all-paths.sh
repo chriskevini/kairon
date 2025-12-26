@@ -248,6 +248,41 @@ if [ "$QUIET_MODE" = false ] || [ $FAILED_TESTS -gt 0 ]; then
     echo "=========================================="
     echo "  Test Results"
     echo "=========================================="
+
+    # CRON WORKFLOWS (via webhook transform)
+    if [ "$DEV_MODE" = true ]; then
+        log_info "--- 7. CRON Workflow Triggers ---"
+        
+        # Auto_Backfill
+        ((TOTAL_TESTS++))
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "http://localhost:5679/webhook/kairon-dev-test/CronTrigger" \
+            -H "Content-Type: application/json" -d '{}')
+        [ "$response_code" = "200" ] && log_pass "Auto_Backfill (CronTrigger)" || log_fail "Auto_Backfill failed (HTTP $response_code)"
+        
+        # Proactive_Agent_Cron
+        ((TOTAL_TESTS++))
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "http://localhost:5679/webhook/kairon-dev-test/Every5Minutes" \
+            -H "Content-Type: application/json" -d '{}')
+        [ "$response_code" = "200" ] && log_pass "Proactive_Agent_Cron (Every5Minutes)" || log_fail "Proactive_Agent_Cron failed (HTTP $response_code)"
+        
+        # Generate_Daily_Summary
+        ((TOTAL_TESTS++))
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "http://localhost:5679/webhook/kairon-dev-test/Every5Minutes" \
+            -H "Content-Type: application/json" -d '{}')
+        [ "$response_code" = "200" ] && log_pass "Generate_Daily_Summary (Every5Minutes)" || log_fail "Generate_Daily_Summary failed (HTTP $response_code)"
+        
+        # Generate_Nudge
+        ((TOTAL_TESTS++))
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "http://localhost:5679/webhook/kairon-dev-test/Every15Minutes" \
+            -H "Content-Type: application/json" -d '{}')
+        [ "$response_code" = "200" ] && log_pass "Generate_Nudge (Every15Minutes)" || log_fail "Generate_Nudge failed (HTTP $response_code)"
+        
+        echo ""
+    fi
     echo "Total: $TOTAL_TESTS"
     echo -e "${GREEN}Passed: $PASSED_TESTS${NC}"
     echo -e "${RED}Failed: $FAILED_TESTS${NC}"
