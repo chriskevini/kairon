@@ -93,6 +93,9 @@ deploy_dev() {
     # Validate workflow names are unique
     validate_workflow_names || exit 1
 
+    # Validate workflows use mode:list for portability
+    validate_mode_list_usage || exit 1
+
     TEMP_DIR=$(mktemp -d)
     OUTPUT_FILE=$(mktemp)
     DEPLOY_LOG=$(mktemp)
@@ -203,6 +206,9 @@ deploy_prod() {
     # Validate workflow names are unique
     validate_workflow_names || exit 1
 
+    # Validate workflows use mode:list for portability
+    validate_mode_list_usage || exit 1
+
     # Capture output for diagnostics
     OUTPUT_FILE=$(mktemp)
     DEPLOY_LOG=$(mktemp)
@@ -294,6 +300,26 @@ validate_workflow_names() {
         echo ""
         echo "Duplicate workflow names will cause mode:list references to fail."
         echo "Please rename workflows to have unique names."
+        return 1
+    fi
+
+    echo "✅ PASSED"
+    return 0
+}
+
+# --- MODE:LIST VALIDATION ---
+validate_mode_list_usage() {
+    echo -n "Validating portable workflow references... "
+
+    local test_output
+    test_output=$(python3 "$SCRIPT_DIR/testing/test_mode_list_references.py" "$WORKFLOW_DIR" 2>&1)
+
+    if echo "$test_output" | grep -q "mode:id"; then
+        echo "❌ FAILED"
+        echo "$test_output"
+        echo ""
+        echo "ERROR: Workflows must use mode:list for portability."
+        echo "See AGENTS.md for guidance on Execute Workflow nodes."
         return 1
     fi
 

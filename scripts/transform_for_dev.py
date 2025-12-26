@@ -143,7 +143,7 @@ return [{{
     # HTTP Request nodes that call external APIs could also be mocked here
     # if needed in the future
 
-    # Execute Workflow Node → Remap workflow IDs from prod to dev
+    # Execute Workflow Node → Preserve mode:list for portability
     if node_type == "n8n-nodes-base.executeWorkflow":
         params = node.get("parameters", {})
         workflow_ref = params.get("workflowId", {})
@@ -152,12 +152,13 @@ return [{{
             mode = workflow_ref.get("mode", "")
             value = workflow_ref.get("value", "")
 
-            # Remap prod ID to dev ID
-            # Also handle mode="list" which is used in newer n8n versions
-            if (mode == "id" or mode == "list") and value in WORKFLOW_ID_REMAP:
+            # mode:list uses workflow names (portable) - preserve it
+            if mode == "list":
+                # No transformation needed - n8n resolves names to IDs at runtime
+                pass
+            # mode:id uses hardcoded IDs (legacy) - remap if mapping exists
+            elif mode == "id" and value in WORKFLOW_ID_REMAP:
                 workflow_ref["value"] = WORKFLOW_ID_REMAP[value]
-                # Force mode to "id" for cleaner mapping in dev
-                workflow_ref["mode"] = "id"
 
         return node
 
