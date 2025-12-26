@@ -281,6 +281,110 @@ verify_prod_webhook_accessible() {
     return 0
 }
 
+# --- ROLLBACK ---
+rollback_prod() {
+    local backup_dir="${1:-${LATEST_DEPLOY_BACKUP:-}}"
+    
+    if [ -z "$backup_dir" ] || [ ! -d "$backup_dir" ]; then
+        echo "❌ Rollback failed: No valid backup directory provided or found."
+        return 1
+    fi
+
+    echo ""
+    echo "=========================================="
+    echo "ROLLBACK: Restoring from $(basename "$backup_dir")"
+    echo "=========================================="
+    
+    # Pre-flight checks
+    if [ -z "${N8N_API_KEY:-}" ]; then
+        echo "❌ Rollback failed: N8N_API_KEY not set"
+        return 1
+    fi
+
+    local PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
+    
+    # Check if n8n is responding
+    if ! curl -s -f -H "X-N8N-API-KEY: $N8N_API_KEY" "$PROD_API_URL/api/v1/workflows?limit=1" > /dev/null 2>&1; then
+        echo "❌ Rollback failed: n8n API not responding at $PROD_API_URL"
+        return 1
+    fi
+
+    # Database parameters
+    local CONTAINER="${CONTAINER_DB:-postgres-db}"
+    local DB_USER="${DB_USER:-n8n_user}"
+    local DB_NAME="${DB_NAME:-kairon}"
+    
+    # 1. Restore Database
+    if [ -f "$backup_dir/kairon.sql" ]; then
+        echo "   Restoring database..."
+        if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+            # Remote restore with unique temp file
+            local REMOTE_TEMP="/tmp/rollback_$$_$(date +%s).sql"
+            if ! scp -q "$backup_dir/kairon.sql" "$N8N_DEV_SSH_HOST:$REMOTE_TEMP"; then
+                echo "   ❌ Failed to upload SQL backup"
+                return 1
+            fi
+            
+            if ! ssh "$N8N_DEV_SSH_HOST" "docker exec -i $CONTAINER psql -U $DB_USER -d $DB_NAME < $REMOTE_TEMP" > /dev/null 2>&1; then
+                echo "   ❌ Database restore failed"
+                ssh "$N8N_DEV_SSH_HOST" "rm -f $REMOTE_TEMP" 2>/dev/null || true
+                return 1
+            fi
+            ssh "$N8N_DEV_SSH_HOST" "rm -f $REMOTE_TEMP" 2>/dev/null || true
+        else
+            # Local restore
+            if ! docker exec -i "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$backup_dir/kairon.sql" > /dev/null 2>&1; then
+                echo "   ❌ Database restore failed"
+                return 1
+            fi
+        fi
+        echo "   ✅ Database restored"
+    fi
+
+    # 2. Restore Workflows
+    if [ -d "$backup_dir/workflows" ]; then
+        echo "   Restoring workflows..."
+        
+        # Create temporary directory for processed workflows
+        local TEMP_WORKFLOW_DIR=$(mktemp -d)
+        CLEANUP_FILES+=("$TEMP_WORKFLOW_DIR")
+        
+        # Strip metadata from backup workflows for n8n-push-prod.sh
+        for json_file in "$backup_dir/workflows"/*.json; do
+            [ -f "$json_file" ] || continue
+            # Keep only name, nodes, connections, settings
+            jq '{name, nodes, connections, settings}' "$json_file" > "$TEMP_WORKFLOW_DIR/$(basename "$json_file")"
+        done
+        
+        if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+            # Remote restore via n8n-push-prod.sh
+            rsync -az --delete "$TEMP_WORKFLOW_DIR/" "$N8N_DEV_SSH_HOST:/tmp/rollback_workflows/"
+            
+            if ! ssh "$N8N_DEV_SSH_HOST" "cd /opt/kairon && \
+                export \$(grep -E '^(N8N_API_KEY|N8N_API_URL)=' /opt/n8n-docker-caddy/.env) && \
+                WORKFLOW_DIR='/tmp/rollback_workflows' \
+                bash /opt/kairon/scripts/workflows/n8n-push-prod.sh" > /dev/null 2>&1; then
+                echo "   ❌ Workflow restore failed"
+                return 1
+            fi
+            ssh "$N8N_DEV_SSH_HOST" "rm -rf /tmp/rollback_workflows" 2>/dev/null || true
+        else
+            # Local restore via n8n-push-prod.sh
+            if ! N8N_API_URL="${N8N_API_URL:-http://localhost:5678}" \
+                N8N_API_KEY="$N8N_API_KEY" \
+                WORKFLOW_DIR="$TEMP_WORKFLOW_DIR" \
+                "$SCRIPT_DIR/workflows/n8n-push-prod.sh" > /dev/null 2>&1; then
+                echo "   ❌ Workflow restore failed"
+                return 1
+            fi
+        fi
+        echo "   ✅ Workflows restored"
+    fi
+
+    echo ""
+    echo "✅ ROLLBACK COMPLETE"
+}
+
 # --- PROD DEPLOYMENT ---
 deploy_prod() {
     echo -n "STAGE 3: Deploy to PROD... "
@@ -296,15 +400,30 @@ deploy_prod() {
     # Create backup before deployment
     echo ""
     echo "   Creating pre-deployment backup..."
+    local BACKUP_ID="deploy-$(date +%Y%m%d-%H%M%S)"
+    local BACKUP_DIR="$REPO_ROOT/backups/$BACKUP_ID"
+    
     if [ -f "$REPO_ROOT/tools/kairon-ops.sh" ]; then
-        if ! "$REPO_ROOT/tools/kairon-ops.sh" backup > /dev/null 2>&1; then
+        # Create a specific directory for this deployment backup
+        mkdir -p "$BACKUP_DIR"
+        
+        # We need to temporarily override the backup directory logic in kairon-ops.sh
+        # or just let it create its own and we record which one it was.
+        # kairon-ops.sh backup creates a directory like backups/YYYYMMDD-HHMM
+        
+        if ! "$REPO_ROOT/tools/kairon-ops.sh" backup > /tmp/backup_output.log 2>&1; then
             echo "   ⚠️  Backup failed! Please check system status."
+            cat /tmp/backup_output.log | sed 's/^/      /'
             read -p "      Continue deployment without backup? [y/N] " -n 1 -r
             echo ""
             if [[ ! $REPLY =~ ^[Yy]$ ]]; then
                 echo "      Deployment aborted."
                 exit 1
             fi
+        else
+            local LATEST_BACKUP=$(ls -td "$REPO_ROOT/backups"/*/ | head -1)
+            echo "   ✅ Backup created: $(basename "$LATEST_BACKUP")"
+            export LATEST_DEPLOY_BACKUP="$LATEST_BACKUP"
         fi
     fi
 
@@ -359,6 +478,14 @@ deploy_prod() {
         echo "----------------------------------------"
         cat "$DEPLOY_LOG"
         echo "----------------------------------------"
+        
+        if [ -n "${LATEST_DEPLOY_BACKUP:-}" ]; then
+            read -p "      Deployment failed. Rollback to pre-deployment state? [y/N] " -n 1 -r
+            echo ""
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                rollback_prod "$LATEST_DEPLOY_BACKUP"
+            fi
+        fi
         return 1
     }
 
