@@ -2,24 +2,7 @@
 
 Instructions for AI agents working on Kairon - a life-tracking system using n8n workflows + Discord.
 
-## Project Structure
 
-```
-n8n-workflows/           # Workflow JSON files
-n8n-workflows-transformed/  # Transformed workflows for dev testing
-db/
-  migrations/            # SQL migrations (numbered, run in order)
-  schema.sql             # Current database schema (reference only)
-  seeds/                 # Initial seed data
-scripts/
-  db/                    # Database health checks and utilities
-  workflows/             # Workflow JSON tools (lint, inspect, validate)
-  transform_for_dev.py   # Transform workflows for local testing
-docker-compose.dev.yml   # Local dev environment
-prompts/                 # LLM prompts used in workflows
-docs/                    # Documentation
-discord_relay.py         # Discord bot that forwards to n8n
-```
 
 ## Local Development
 
