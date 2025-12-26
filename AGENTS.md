@@ -55,7 +55,7 @@ Discord → Route_Event → Route_Message → Multi_Capture/Execute_Command/etc.
 
 **Key Principle:** Everything traces back to an event through a trace.
 
-**📖 Details:** See main `README.md` for schema overview
+**📖 Details:** See `docs/DATABASE.md` for complete schema reference
 
 ## Development Workflow
 
