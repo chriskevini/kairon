@@ -222,3 +222,48 @@ All workflows pass data through a `ctx` object to prevent data loss:
 ```
 
 See `AGENTS.md` for detailed workflow development guidelines.
+
+## Documentation
+
+### 📚 Documentation Overview
+
+The `docs/` directory contains comprehensive documentation for development, operations, and maintenance.
+
+### 📋 Documentation Guide
+
+| Document | Purpose | Audience | Quick Access |
+|----------|---------|----------|--------------|
+| **[AGENTS.md](AGENTS.md)** | Agent guidelines, ctx pattern, system overview, n8n best practices | All developers | Core concepts |
+| **[docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md)** | n8n workflow patterns and conventions | Developers | Implementation |
+| **[docs/DATABASE.md](docs/DATABASE.md)** | Complete database schema and relationships | Developers, DBA | Schema reference |
+| **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** | Local development with Docker containers | Developers | Local setup |
+| **[docs/PRODUCTION.md](docs/PRODUCTION.md)** | Production operations and remote management | DevOps, Operations | Production ops |
+| **[docs/DEBUG.md](docs/DEBUG.md)** | Debugging tools, techniques, and troubleshooting | All users | Debug guide |
+| **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** | Deployment pipeline and workflow management | DevOps, CI/CD | Deployment |
+| **[docs/TESTING.md](docs/TESTING.md)** | Workflow validation and testing system | Developers | Testing |
+
+### 🗂️ Archived Documentation
+
+Historical documentation is stored in `docs/archive/` for reference:
+- Implementation plans and design decisions
+- Postmortems and recovery plans
+- Deprecated features and approaches
+- Historical migrations and changes
+
+### 🚀 Quick Start by Role
+
+1. **New to Kairon?** Start here for project overview and architecture
+2. **Understanding the system?** → `AGENTS.md` for core concepts
+3. **Understanding the database?** → `docs/DATABASE.md` for schema reference
+4. **Learning implementation patterns?** → `docs/BEST_PRACTICES.md` for n8n conventions
+5. **Setting up local development?** → `docs/DEVELOPMENT.md`
+6. **Managing production systems?** → `docs/PRODUCTION.md`
+7. **Debugging issues?** → `docs/DEBUG.md`
+8. **Deploying changes?** → `docs/DEPLOYMENT.md`
+
+### 🔑 Key Concepts
+
+- **ctx Pattern**: Standardized data flow between n8n workflow nodes
+- **Local Development**: Docker-based isolated testing environment
+- **Deployment Pipeline**: Automated testing and rollback for production
+- **Workflow Transformation**: Converting workflows for different environments

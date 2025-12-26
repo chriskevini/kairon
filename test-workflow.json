@@ -1,0 +1,22 @@
+{
+  "name": "Test Route Event",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kairon-dev-test",
+        "options": {},
+        "responseMode": "onReceived"
+      },
+      "id": "webhook",
+      "name": "Discord Webhook Entry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-768, 192],
+      "webhookId": "discord-events"
+    }
+  ],
+  "connections": {},
+  "settings": {}
+}
