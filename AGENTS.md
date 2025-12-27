@@ -138,7 +138,49 @@ docker-compose -f docker-compose.dev.yml up -d
 - `::stats` - Activity statistics
 - `::set timezone vancouver` - User preferences
 
-### Database Queries
+### Production Monitoring (Use These Proactively!)
+
+**When user reports issues or after deployments, ALWAYS check production state first:**
+
+```bash
+# 1. Check system health (containers, database, n8n API)
+./tools/kairon-ops.sh status
+
+# 2. View recent n8n workflow executions (last 10)
+./scripts/workflows/inspect_execution.py --list --limit 10
+
+# 3. Check for failed executions
+./scripts/workflows/inspect_execution.py --failed --limit 5
+
+# 4. Get details of a specific failed execution
+./scripts/workflows/inspect_execution.py <execution-id>
+
+# 5. Check recent database activity (events, projections)
+./tools/kairon-ops.sh db-query "
+  SELECT event_type, COUNT(*) as count, MAX(received_at) as latest
+  FROM events
+  WHERE received_at > NOW() - INTERVAL '1 hour'
+  GROUP BY event_type
+"
+
+# 6. Check recent projections created
+./tools/kairon-ops.sh db-query "
+  SELECT projection_type, status, COUNT(*) as count
+  FROM projections
+  WHERE created_at > NOW() - INTERVAL '1 hour'
+  GROUP BY projection_type, status
+"
+```
+
+**Why This Matters:**
+- User may say "errors" but everything is actually working fine
+- `inspect_execution.py` shows real n8n execution state with proper formatting
+- Database queries show data processing results
+- Quick checks can immediately rule out or confirm issues
+
+**📖 Complete Guides:** `docs/PRODUCTION.md`, `docs/DEBUG.md`
+
+### Database Query Templates
 - Events: Recent messages and processing status
-- Traces: LLM call history and performance
+- Traces: LLM call history and performance  
 - Projections: Structured outputs (activities, notes, todos)

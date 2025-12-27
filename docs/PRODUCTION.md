@@ -24,6 +24,10 @@ Complete guide to production operations and remote server management.
 | List all workflows | `./tools/kairon-ops.sh n8n-list` |
 | Get workflow JSON | `./tools/kairon-ops.sh n8n-get <ID>` |
 | Backup workflows | `./tools/kairon-ops.sh backup` |
+| **Execution Monitoring** |
+| List recent executions | `./scripts/workflows/inspect_execution.py --list --limit 10` |
+| List failed executions | `./scripts/workflows/inspect_execution.py --failed --limit 5` |
+| View execution details | `./scripts/workflows/inspect_execution.py <execution-id>` |
 | **Database Operations** |
 | Run SQL query | `./tools/kairon-ops.sh db-query "SQL"` |
 | Interactive psql | `./tools/kairon-ops.sh db -i` |
@@ -90,7 +94,46 @@ Central command for production server operations and remote management.
 ./tools/kairon-ops.sh db --backup
 ```
 
-### 2. deploy.sh - Deployment Pipeline
+### 2. inspect_execution.py - Execution Monitoring
+
+Purpose-built tool for viewing n8n workflow execution status and details.
+
+**Location:** `scripts/workflows/inspect_execution.py`
+
+**Usage:**
+```bash
+# List recent executions
+./scripts/workflows/inspect_execution.py --list --limit 10
+
+# List only failed executions
+./scripts/workflows/inspect_execution.py --failed --limit 5
+
+# View detailed execution info (with formatted errors)
+./scripts/workflows/inspect_execution.py <execution-id>
+
+# View full execution including node outputs
+./scripts/workflows/inspect_execution.py <execution-id> --full
+```
+
+**Examples:**
+```bash
+# Quick health check - see last 5 executions
+./scripts/workflows/inspect_execution.py --list --limit 5
+
+# After deployment - check for any failures
+./scripts/workflows/inspect_execution.py --failed --limit 10
+
+# Debug specific failure
+./scripts/workflows/inspect_execution.py 13191
+```
+
+**Output Features:**
+- Colored status indicators (green = success, red = error)
+- Formatted execution timing and duration
+- Detailed error messages with stack traces
+- Node-level error identification
+
+### 3. deploy.sh - Deployment Pipeline
 
 Comprehensive deployment with validation, transformation, and verification.
 
