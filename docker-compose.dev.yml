@@ -11,6 +11,7 @@ services:
       - N8N_PROTOCOL=http
       - N8N_PATH=/
       - WEBHOOK_URL=http://localhost:5679/
+      - WEBHOOK_PATH=${WEBHOOK_PATH:-kairon-dev-test}
       - N8N_ENCRYPTION_KEY=${N8N_DEV_ENCRYPTION_KEY:-dev-local-encryption-key-32chars}
       - N8N_DIAGNOSTICS_ENABLED=false
       - EXECUTIONS_MODE=manual

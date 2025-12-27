@@ -212,7 +212,66 @@ setup_local_dev() {
     echo "   Cookie: $cookie_file"
     echo "   Using session-based authentication"
     
+    # 4. Set up n8n credentials for workflows (Postgres, Discord, etc.)
+    echo -n "Checking n8n node credentials... "
+    setup_n8n_credentials
+    echo "✅ Credentials configured"
+    
     echo ""
+}
+
+# --- N8N NODE CREDENTIAL SETUP ---
+# Creates credentials needed for workflows to connect to services (DB, Discord, etc.)
+# Uses the same IDs as production so workflows work without modification
+setup_n8n_credentials() {
+    local DB_USER="${DB_USER:-postgres}"
+    local DB_PASSWORD="${DB_PASSWORD:-postgres}"
+    local DB_NAME="${DB_NAME:-kairon_dev}"
+    local DB_HOST="postgres-dev-local"  # Docker network hostname
+    
+    # Production credential ID - workflows reference this ID
+    local POSTGRES_CRED_ID="GIpVtzgs3wiCmQBQ"
+    
+    # Create credential JSON file
+    local CRED_FILE=$(mktemp)
+    CLEANUP_FILES+=("$CRED_FILE")
+    
+    cat > "$CRED_FILE" << EOF
+[
+  {
+    "id": "$POSTGRES_CRED_ID",
+    "name": "Postgres account",
+    "type": "postgres",
+    "data": {
+      "host": "$DB_HOST",
+      "port": 5432,
+      "database": "$DB_NAME",
+      "user": "$DB_USER",
+      "password": "$DB_PASSWORD",
+      "ssl": "disable"
+    }
+  }
+]
+EOF
+    
+    # Copy credential file to container and import
+    docker cp "$CRED_FILE" n8n-dev-local:/tmp/credentials.json
+    
+    # Check if credential already exists with correct ID
+    local existing_creds
+    existing_creds=$(docker exec n8n-dev-local n8n export:credentials --all 2>&1 | grep -v "Invalid value\|Permissions\|Error tracking" || echo "[]")
+    
+    if echo "$existing_creds" | jq -e ".[] | select(.id == \"$POSTGRES_CRED_ID\")" > /dev/null 2>&1; then
+        # Credential exists - update it by deleting and reimporting
+        # (n8n import doesn't update existing credentials)
+        docker exec n8n-dev-local sh -c "sqlite3 /home/node/.n8n/database.sqlite \"DELETE FROM credentials_entity WHERE id = '$POSTGRES_CRED_ID';\"" 2>/dev/null || true
+    fi
+    
+    # Import credential
+    docker exec n8n-dev-local n8n import:credentials --input=/tmp/credentials.json 2>&1 | grep -v "Invalid value\|Permissions\|Error tracking" || true
+    
+    # Cleanup temp file in container
+    docker exec n8n-dev-local rm -f /tmp/credentials.json 2>/dev/null || true
 }
 
 # --- DEV DEPLOYMENT ---
@@ -253,18 +312,58 @@ deploy_dev() {
     DEPLOY_LOG=$(mktemp)
     CLEANUP_FILES+=("$TEMP_DIR" "$OUTPUT_FILE" "$DEPLOY_LOG")
 
-    # Note: No ID remapping needed for mode:list with cachedResultName (portable workflow references)
-    # Workflows use cachedResultName instead of hardcoded IDs, making them environment-agnostic
-    WORKFLOW_ID_REMAP='{}'
+    # Build workflow ID mapping: production ID -> dev ID
+    # This is needed because n8n validates Execute Workflow node references exist
+    # We map cachedResultName (workflow name) to existing dev workflow ID
+    echo "   Building workflow ID mapping..."
+    
+    # Get existing dev workflow IDs
+    local DEV_WORKFLOW_IDS
+    if [ -n "$N8N_DEV_COOKIE_FILE" ] && [ -f "$N8N_DEV_COOKIE_FILE" ]; then
+        DEV_WORKFLOW_IDS=$(curl -s -b "$N8N_DEV_COOKIE_FILE" "$API_URL/rest/workflows?take=100" | jq -c '[.data[]? | {(.name): .id}] | add // {}')
+    elif [ -n "$API_KEY" ]; then
+        DEV_WORKFLOW_IDS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" "$API_URL/rest/workflows?take=100" | jq -c '[.data[]? | {(.name): .id}] | add // {}')
+    else
+        DEV_WORKFLOW_IDS='{}'
+    fi
+    
+    # Build mapping from production IDs to dev IDs
+    # Parse source workflows to get prod ID -> workflow name mapping
+    local WORKFLOW_ID_REMAP='{'
+    for workflow in "$WORKFLOW_DIR"/*.json; do
+        [ -f "$workflow" ] || continue
+        local wf_name=$(jq -r '.name // empty' "$workflow")
+        local prod_id=$(jq -r '.id // empty' "$workflow")
+        
+        if [ -n "$wf_name" ] && [ -n "$prod_id" ]; then
+            # Get dev ID for this workflow name
+            local dev_id=$(echo "$DEV_WORKFLOW_IDS" | jq -r --arg name "$wf_name" '.[$name] // empty')
+            if [ -n "$dev_id" ]; then
+                WORKFLOW_ID_REMAP+="\"$prod_id\":\"$dev_id\","
+            fi
+        fi
+        
+        # Also check Execute Workflow nodes for their referenced workflow IDs
+        # These reference prod IDs via cachedResultName
+        while IFS= read -r ref_line; do
+            [ -z "$ref_line" ] && continue
+            local ref_name=$(echo "$ref_line" | jq -r '.cachedResultName // empty')
+            local ref_prod_id=$(echo "$ref_line" | jq -r '.value // empty')
+            if [ -n "$ref_name" ] && [ -n "$ref_prod_id" ]; then
+                local ref_dev_id=$(echo "$DEV_WORKFLOW_IDS" | jq -r --arg name "$ref_name" '.[$name] // empty')
+                if [ -n "$ref_dev_id" ]; then
+                    WORKFLOW_ID_REMAP+="\"$ref_prod_id\":\"$ref_dev_id\","
+                fi
+            fi
+        done < <(jq -c '.nodes[]?.parameters.workflowId | select(.__rl == true)' "$workflow" 2>/dev/null)
+    done
+    # Remove trailing comma and close brace
+    WORKFLOW_ID_REMAP="${WORKFLOW_ID_REMAP%,}}"
+    
+    echo "   ID mapping: $WORKFLOW_ID_REMAP"
 
     # Wrap actual deployment in a block to capture output
     {
-        PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
-        PROD_API_KEY="${N8N_API_KEY:-}"
-
-        # ID remapping disabled - using mode:list for portable workflows
-        WORKFLOW_ID_REMAP='{}'
-
         # Single pass transformation & push
         for workflow in "$WORKFLOW_DIR"/*.json; do
             [ -f "$workflow" ] || continue

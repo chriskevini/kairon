@@ -35,6 +35,7 @@ This will:
 | Task | Command |
 |------|---------|
 | **Complete Setup** | `./scripts/deploy.sh local` |
+| **Reset Environment** | `./scripts/reset-local-dev.sh` |
 | **Deploy Only** | `./scripts/deploy.sh dev` |
 | **Manual Steps** |
 | Start containers | `docker-compose -f docker-compose.dev.yml up -d` |
@@ -44,7 +45,7 @@ This will:
 | Interactive psql | `docker exec -it postgres-dev-local psql -U postgres -d kairon_dev` |
 | Run SQL query | `docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 5"` |
 | **Testing** |
-| Test webhook | `curl -X POST http://localhost:5679/webhook/kairon-dev-test -H "Content-Type: application/json" -d '{"event_type": "message", "content": "!! test", "guild_id": "test", "channel_id": "test", "message_id": "test123", "author": {"login": "test"}}'` |
+| Test webhook | `curl -X POST http://localhost:5679/webhook/$WEBHOOK_PATH -H "Content-Type: application/json" -d '{"event_type": "message", "content": "!! test", "guild_id": "test", "channel_id": "test", "message_id": "test123", "author": {"login": "test"}}'` |
 
 ### Authentication
 
@@ -175,6 +176,7 @@ For local development, these variables are optional (docker-compose.dev.yml prov
 
 - `DB_USER` - Database user (default: postgres)
 - `DB_NAME` - Database name (default: kairon_dev)
+- `WEBHOOK_PATH` - Webhook path for Route_Event (from .env, used for both dev and prod)
 - `N8N_DEV_ENCRYPTION_KEY` - n8n encryption key (default: dev-local-encryption-key-32chars)
 - `NO_MOCKS` - Set to "1" to use real APIs instead of mocks (requires API keys)
 
@@ -201,7 +203,7 @@ The `transform_for_dev.py` script modifies workflows for local testing:
 - **Schedule → Webhook:** Converts Schedule Triggers to Webhook Triggers for manual testing
 - **Discord Mocking:** Replaces Discord nodes with Code nodes that return fake API responses
 - **LLM Mocking:** Replaces LLM nodes with Code nodes that return predictable responses
-- **Webhook Paths:** Preserves webhook paths for testing (e.g., `kairon-dev-test`)
+- **Webhook Paths:** Uses `WEBHOOK_PATH` from `.env` file (same as production)
 
 ### Database Operations
 
@@ -219,10 +221,16 @@ docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < query.sql
 ### Cleanup
 
 ```bash
-# Stop containers
+# Stop containers (keeps data)
 docker-compose -f docker-compose.dev.yml down
 
-# Remove containers and volumes (WARNING: deletes all data)
+# Full reset - removes all containers, volumes, and n8n data
+./scripts/reset-local-dev.sh
+
+# Reset but keep database data
+./scripts/reset-local-dev.sh --keep-db
+
+# Remove containers and volumes manually (WARNING: deletes all data)
 docker-compose -f docker-compose.dev.yml down -v
 ```
 
@@ -388,9 +396,9 @@ scripts/
 - **Run tests:** `pytest n8n-workflows/tests/ -v`
 - **Check database:** `docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 10"`
 - **View logs:** `docker-compose -f docker-compose.dev.yml logs -f n8n-dev`
-- **Clean start:** `docker-compose -f docker-compose.dev.yml down -v && ./scripts/deploy.sh local`
+- **Clean start:** `./scripts/reset-local-dev.sh && ./scripts/deploy.sh local`
 
 ---
 
-**Last Updated:** 2025-12-26
+**Last Updated:** 2025-12-27
 **Focus:** One-command local development setup with comprehensive testing

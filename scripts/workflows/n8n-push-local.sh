@@ -82,12 +82,12 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
     fi
     
     # Clean workflow JSON - only include fields the API accepts
+    # Don't include 'active' here - we handle activation separately to avoid validation issues
     cleaned=$(jq '{
         name: .name,
         nodes: .nodes,
         connections: .connections,
-        settings: {},
-        active: (.active // false)
+        settings: {}
     }' "$json_file")
     
     existing_id="${WORKFLOW_IDS[$name]:-}"
@@ -103,10 +103,15 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
             echo "   Updated: $name (id: $existing_id)"
             UPDATED=$((UPDATED + 1))
             
-            # Activate if needed
+            # Activate if needed - failures are non-fatal (some workflows can't be activated in dev)
             if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
-                curl_auth -X POST \
-                    "$N8N_API_URL/rest/workflows/$existing_id/activate" > /dev/null
+                activation_result=$(curl_auth -X PATCH \
+                    -H "Content-Type: application/json" \
+                    -d '{"active": true}' \
+                    "$N8N_API_URL/rest/workflows/$existing_id" 2>&1)
+                if echo "$activation_result" | jq -e '.code' > /dev/null 2>&1; then
+                    echo "     Warning: Could not activate (non-fatal)"
+                fi
             fi
         else
             echo "   Failed to update: $name"
@@ -125,10 +130,15 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
             echo "   Created: $name (id: $new_id)"
             CREATED=$((CREATED + 1))
             
-            # Activate if needed
+            # Activate if needed - failures are non-fatal (some workflows can't be activated in dev)
             if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
-                curl_auth -X POST \
-                    "$N8N_API_URL/rest/workflows/$new_id/activate" > /dev/null
+                activation_result=$(curl_auth -X PATCH \
+                    -H "Content-Type: application/json" \
+                    -d '{"active": true}' \
+                    "$N8N_API_URL/rest/workflows/$new_id" 2>&1)
+                if echo "$activation_result" | jq -e '.code' > /dev/null 2>&1; then
+                    echo "     Warning: Could not activate (non-fatal)"
+                fi
             fi
         else
             echo "   Failed to create: $name"
@@ -140,6 +150,84 @@ done
 
 echo ""
 echo "Push complete: $CREATED created, $UPDATED updated, $FAILED failed"
+
+# Second pass: Update Execute Workflow node references to use local IDs
+# This is needed because mode:list still uses the cached value field
+# Run this regardless of created/updated - workflow refs may need updating anytime
+if [ $((CREATED + UPDATED)) -gt 0 ]; then
+    echo ""
+    echo "Updating workflow references..."
+    
+    # Refresh workflow ID mapping
+    declare -A WORKFLOW_IDS=()
+    RESPONSE=$(curl_auth "$N8N_API_URL/rest/workflows?take=100")
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        id=$(echo "$line" | jq -r '.id')
+        name=$(echo "$line" | jq -r '.name')
+        [ "$id" = "null" ] || [ "$name" = "null" ] && continue
+        WORKFLOW_IDS["$name"]="$id"
+    done < <(echo "$RESPONSE" | jq -c '.data[]')
+    
+    # Build JSON mapping for jq
+    ID_MAP_JSON="{"
+    for name in "${!WORKFLOW_IDS[@]}"; do
+        ID_MAP_JSON+="\"$name\":\"${WORKFLOW_IDS[$name]}\","
+    done
+    ID_MAP_JSON="${ID_MAP_JSON%,}}"
+    
+    REFS_UPDATED=0
+    for name in "${!WORKFLOW_IDS[@]}"; do
+        id="${WORKFLOW_IDS[$name]}"
+        
+        # Get current workflow
+        workflow_data=$(curl_auth "$N8N_API_URL/rest/workflows/$id")
+        
+        # Check if any Execute Workflow nodes need updating
+        needs_update=$(echo "$workflow_data" | jq -r --argjson idmap "$ID_MAP_JSON" '
+            .data.nodes[] | 
+            select(.type == "n8n-nodes-base.executeWorkflow") |
+            select(.parameters.workflowId.__rl == true) |
+            select(.parameters.workflowId.cachedResultName != null) |
+            select($idmap[.parameters.workflowId.cachedResultName] != null) |
+            select(.parameters.workflowId.value != $idmap[.parameters.workflowId.cachedResultName]) |
+            .name
+        ' 2>/dev/null | head -1)
+        
+        if [ -n "$needs_update" ]; then
+            # Update the workflow with corrected IDs
+            updated_nodes=$(echo "$workflow_data" | jq --argjson idmap "$ID_MAP_JSON" '
+                .data.nodes | map(
+                    if .type == "n8n-nodes-base.executeWorkflow" and 
+                       .parameters.workflowId.__rl == true and
+                       .parameters.workflowId.cachedResultName != null and
+                       $idmap[.parameters.workflowId.cachedResultName] != null
+                    then
+                        .parameters.workflowId.value = $idmap[.parameters.workflowId.cachedResultName] |
+                        .parameters.workflowId.cachedResultUrl = "/workflow/" + $idmap[.parameters.workflowId.cachedResultName]
+                    else
+                        .
+                    end
+                )
+            ')
+            
+            # Update workflow
+            result=$(curl_auth -X PATCH \
+                -H "Content-Type: application/json" \
+                "$N8N_API_URL/rest/workflows/$id" \
+                -d "{\"nodes\": $updated_nodes}")
+            
+            if echo "$result" | jq -e '.data.id' > /dev/null 2>&1; then
+                echo "   Updated refs: $name"
+                REFS_UPDATED=$((REFS_UPDATED + 1))
+            fi
+        fi
+    done
+    
+    if [ $REFS_UPDATED -gt 0 ]; then
+        echo "   $REFS_UPDATED workflow(s) had references updated"
+    fi
+fi
 
 [ $FAILED -gt 0 ] && exit 1
 exit 0
