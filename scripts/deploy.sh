@@ -196,7 +196,7 @@ setup_local_dev() {
     echo -n "Checking n8n API key... "
     
     # Login to get session cookie
-    local cookie_file="/tmp/n8n-dev-session-$$.txt"
+    local cookie_file="/tmp/n8n-dev-session.txt"
     
     curl -s -c "$cookie_file" -X POST "$N8N_URL/rest/login" \
         -H "Content-Type: application/json" \
@@ -204,6 +204,16 @@ setup_local_dev() {
             \"emailOrLdapLoginId\": \"$N8N_OWNER_EMAIL\",
             \"password\": \"$N8N_OWNER_PASSWORD\"
         }" > /dev/null
+    
+    # Restrict cookie file permissions (contains session token)
+    chmod 600 "$cookie_file"
+    
+    # Verify cookie authentication works
+    if ! curl -s -b "$cookie_file" "$N8N_URL/rest/workflows?take=1" | jq -e '.data' > /dev/null 2>&1; then
+        echo "❌ Cookie authentication failed"
+        echo "   Check n8n credentials in .env"
+        return 1
+    fi
     
     # Export the cookie file path to be used by deployment scripts
     export N8N_DEV_COOKIE_FILE="$cookie_file"
@@ -289,9 +299,10 @@ deploy_dev() {
     local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
     local API_KEY="${N8N_DEV_API_KEY:-}"
     
-    # For localhost, cookie-based auth is set up in setup_local_dev()
+    # For localhost dev, use session cookie authentication (more reliable than API keys in dev)
+    # API keys can expire or be invalid, but cookies are refreshed by setup_local_dev()
     if [[ "$API_URL" == http://localhost* ]]; then
-        API_KEY=""
+        API_KEY=""  # Clear API key, will use cookie file from setup_local_dev()
     fi
 
     # Check if dev stack is running
@@ -932,6 +943,7 @@ case "$TARGET" in
         ;;
     dev)
         run_unit_tests || exit 1
+        setup_local_dev  # Ensure dev environment is ready and authenticated
         deploy_dev false
         run_functional_tests
         ;;
