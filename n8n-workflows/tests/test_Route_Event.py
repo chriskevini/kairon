@@ -92,7 +92,6 @@ class TestRoute_Event:
         code = validate_node["parameters"]["jsCode"]
         assert 'validation: { result: "block" }' in code
         assert 'validation: { result: "warn" }' in code
-        assert 'validation: { result: "no_projections" }' in code
         assert 'validation: { result: "continue" }' in code
 
     def test_validation_routing(self):
@@ -110,9 +109,9 @@ class TestRoute_Event:
             c for c in connections["Validate Message"]["main"][0]
         ]
 
-        # Switch outputs
+        # Switch outputs (now 3: block, warn, fallback)
         switch_conns = connections["Switch on Validation"]["main"]
-        assert len(switch_conns) >= 4
+        assert len(switch_conns) == 3
         assert {
             "node": "React: Block Message",
             "type": "main",
@@ -124,15 +123,10 @@ class TestRoute_Event:
             "index": 0,
         } in switch_conns[1]
         assert {
-            "node": "React: No Projections",
+            "node": "Build Message DB Query",
             "type": "main",
             "index": 0,
         } in switch_conns[2]
-        assert {
-            "node": "Merge: Continue Paths",
-            "type": "main",
-            "index": 0,
-        } in switch_conns[3]
 
     def test_switch_logic(self):
         """Test the switch logic for validation results"""
@@ -150,20 +144,23 @@ class TestRoute_Event:
         )
         assert rules[0]["conditions"]["conditions"][0]["rightValue"] == "block"
         assert rules[1]["conditions"]["conditions"][0]["rightValue"] == "warn"
-        assert rules[2]["conditions"]["conditions"][0]["rightValue"] == "no_projections"
+        # Only 2 rules now (no_projections removed)
+        assert len(rules) == 2
 
-    def test_no_projections_bypass(self):
-        """Test that no_projections tier bypasses extraction via Initialize node"""
+    def test_warn_message_routing(self):
+        """Test that warn messages are routed to Build Message DB Query"""
         workflow = load_workflow()
-        nodes = workflow.get("nodes", [])
-        init_node = next(
-            (n for n in nodes if n["name"] == "Initialize Message Context"), None
-        )
-        assert init_node is not None
+        connections = workflow.get("connections", {})
 
-        code = init_node["parameters"]["jsCode"]
-        assert "validation_result === 'no_projections'" in code
-        assert "return [];" in code
+        # React: Warn Message should connect to Build Message DB Query
+        assert "React: Warn Message" in connections
+        warn_conns = connections["React: Warn Message"]["main"]
+        assert len(warn_conns) == 1
+        assert {
+            "node": "Build Message DB Query",
+            "type": "main",
+            "index": 0,
+        } in warn_conns[0]
 
     def test_tier1_empty_no_tag(self):
         """Test that empty messages without tags trigger block"""

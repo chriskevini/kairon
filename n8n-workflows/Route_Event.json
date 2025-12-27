@@ -244,7 +244,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.message_event.row;\nconst webhook = ctx.webhook_data;\nconst validation_result = ctx.validation?.result;\n\n// Tier 3: Skip projections if 'no_projections' tier was hit\nif (validation_result === 'no_projections') {\n  return [];\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: webhook.clean_text,\n        tag: webhook.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.message_event.row;\nconst webhook = ctx.webhook_data;\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: webhook.clean_text,\n        tag: webhook.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1245,30 +1245,6 @@
                 },
                 "renameOutput": true,
                 "outputKey": "warn"
-              },
-              {
-                "conditions": {
-                  "options": {
-                    "caseSensitive": true,
-                    "leftValue": "",
-                    "typeValidation": "strict",
-                    "version": 1
-                  },
-                  "conditions": [
-                    {
-                      "id": "cond-no-projections",
-                      "leftValue": "={{ $json.ctx.validation.result }}",
-                      "rightValue": "no_projections",
-                      "operator": {
-                        "type": "string",
-                        "operation": "equals"
-                      }
-                    }
-                  ],
-                  "combinator": "and"
-                },
-                "renameOutput": true,
-                "outputKey": "no_projections"
               }
             ]
           },
@@ -1579,13 +1555,6 @@
               "type": "main",
               "index": 0
             }
-          ],
-          [
-            {
-              "node": "Merge: Continue Paths",
-              "type": "main",
-              "index": 0
-            }
           ]
         ]
       },
@@ -1627,6 +1596,17 @@
           [
             {
               "node": "Initialize Reaction Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "React: Warn Message": {
+        "main": [
+          [
+            {
+              "node": "Build Message DB Query",
               "type": "main",
               "index": 0
             }
