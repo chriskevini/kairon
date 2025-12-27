@@ -321,11 +321,11 @@ deploy_dev() {
     # Get existing dev workflow IDs and validate count
     local DEV_WORKFLOW_IDS
     local WORKFLOW_COUNT
-    if [ -n "$N8N_DEV_COOKIE_FILE" ] && [ -f "$N8N_DEV_COOKIE_FILE" ]; then
+    if [ -n "${N8N_DEV_COOKIE_FILE:-}" ] && [ -f "${N8N_DEV_COOKIE_FILE}" ]; then
         local RESPONSE=$(curl -s -b "$N8N_DEV_COOKIE_FILE" "$API_URL/rest/workflows?take=100")
         DEV_WORKFLOW_IDS=$(echo "$RESPONSE" | jq -c '[.data[]? | {(.name): .id}] | add // {}')
         WORKFLOW_COUNT=$(echo "$RESPONSE" | jq '.data | length')
-    elif [ -n "$API_KEY" ]; then
+    elif [ -n "${API_KEY:-}" ]; then
         local RESPONSE=$(curl -s -H "X-N8N-API-KEY: $API_KEY" "$API_URL/rest/workflows?take=100")
         DEV_WORKFLOW_IDS=$(echo "$RESPONSE" | jq -c '[.data[]? | {(.name): .id}] | add // {}')
         WORKFLOW_COUNT=$(echo "$RESPONSE" | jq '.data | length')
