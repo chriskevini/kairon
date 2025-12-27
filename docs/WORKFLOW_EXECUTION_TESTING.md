@@ -123,6 +123,29 @@ The next PR will add:
 3. **Production support** - Execution verification for production tests
 4. **Better error reporting** - Link to n8n UI for failed executions
 
+## Prerequisites
+
+Before using execution verification, ensure you have:
+
+1. **jq installed** - Required for JSON parsing
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install jq
+   
+   # macOS
+   brew install jq
+   
+   # Verify installation
+   jq --version
+   ```
+
+2. **Docker environment running**
+   ```bash
+   docker-compose -f docker-compose.dev.yml up -d
+   ```
+
+3. **n8n API authentication** (see Authentication Setup below)
+
 ## Testing This Feature
 
 ```bash

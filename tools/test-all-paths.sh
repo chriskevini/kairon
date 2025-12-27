@@ -63,11 +63,9 @@ n8n_api_call() {
     fi
     
     local url="${N8N_API_URL}${endpoint}"
-    local auth_header=""
     
     # Try API key authentication first, fall back to cookie
     if [ -n "$N8N_API_KEY" ]; then
-        auth_header="-H \"X-N8N-API-KEY: $N8N_API_KEY\""
         curl -s -X "$method" "$url" \
             -H "Accept: application/json" \
             -H "X-N8N-API-KEY: $N8N_API_KEY" 2>/dev/null
@@ -311,6 +309,15 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
+# Check jq dependency if execution verification enabled
+if [ "$VERIFY_EXECUTIONS" = true ]; then
+    if ! command -v jq &> /dev/null; then
+        echo -e "${RED}ERROR: jq is required for execution verification${NC}"
+        echo "Install with: sudo apt-get install jq  (or brew install jq on macOS)"
+        exit 1
+    fi
+fi
 
 if [ "$DEV_MODE" = true ]; then
     # Load WEBHOOK_PATH from .env if it exists
