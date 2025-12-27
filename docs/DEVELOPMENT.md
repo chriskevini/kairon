@@ -48,11 +48,12 @@ This will:
 
 ### Authentication
 
-Local n8n has authentication disabled for development ease:
-- **Web UI:** http://localhost:5679 (no login required)
-- **REST API:** No authentication required
-- **Configuration:** `N8N_USER_MANAGEMENT_DISABLED=true` in docker-compose.dev.yml
-- **Deployment scripts:** No API key needed for localhost deployments
+Local n8n uses automated session-based authentication:
+- **Web UI:** http://localhost:5679 (auto-login on first visit)
+- **REST API:** Session cookie authentication (automatically configured)
+- **Owner Account:** Auto-created on first run (admin@example.com / Admin123!)
+- **Deployment scripts:** Automatically login and use session cookies for API calls
+- **No manual setup required:** Everything is handled by `./scripts/deploy.sh local`
 
 ## Core Tools
 
@@ -179,11 +180,19 @@ For local development, these variables are optional (docker-compose.dev.yml prov
 
 ### Authentication
 
-Local n8n instance has authentication disabled for development ease:
+Local n8n instance uses automated session-based authentication:
 
-- **Web UI:** http://localhost:5679 (no login required)
-- **REST API:** No authentication required (API calls work without credentials)
-- **Deployment scripts:** Automatically detect localhost and skip authentication
+- **Web UI:** http://localhost:5679 (auto-created owner account on first run)
+- **REST API:** Session cookie authentication (automatically configured by deploy script)
+- **Owner Account:** `admin@example.com` / `Admin123!` (created automatically)
+- **Deployment scripts:** Automatically login and use session cookies for API calls
+- **No manual setup required:** Everything is handled by `./scripts/deploy.sh local`
+
+The deploy script automatically:
+1. Detects if n8n needs owner account setup
+2. Creates owner account via `/rest/owner/setup` API
+3. Logs in and saves session cookie to `/tmp/n8n-dev-session-*.txt`
+4. Exports cookie path for deployment scripts to use
 
 ### Workflow Transformation Details
 
