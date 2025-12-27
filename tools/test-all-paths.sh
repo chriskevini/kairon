@@ -148,7 +148,15 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 if [ "$DEV_MODE" = true ]; then
-    WEBHOOK="http://localhost:5679/webhook/kairon-dev-test"
+    # Load WEBHOOK_PATH from .env if it exists
+    DEV_WEBHOOK_PATH="kairon-dev-test"
+    if [ -f "$PROJECT_ROOT/.env" ]; then
+        ENV_PATH=$(grep "^WEBHOOK_PATH=" "$PROJECT_ROOT/.env" | cut -d= -f2- | tr -d '"'\''')
+        if [ -n "$ENV_PATH" ]; then
+            DEV_WEBHOOK_PATH="$ENV_PATH"
+        fi
+    fi
+    WEBHOOK="http://localhost:5679/webhook/$DEV_WEBHOOK_PATH"
     if [ "$NO_MOCKS" = true ]; then
         log_info "Running in DEV mode (port 5679) with REAL APIs (NO_MOCKS)"
     else

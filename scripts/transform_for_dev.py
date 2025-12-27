@@ -16,10 +16,36 @@ Usage:
 import json
 import os
 import sys
+from pathlib import Path
 
 
 # Workflow ID remapping (prod ID -> dev ID), populated from environment
 WORKFLOW_ID_REMAP: dict[str, str] = {}
+
+# Dev webhook path - loaded from .env or uses default
+DEV_WEBHOOK_PATH: str = "kairon-dev-test"
+
+
+def load_dev_webhook_path():
+    """Load webhook path from .env file if it exists."""
+    global DEV_WEBHOOK_PATH
+    # Find .env file (look in script's parent directory then up)
+    script_dir = Path(__file__).parent
+    env_paths = [
+        script_dir.parent / ".env",  # repo root
+        script_dir / ".env",
+        Path.cwd() / ".env",
+    ]
+    for env_path in env_paths:
+        if env_path.exists():
+            with open(env_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("WEBHOOK_PATH="):
+                        value = line.split("=", 1)[1].strip().strip("\"'")
+                        if value:
+                            DEV_WEBHOOK_PATH = value
+                            return
 
 
 def load_workflow_id_remap():
@@ -61,7 +87,7 @@ def transform_node(node: dict) -> dict:
     if node_type == "n8n-nodes-base.webhook":
         node_name = node.get("name", "").lower()
         if "discord webhook entry" in node_name or "test webhook" in node_name:
-            node["parameters"]["path"] = "kairon-dev-test"
+            node["parameters"]["path"] = DEV_WEBHOOK_PATH
             node["parameters"]["responseMode"] = "onReceived"
             return node
 
@@ -155,7 +181,7 @@ return [{{
     # HTTP Request nodes that call external APIs could also be mocked here
     # if needed in the future
 
-    # Execute Workflow Node → Preserve mode:list for portability
+    # Execute Workflow Node → Remap workflow IDs for dev environment
     if node_type == "n8n-nodes-base.executeWorkflow":
         params = node.get("parameters", {})
         workflow_ref = params.get("workflowId", {})
@@ -164,13 +190,15 @@ return [{{
             mode = workflow_ref.get("mode", "")
             value = workflow_ref.get("value", "")
 
-            # mode:list uses workflow names (portable) - preserve it
-            if mode == "list":
-                # No transformation needed - n8n resolves names to IDs at runtime
-                pass
-            # mode:id uses hardcoded IDs (legacy) - remap if mapping exists
-            elif mode == "id" and value in WORKFLOW_ID_REMAP:
+            # Remap workflow IDs if mapping exists (both mode:list and mode:id)
+            # n8n validates that referenced workflow IDs exist before accepting updates
+            if value and value in WORKFLOW_ID_REMAP:
                 workflow_ref["value"] = WORKFLOW_ID_REMAP[value]
+                # Also update cachedResultUrl if present
+                if "cachedResultUrl" in workflow_ref:
+                    workflow_ref["cachedResultUrl"] = (
+                        f"/workflow/{WORKFLOW_ID_REMAP[value]}"
+                    )
 
         return node
 
@@ -206,6 +234,7 @@ def transform_workflow(workflow: dict) -> dict:
 
 def main():
     load_workflow_id_remap()
+    load_dev_webhook_path()
 
     try:
         workflow = json.load(sys.stdin)
