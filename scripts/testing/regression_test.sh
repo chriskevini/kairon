@@ -415,6 +415,34 @@ run_test_case() {
         fi
     fi
 
+    # Check expected Discord responses if specified
+    local expected_discord=$(jq -r ".[$test_index].expected_discord_responses // []" "$payload_file")
+    if [ "$expected_discord" != "[]" ]; then
+        local message_id=$(echo "$webhook_data" | jq -r '.message_id')
+        local expected_count=$(echo "$expected_discord" | jq 'length')
+        local actual_responses=$(docker exec "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" -t -A -c \
+            "SELECT json_agg(
+                jsonb_build_object(
+                    'response_type', response_type,
+                    'response_data', response_data
+                ) ORDER BY id
+            )
+            FROM mock_discord_responses
+            WHERE event_id = (SELECT id FROM events WHERE payload->>'discord_message_id' = '$message_id')
+            AND created_at > NOW() - INTERVAL '${PROJECTION_LOOKUP_WINDOW_SECONDS} seconds';" 2>/dev/null | jq -c '. // []')
+
+        local actual_count=$(echo "$actual_responses" | jq 'length')
+
+        log_info "Discord responses: expected $expected_count, got $actual_count"
+
+        if [ "$expected_count" -ne "$actual_count" ]; then
+            log_fail "$test_name: Expected $expected_count Discord responses, got $actual_count"
+            log_info "Expected: $expected_discord"
+            log_info "Actual: $actual_responses"
+            db_ok=false
+        fi
+    fi
+
     if [ "$db_ok" = true ]; then
         log_pass "$test_name (exec: $exec_id)"
     fi

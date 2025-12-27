@@ -17,7 +17,13 @@
     "expected_db_changes": {
       "events_created": 1,
       "projections_created": 0
-    }
+    },
+    "expected_discord_responses": [
+      {
+        "response_type": "reaction",
+        "emoji": "🔵"
+      }
+    ]
   },
   {
     "test_name": "Command: ::recent",
@@ -37,7 +43,13 @@
     "expected_db_changes": {
       "events_created": 1,
       "projections_created": 0
-    }
+    },
+    "expected_discord_responses": [
+      {
+        "response_type": "reaction",
+        "emoji": "🔵"
+      }
+    ]
   },
   {
     "test_name": "Command: ::stats",
@@ -57,7 +69,13 @@
     "expected_db_changes": {
       "events_created": 1,
       "projections_created": 0
-    }
+    },
+    "expected_discord_responses": [
+      {
+        "response_type": "reaction",
+        "emoji": "🔵"
+      }
+    ]
   },
   {
     "test_name": "Command: ::set timezone",
@@ -76,8 +94,15 @@
     },
     "expected_db_changes": {
       "events_created": 1,
-      "projections_created": 0
-    }
+      "projections_created": 1,
+      "projection_types": ["config"]
+    },
+    "expected_discord_responses": [
+      {
+        "response_type": "reaction",
+        "emoji": "🔵"
+      }
+    ]
   },
   {
     "test_name": "Command: ::ping",
@@ -97,6 +122,18 @@
     "expected_db_changes": {
       "events_created": 1,
       "projections_created": 0
-    }
+    },
+    "expected_discord_responses": [
+      {
+        "response_type": "reaction",
+        "emoji": "🔵"
+      },
+      {
+        "response_type": "message",
+        "response_data": {
+          "content": "Pong! 🏓"
+        }
+      }
+    ]
   }
 ]
