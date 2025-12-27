@@ -464,7 +464,8 @@ run_functional_tests() {
 
     # Stage 2: Regression tests with prod DB snapshot
     echo ""
-    echo "  Stage 2: Regression tests with prod DB snapshot..."
+    echo "  Stage 2: Regression tests..."
+    log_info "Note: Using --no-db-snapshot for fast testing"
 
     if [ ! -f "$REPO_ROOT/scripts/testing/regression_test.sh" ]; then
         echo "⚠️  Regression test script not found. Skipping."

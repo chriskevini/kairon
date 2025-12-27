@@ -121,7 +121,8 @@ grep -A 20 "Cmd: help" tools/test-all-paths.sh
 
 Run the workflow manually and check what was created:
 ```bash
-docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "
+# Uses DB_USER and DB_NAME from .env (defaults: n8n_user/kairon)
+docker exec postgres-dev-local psql -U n8n_user -d kairon -c "
   SELECT projection_type, COUNT(*)
   FROM projections
   WHERE created_at > NOW() - INTERVAL '1 minute'
@@ -250,6 +251,7 @@ Required in `.env`:
 ```bash
 # For dev testing
 N8N_DEV_API_URL=http://localhost:5679
+WEBHOOK_PATH=asoiaf3947  # Dev webhook path (prod: asoiaf92746087)
 N8N_DEV_SSH_HOST=DigitalOcean  # Optional: for remote prod DB access
 
 # For prod DB snapshot (optional)

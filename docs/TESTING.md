@@ -244,7 +244,8 @@ ls n8n-workflows/tests/regression/
 
 Run the workflow manually and check what was created:
 ```bash
-docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "
+# Uses DB_USER and DB_NAME from .env (defaults: n8n_user/kairon)
+docker exec postgres-dev-local psql -U n8n_user -d kairon -c "
   SELECT projection_type, COUNT(*)
   FROM projections
   WHERE created_at > NOW() - INTERVAL '1 minute'
@@ -310,13 +311,14 @@ EOF
 
 ### Check Database State
 ```bash
+# Uses DB_USER and DB_NAME from .env (defaults: n8n_user/kairon)
 # Check recent events
-docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "
+docker exec postgres-dev-local psql -U n8n_user -d kairon -c "
   SELECT * FROM events ORDER BY received_at DESC LIMIT 5;
 "
 
 # Check recent projections
-docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "
+docker exec postgres-dev-local psql -U n8n_user -d kairon -c "
   SELECT * FROM projections ORDER BY created_at DESC LIMIT 5;
 "
 ```
@@ -336,6 +338,7 @@ Required in `.env`:
 ```bash
 # For dev testing
 N8N_DEV_API_URL=http://localhost:5679
+WEBHOOK_PATH=asoiaf3947  # Dev webhook path (prod: asoiaf92746087)
 N8N_DEV_SSH_HOST=DigitalOcean  # Optional: for remote prod DB access
 
 # For prod DB snapshot (optional)

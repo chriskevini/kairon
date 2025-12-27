@@ -81,6 +81,12 @@ if [ -f "$REPO_ROOT/.env" ]; then
     set +a
 fi
 
+# Testing-specific environment configuration
+TESTING_DB_USER="${DB_USER:-n8n_user}"
+TESTING_DB_NAME="${DB_NAME:-kairon}"
+TESTING_DB_CONTAINER="${CONTAINER_DB:-postgres-dev-local}"
+TESTING_WEBHOOK_PATH="${WEBHOOK_PATH:-asoiaf3947}"
+
 # Counters
 TOTAL_TESTS=0
 PASSED_TESTS=0
@@ -98,7 +104,7 @@ cleanup() {
     if [ "$KEEP_DB" = false ] && [ -n "${DEV_DB_BACKUP:-}" ] && [ -f "$DEV_DB_BACKUP" ]; then
         echo ""
         echo "Restoring dev database..."
-        docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < "$DEV_DB_BACKUP" > /dev/null 2>&1
+        docker exec -i "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" < "$DEV_DB_BACKUP" > /dev/null 2>&1
         rm -f "$DEV_DB_BACKUP" "${PROD_DUMP:-}" 2>/dev/null || true
         echo -e "${GREEN}✓ Dev DB restored${NC}"
     fi
@@ -126,8 +132,19 @@ get_modified_workflows() {
     fi
 
     # Get workflows modified in this branch
-    local base_branch=$(git rev-parse --abbrev-ref HEAD@{u} 2>/dev/null || echo "main")
-    git diff --name-only "$base_branch" | grep "^n8n-workflows/" | sed 's|^n8n-workflows/||' | sed 's|\.json$||'
+    local base_branch
+    if git rev-parse --abbrev-ref HEAD@{u} &>/dev/null; then
+        base_branch=$(git rev-parse --abbrev-ref HEAD@{u})
+    else
+        # Fallback for detached HEAD (CI/CD environments)
+        base_branch="origin/main"
+    fi
+
+    git diff --name-only "$base_branch" \
+        | grep "^n8n-workflows/[^/]*\.json$" \
+        | grep -v "^n8n-workflows/tests/" \
+        | sed 's|^n8n-workflows/||' \
+        | sed 's|\.json$||'
 }
 
 # ============================================================================
@@ -168,7 +185,7 @@ setup_test_db() {
     # Backup current dev DB state
     DEV_DB_BACKUP="/tmp/dev_db_backup_$$.sql"
     echo "Backing up dev database..."
-    docker exec postgres-dev-local pg_dump -U postgres -d kairon_dev > "$DEV_DB_BACKUP"
+    docker exec "$TESTING_DB_CONTAINER" pg_dump -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" > "$DEV_DB_BACKUP"
 
     # Dump prod DB
     PROD_DUMP="/tmp/prod_snapshot_$$.dump"
@@ -183,7 +200,7 @@ setup_test_db() {
 
     # Restore to dev
     echo "Restoring prod DB to dev..."
-    docker exec -i postgres-dev-local pg_restore -U postgres -d kairon_dev --clean --if-exists --no-owner --no-acl < "$PROD_DUMP" > /dev/null 2>&1
+    docker exec -i "$TESTING_DB_CONTAINER" pg_restore -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" --clean --if-exists --no-owner --no-acl < "$PROD_DUMP" > /dev/null 2>&1
 
     echo -e "${GREEN}✓ Prod DB restored to dev${NC}"
 }
@@ -244,22 +261,32 @@ run_test_case() {
     log_info "Test case: $test_name"
 
     # Get baseline DB state
-    local baseline_events=$(docker exec postgres-dev-local psql -U postgres -d kairon_dev -t -c \
+    local baseline_events=$(docker exec "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" -t -c \
         "SELECT COUNT(*) FROM events;" 2>/dev/null | tr -d '[:space:]' || echo "0")
-    local baseline_projections=$(docker exec postgres-dev-local psql -U postgres -d kairon_dev -t -c \
+    local baseline_projections=$(docker exec "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" -t -c \
         "SELECT COUNT(*) FROM projections;" 2>/dev/null | tr -d '[:space:]' || echo "0")
 
     log_info "Baseline: $baseline_events events, $baseline_projections projections"
 
     # Send webhook
     local test_timestamp=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)
-    local webhook_url="${N8N_DEV_API_URL:-http://localhost:5679}/webhook/asoiaf92746087"
+    local webhook_url="${N8N_DEV_API_URL:-http://localhost:5679}/webhook/$TESTING_WEBHOOK_PATH"
 
     local response=$(curl -s -X POST "$webhook_url" \
         -H 'Content-Type: application/json' \
         -d "$webhook_data")
 
     log_info "Webhook response: $response"
+
+    # Check if webhook returned error (e.g., 404)
+    if echo "$response" | jq -e '(.code // 200) >= 400' 2>/dev/null; then
+        log_fail "$test_name: Webhook failed - $response"
+        local webhook_path="${WEBHOOK_PATH:-asoiaf92746087}"
+        log_info "Expected webhook path: $webhook_path (from WEBHOOK_PATH env var)"
+        log_info "Actual webhook URL: $webhook_url"
+        log_info "Check that Route_Event workflow is active and uses this webhook path"
+        return 1
+    fi
 
     # Wait for execution
     sleep 3
@@ -296,9 +323,9 @@ run_test_case() {
     fi
 
     # Check DB changes
-    local new_events=$(docker exec postgres-dev-local psql -U postgres -d kairon_dev -t -c \
+    local new_events=$(docker exec "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" -t -c \
         "SELECT COUNT(*) FROM events;" 2>/dev/null | tr -d '[:space:]' || echo "0")
-    local new_projections=$(docker exec postgres-dev-local psql -U postgres -d kairon_dev -t -c \
+    local new_projections=$(docker exec "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" -t -c \
         "SELECT COUNT(*) FROM projections;" 2>/dev/null | tr -d '[:space:]' || echo "0")
 
     local events_created=$((new_events - baseline_events))
@@ -325,14 +352,15 @@ run_test_case() {
     # Check projection types if specified
     local expected_types=$(echo "$expected_db_changes" | jq -r '.projection_types // []')
     if [ "$expected_types" != "[]" ]; then
-        local actual_types=$(docker exec postgres-dev-local psql -U postgres -d kairon_dev -t -A -c \
-            "SELECT DISTINCT projection_type FROM projections WHERE created_at > NOW() - INTERVAL '10 seconds' ORDER BY projection_type;" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+        local actual_json=$(docker exec "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" -t -A -c \
+            "SELECT json_agg(DISTINCT projection_type ORDER BY projection_type)
+             FROM projections
+             WHERE created_at > NOW() - INTERVAL '10 seconds';" 2>/dev/null | jq -c '. // []')
 
-        log_info "Projection types: $actual_types"
+        log_info "Projection types: $(echo "$actual_json" | jq -r '. | join(", ")')"
 
-        # Convert to arrays and compare
+        # Convert expected to array and compare
         local expected_json=$(echo "$expected_types" | jq -c '. | sort')
-        local actual_json=$(echo "[$actual_types]" | jq -c 'split(",") | map(select(. != "")) | sort')
 
         if [ "$expected_json" != "$actual_json" ]; then
             log_fail "$test_name: Expected projection types $expected_json, got $actual_json"
