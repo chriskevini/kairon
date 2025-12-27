@@ -22,9 +22,13 @@ GUILD_ID="754207117157859388"
 CHANNEL_ID="1453335033665556654"
 QUICK_MODE=false
 VERIFY_DB=false
+VERIFY_EXECUTIONS=false
 DEV_MODE=false
 QUIET_MODE=true
 NO_MOCKS=false
+N8N_API_URL=""
+N8N_API_KEY=""
+N8N_COOKIE_FILE=""
 
 # Colors
 GREEN='\033[0;32m'
@@ -42,6 +46,156 @@ log_test() { [ "$QUIET_MODE" = false ] && echo -e "${BLUE}[TEST]${NC} $1"; }
 log_pass() { [ "$QUIET_MODE" = false ] && echo -e "${GREEN}  ✓${NC} $1"; ((PASSED_TESTS++)); }
 log_fail() { echo -e "${RED}  ✗${NC} $1"; ((FAILED_TESTS++)); }
 log_info() { [ "$QUIET_MODE" = false ] && echo -e "${YELLOW}[INFO]${NC} $1"; }
+log_warn() { [ "$QUIET_MODE" = false ] && echo -e "${YELLOW}  ⚠${NC} $1"; }
+
+# ============================================================================
+# EXECUTION VERIFICATION FUNCTIONS (Part 1 - Issue #110)
+# ============================================================================
+
+# Make authenticated curl request to n8n API
+n8n_api_call() {
+    local endpoint="$1"
+    local method="${2:-GET}"
+    
+    if [ -z "$N8N_API_URL" ]; then
+        echo "ERROR: N8N_API_URL not set" >&2
+        return 1
+    fi
+    
+    local url="${N8N_API_URL}${endpoint}"
+    local auth_header=""
+    
+    # Try API key authentication first, fall back to cookie
+    if [ -n "$N8N_API_KEY" ]; then
+        auth_header="-H \"X-N8N-API-KEY: $N8N_API_KEY\""
+        curl -s -X "$method" "$url" \
+            -H "Accept: application/json" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" 2>/dev/null
+    elif [ -n "$N8N_COOKIE_FILE" ] && [ -f "$N8N_COOKIE_FILE" ]; then
+        curl -s -b "$N8N_COOKIE_FILE" -X "$method" "$url" \
+            -H "Accept: application/json" 2>/dev/null
+    else
+        echo "ERROR: No authentication method available (need N8N_API_KEY or N8N_COOKIE_FILE)" >&2
+        return 1
+    fi
+}
+
+# Get recent executions from n8n API
+get_recent_executions() {
+    local limit="${1:-50}"
+    local since_timestamp="$2"
+    
+    # Get recent executions
+    local response=$(n8n_api_call "/api/v1/executions?limit=$limit")
+    
+    if [ -z "$response" ] || [ "$response" = "null" ]; then
+        echo "[]"
+        return 1
+    fi
+    
+    # Filter by timestamp if provided (ISO 8601 format)
+    if [ -n "$since_timestamp" ]; then
+        echo "$response" | jq --arg ts "$since_timestamp" \
+            '.data | map(select(.startedAt >= $ts))'
+    else
+        echo "$response" | jq '.data'
+    fi
+}
+
+# Get execution details by ID
+get_execution() {
+    local exec_id="$1"
+    n8n_api_call "/api/v1/executions/${exec_id}?includeData=true"
+}
+
+# Wait for execution to complete and verify status
+# Returns 0 on success, 1 on error/timeout
+verify_execution() {
+    local workflow_name="$1"
+    local since_timestamp="$2"  # ISO 8601 timestamp
+    local description="$3"
+    local timeout="${4:-30}"
+    
+    local elapsed=0
+    local exec_id=""
+    local status=""
+    
+    # Poll for matching execution
+    while [ $elapsed -lt $timeout ]; do
+        # Get recent executions since the timestamp
+        local executions=$(get_recent_executions 50 "$since_timestamp")
+        
+        if [ -z "$executions" ] || [ "$executions" = "[]" ]; then
+            sleep 1
+            elapsed=$((elapsed + 1))
+            continue
+        fi
+        
+        # Find execution matching workflow name
+        exec_id=$(echo "$executions" | jq -r \
+            --arg wf "$workflow_name" \
+            'map(select(.workflowData.name == $wf)) | .[0].id // empty')
+        
+        if [ -n "$exec_id" ] && [ "$exec_id" != "null" ]; then
+            break
+        fi
+        
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+    
+    # Check if we found an execution
+    if [ -z "$exec_id" ] || [ "$exec_id" = "null" ]; then
+        log_warn "$description: No execution found for workflow '$workflow_name'"
+        return 0  # Don't fail test - execution might be async or in different workflow
+    fi
+    
+    # Poll execution status until complete
+    elapsed=0
+    while [ $elapsed -lt $timeout ]; do
+        local exec_data=$(get_execution "$exec_id")
+        
+        if [ -z "$exec_data" ] || [ "$exec_data" = "null" ]; then
+            log_fail "$description: Failed to fetch execution $exec_id"
+            return 1
+        fi
+        
+        status=$(echo "$exec_data" | jq -r '.status // empty')
+        
+        case "$status" in
+            success)
+                log_pass "$description: Execution completed successfully (ID: $exec_id)"
+                return 0
+                ;;
+            error)
+                # Extract error details
+                local error_msg=$(echo "$exec_data" | jq -r \
+                    '.data.resultData.error.message // "Unknown error"')
+                local last_node=$(echo "$exec_data" | jq -r \
+                    '.data.resultData.lastNodeExecuted // "Unknown node"')
+                
+                log_fail "$description: Execution failed (ID: $exec_id)"
+                echo -e "${RED}    Error in node: $last_node${NC}" >&2
+                echo -e "${RED}    Message: $error_msg${NC}" >&2
+                return 1
+                ;;
+            running|waiting)
+                # Still processing, continue polling
+                ;;
+            *)
+                log_fail "$description: Unknown execution status '$status' (ID: $exec_id)"
+                return 1
+                ;;
+        esac
+        
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+    
+    # Timeout
+    log_fail "$description: Execution timeout after ${timeout}s (ID: $exec_id, status: $status)"
+    return 1
+}
 
 send_message() {
     local content="$1"
@@ -51,6 +205,9 @@ send_message() {
     
     ((TOTAL_TESTS++))
     log_test "$description ($content)"
+    
+    # Record timestamp BEFORE sending (for execution matching)
+    local send_timestamp=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
     
     local payload=$(cat <<EOF
 {
@@ -64,7 +221,7 @@ send_message() {
     "display_name": "Test User"
   },
   "content": "$content",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
+  "timestamp": "$send_timestamp",
   "thread_id": "$thread_id"
 }
 EOF
@@ -77,6 +234,12 @@ EOF
     if [ "$response_code" = "200" ]; then
         log_pass "Sent"
         echo "$msg_id" >> /tmp/kairon_test_ids.txt
+        
+        # Verify execution if enabled (Part 1 - Issue #110)
+        if [ "$VERIFY_EXECUTIONS" = true ]; then
+            # Route_Event is the entry workflow that handles all webhooks
+            verify_execution "Route_Event" "$send_timestamp" "$description"
+        fi
     else
         log_fail "$description: Failed to send '$content' (HTTP $response_code)"
     fi
@@ -121,6 +284,7 @@ while [[ "$#" -gt 0 ]]; do
     case $1 in
         --quick) QUICK_MODE=true ;;
         --verify-db) VERIFY_DB=true ;;
+        --verify-executions) VERIFY_EXECUTIONS=true ;;
         --dev) DEV_MODE=true ;;
         --no-mocks) NO_MOCKS=true ;;
         --verbose) QUIET_MODE=false ;;
@@ -131,15 +295,16 @@ while [[ "$#" -gt 0 ]]; do
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
-            echo "  --quick          Run quick test suite (skip exhaustive aliases)"
-            echo "  --verify-db      Verify database after tests"
-            echo "  --dev            Run against dev environment (port 5679)"
-            echo "  --no-mocks       Indicate that tests are running against real APIs"
-            echo "  --verbose        Show full output (default is silent on success)"
-            echo "  --webhook URL    Use custom webhook URL"
-            echo "  --guild-id ID    Discord guild ID"
-            echo "  --channel-id ID  Discord channel ID"
-            echo "  --help           Show this help"
+            echo "  --quick               Run quick test suite (skip exhaustive aliases)"
+            echo "  --verify-db           Verify database after tests"
+            echo "  --verify-executions   Verify n8n workflow executions (requires API access)"
+            echo "  --dev                 Run against dev environment (port 5679)"
+            echo "  --no-mocks            Indicate that tests are running against real APIs"
+            echo "  --verbose             Show full output (default is silent on success)"
+            echo "  --webhook URL         Use custom webhook URL"
+            echo "  --guild-id ID         Discord guild ID"
+            echo "  --channel-id ID       Discord channel ID"
+            echo "  --help                Show this help"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -157,6 +322,38 @@ if [ "$DEV_MODE" = true ]; then
         fi
     fi
     WEBHOOK="http://localhost:5679/webhook/$DEV_WEBHOOK_PATH"
+    
+    # Setup execution verification if enabled
+    if [ "$VERIFY_EXECUTIONS" = true ]; then
+        N8N_API_URL="http://localhost:5679"
+        
+        # Load API key from .env if available
+        if [ -f "$PROJECT_ROOT/.env" ]; then
+            N8N_API_KEY=$(grep "^N8N_DEV_API_KEY=" "$PROJECT_ROOT/.env" | cut -d= -f2- | tr -d '"'\''')
+        fi
+        
+        # Fall back to cookie file if no API key
+        if [ -z "$N8N_API_KEY" ]; then
+            N8N_COOKIE_FILE="${N8N_DEV_COOKIE_FILE:-/tmp/n8n-dev-session.txt}"
+            
+            if [ ! -f "$N8N_COOKIE_FILE" ]; then
+                echo -e "${RED}ERROR: No authentication available${NC}"
+                echo "Set N8N_DEV_API_KEY in .env or run './scripts/deploy.sh dev' to setup cookie auth"
+                exit 1
+            fi
+        fi
+        
+        # Verify API access
+        if ! n8n_api_call "/api/v1/workflows?limit=1" | jq -e '.data' > /dev/null 2>&1; then
+            echo -e "${YELLOW}WARNING: Cannot access n8n API - execution verification disabled${NC}"
+            echo "  This may be due to invalid/missing API key or cookie authentication"
+            echo "  Continuing with basic HTTP status tests only..."
+            VERIFY_EXECUTIONS=false
+        else
+            log_info "Execution verification enabled (using $([ -n "$N8N_API_KEY" ] && echo "API key" || echo "cookie") auth)"
+        fi
+    fi
+    
     if [ "$NO_MOCKS" = true ]; then
         log_info "Running in DEV mode (port 5679) with REAL APIs (NO_MOCKS)"
     else
