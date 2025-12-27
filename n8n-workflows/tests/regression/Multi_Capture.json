@@ -1,0 +1,107 @@
+[
+  {
+    "test_name": "Activity with !! tag",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "!! debugging auth issues",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-activity-001",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:00:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["activity"]
+    }
+  },
+  {
+    "test_name": "Note with .. tag",
+    "webhook_data": {
+      "event_type": "message",
+      "content": ".. coffee improves focus",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-note-001",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:01:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["note"]
+    }
+  },
+  {
+    "test_name": "Todo with $$ tag",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "$$ fix the bug",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-todo-001",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:02:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["todo"]
+    }
+  },
+  {
+    "test_name": "Untagged message (LLM extraction)",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "I should remember this idea about the new feature",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-untagged-001",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:03:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["activity"]
+    }
+  },
+  {
+    "test_name": "Activity alias with space",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "!! Task without space",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-activity-002",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:04:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["activity"]
+    }
+  }
+]

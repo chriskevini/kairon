@@ -24,11 +24,12 @@ n8n workflows can reference other workflows by ID, but these IDs differ between 
 **What it does:**
 - **Stage 0: Unit Tests** - Structural validation and Python unit tests
 - **Stage 1: Dev deployment** - Transform workflows with `transform_for_dev.py` and push to dev n8n
-- **Stage 1b: Redeploy** - Optional redeployment with real APIs for realistic testing
-- **Stage 2: Functional Tests**
-  - Stage 2a: Fast mock tests
-  - Stage 2b: Realistic tests with real APIs
-  - Stage 2d: Python tag parsing tests
+- **Stage 2: Regression Tests** - Test modified workflows with prod DB snapshot
+  - Identifies modified workflows (git diff)
+  - Optionally snapshots prod DB to dev
+  - Runs test payloads against dev environment
+  - Validates both execution status AND database state
+  - Only tests what changed (fast)
 - **Stage 3: Prod deployment** - Sync files to server, run `n8n-push-prod.sh` remotely with automated rollback on failure
 - **Deep smoke tests** - End-to-end verification after production deployment
 

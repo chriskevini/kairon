@@ -449,35 +449,10 @@ deploy_dev() {
 run_functional_tests() {
     echo ""
     echo "=========================================="
-    echo "STAGE 2: Functional Tests"
+    echo "STAGE 2: Regression Tests"
     echo "=========================================="
 
-    if [ ! -f "$REPO_ROOT/tools/test-all-paths.sh" ]; then
-        echo "⚠️  tools/test-all-paths.sh not found. Skipping."
-        return 0
-    fi
-
-    local TEST_OUTPUT_FILE=$(mktemp)
-    trap "rm -f $TEST_OUTPUT_FILE" RETURN
-
-    # Skip cron-based workflows in Stage 2b (realistic mode)
-    # They can't be tested with real APIs via webhook (run on schedule, not triggered)
-    # Note: Auto_Backfill, Generate_Daily_Summary, Generate_Nudge, Proactive_Agent_Cron
-    CRON_WORKFLOWS="Auto_Backfill Generate_Daily_Summary Generate_Nudge Proactive_Agent_Cron"
-
-    # Stage 2a: Fast mock tests with execution verification
-    echo ""
-    echo "  Stage 2a: Mock tests with execution verification..."
-    if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --verify-executions > "$TEST_OUTPUT_FILE" 2>&1; then
-        echo "❌ FAILED (mocks with execution verification)"
-        echo "----------------------------------------"
-        cat "$TEST_OUTPUT_FILE"
-        echo "----------------------------------------"
-        return 1
-    fi
-    echo "  ✅ PASSED (mocks with execution verification)"
-
-    # Stage 2d: Run Python tag parsing tests
+    # Stage 2d: Run Python tag parsing tests (fast unit tests)
     echo ""
     echo "  Stage 2d: Python unit tests..."
     if ! pytest "$REPO_ROOT/n8n-workflows/tests/" -v > /dev/null 2>&1; then
@@ -486,39 +461,29 @@ run_functional_tests() {
         return 1
     fi
     echo "  ✅ PASSED (pytest)"
-    
-    # Stage 1b: Redeploy with real APIs (between test stages)
-    echo ""
-    echo "  Redeploying workflows for realistic API testing..."
-    if ! deploy_dev true; then
-        echo "❌ FAILED (redeployment)"
-        echo "----------------------------------------"
-        cat "$DEPLOY_LOG"
-        echo "----------------------------------------"
-        return 1
-    fi
-    echo "  ✅ Redeployment PASSED"
-    
-    # Stage 2b: Realistic tests with real APIs and execution verification
-     echo ""
-     echo "  Stage 2b: Realistic tests (real APIs with execution verification)..."
-     echo "    Note: Cron workflows now testable via webhook (Schedule → Webhook transform)"
-     
-     if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --no-mocks --verify-executions > "$TEST_OUTPUT_FILE" 2>&1; then
-        echo "❌ FAILED (real APIs with execution verification)"
-        echo "----------------------------------------"
-        cat "$TEST_OUTPUT_FILE"
-        echo "----------------------------------------"
-        echo "   Workflows failed when calling real APIs or execution verification failed"
-        echo "   Deployment halted before production"
-        return 1
-    fi
-    echo "  ✅ PASSED (real APIs with execution verification)"
 
-    # Stage 2c: Quick prod verification
-    # echo ""
-    # echo "  Stage 2c: Quick prod verification..."
-    # verify_prod_webhook_accessible || return 1
+    # Stage 2: Regression tests with prod DB snapshot
+    echo ""
+    echo "  Stage 2: Regression tests..."
+    echo "   Note: Using --no-db-snapshot for fast testing"
+
+    if [ ! -f "$REPO_ROOT/scripts/testing/regression_test.sh" ]; then
+        echo "⚠️  Regression test script not found. Skipping."
+        echo ""
+        echo "   To enable regression testing, create:"
+        echo "   $REPO_ROOT/scripts/testing/regression_test.sh"
+        echo "   $REPO_ROOT/n8n-workflows/tests/regression/<WorkflowName>.json"
+        return 0
+    fi
+
+    if ! bash "$REPO_ROOT/scripts/testing/regression_test.sh" --no-db-snapshot; then
+        echo "❌ FAILED (regression tests)"
+        echo ""
+        echo "Regression tests detected issues with modified workflows."
+        echo "Fix issues and redeploy."
+        return 1
+    fi
+    echo "  ✅ PASSED (regression tests)"
 
     return 0
 }

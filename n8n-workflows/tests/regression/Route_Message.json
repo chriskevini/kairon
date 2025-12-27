@@ -1,0 +1,64 @@
+[
+  {
+    "test_name": "Route message with activity tag",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "!! testing routing",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-route-001",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:20:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["activity"]
+    }
+  },
+  {
+    "test_name": "Route untagged message",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "Just a regular message without tags",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-route-002",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:21:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["activity"]
+    }
+  },
+  {
+    "test_name": "Route command",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "::help",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-route-003",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:22:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 0
+    }
+  }
+]

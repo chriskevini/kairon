@@ -1,0 +1,102 @@
+[
+  {
+    "test_name": "Command: ::help",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "::help",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-cmd-help",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:10:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 0
+    }
+  },
+  {
+    "test_name": "Command: ::recent",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "::recent",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-cmd-recent",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:11:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 0
+    }
+  },
+  {
+    "test_name": "Command: ::stats",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "::stats",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-cmd-stats",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:12:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 0
+    }
+  },
+  {
+    "test_name": "Command: ::set timezone",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "::set timezone vancouver",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-cmd-timezone",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:13:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 0
+    }
+  },
+  {
+    "test_name": "Command: ::ping",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "::ping",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-cmd-ping",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:14:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 0
+    }
+  }
+]
