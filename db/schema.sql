@@ -79,7 +79,9 @@ CREATE INDEX IF NOT EXISTS idx_projections_status ON projections(status);
 CREATE INDEX IF NOT EXISTS idx_projections_event_id ON projections(event_id);
 CREATE INDEX IF NOT EXISTS idx_projections_trace_id ON projections(trace_id);
 CREATE INDEX IF NOT EXISTS idx_projections_created_at ON projections(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_projections_data_timestamp ON projections(((data->>'timestamp')::timestamptz) DESC);
+-- Index on data->>'timestamp' removed: ::timestamptz cast is not IMMUTABLE (depends on session timezone)
+-- Views that query by timestamp will use idx_projections_created_at instead
+-- Future: Consider adding a generated column with AT TIME ZONE 'UTC' for proper timestamp indexing
 -- Note: GIN index on data removed in migration 020 (unused - queries use ->> not @>)
 
 -- Config: User configuration (north_star, timezone, etc.)
