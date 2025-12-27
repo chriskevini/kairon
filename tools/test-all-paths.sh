@@ -163,7 +163,8 @@ verify_execution() {
         
         case "$status" in
             success)
-                local n8n_ui_url="${N8N_API_URL}/workflow/${workflow_name}/executions/${exec_id}"
+                # n8n UI URL format: /execution/<execution-id>
+                local n8n_ui_url="${N8N_API_URL}/execution/${exec_id}"
                 if [ "$QUIET_MODE" = false ]; then
                     log_pass "$description: Execution completed successfully (ID: $exec_id, View: $n8n_ui_url)"
                 else
@@ -178,8 +179,8 @@ verify_execution() {
                 local last_node=$(echo "$exec_data" | jq -r \
                     '.data.data.resultData.lastNodeExecuted // "Unknown node"')
                 
-                # Generate n8n UI link for execution
-                local n8n_ui_url="${N8N_API_URL}/workflow/${workflow_name}/executions/${exec_id}"
+                # Generate n8n UI link for execution (format: /execution/<execution-id>)
+                local n8n_ui_url="${N8N_API_URL}/execution/${exec_id}"
                 
                 log_fail "$description: Execution failed (ID: $exec_id)"
                 echo -e "${RED}    Error in node: $last_node${NC}" >&2
@@ -359,6 +360,24 @@ if [ "$DEV_MODE" = true ]; then
                 echo -e "${RED}ERROR: No authentication available${NC}"
                 echo "Set N8N_DEV_API_KEY in .env or run './scripts/deploy.sh dev' to setup cookie auth"
                 exit 1
+            fi
+        fi
+        
+        # Verify API access
+        if ! n8n_api_call "/rest/workflows?limit=1" | jq -e '.data' > /dev/null 2>&1; then
+            echo -e "${YELLOW}WARNING: Cannot access n8n API - execution verification disabled${NC}"
+            echo "  This may be due to invalid/missing API key or cookie authentication"
+            echo "  Continuing with basic HTTP status tests only..."
+            VERIFY_EXECUTIONS=false
+        else
+            log_info "Execution verification enabled (using $([ -n "$N8N_API_KEY" ] && echo "API key" || echo "cookie") auth)"
+        fi
+    fi
+    
+    if [ "$NO_MOCKS" = true ]; then
+        log_info "Running in DEV mode (port 5679) with REAL APIs (NO_MOCKS)"
+    else
+        log_info "Running in DEV mode (port 5679) with MOCK APIs"
     fi
 fi
 
@@ -397,24 +416,6 @@ if [ "$PROD_MODE" = true ]; then
     fi
     
     log_info "Running in PROD mode against $WEBHOOK"
-fi
-        
-        # Verify API access
-        if ! n8n_api_call "/rest/workflows?limit=1" | jq -e '.data' > /dev/null 2>&1; then
-            echo -e "${YELLOW}WARNING: Cannot access n8n API - execution verification disabled${NC}"
-            echo "  This may be due to invalid/missing API key or cookie authentication"
-            echo "  Continuing with basic HTTP status tests only..."
-            VERIFY_EXECUTIONS=false
-        else
-            log_info "Execution verification enabled (using $([ -n "$N8N_API_KEY" ] && echo "API key" || echo "cookie") auth)"
-        fi
-    fi
-    
-    if [ "$NO_MOCKS" = true ]; then
-        log_info "Running in DEV mode (port 5679) with REAL APIs (NO_MOCKS)"
-    else
-        log_info "Running in DEV mode (port 5679) with MOCK APIs"
-    fi
 fi
 
 
