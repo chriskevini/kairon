@@ -231,7 +231,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const reaction = $input.first().json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
+        "jsCode": "const reaction = $input.first().json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -244,7 +244,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.message_event.row;\nconst webhook = ctx.webhook_data;\nconst validation_result = ctx.validation?.result;\n\n// Tier 3: Skip projections if 'no_projections' tier was hit\nif (validation_result === 'no_projections') {\n  return [];\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: webhook.clean_text,\n        tag: webhook.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+        "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.message_event.row;\nconst webhook = ctx.webhook_data;\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: webhook.clean_text,\n        tag: webhook.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -339,7 +339,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const cleanText = $json.clean_text || \"\";\nconst tag = $json.tag;\n\n// Tier 1: Empty/whitespace (NO TAG)\nif (!cleanText.trim() && !tag) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"block\" }\n      }\n    }\n  };\n}\n\n// Tier 2: Tag-only (HAS TAG but no content)\nif (tag && cleanText.trim() === \"\") {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"warn\" }\n      }\n    }\n  };\n}\n\n// Tier 3: Test keywords\nconst testKeywords = /\\b(test|testing|aaaaa)\\b/i;\nif (testKeywords.test(cleanText)) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"no_projections\" }\n      }\n    }\n  };\n}\n\n// Tier 4: Continue\nreturn {\n  json: {\n    ctx: {\n      webhook_data: $json,\n      validation: { result: \"continue\" }\n      }\n  }\n};"
+        "jsCode": "const cleanText = $json.clean_text || \"\";\nconst tag = $json.tag;\n\n// Tier 1: Empty/whitespace (NO TAG)\nif (!cleanText.trim() && !tag) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"block\" }\n      }\n    }\n  };\n}\n\n// Tier 2: Tag-only (HAS TAG but no content)\nif (tag && cleanText.trim() === \"\") {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"warn\" }\n      }\n    }\n  };\n}\n\n// Tier 3: Continue\nreturn {\n  json: {\n    ctx: {\n      webhook_data: $json,\n      validation: { result: \"continue\" }\n      }\n  }\n};"
       },
       "id": "validate-message",
       "name": "Validate Message",
@@ -401,30 +401,6 @@
               },
               "renameOutput": true,
               "outputKey": "warn"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "id": "cond-no-projections",
-                    "leftValue": "={{ $json.ctx.validation.result }}",
-                    "rightValue": "no_projections",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "no_projections"
             }
           ]
         },
@@ -500,50 +476,6 @@
           "name": "Discord Bot account"
         }
       }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.webhook_data.channel_id }}/messages/{{ $json.ctx.webhook_data.message_id }}/reactions/%F0%9F%92%80/@me",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "discordBotApi",
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        }
-      },
-      "id": "react-no-projections",
-      "name": "React: No Projections",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        224,
-        64
-      ],
-      "credentials": {
-        "discordBotApi": {
-          "id": "placeholder-will-be-replaced",
-          "name": "Discord Bot account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      },
-      "id": "merge-validation",
-      "name": "Merge: Continue Paths",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        448,
-        64
-      ]
     },
     {
       "parameters": {
@@ -775,32 +707,14 @@
         ],
         [
           {
-            "node": "React: No Projections",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Merge: Continue Paths",
+            "node": "Build Message DB Query",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "React: No Projections": {
-      "main": [
-        [
-          {
-            "node": "Merge: Continue Paths",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge: Continue Paths": {
+    "React: Warn Message": {
       "main": [
         [
           {
@@ -1161,7 +1075,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const reaction = $input.first().json.body;\nconst emojiMap = {\n  '1️⃣': 1, '2️⃣': 2, '3️⃣': 3,\n  '4️⃣': 4, '5️⃣': 5, '6️⃣': 6,\n  '7️⃣': 7, '8️⃣': 8, '9️⃣': 9, '🔟': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
+          "jsCode": "const reaction = $input.first().json.body;\nconst emojiMap = {\n  '1\ufe0f\u20e3': 1, '2\ufe0f\u20e3': 2, '3\ufe0f\u20e3': 3,\n  '4\ufe0f\u20e3': 4, '5\ufe0f\u20e3': 5, '6\ufe0f\u20e3': 6,\n  '7\ufe0f\u20e3': 7, '8\ufe0f\u20e3': 8, '9\ufe0f\u20e3': 9, '\ud83d\udd1f': 10\n};\n\nconst emoji = reaction.emoji;\nconst extractionIndex = emojiMap[emoji] || null;\nconst messageId = reaction.message_id;\nconst userId = reaction.user?.id || reaction.user_id;\nconst syntheticId = `reaction_${messageId}_${userId}_${emoji}_${extractionIndex}`;\n\nreturn [{\n  json: {\n    ...reaction,\n    synthetic_id: syntheticId,\n    emoji: emoji,\n    extraction_index: extractionIndex\n  }\n}];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1174,7 +1088,7 @@
       },
       {
         "parameters": {
-          "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.message_event.row;\nconst webhook = ctx.webhook_data;\nconst validation_result = ctx.validation?.result;\n\n// Tier 3: Skip projections if 'no_projections' tier was hit\nif (validation_result === 'no_projections') {\n  return [];\n}\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: webhook.clean_text,\n        tag: webhook.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
+          "jsCode": "// Initialize ctx.event - all downstream nodes read from $json.ctx.event\n// Reads from Execute_Queries result\nconst ctx = $input.first().json.ctx;\nconst dbResult = ctx.db.message_event.row;\nconst webhook = ctx.webhook_data;\n\nreturn [{\n  json: {\n    ctx: {\n      event: {\n        event_id: dbResult.id,\n        event_type: 'discord_message',\n        timestamp: webhook.timestamp,\n        guild_id: webhook.guild_id,\n        channel_id: webhook.channel_id,\n        message_id: webhook.message_id,\n        author_login: webhook.author?.login || webhook.author_login,\n        thread_id: webhook.thread_id || null,\n        message_url: `https://discord.com/channels/${webhook.guild_id}/${webhook.channel_id}/${webhook.message_id}`,\n        raw_text: webhook.content,\n        clean_text: webhook.clean_text,\n        tag: webhook.tag || null,\n        trace_chain: [dbResult.id],\n        trace_chain_pg: `{${dbResult.id}}`\n      }\n    }\n  }\n}];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1269,7 +1183,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const cleanText = $json.clean_text || \"\";\nconst tag = $json.tag;\n\n// Tier 1: Empty/whitespace (NO TAG)\nif (!cleanText.trim() && !tag) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"block\" }\n      }\n    }\n  };\n}\n\n// Tier 2: Tag-only (HAS TAG but no content)\nif (tag && cleanText.trim() === \"\") {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"warn\" }\n      }\n    }\n  };\n}\n\n// Tier 3: Test keywords\nconst testKeywords = /\\b(test|testing|aaaaa)\\b/i;\nif (testKeywords.test(cleanText)) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"no_projections\" }\n      }\n    }\n  };\n}\n\n// Tier 4: Continue\nreturn {\n  json: {\n    ctx: {\n      webhook_data: $json,\n      validation: { result: \"continue\" }\n      }\n  }\n};"
+          "jsCode": "const cleanText = $json.clean_text || \"\";\nconst tag = $json.tag;\n\n// Tier 1: Empty/whitespace (NO TAG)\nif (!cleanText.trim() && !tag) {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"block\" }\n      }\n    }\n  };\n}\n\n// Tier 2: Tag-only (HAS TAG but no content)\nif (tag && cleanText.trim() === \"\") {\n  return {\n    json: {\n      ctx: {\n        webhook_data: $json,\n        validation: { result: \"warn\" }\n      }\n    }\n  };\n}\n\n// Tier 3: Continue\nreturn {\n  json: {\n    ctx: {\n      webhook_data: $json,\n      validation: { result: \"continue\" }\n      }\n  }\n};"
         },
         "id": "validate-message",
         "name": "Validate Message",
@@ -1331,30 +1245,6 @@
                 },
                 "renameOutput": true,
                 "outputKey": "warn"
-              },
-              {
-                "conditions": {
-                  "options": {
-                    "caseSensitive": true,
-                    "leftValue": "",
-                    "typeValidation": "strict",
-                    "version": 1
-                  },
-                  "conditions": [
-                    {
-                      "id": "cond-no-projections",
-                      "leftValue": "={{ $json.ctx.validation.result }}",
-                      "rightValue": "no_projections",
-                      "operator": {
-                        "type": "string",
-                        "operation": "equals"
-                      }
-                    }
-                  ],
-                  "combinator": "and"
-                },
-                "renameOutput": true,
-                "outputKey": "no_projections"
               }
             ]
           },
@@ -1430,50 +1320,6 @@
             "name": "Discord Bot"
           }
         }
-      },
-      {
-        "parameters": {
-          "method": "POST",
-          "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.webhook_data.channel_id }}/messages/{{ $json.ctx.webhook_data.message_id }}/reactions/%F0%9F%92%80/@me",
-          "authentication": "predefinedCredentialType",
-          "nodeCredentialType": "discordBotApi",
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
-          }
-        },
-        "id": "react-no-projections",
-        "name": "React: No Projections",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [
-          224,
-          64
-        ],
-        "credentials": {
-          "discordBotApi": {
-            "id": "f5k6f7g8-h9i0-j1k2-l3m4-n5o6p7q8r9s0",
-            "name": "Discord Bot"
-          }
-        }
-      },
-      {
-        "parameters": {
-          "mode": "append",
-          "numberInputs": 2
-        },
-        "id": "merge-validation",
-        "name": "Merge: Continue Paths",
-        "type": "n8n-nodes-base.merge",
-        "typeVersion": 3,
-        "position": [
-          448,
-          64
-        ]
       },
       {
         "parameters": {
@@ -1705,35 +1551,6 @@
           ],
           [
             {
-              "node": "React: No Projections",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Merge: Continue Paths",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "React: No Projections": {
-        "main": [
-          [
-            {
-              "node": "Merge: Continue Paths",
-              "type": "main",
-              "index": 1
-            }
-          ]
-        ]
-      },
-      "Merge: Continue Paths": {
-        "main": [
-          [
-            {
               "node": "Build Message DB Query",
               "type": "main",
               "index": 0
@@ -1779,6 +1596,17 @@
           [
             {
               "node": "Initialize Reaction Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "React: Warn Message": {
+        "main": [
+          [
+            {
+              "node": "Build Message DB Query",
               "type": "main",
               "index": 0
             }
