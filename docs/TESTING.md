@@ -1,30 +1,48 @@
-# n8n Workflow Validation System
+# n8n Workflow Testing Guide
 
-This document describes the comprehensive workflow validation system that prevents common issues and structural problems in n8n workflows.
+This document describes the multi-layered testing approach for n8n workflows.
 
-## Problem Solved
+## Overview
 
-Workflows could pass basic validation but contain structural issues that cause runtime problems, including:
-- Missing required properties
-- Incorrect node configurations
-- ctx pattern violations
-- ExecuteWorkflow misconfigurations
+Kairon uses a comprehensive testing strategy:
 
-## Solution: Multi-Layer Validation
+1. **Level 1: Fast Pre-commit Checks** - JSON syntax, basic properties
+2. **Level 2: Structural Validation** - Node properties, ctx patterns, ExecuteWorkflow configuration
+3. **Level 3: Regression Testing** - Real DB validation against modified workflows
 
-### Level 1: Fast Pre-commit Checks
+---
+
+# Level 1: Fast Pre-commit Checks
+
 - **Location**: `.githooks/pre-commit`
-- **What it checks**: JSON syntax, basic properties
+- **What it checks**: JSON syntax, basic properties, pinData (sensitive data)
 - **Speed**: < 5 seconds
 - **Blocks**: Syntax errors, missing properties
 
-### Level 2: Comprehensive Structural Validation
+## Features
+
+### ✅ JSON Syntax Validation
+- Parse JSON and catch syntax errors
+- Fast feedback during development
+
+### ✅ Property Validation
+- Required node properties (name, type, parameters)
+- Basic structural integrity
+
+### ✅ Sensitive Data Detection
+- Detects `pinData` (test execution data with real IDs)
+- Prevents committing sensitive credentials or test data
+
+---
+
+# Level 2: Structural Validation
+
 - **Location**: `scripts/workflows/lint_workflows.py` + `scripts/validation/n8n_workflow_validator.py`
 - **What it checks**: Node properties, ctx patterns, ExecuteWorkflow configuration
 - **Speed**: < 30 seconds
 - **Blocks**: Structural and configuration issues
 
-## Validation Features
+## Features
 
 ### ✅ Property & Structure Validation
 - Required node properties (parameters, type, typeVersion, position)
@@ -47,7 +65,7 @@ Workflows could pass basic validation but contain structural issues that cause r
 - **Does NOT catch n8n UI compatibility issues** that cause "Could not find property option" errors
 - **Does NOT validate against n8n's internal processing engine**
 - **Cannot prevent human implementation errors** in ExecuteWorkflow integration
-- Requires additional testing (smoke tests, staging deployment) for full UI compatibility assurance
+- Requires additional testing (regression tests) for full UI compatibility assurance
 
 ## Usage
 
@@ -56,7 +74,7 @@ Workflows could pass basic validation but contain structural issues that cause r
 # Happens automatically when committing workflow files
 git add n8n-workflows/*.json
 git commit -m "feat: add new workflow"
-# → Validates API compatibility automatically
+# → Validates automatically
 ```
 
 ### Manual API Testing
@@ -76,317 +94,370 @@ for workflow in n8n-workflows/*.json; do
 done
 ```
 
-## What Gets Tested
+---
 
-### ✅ Structural Validation
-- JSON syntax and parsing
-- Required node properties validation
-- Connection integrity
-- Workflow metadata completeness
+# Level 3: Regression Testing (NEW!)
 
-### ✅ Code Quality & Patterns
-- ctx pattern compliance (prevents data loss)
-- Node reference elimination (reduces coupling)
-- Switch node fallback requirements
-- Merge node configuration validation
+## Overview
 
-### ✅ Workflow Integration
-- ExecuteWorkflow node configuration
-- Postgres query ctx usage
-- Discord node parameter validation
-- Set node ctx preservation
+The regression testing framework validates that modified workflows work correctly against production-like data. It replaces the broken `test-all-paths.sh` approach with a more maintainable and accurate testing strategy.
 
-## Error Prevention
+**Addresses:** [Issue #118](https://github.com/chriskevini/kairon/issues/118)
+
+## Key Features
+
+### Execution + DB Verification
+
+The regression testing framework provides:
+
+1. **Targeted Testing** - Only tests modified workflows (not all 45+)
+2. **Prod DB Snapshot** - Optional: Copy production DB to dev for realistic data
+3. **Execution Validation** - Check workflow execution status (success/failure)
+4. **DB State Verification** - Validate database changes (events, projections created)
+5. **CI/CD Integration** - Blocks deployments on test failures
+
+### How It Works
+
+1. **Identify Modified Workflows** - Use `git diff` to find changed workflows
+2. **Setup Test DB** (optional) - Snapshot prod DB to dev environment
+3. **Run Test Payloads** - Execute workflows with defined test cases
+4. **Validate Results** - Check both execution status AND database state
+5. **Auto-Cleanup** - Restore dev DB after tests
+
+## Usage
+
+### In Deployment Pipeline (Automatic)
+
+```bash
+# Runs automatically in Stage 2
+./scripts/deploy.sh
+# Stage 0: Unit tests
+# Stage 1: Dev deployment
+# Stage 2: Regression tests (modified workflows only)
+# Stage 3: Prod deployment
+```
+
+### Manual Testing
+
+```bash
+# Test all workflows with test payloads
+bash scripts/testing/regression_test.sh --all
+
+# Test specific workflow
+bash scripts/testing/regression_test.sh --workflow Multi_Capture
+
+# Test modified workflows (default)
+bash scripts/testing/regression_test.sh
+
+# Skip prod DB snapshot (use existing dev data)
+bash scripts/testing/regression_test.sh --no-db-snapshot
+
+# Keep DB after tests (for debugging)
+bash scripts/testing/regression_test.sh --keep-db
+
+# Verbose output
+bash scripts/testing/regression_test.sh --verbose
+```
+
+## Test Payload Format
+
+Create test payloads in `n8n-workflows/tests/regression/<WorkflowName>.json`:
+
+```json
+[
+  {
+    "test_name": "Activity with !! tag",
+    "webhook_data": {
+      "event_type": "message",
+      "content": "!! debugging issues",
+      "guild_id": "754207117157859388",
+      "channel_id": "1453335033665556654",
+      "message_id": "test-unique-id",
+      "author": {
+        "login": "test-user",
+        "id": "123456789",
+        "display_name": "Test User"
+      },
+      "timestamp": "2025-12-27T10:00:00Z"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["activity"]
+    }
+  }
+]
+```
+
+### Required Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `test_name` | string | ✅ | Human-readable test description |
+| `webhook_data` | object | ✅ | Discord webhook payload (same structure as real messages) |
+| `expected_db_changes` | object | ✅ | Database validation criteria |
+
+### expected_db_changes Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `events_created` | integer | ✅ | Expected number of events to be created |
+| `projections_created` | integer | ✅ | Expected number of projections to be created |
+| `projection_types` | array | ❌ | Expected projection types (e.g., `["activity", "note"]`) |
+
+## Creating Test Payloads
+
+### Step 1: Identify Test Scenarios
+
+For each workflow, consider:
+- Main success paths
+- Edge cases
+- Error conditions
+
+**Example for Multi_Capture:**
+- Activity with `!!` tag
+- Note with `..` tag
+- Todo with `$$` tag
+- Untagged message (LLM extraction)
+- Alias tags with spaces
+
+### Step 2: Find Webhook Data
+
+Option A: **Copy from actual Discord message** (recommended)
+```bash
+# Query database for recent message
+./tools/kairon-ops.sh db-query "
+  SELECT payload->>'content', payload
+  FROM events
+  WHERE payload->>'tag' = '\$\$'
+  LIMIT 1;
+"
+```
+
+Option B: **Use existing tests** as reference
+```bash
+# Check existing test payloads for patterns
+ls n8n-workflows/tests/regression/
+```
+
+### Step 3: Determine Expected DB Changes
+
+Run the workflow manually and check what was created:
+```bash
+docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "
+  SELECT projection_type, COUNT(*)
+  FROM projections
+  WHERE created_at > NOW() - INTERVAL '1 minute'
+  GROUP BY projection_type;
+"
+```
+
+### Step 4: Create Payload File
+
+```bash
+mkdir -p n8n-workflows/tests/regression
+cat > n8n-workflows/tests/regression/MyWorkflow.json <<'EOF'
+[
+  {
+    "test_name": "Test scenario 1",
+    "webhook_data": { ... },
+    "expected_db_changes": { ... }
+  }
+]
+EOF
+```
+
+## Initial Coverage
+
+**Multi_Capture** - 5 tests:
+- ✅ Activity with `!!` tag
+- ✅ Note with `..` tag
+- ✅ Todo with `$$` tag
+- ✅ Untagged message (LLM extraction)
+- ✅ Activity alias with space
+
+**Execute_Command** - 5 tests:
+- ✅ Command: `::help`
+- ✅ Command: `::recent`
+- ✅ Command: `::stats`
+- ✅ Command: `::set timezone`
+- ✅ Command: `::ping`
+
+**Route_Message** - 3 tests:
+- ✅ Route message with activity tag
+- ✅ Route untagged message
+- ✅ Route command
+
+## Advantages Over Old test-all-paths.sh
+
+| Aspect | test-all-paths.sh (BROKEN) | Regression Tests (NEW) |
+|---------|---------------------------|-----------------|
+| **Tests all workflows** | ✅ Every time | ❌ Only modified |
+| **Execution validation** | ❌ jq parsing bug | ✅ Working |
+| **DB validation** | ❌ HTTP only | ✅ State verification |
+| **Real data** | ❌ Mocks | ✅ Prod DB snapshot |
+| **Maintenance** | ❌ Modify script | ✅ Add JSON files |
+| **Speed** | ❌ ~5 min | ✅ ~1 min (targeted) |
+| **Bug detection** | ⚠️ Basic | ✅ Comprehensive |
+
+## Debugging Failed Tests
+
+### View Execution in n8n UI
+```bash
+# Test will show execution ID in output
+# View: http://localhost:5679/execution/<id>
+```
+
+### Check Database State
+```bash
+# Check recent events
+docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "
+  SELECT * FROM events ORDER BY received_at DESC LIMIT 5;
+"
+
+# Check recent projections
+docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "
+  SELECT * FROM projections ORDER BY created_at DESC LIMIT 5;
+"
+```
+
+### Re-run Single Test
+```bash
+bash scripts/testing/regression_test.sh \
+  --workflow Multi_Capture \
+  --verbose \
+  --keep-db
+```
+
+## Environment Variables
+
+Required in `.env`:
+
+```bash
+# For dev testing
+N8N_DEV_API_URL=http://localhost:5679
+N8N_DEV_SSH_HOST=DigitalOcean  # Optional: for remote prod DB access
+
+# For prod DB snapshot (optional)
+CONTAINER_DB=postgres-db
+DB_USER=n8n_user
+DB_NAME=kairon
+```
+
+## Continuous Improvement
+
+### When Bugs Are Found
+1. Add failing test case to regression payload
+2. Fix bug
+3. Test passes
+4. Commit both fix and test
+
+### When Workflows Are Modified
+1. Create/update regression tests for modified workflow
+2. Verify tests pass before deployment
+3. Tests prevent future regressions
+
+### Coverage Growth
+- Start with critical workflows
+- Add tests as workflows are modified
+- Build comprehensive coverage over time
+
+## FAQ
+
+**Q: What if no workflows are modified?**
+A: Regression tests skip (exit 0). Unit tests and dev deploy still run.
+
+**Q: What about cross-workflow bugs?**
+A: Include downstream workflows in test payloads. Phase 1 focuses on single-workflow regressions.
+
+**Q: How long does testing take?**
+A: Typical deployment (1-2 workflows modified): ~60 seconds total.
+
+**Q: Can I use prod DB snapshot?**
+A: Yes, remove `--no-db-snapshot` flag. Takes ~30 seconds extra for DB restore.
+
+**Q: What if test payload doesn't exist for modified workflow?**
+A: Test is skipped with warning. No deployment failure.
+
+## Migration from test-all-paths.sh
+
+The old `test-all-paths.sh` has been retired due to:
+- Broken jq parsing (issue #118)
+- Unmaintainable structure
+- No DB validation
+- Slow execution
+
+Regression testing replaces it with a maintainable, working approach.
+
+**Migration Steps:**
+1. ✅ Framework implemented (`scripts/testing/regression_test.sh`)
+2. ✅ Deployment updated (`scripts/deploy.sh`)
+3. ⏳ Create test payloads for critical workflows (partially done)
+4. ⏳ Archive `test-all-paths.sh` once coverage is sufficient
+
+## Detailed Documentation
+
+For comprehensive documentation on regression testing:
+- **Main Guide:** `scripts/testing/README.md`
+  - Complete test payload creation guide
+  - Coverage strategy checklist
+  - Troubleshooting guide
+  - FAQ
+
+---
+
+# Error Prevention
 
 ### Before Enhancement
 ```
-Workflow Development → Basic JSON Validation → ❌ Production Issues (missing properties, ctx violations, ExecuteWorkflow errors)
+Workflow Development → Basic JSON Validation → ❌ Production Issues
 ```
 
 ### After Enhancement
 ```
-Workflow Development → Structural Validation → Pattern Enforcement → ✅ Structural Issues Prevented
-                                                            ↓
-                                                 ⚠️ UI Compatibility Requires Additional Testing
+Workflow Development → Pre-commit Checks → Structural Validation
+                                  ↓
+                          Regression Tests (modified workflows)
+                                  ↓
+                          ✅ Issues Caught Before Production
 ```
-
-## Dependencies
-
-### Required
-- Python 3.7+
-
-### Optional
-- Access to n8n API instance (for future API-based validation)
-- Valid N8N_API_KEY environment variable
-
-## Configuration
-
-### Environment Variables
-```bash
-# n8n API connection
-N8N_API_URL=http://localhost:5678
-N8N_API_KEY=your-api-key-here
-```
-
-### Validation Modes
-- **Offline**: Property and pattern validation (no external dependencies)
-- **Future**: API-based validation (planned enhancement)
-
-## Implementation Details
-
-### Validation Flow
-1. **JSON Loading**: Parse and validate basic structure
-2. **Property Validation**: Check required fields and connections
-3. **Pattern Validation**: Enforce ctx patterns and best practices
-4. **Configuration Validation**: Check ExecuteWorkflow and node-specific settings
-5. **Error Reporting**: Detailed feedback on issues found
-
-### Error Classification
-- **Critical**: Blocks commits (JSON syntax, missing required properties)
-- **Error**: Prevents deployment (pattern violations, configuration errors)
-- **Warning**: Allows but recommends fixes (best practice violations)
-
-### Original Incident Context
-This validation system was developed in response to a production incident where Show_Projection_Details workflow failed with "Could not find property option" error. The root cause was human error in ExecuteWorkflow configuration during refactoring. While this system prevents many issues, it does not catch all n8n UI compatibility problems.
-
-## Future Enhancements
-
-- **n8n UI Compatibility Testing**: Browser automation to test workflow editor loading
-- **API Endpoint Integration**: Use n8n's internal validation APIs when available
-- **Docker Test Instances**: Automated n8n environment testing for CI/CD
-- **Parallel Validation**: Optimize validation speed for large workflow sets
-- **UI Error Prevention**: Catch "Could not find property option" errors before production
-- **Enhanced Error Reporting**: Auto-fix suggestions and detailed remediation steps
 
 ---
 
-# Workflow Execution Testing
+# Dependencies
 
-## Overview
+### Required
+- Python 3.7+
+- jq (for JSON parsing in regression tests)
+- Docker (for dev environment)
 
-The workflow execution testing system verifies that n8n workflows execute successfully in real environments, not just that webhooks return HTTP 200. This catches runtime errors like missing node parameters, API failures, and logic bugs that static validation cannot detect.
+### Optional
+- Access to n8n API instance (for execution verification)
+- Valid N8N_API_KEY environment variable
+- SSH access to remote server (for prod DB snapshot)
 
-**Addresses:** [Issue #110](https://github.com/user/kairon/issues/110)
+---
 
-## Key Features
-
-### Execution Verification
-
-The `test-all-paths.sh` script provides:
-
-1. **Execution Status Polling** - Queries n8n API to check workflow execution status
-2. **Error Detection** - Extracts and reports workflow execution errors with n8n UI links
-3. **Timeout Handling** - Fails tests if workflows don't complete within timeout
-4. **CI/CD Integration** - Blocks deployments on execution failures
-
-### How It Works
-
-When `--verify-executions` is enabled:
-
-1. Test sends webhook request to n8n
-2. Records timestamp before sending
-3. Polls n8n API for recent executions matching timestamp + workflow name
-4. Monitors execution until completion (success/error) or timeout
-5. Reports results with detailed error messages and n8n UI links if failures occur
-
-## Usage
-
-### Basic Commands
-
-```bash
-# Dev environment - Run tests with execution verification
-./tools/test-all-paths.sh --dev --verify-executions
-
-# Production environment - Run tests with execution verification
-./tools/test-all-paths.sh --prod --verify-executions
-
-# Quick test with execution verification
-./tools/test-all-paths.sh --dev --quick --verify-executions
-
-# Verbose output (shows n8n UI links for successful executions)
-./tools/test-all-paths.sh --dev --verify-executions --verbose
-```
-
-### Authentication Setup
-
-Execution verification requires n8n API access. Setup varies by environment:
-
-#### Dev Environment
-
-**Method 1: API Key (Recommended)**
-
-1. Generate an API key in n8n UI (Settings → API)
-2. Add to `.env`:
-   ```bash
-   N8N_DEV_API_KEY=your-api-key-here
-   ```
-
-**Method 2: Session Cookie (Fallback)**
-
-1. Run deployment to generate session cookie:
-   ```bash
-   ./scripts/deploy.sh dev
-   ```
-2. Cookie is stored at `/tmp/n8n-dev-session.txt`
-
-#### Production Environment
-
-**API Key Required**
-
-1. Generate production API key in n8n UI
-2. Add to `.env`:
-   ```bash
-   N8N_API_URL=https://n8n.yourdomain.com
-   N8N_API_KEY=your-prod-api-key-here
-   ```
-
-**Note:** If authentication fails, the script shows a warning and continues with basic HTTP tests only.
-
-### CI/CD Integration
-
-Execution verification is integrated into the deployment pipeline (`scripts/deploy.sh`):
-
-```bash
-# Automatically enabled in deployment pipeline
-./scripts/deploy.sh dev    # Runs tests with --verify-executions
-./scripts/deploy.sh all    # Full pipeline with execution verification
-
-# Manual testing
-./tools/test-all-paths.sh --dev --verify-executions
-```
-
-**Deployment Stages:**
-1. **Stage 2a:** Mock tests with execution verification
-2. **Stage 2b:** Real API tests with execution verification
-
-If execution verification fails, deployment is blocked before reaching production.
-
-## Implementation Details
-
-### Core Functions
-
-- `n8n_api_call()` - Authenticated API requests to n8n
-- `get_recent_executions()` - Fetch recent workflow executions
-- `get_execution()` - Get detailed execution data
-- `verify_execution()` - Poll and verify execution status
-
-### API Endpoints Used
-
-- `GET /rest/executions?limit=N` - List recent executions
-- `GET /rest/executions/{id}?includeData=true` - Get execution details
-
-### Execution Matching
-
-Executions are matched by:
-1. **Workflow name** - "Route_Event" (main entry workflow)
-2. **Timestamp** - Must start after webhook was sent
-3. **Recency** - Gets most recent matching execution
-
-### Timeout Behavior
-
-- **Default timeout:** 30 seconds per test
-- **Configurable:** Can be adjusted in `verify_execution()` function
-- **On timeout:** Test fails and reports last known status
-
-### Enhanced Error Reporting
-
-Failed executions display:
-- Execution ID
-- Failed node name
-- Error message
-- Direct link to execution in n8n UI (format: `http://localhost:5679/execution/<id>`)
-
-Example error output:
-```
-✗ Test: Activity extraction: Execution failed (ID: abc123)
-    Error in node: LLM Agent
-    Message: API rate limit exceeded
-    View in n8n: http://localhost:5679/execution/abc123
-```
-
-## Prerequisites
-
-Before using execution verification:
-
-1. **jq installed** - Required for JSON parsing
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get install jq
-   
-   # macOS
-   brew install jq
-   
-   # Verify installation
-   jq --version
-   ```
-
-2. **Docker environment running** (for dev)
-   ```bash
-   docker-compose -f docker-compose.dev.yml up -d
-   ```
-
-3. **n8n API authentication** (see Authentication Setup above)
-
-## Testing Example
-
-```bash
-# 1. Ensure dev environment is running
-docker-compose -f docker-compose.dev.yml up -d
-
-# 2. Setup API authentication
-# Add N8N_DEV_API_KEY to .env OR run:
-./scripts/deploy.sh dev
-
-# 3. Run tests with execution verification
-./tools/test-all-paths.sh --dev --quick --verify-executions --verbose
-
-# 4. Verify it catches errors by introducing a bug in a workflow
-```
-
-## Troubleshooting
-
-### "Cannot access n8n API" warning
-
-**Cause:** Authentication failed or API not accessible
-
-**Solutions:**
-1. Check `N8N_DEV_API_KEY` in `.env`
-2. Regenerate session cookie: `./scripts/deploy.sh dev`
-3. Verify n8n is running: `docker ps | grep n8n-dev`
-4. Check n8n API is enabled: `docker exec n8n-dev-local env | grep N8N_API_ENABLED`
-
-### "No execution found for workflow" warning
-
-**Cause:** Workflow execution not found or completed before polling started
-
-**Solutions:**
-1. Normal for some test cases (async workflows, edge cases)
-2. Not a test failure - just informational
-3. Can be ignored unless many tests show this
-
-### Execution timeouts
-
-**Cause:** Workflow taking longer than 30 seconds
-
-**Solutions:**
-1. Check n8n logs: `docker logs n8n-dev-local`
-2. Verify workflow isn't stuck: Check n8n UI
-3. Increase timeout in `verify_execution()` if needed
-
-## Current Limitations
-
-1. **Authentication:** Requires manual API key setup in `.env`
-2. **Route_Event only:** Only verifies main workflow, not downstream workflows
-3. **No database correlation:** Execution IDs not yet linked to traces table (requires workflow changes)
-
-## Future Enhancements (Execution Testing)
-
-1. **Database correlation** - Link execution IDs to traces table for better tracking (requires workflow modifications)
-2. **Downstream workflow verification** - Verify not just Route_Event but all triggered workflows
-3. **Execution performance metrics** - Track and report workflow execution times
-
-## Related Tools
+# Related Tools
 
 - `scripts/workflows/inspect_execution.py` - Execution inspection tool
-- `tools/test-all-paths.sh` - Comprehensive path testing script
+- `scripts/testing/regression_test.sh` - Regression testing framework
 - `scripts/deploy.sh` - Deployment pipeline with integrated testing
+- `tools/kairon-ops.sh` - Operations and DB queries
+
+---
+
+# Future Enhancements
+
+## Regression Testing
+1. **Cross-workflow tests** - Test workflow chains, not just individual workflows
+2. **Performance benchmarks** - Track workflow execution times
+3. **Automated payload generation** - Suggest test cases based on workflow structure
+4. **Visual test reports** - HTML reports with execution details
+
+## Structural Validation
+1. **n8n UI Compatibility Testing** - Browser automation to test workflow editor loading
+2. **API Endpoint Integration** - Use n8n's internal validation APIs when available
+3. **Parallel Validation** - Optimize validation speed for large workflow sets
+4. **UI Error Prevention** - Catch "Could not find property option" errors before production
+5. **Enhanced Error Reporting** - Auto-fix suggestions and detailed remediation steps
