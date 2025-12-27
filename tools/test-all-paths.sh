@@ -83,8 +83,8 @@ get_recent_executions() {
     local limit="${1:-50}"
     local since_timestamp="$2"
     
-    # Get recent executions
-    local response=$(n8n_api_call "/api/v1/executions?limit=$limit")
+    # Get recent executions (use REST API, not public API v1)
+    local response=$(n8n_api_call "/rest/executions?limit=$limit")
     
     if [ -z "$response" ] || [ "$response" = "null" ]; then
         echo "[]"
@@ -94,16 +94,16 @@ get_recent_executions() {
     # Filter by timestamp if provided (ISO 8601 format)
     if [ -n "$since_timestamp" ]; then
         echo "$response" | jq --arg ts "$since_timestamp" \
-            '.data | map(select(.startedAt >= $ts))'
+            '.data.results | map(select(.startedAt >= $ts))'
     else
-        echo "$response" | jq '.data'
+        echo "$response" | jq '.data.results'
     fi
 }
 
 # Get execution details by ID
 get_execution() {
     local exec_id="$1"
-    n8n_api_call "/api/v1/executions/${exec_id}?includeData=true"
+    n8n_api_call "/rest/executions/${exec_id}?includeData=true"
 }
 
 # Wait for execution to complete and verify status
@@ -132,7 +132,7 @@ verify_execution() {
         # Find execution matching workflow name
         exec_id=$(echo "$executions" | jq -r \
             --arg wf "$workflow_name" \
-            'map(select(.workflowData.name == $wf)) | .[0].id // empty')
+            'map(select(.workflowName == $wf)) | .[0].id // empty')
         
         if [ -n "$exec_id" ] && [ "$exec_id" != "null" ]; then
             break
@@ -158,7 +158,7 @@ verify_execution() {
             return 1
         fi
         
-        status=$(echo "$exec_data" | jq -r '.status // empty')
+        status=$(echo "$exec_data" | jq -r '.data.status // empty')
         
         case "$status" in
             success)
@@ -168,9 +168,9 @@ verify_execution() {
             error)
                 # Extract error details
                 local error_msg=$(echo "$exec_data" | jq -r \
-                    '.data.resultData.error.message // "Unknown error"')
+                    '.data.data.resultData.error.message // "Unknown error"')
                 local last_node=$(echo "$exec_data" | jq -r \
-                    '.data.resultData.lastNodeExecuted // "Unknown node"')
+                    '.data.data.resultData.lastNodeExecuted // "Unknown node"')
                 
                 log_fail "$description: Execution failed (ID: $exec_id)"
                 echo -e "${RED}    Error in node: $last_node${NC}" >&2
@@ -351,7 +351,7 @@ if [ "$DEV_MODE" = true ]; then
         fi
         
         # Verify API access
-        if ! n8n_api_call "/api/v1/workflows?limit=1" | jq -e '.data' > /dev/null 2>&1; then
+        if ! n8n_api_call "/rest/workflows?limit=1" | jq -e '.data' > /dev/null 2>&1; then
             echo -e "${YELLOW}WARNING: Cannot access n8n API - execution verification disabled${NC}"
             echo "  This may be due to invalid/missing API key or cookie authentication"
             echo "  Continuing with basic HTTP status tests only..."
