@@ -405,8 +405,8 @@ deploy_dev() {
             done
         fi
 
-        WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="$API_KEY" \
-            N8N_DEV_COOKIE_FILE="$N8N_DEV_COOKIE_FILE" \
+        WORKFLOW_DIR="$TEMP_DIR" N8N_API_URL="$API_URL" N8N_API_KEY="${API_KEY:-}" \
+            N8N_DEV_COOKIE_FILE="${N8N_DEV_COOKIE_FILE:-}" \
             "$SCRIPT_DIR/workflows/n8n-push-local.sh" > "$DEPLOY_LOG" 2>&1
     } || {
         echo "❌ FAILED"
