@@ -1672,17 +1672,6 @@
         ]
       ]
     },
-    "FormatGetResponse": {
-      "main": [
-        [
-          {
-            "node": "SendResponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "FormatSetResponse": {
       "main": [
         [
@@ -2128,6 +2117,17 @@
         [
           {
             "node": "QueryGetConfig",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareGetResponse": {
+      "main": [
+        [
+          {
+            "node": "SendResponse",
             "type": "main",
             "index": 0
           }
