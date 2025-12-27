@@ -87,6 +87,32 @@ TESTING_DB_NAME="${DB_NAME:-kairon}"
 TESTING_DB_CONTAINER="${CONTAINER_DB:-postgres-dev-local}"
 TESTING_WEBHOOK_PATH="${WEBHOOK_PATH:-asoiaf3947}"
 
+# Timing and limit constants
+readonly WORKFLOW_EXECUTION_TIMEOUT_SECONDS=15
+readonly EXECUTION_HISTORY_LIMIT=20
+readonly PROJECTION_LOOKUP_WINDOW_SECONDS=10
+
+# Validate environment variables
+validate_env() {
+    local errors=0
+    
+    if ! [[ "$TESTING_DB_NAME" =~ ^[a-zA-Z0-9_]+$ ]]; then
+        log_error "Invalid DB_NAME format: $TESTING_DB_NAME (must be alphanumeric + underscore)"
+        errors=$((errors + 1))
+    fi
+    
+    if ! [[ "$TESTING_DB_USER" =~ ^[a-zA-Z0-9_]+$ ]]; then
+        log_error "Invalid DB_USER format: $TESTING_DB_USER (must be alphanumeric + underscore)"
+        errors=$((errors + 1))
+    fi
+    
+    if [ $errors -gt 0 ]; then
+        exit 1
+    fi
+}
+
+validate_env
+
 # Counters
 TOTAL_TESTS=0
 PASSED_TESTS=0
@@ -281,18 +307,34 @@ run_test_case() {
     # Check if webhook returned error (e.g., 404)
     if echo "$response" | jq -e '(.code // 200) >= 400' 2>/dev/null; then
         log_fail "$test_name: Webhook failed - $response"
-        local webhook_path="${WEBHOOK_PATH:-asoiaf92746087}"
-        log_info "Expected webhook path: $webhook_path (from WEBHOOK_PATH env var)"
+        log_info "Expected webhook path: $TESTING_WEBHOOK_PATH (from WEBHOOK_PATH env var, dev default: asoiaf3947)"
         log_info "Actual webhook URL: $webhook_url"
         log_info "Check that Route_Event workflow is active and uses this webhook path"
         return 1
     fi
 
-    # Wait for execution
-    sleep 3
+    # Wait for execution with polling
+    local max_wait=$WORKFLOW_EXECUTION_TIMEOUT_SECONDS
+    local wait_count=0
+    local exec_data=""
 
-    # Find execution
-    local exec_data=$(get_execution "$test_timestamp" "$workflow")
+    log_info "Waiting for workflow execution..."
+    while [ $wait_count -lt $max_wait ]; do
+        sleep 1
+        exec_data=$(get_execution "$test_timestamp" "$workflow")
+        if [ -n "$exec_data" ] && [ "$exec_data" != "null" ]; then
+            log_info "Execution found after ${wait_count}s"
+            break
+        fi
+        ((wait_count++))
+    done
+
+    if [ $wait_count -ge $max_wait ]; then
+        log_fail "$test_name: Execution timeout (${max_wait}s) - workflow may be slow or failed"
+        log_info "Timestamp: $test_timestamp"
+        log_info "Workflow: $workflow"
+        return 1
+    fi
 
     if [ -z "$exec_data" ] || [ "$exec_data" = "null" ]; then
         log_fail "$test_name: No execution found"
@@ -355,7 +397,7 @@ run_test_case() {
         local actual_json=$(docker exec "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" -t -A -c \
             "SELECT json_agg(DISTINCT projection_type ORDER BY projection_type)
              FROM projections
-             WHERE created_at > NOW() - INTERVAL '10 seconds';" 2>/dev/null | jq -c '. // []')
+             WHERE created_at > NOW() - INTERVAL '${PROJECTION_LOOKUP_WINDOW_SECONDS} seconds';" 2>/dev/null | jq -c '. // []')
 
         log_info "Projection types: $(echo "$actual_json" | jq -r '. | join(", ")')"
 
@@ -397,10 +439,10 @@ get_execution() {
     # Get recent executions
     if [ "$use_cookie" = true ]; then
         executions=$(curl -s -b "$cookie_file" \
-            "$api_url/rest/executions?limit=20" | jq '.data.results // []')
+            "$api_url/rest/executions?limit=$EXECUTION_HISTORY_LIMIT" | jq '.data.results // []')
     elif [ -n "${N8N_DEV_API_KEY:-}" ]; then
         executions=$(curl -s -H "X-N8N-API-KEY: $N8N_DEV_API_KEY" \
-            "$api_url/api/v1/executions?limit=20" | jq '.data // []')
+            "$api_url/api/v1/executions?limit=$EXECUTION_HISTORY_LIMIT" | jq '.data // []')
     else
         return
     fi
