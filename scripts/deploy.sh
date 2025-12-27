@@ -205,6 +205,16 @@ setup_local_dev() {
             \"password\": \"$N8N_OWNER_PASSWORD\"
         }" > /dev/null
     
+    # Restrict cookie file permissions (contains session token)
+    chmod 600 "$cookie_file"
+    
+    # Verify cookie authentication works
+    if ! curl -s -b "$cookie_file" "$N8N_URL/rest/workflows?take=1" | jq -e '.data' > /dev/null 2>&1; then
+        echo "❌ Cookie authentication failed"
+        echo "   Check n8n credentials in .env"
+        return 1
+    fi
+    
     # Export the cookie file path to be used by deployment scripts
     export N8N_DEV_COOKIE_FILE="$cookie_file"
     echo "✅ Authentication configured"
