@@ -24,6 +24,7 @@ QUICK_MODE=false
 VERIFY_DB=false
 VERIFY_EXECUTIONS=false
 DEV_MODE=false
+PROD_MODE=false
 QUIET_MODE=true
 NO_MOCKS=false
 N8N_API_URL=""
@@ -162,7 +163,13 @@ verify_execution() {
         
         case "$status" in
             success)
-                log_pass "$description: Execution completed successfully (ID: $exec_id)"
+                # n8n UI URL format: /execution/<execution-id>
+                local n8n_ui_url="${N8N_API_URL}/execution/${exec_id}"
+                if [ "$QUIET_MODE" = false ]; then
+                    log_pass "$description: Execution completed successfully (ID: $exec_id, View: $n8n_ui_url)"
+                else
+                    log_pass "$description: Execution completed successfully (ID: $exec_id)"
+                fi
                 return 0
                 ;;
             error)
@@ -172,9 +179,13 @@ verify_execution() {
                 local last_node=$(echo "$exec_data" | jq -r \
                     '.data.data.resultData.lastNodeExecuted // "Unknown node"')
                 
+                # Generate n8n UI link for execution (format: /execution/<execution-id>)
+                local n8n_ui_url="${N8N_API_URL}/execution/${exec_id}"
+                
                 log_fail "$description: Execution failed (ID: $exec_id)"
                 echo -e "${RED}    Error in node: $last_node${NC}" >&2
                 echo -e "${RED}    Message: $error_msg${NC}" >&2
+                echo -e "${YELLOW}    View in n8n: $n8n_ui_url${NC}" >&2
                 return 1
                 ;;
             running|waiting)
@@ -284,6 +295,7 @@ while [[ "$#" -gt 0 ]]; do
         --verify-db) VERIFY_DB=true ;;
         --verify-executions) VERIFY_EXECUTIONS=true ;;
         --dev) DEV_MODE=true ;;
+        --prod) PROD_MODE=true ;;
         --no-mocks) NO_MOCKS=true ;;
         --verbose) QUIET_MODE=false ;;
         --webhook) WEBHOOK="$2"; shift ;;
@@ -297,6 +309,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --verify-db           Verify database after tests"
             echo "  --verify-executions   Verify n8n workflow executions (requires API access)"
             echo "  --dev                 Run against dev environment (port 5679)"
+            echo "  --prod                Run against prod environment (port 5678)"
             echo "  --no-mocks            Indicate that tests are running against real APIs"
             echo "  --verbose             Show full output (default is silent on success)"
             echo "  --webhook URL         Use custom webhook URL"
@@ -366,6 +379,43 @@ if [ "$DEV_MODE" = true ]; then
     else
         log_info "Running in DEV mode (port 5679) with MOCK APIs"
     fi
+fi
+
+if [ "$PROD_MODE" = true ]; then
+    # Production mode uses N8N_WEBHOOK_URL from .env or environment
+    if [ -f "$PROJECT_ROOT/.env" ]; then
+        PROD_WEBHOOK_URL=$(grep "^N8N_WEBHOOK_URL=" "$PROJECT_ROOT/.env" | cut -d= -f2- | tr -d '"'\''')
+        if [ -n "$PROD_WEBHOOK_URL" ] && [[ "$PROD_WEBHOOK_URL" != *"your-n8n-domain"* ]]; then
+            WEBHOOK="$PROD_WEBHOOK_URL"
+        fi
+    fi
+    
+    # Setup execution verification if enabled
+    if [ "$VERIFY_EXECUTIONS" = true ]; then
+        # Load production API URL and key from .env
+        if [ -f "$PROJECT_ROOT/.env" ]; then
+            N8N_API_URL=$(grep "^N8N_API_URL=" "$PROJECT_ROOT/.env" | cut -d= -f2- | tr -d '"'\''')
+            N8N_API_KEY=$(grep "^N8N_API_KEY=" "$PROJECT_ROOT/.env" | cut -d= -f2- | tr -d '"'\''')
+        fi
+        
+        # Validate production API access
+        if [ -z "$N8N_API_URL" ] || [ -z "$N8N_API_KEY" ]; then
+            echo -e "${RED}ERROR: Production execution verification requires N8N_API_URL and N8N_API_KEY in .env${NC}"
+            exit 1
+        fi
+        
+        # Verify API access
+        if ! n8n_api_call "/rest/workflows?limit=1" | jq -e '.data' > /dev/null 2>&1; then
+            echo -e "${YELLOW}WARNING: Cannot access production n8n API - execution verification disabled${NC}"
+            echo "  Check N8N_API_KEY and N8N_API_URL in .env"
+            echo "  Continuing with basic HTTP status tests only..."
+            VERIFY_EXECUTIONS=false
+        else
+            log_info "Production execution verification enabled (using API key auth)"
+        fi
+    fi
+    
+    log_info "Running in PROD mode against $WEBHOOK"
 fi
 
 
