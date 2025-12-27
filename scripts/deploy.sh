@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+
 # deploy.sh - Deploy workflows to dev and prod with testing
 #
 # This is the MAIN ENTRY POINT for n8n workflow deployment.
@@ -229,8 +231,9 @@ setup_n8n_credentials() {
     local DB_NAME="${DB_NAME:-kairon_dev}"
     local DB_HOST="postgres-dev-local"  # Docker network hostname
     
-    # Production credential ID - workflows reference this ID
-    local POSTGRES_CRED_ID="GIpVtzgs3wiCmQBQ"
+    # Credential ID that workflows reference (safe to be in version control)
+    # This is just an ID reference - actual credentials are stored encrypted in n8n
+    local POSTGRES_CRED_ID="${N8N_POSTGRES_CREDENTIAL_ID:-GIpVtzgs3wiCmQBQ}"
     
     # Create credential JSON file
     local CRED_FILE=$(mktemp)
@@ -317,14 +320,31 @@ deploy_dev() {
     # We map cachedResultName (workflow name) to existing dev workflow ID
     echo "   Building workflow ID mapping..."
     
-    # Get existing dev workflow IDs
+    # Get existing dev workflow IDs and validate count
     local DEV_WORKFLOW_IDS
+    local WORKFLOW_COUNT
     if [ -n "$N8N_DEV_COOKIE_FILE" ] && [ -f "$N8N_DEV_COOKIE_FILE" ]; then
-        DEV_WORKFLOW_IDS=$(curl -s -b "$N8N_DEV_COOKIE_FILE" "$API_URL/rest/workflows?take=100" | jq -c '[.data[]? | {(.name): .id}] | add // {}')
+        local RESPONSE=$(curl -s -b "$N8N_DEV_COOKIE_FILE" "$API_URL/rest/workflows?take=100")
+        DEV_WORKFLOW_IDS=$(echo "$RESPONSE" | jq -c '[.data[]? | {(.name): .id}] | add // {}')
+        WORKFLOW_COUNT=$(echo "$RESPONSE" | jq '.data | length')
     elif [ -n "$API_KEY" ]; then
-        DEV_WORKFLOW_IDS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" "$API_URL/rest/workflows?take=100" | jq -c '[.data[]? | {(.name): .id}] | add // {}')
+        local RESPONSE=$(curl -s -H "X-N8N-API-KEY: $API_KEY" "$API_URL/rest/workflows?take=100")
+        DEV_WORKFLOW_IDS=$(echo "$RESPONSE" | jq -c '[.data[]? | {(.name): .id}] | add // {}')
+        WORKFLOW_COUNT=$(echo "$RESPONSE" | jq '.data | length')
     else
         DEV_WORKFLOW_IDS='{}'
+        WORKFLOW_COUNT=0
+    fi
+    
+    # Warn if approaching or at the 100-workflow limit
+    if [ "$WORKFLOW_COUNT" -eq 100 ]; then
+        echo ""
+        echo "⚠️  WARNING: Exactly 100 workflows detected!"
+        echo "   The workflow ID mapping may be incomplete if more workflows exist."
+        echo "   Consider implementing pagination in scripts/deploy.sh:325"
+        echo ""
+    elif [ "$WORKFLOW_COUNT" -gt 90 ]; then
+        echo "   Note: $WORKFLOW_COUNT workflows found (approaching 100-workflow limit)"
     fi
     
     # Build mapping from production IDs to dev IDs

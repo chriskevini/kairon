@@ -1,12 +1,12 @@
 #!/bin/bash
+set -euo pipefail
+
 # n8n-push-local.sh - Push workflows to a local n8n instance via API
 #
 # Usage:
 #   WORKFLOW_DIR=/path/to/workflows N8N_API_URL=http://localhost:5679 N8N_API_KEY=xxx ./n8n-push-local.sh
 #
 # This is a simplified version for local dev deployment (no SSH)
-
-set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -49,6 +49,16 @@ REMOTE_WORKFLOWS=$(echo "$RESPONSE" | jq -r '.data? // []')
 if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "null" ]; then
     echo "Error: Failed to fetch workflows. Check API key and connectivity."
     exit 1
+fi
+
+# Check if we hit the 100-workflow limit
+WORKFLOW_COUNT=$(echo "$REMOTE_WORKFLOWS" | jq 'length')
+if [ "$WORKFLOW_COUNT" -eq 100 ]; then
+    echo ""
+    echo "⚠️  WARNING: Exactly 100 workflows fetched!"
+    echo "   There may be more workflows that weren't retrieved."
+    echo "   Consider implementing pagination in n8n-push-local.sh:46"
+    echo ""
 fi
 
 # Build lookup map: name -> id
