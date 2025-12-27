@@ -92,12 +92,13 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
     fi
     
     # Clean workflow JSON - only include fields the API accepts
-    # Don't include 'active' here - we handle activation separately to avoid validation issues
+    # Include 'active' field to satisfy SQLite NOT NULL constraint
     cleaned=$(jq '{
         name: .name,
         nodes: .nodes,
         connections: .connections,
-        settings: {}
+        settings: {},
+        active: (.active // false)
     }' "$json_file")
     
     existing_id="${WORKFLOW_IDS[$name]:-}"
@@ -112,17 +113,6 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
         if echo "$result" | jq -e '.data.id' > /dev/null 2>&1; then
             echo "   Updated: $name (id: $existing_id)"
             UPDATED=$((UPDATED + 1))
-            
-            # Activate if needed - failures are non-fatal (some workflows can't be activated in dev)
-            if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
-                activation_result=$(curl_auth -X PATCH \
-                    -H "Content-Type: application/json" \
-                    -d '{"active": true}' \
-                    "$N8N_API_URL/rest/workflows/$existing_id" 2>&1)
-                if echo "$activation_result" | jq -e '.code' > /dev/null 2>&1; then
-                    echo "     Warning: Could not activate (non-fatal)"
-                fi
-            fi
         else
             echo "   Failed to update: $name"
             echo "     Error: $(echo "$result" | jq -r '.message // .')"
@@ -139,17 +129,6 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
         if [ -n "$new_id" ]; then
             echo "   Created: $name (id: $new_id)"
             CREATED=$((CREATED + 1))
-            
-            # Activate if needed - failures are non-fatal (some workflows can't be activated in dev)
-            if [ "$(jq -r '.active' "$json_file")" = "true" ]; then
-                activation_result=$(curl_auth -X PATCH \
-                    -H "Content-Type: application/json" \
-                    -d '{"active": true}' \
-                    "$N8N_API_URL/rest/workflows/$new_id" 2>&1)
-                if echo "$activation_result" | jq -e '.code' > /dev/null 2>&1; then
-                    echo "     Warning: Could not activate (non-fatal)"
-                fi
-            fi
         else
             echo "   Failed to create: $name"
             echo "     Error: $(echo "$result" | jq -r '.message // .')"
