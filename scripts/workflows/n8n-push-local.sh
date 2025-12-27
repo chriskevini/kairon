@@ -94,12 +94,12 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
     
     if [ -n "$existing_id" ]; then
         # Update existing workflow
-        result=$(echo "$cleaned" | curl_auth -X PUT \
+        result=$(echo "$cleaned" | curl_auth -X PATCH \
             -H "Content-Type: application/json" \
             "$N8N_API_URL/rest/workflows/$existing_id" \
             -d @-)
         
-        if echo "$result" | jq -e '.id' > /dev/null 2>&1; then
+        if echo "$result" | jq -e '.data.id' > /dev/null 2>&1; then
             echo "   Updated: $name (id: $existing_id)"
             UPDATED=$((UPDATED + 1))
             
@@ -120,7 +120,7 @@ for json_file in "$WORKFLOW_DIR"/*.json; do
             "$N8N_API_URL/rest/workflows" \
             -d @-)
         
-        new_id=$(echo "$result" | jq -r '.id // empty')
+        new_id=$(echo "$result" | jq -r '.data.id // empty')
         if [ -n "$new_id" ]; then
             echo "   Created: $name (id: $new_id)"
             CREATED=$((CREATED + 1))
