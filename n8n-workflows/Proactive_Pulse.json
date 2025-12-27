@@ -2,11 +2,121 @@
   "updatedAt": "2025-12-24T08:53:15.162Z",
   "createdAt": "2025-12-23T09:30:30.116Z",
   "id": "lnxlZ8AFe7LhMMEA",
-  "name": "Proactive_Agent",
+  "name": "Proactive_Pulse",
   "description": null,
   "active": false,
-  "isArchived": true,
+  "isArchived": false,
   "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -400
+      ],
+      "id": "schedule-trigger-pulse",
+      "name": "Every5Minutes"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Get next_pulse timestamp and current time\nSELECT \n  COALESCE(\n    (SELECT value::timestamptz FROM config WHERE key = 'next_pulse'),\n    NOW() - INTERVAL '1 minute'\n  ) as next_pulse,\n  NOW() as current_time,\n  COALESCE(\n    (SELECT value::timestamptz FROM config WHERE key = 'next_pulse'),\n    NOW() - INTERVAL '1 minute'\n  ) <= NOW() as should_run;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        -400
+      ],
+      "id": "check-next-pulse-timing",
+      "name": "CheckNextPulse",
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "check-should-run-condition",
+              "leftValue": "={{ $json.should_run }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        -400
+      ],
+      "id": "should-run-check",
+      "name": "ShouldRunPulse?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Set next_pulse to 2 hours from now (default interval)\n-- Proactive_Pulse can override this based on context\nUPDATE config \nSET value = (NOW() + INTERVAL '2 hours')::text, updated_at = NOW()\nWHERE key = 'next_pulse';\n\n-- If no row exists, insert one\nINSERT INTO config (key, value)\nVALUES ('next_pulse', (NOW() + INTERVAL '2 hours')::text)\nON CONFLICT (key) DO NOTHING;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        -480
+      ],
+      "id": "set-default-next-pulse",
+      "name": "SetDefaultNextPulse",
+      "credentials": {
+        "postgres": {
+          "id": "GIpVtzgs3wiCmQBQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data from schedule trigger\nreturn [{\n  json: {\n    trigger_reason: 'cron'\n  }\n}];",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -480
+      ],
+      "id": "prepare-cron-trigger-data",
+      "name": "PrepareCronData"
+    },
     {
       "parameters": {},
       "type": "n8n-nodes-base.executeWorkflowTrigger",
@@ -26,7 +136,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
+        1568,
         0
       ],
       "id": "prepare-event",
@@ -35,15 +145,15 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Insert system event for proactive agent\nINSERT INTO events (idempotency_key, event_type, payload, timezone)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'proactive_agent',\n    'trigger_reason', $2\n  ),\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id, timezone = EXCLUDED.timezone\nRETURNING id, timezone;",
+        "query": "-- Insert system event for proactive agent\nINSERT INTO events (idempotency_key, event_type, payload, timezone)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'proactive_agent',\n    'trigger_reason', $2,\n    'timestamp', $3\n  ),\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id, timezone = EXCLUDED.timezone\nRETURNING id, timezone, payload->>'trigger_reason' as trigger_reason, payload->>'timestamp' as timestamp;",
         "options": {
-          "values": "{{ $json.idempotency_key }},{{ $json.trigger_reason }}"
+          "values": "{{ $json.idempotency_key }},{{ $json.trigger_reason }},{{ $json.timestamp }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        448,
+        1792,
         0
       ],
       "id": "insert-event",
@@ -57,13 +167,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\n// Note: Using direct reference to PrepareEvent for archived workflow\nconst prepareData = $('PrepareEvent').first().json;\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'proactive_agent',\n        trigger_reason: prepareData.trigger_reason,\n        timestamp: prepareData.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id],\n        trace_chain_pg: `{${eventResult.id}}`\n      },\n      db_queries: [{\n        key: 'history',\n        sql: `\n          (SELECT 'user' as role, payload->>'clean_text' as content, received_at as timestamp\n           FROM events \n           WHERE event_type = 'discord_message'\n           ORDER BY received_at DESC LIMIT 5)\n          UNION ALL\n          (SELECT 'assistant' as role, data->>'message' as content, created_at as timestamp\n           FROM projections\n           WHERE projection_type IN ('nudge', 'pulse')\n           ORDER BY created_at DESC LIMIT 5)\n          ORDER BY timestamp DESC\n          LIMIT 5;\n        `,\n        params: []\n      }]\n    }\n  }\n};",
+        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'proactive_agent',\n        trigger_reason: eventResult.trigger_reason,\n        timestamp: eventResult.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id],\n        trace_chain_pg: `{${eventResult.id}}`\n      },\n      db_queries: [{\n        key: 'history',\n        sql: `\n          (SELECT 'user' as role, payload->>'clean_text' as content, received_at as timestamp\n           FROM events \n           WHERE event_type = 'discord_message'\n           ORDER BY received_at DESC LIMIT 5)\n          UNION ALL\n          (SELECT 'assistant' as role, data->>'message' as content, created_at as timestamp\n           FROM projections\n           WHERE projection_type IN ('pulse')\n           ORDER BY created_at DESC LIMIT 5)\n          ORDER BY timestamp DESC\n          LIMIT 5;\n        `,\n        params: []\n      }]\n    }\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
+        2016,
         0
       ],
       "id": "init-ctx",
@@ -78,7 +188,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        896,
+        2240,
         -288
       ],
       "id": "get-prompt-modules",
@@ -100,7 +210,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        896,
+        2240,
         -96
       ],
       "id": "get-north-star",
@@ -122,7 +232,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        896,
+        2240,
         96
       ],
       "id": "get-recent-activities",
@@ -144,7 +254,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        896,
+        2240,
         288
       ],
       "id": "get-recent-notes",
@@ -166,7 +276,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        896,
+        2240,
         480
       ],
       "id": "get-pending-todos",
@@ -187,7 +297,7 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        1120,
+        2464,
         0
       ],
       "id": "merge-query-results",
@@ -201,7 +311,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1344,
+        2688,
         0
       ],
       "id": "build-context-summary",
@@ -221,7 +331,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1568,
+        2912,
         0
       ],
       "id": "semantic-select-techniques",
@@ -242,7 +352,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1568,
+        2912,
         192
       ],
       "id": "embed-context-for-rag",
@@ -257,7 +367,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1792,
+        3136,
         192
       ],
       "id": "prepare-embedding-for-rag",
@@ -274,7 +384,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2016,
+        3360,
         192
       ],
       "id": "rag-similar-projections",
@@ -296,7 +406,7 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        1792,
+        3136,
         96
       ],
       "id": "merge-semantic-results",
@@ -305,12 +415,12 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Assemble prompt from modules and context with semantic selection\nconst allItems = $input.all();\n\n// Find the context summary item (has ctx and all_items)\nlet contextData = null;\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.all_items) {\n    contextData = item.json;\n    break;\n  }\n}\n\nif (!contextData) {\n  throw new Error('Context data not found in merged items');\n}\n\nconst ctx = contextData.ctx;\nconst originalItems = contextData.all_items;\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Extract semantic selection results\nlet semanticMatches = [];\nfor (const item of allItems) {\n  if (item.json.results) {\n    semanticMatches = item.json.results;\n    break;\n  }\n}\n\n// Extract conversational history\nlet history = [];\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.ctx.db && item.json.ctx.db.history) {\n    history = item.json.ctx.db.history.rows || [];\n    break;\n  }\n}\n\n// Extract RAG results (similar projections)\nlet ragResults = [];\nfor (const item of allItems) {\n  if (item.json.projection_type !== undefined && item.json.distance !== undefined) {\n    ragResults.push(item.json);\n  }\n}\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\nconst formatDate = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      timeZone: timezone, \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  }\n};\n\n// Get current hour in user's timezone\nconst now = new Date();\nlet currentHour;\ntry {\n  currentHour = parseInt(now.toLocaleTimeString('en-US', { \n    timeZone: timezone, \n    hour: 'numeric', \n    hour12: false \n  }));\n} catch (e) {\n  currentHour = now.getHours();\n}\n\n// Determine time of day for fallback technique selection\nconst isMorning = currentHour >= 6 && currentHour <= 9;\nconst isEvening = currentHour >= 20 && currentHour <= 23;\n\n// Extract prompt modules from original items\nconst modules = originalItems.filter(item => \n  item.module_type !== undefined\n);\n\n// Extract north star\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = originalItems.filter(item => \n  item.value !== undefined && \n  item.module_type === undefined\n);\nif (northStarItems.length > 0 && northStarItems[0].value) {\n  northStar = northStarItems[0].value;\n}\n\n// Extract activities\nconst activityItems = originalItems.filter(item => \n  item.description !== undefined && \n  !item.error\n);\n\n// Extract notes\nconst noteItems = originalItems.filter(item => \n  item.text !== undefined && \n  item.description === undefined &&\n  item.days_pending === undefined &&\n  !item.error\n);\n\n// Extract todos\nconst todoItems = originalItems.filter(item => \n  item.days_pending !== undefined && \n  !item.error\n);\n\n// Check for stuck todos (pending > 3 days)\nconst stuckTodos = todoItems.filter(t => t.days_pending > 3);\nconst hasStuckTodos = stuckTodos.length > 0;\n\n// Assemble prompt from modules\nconst promptParts = [];\n\n// 1. Always include persona modules (priority 0-10)\nconst personaModules = modules.filter(m => m.module_type === 'persona');\npersonaModules.forEach(m => promptParts.push(m.content));\n\n// 2. Select technique - prefer semantic matches, fall back to time/context based\nlet selectedTechniques = [];\nlet techniqueSource = 'none';\n\nif (semanticMatches.length > 0 && semanticMatches[0].score > 0.3) {\n  // Use semantically selected techniques (top 2 with score > 0.3)\n  selectedTechniques = semanticMatches\n    .filter(m => m.score > 0.3)\n    .slice(0, 2)\n    .map(m => m.text);\n  techniqueSource = 'semantic';\n} else {\n  // Fallback to time-based selection\n  if (isMorning) {\n    const morningTechnique = modules.find(m => m.name === 'technique_morning');\n    if (morningTechnique) selectedTechniques.push(morningTechnique.content);\n    techniqueSource = 'morning';\n  } else if (isEvening) {\n    const eveningTechnique = modules.find(m => m.name === 'technique_evening');\n    if (eveningTechnique) selectedTechniques.push(eveningTechnique.content);\n    techniqueSource = 'evening';\n  } else if (hasStuckTodos) {\n    const stuckTechnique = modules.find(m => m.name === 'technique_stuck_todo');\n    if (stuckTechnique) selectedTechniques.push(stuckTechnique.content);\n    techniqueSource = 'stuck_todo';\n  }\n}\n\nselectedTechniques.forEach(t => promptParts.push(t));\n\n// 3. Build context section\nlet contextSection = '## Current Context\\n\\n';\ncontextSection += `**Time:** ${formatDate(now.toISOString())} ${formatTime(now.toISOString())}\\n`;\ncontextSection += `**North Star:** ${northStar}\\n\\n`;\n\n// Add conversational history\nif (history.length > 0) {\n  contextSection += '### Recent Conversation\\n';\n  history.reverse().forEach(h => {\n    const role = h.role === 'user' ? 'User' : 'Kairon';\n    contextSection += `**${role}:** ${h.content}\\n`;\n  });\n  contextSection += '\\n';\n}\n\n// Format activities\ncontextSection += '### Recent Activities (last 24h)\\n';\nif (activityItems.length === 0) {\n  contextSection += '(No logged activity)\\n';\n} else {\n  activityItems.slice(0, 10).forEach(item => {\n    const time = formatTime(item.timestamp);\n    contextSection += `- ${time}: ${item.description} [${item.category}]\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format notes\ncontextSection += '### Recent Notes\\n';\nif (noteItems.length === 0) {\n  contextSection += '(No recent notes)\\n';\n} else {\n  noteItems.forEach(item => {\n    const date = formatDate(item.timestamp);\n    const preview = item.text.substring(0, 100) + (item.text.length > 100 ? '...' : '');\n    contextSection += `- ${date}: ${preview}\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format todos\ncontextSection += '### Pending Todos\\n';\nif (todoItems.length === 0) {\n  contextSection += '(No pending todos)\\n';\n} else {\n  todoItems.forEach(item => {\n    const daysStr = item.days_pending > 0 ? ` (${Math.floor(item.days_pending)} days)` : '';\n    contextSection += `- ${item.text}${daysStr}\\n`;\n  });\n}\n\n// 4. Add RAG context if available (similar past entries)\nif (ragResults.length > 0) {\n  contextSection += '\\n### Related Past Entries (for context)\\n';\n  ragResults.slice(0, 3).forEach(item => {\n    const date = item.timestamp ? formatDate(item.timestamp) : 'Unknown';\n    const content = item.content?.substring(0, 80) || 'No content';\n    contextSection += `- ${date}: ${content}${item.content?.length > 80 ? '...' : ''} [${item.projection_type}]\\n`;\n  });\n}\n\npromptParts.push(contextSection);\n\n// 5. Include format module\nconst formatModule = modules.find(m => m.module_type === 'format');\nif (formatModule) {\n  promptParts.push(formatModule.content);\n}\n\n// 6. Always include guardrail modules (priority 200+)\nconst guardrailModules = modules.filter(m => m.module_type === 'guardrail');\nguardrailModules.forEach(m => promptParts.push(m.content));\n\n// Assemble final prompt\nconst assembledPrompt = promptParts.join('\\n\\n---\\n\\n');\n\n// Determine the context description for the agent\nlet contextDescription = 'general check-in';\nif (isMorning) contextDescription = 'morning check-in';\nelse if (isEvening) contextDescription = 'evening reflection';\nelse if (hasStuckTodos) contextDescription = 'stuck todo nudge';\nelse if (activityItems.length === 0) contextDescription = 'no recent activity';\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\nreturn [{\n  json: {\n    ctx,\n    assembled_prompt: assembledPrompt,\n    context_description: contextDescription,\n    technique_source: techniqueSource,\n    techniques_used: selectedTechniques.length,\n    semantic_scores: semanticMatches.map(m => m.score),\n    rag_count: ragResults.length,\n    inference_start: Date.now(),\n    trace_chain_pg: traceChainPg,\n    // Metadata for trace storage\n    input_summary: {\n      activity_count: activityItems.length,\n      note_count: noteItems.length,\n      todo_count: todoItems.length,\n      stuck_todo_count: stuckTodos.length,\n      current_hour: currentHour,\n      is_morning: isMorning,\n      is_evening: isEvening,\n      technique_source: techniqueSource,\n      semantic_match_count: semanticMatches.length,\n      rag_result_count: ragResults.length\n    }\n  }\n}];"
+        "jsCode": "// Assemble prompt from modules and context with semantic selection\nconst allItems = $input.all();\n\n// Find the context summary item (has ctx and all_items)\nlet contextData = null;\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.all_items) {\n    contextData = item.json;\n    break;\n  }\n}\n\nif (!contextData) {\n  throw new Error('Context data not found in merged items');\n}\n\nconst ctx = contextData.ctx;\nconst originalItems = contextData.all_items;\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Extract semantic selection results\nlet semanticMatches = [];\nfor (const item of allItems) {\n  if (item.json.results) {\n    semanticMatches = item.json.results;\n    break;\n  }\n}\n\n// Extract conversational history\nlet history = [];\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.ctx.db && item.json.ctx.db.history) {\n    history = item.json.ctx.db.history.rows || [];\n    break;\n  }\n}\n\n// Extract RAG results (similar projections)\nlet ragResults = [];\nfor (const item of allItems) {\n  if (item.json.projection_type !== undefined && item.json.distance !== undefined) {\n    ragResults.push(item.json);\n  }\n}\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\nconst formatDate = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      timeZone: timezone, \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  }\n};\n\n// Get current hour in user's timezone\nconst now = new Date();\nlet currentHour;\ntry {\n  currentHour = parseInt(now.toLocaleTimeString('en-US', { \n    timeZone: timezone, \n    hour: 'numeric', \n    hour12: false \n  }));\n} catch (e) {\n  currentHour = now.getHours();\n}\n\n// Determine time of day for fallback technique selection\nconst isMorning = currentHour >= 6 && currentHour <= 9;\nconst isEvening = currentHour >= 20 && currentHour <= 23;\n\n// Extract prompt modules from original items\nconst modules = originalItems.filter(item => \n  item.module_type !== undefined\n);\n\n// Extract north star\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = originalItems.filter(item => \n  item.value !== undefined && \n  item.module_type === undefined\n);\nif (northStarItems.length > 0 && northStarItems[0].value) {\n  northStar = northStarItems[0].value;\n}\n\n// Extract activities\nconst activityItems = originalItems.filter(item => \n  item.description !== undefined && \n  !item.error\n);\n\n// Extract notes\nconst noteItems = originalItems.filter(item => \n  item.text !== undefined && \n  item.description === undefined &&\n  item.days_pending === undefined &&\n  !item.error\n);\n\n// Extract todos\nconst todoItems = originalItems.filter(item => \n  item.days_pending !== undefined && \n  !item.error\n);\n\n// Check for stuck todos (pending > 3 days)\nconst stuckTodos = todoItems.filter(t => t.days_pending > 3);\nconst hasStuckTodos = stuckTodos.length > 0;\n\n// Assemble prompt from modules\nconst promptParts = [];\n\n// 1. Always include persona modules (priority 0-10)\nconst personaModules = modules.filter(m => m.module_type === 'persona');\npersonaModules.forEach(m => promptParts.push(m.content));\n\n// 2. Select technique - prefer semantic matches, fall back to time/context based\nlet selectedTechniques = [];\nlet techniqueSource = 'none';\n\nif (semanticMatches.length > 0 && semanticMatches[0].score > 0.3) {\n  // Use semantically selected techniques (top 2 with score > 0.3)\n  selectedTechniques = semanticMatches\n    .filter(m => m.score > 0.3)\n    .slice(0, 2)\n    .map(m => m.text);\n  techniqueSource = 'semantic';\n} else {\n  // Fallback to time-based selection\n  if (isMorning) {\n    const morningTechnique = modules.find(m => m.name === 'technique_morning');\n    if (morningTechnique) selectedTechniques.push(morningTechnique.content);\n    techniqueSource = 'morning';\n  } else if (isEvening) {\n    const eveningTechnique = modules.find(m => m.name === 'technique_evening');\n    if (eveningTechnique) selectedTechniques.push(eveningTechnique.content);\n    techniqueSource = 'evening';\n  } else if (hasStuckTodos) {\n    const stuckTechnique = modules.find(m => m.name === 'technique_stuck_todo');\n    if (stuckTechnique) selectedTechniques.push(stuckTechnique.content);\n    techniqueSource = 'stuck_todo';\n  }\n}\n\nselectedTechniques.forEach(t => promptParts.push(t));\n\n// 3. Build context section\nlet contextSection = '## Current Context\\n\\n';\ncontextSection += `**Time:** ${formatDate(now.toISOString())} ${formatTime(now.toISOString())}\\n`;\ncontextSection += `**North Star:** ${northStar}\\n\\n`;\n\n// Add conversational history\nif (history.length > 0) {\n  contextSection += '### Recent Conversation\\n';\n  history.reverse().forEach(h => {\n    const role = h.role === 'user' ? 'User' : 'Kairon';\n    contextSection += `**${role}:** ${h.content}\\n`;\n  });\n  contextSection += '\\n';\n}\n\n// Format activities\ncontextSection += '### Recent Activities (last 24h)\\n';\nif (activityItems.length === 0) {\n  contextSection += '(No logged activity)\\n';\n} else {\n  activityItems.slice(0, 10).forEach(item => {\n    const time = formatTime(item.timestamp);\n    contextSection += `- ${time}: ${item.description} [${item.category}]\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format notes\ncontextSection += '### Recent Notes\\n';\nif (noteItems.length === 0) {\n  contextSection += '(No recent notes)\\n';\n} else {\n  noteItems.forEach(item => {\n    const date = formatDate(item.timestamp);\n    const preview = item.text.substring(0, 100) + (item.text.length > 100 ? '...' : '');\n    contextSection += `- ${date}: ${preview}\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format todos\ncontextSection += '### Pending Todos\\n';\nif (todoItems.length === 0) {\n  contextSection += '(No pending todos)\\n';\n} else {\n  todoItems.forEach(item => {\n    const daysStr = item.days_pending > 0 ? ` (${Math.floor(item.days_pending)} days)` : '';\n    contextSection += `- ${item.text}${daysStr}\\n`;\n  });\n}\n\n// 4. Add RAG context if available (similar past entries)\nif (ragResults.length > 0) {\n  contextSection += '\\n### Related Past Entries (for context)\\n';\n  ragResults.slice(0, 3).forEach(item => {\n    const date = item.timestamp ? formatDate(item.timestamp) : 'Unknown';\n    const content = item.content?.substring(0, 80) || 'No content';\n    contextSection += `- ${date}: ${content}${item.content?.length > 80 ? '...' : ''} [${item.projection_type}]\\n`;\n  });\n}\n\npromptParts.push(contextSection);\n\n// 5. Include format module\nconst formatModule = modules.find(m => m.module_type === 'format');\nif (formatModule) {\n  promptParts.push(formatModule.content);\n}\n\n// 6. Always include guardrail modules (priority 200+)\nconst guardrailModules = modules.filter(m => m.module_type === 'guardrail');\nguardrailModules.forEach(m => promptParts.push(m.content));\n\n// Assemble final prompt\nconst assembledPrompt = promptParts.join('\\n\\n---\\n\\n');\n\n// Determine the context description for the agent\nlet contextDescription = 'general check-in';\nif (isMorning) contextDescription = 'morning check-in';\nelse if (isEvening) contextDescription = 'evening reflection';\nelse if (hasStuckTodos) contextDescription = 'stuck todo nudge';\nelse if (activityItems.length === 0) contextDescription = 'no recent activity';\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Store metadata in ctx for ParseLlmResponse to access\nconst updatedCtx = {\n  ...ctx,\n  llm: {\n    assembled_prompt: assembledPrompt,\n    context_description: contextDescription,\n    technique_source: techniqueSource,\n    techniques_used: selectedTechniques.length,\n    semantic_scores: semanticMatches.map(m => m.score),\n    rag_count: ragResults.length,\n    inference_start: Date.now(),\n    trace_chain_pg: traceChainPg,\n    input_summary: {\n      activity_count: activityItems.length,\n      note_count: noteItems.length,\n      todo_count: todoItems.length,\n      stuck_todo_count: stuckTodos.length,\n      current_hour: currentHour,\n      is_morning: isMorning,\n      is_evening: isEvening,\n      technique_source: techniqueSource,\n      semantic_match_count: semanticMatches.length,\n      rag_result_count: ragResults.length\n    }\n  }\n};\n\nreturn [{\n  json: {\n    ctx: updatedCtx,\n    assembled_prompt: assembledPrompt\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2016,
+        3360,
         96
       ],
       "id": "assemble-prompt",
@@ -326,7 +436,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.7,
       "position": [
-        2240,
+        3584,
         96
       ],
       "id": "generate-message-llm",
@@ -340,7 +450,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        2248,
+        3592,
         320
       ],
       "id": "nemotron-nano-9b",
@@ -360,7 +470,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        2376,
+        3720,
         320
       ],
       "id": "mimo-v2-flash",
@@ -374,13 +484,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse LLM response\nconst assembleData = $('AssemblePrompt').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - assembleData.inference_start;\nconst ctx = assembleData.ctx;\n\nlet message = '';\nlet nextPulseMinutes = 120;\nlet reasoning = '';\n\ntry {\n  // Extract JSON from response (handling potential markdown blocks)\n  const jsonMatch = llmText.match(/\\{[\\s\\S]*\\}/);\n  const data = JSON.parse(jsonMatch ? jsonMatch[0] : llmText);\n  message = data.message || '';\n  nextPulseMinutes = parseInt(data.next_pulse_minutes) || 120;\n  reasoning = data.reasoning || '';\n} catch (e) {\n  // Fallback for non-JSON or malformed responses\n  message = llmText.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '').trim();\n}\n\n// Check if message is empty or too short\nconst isEmpty = !message || message.length < 10;\n\nreturn {\n  json: {\n    ctx,\n    message: message,\n    next_pulse_minutes: nextPulseMinutes,\n    reasoning: reasoning,\n    is_empty: isEmpty,\n    duration_ms: durationMs,\n    trace_chain_pg: assembleData.trace_chain_pg,\n    llm_response: llmText,\n    assembled_prompt: assembleData.assembled_prompt,\n    context_description: assembleData.context_description,\n    technique_source: assembleData.technique_source,\n    input_summary: assembleData.input_summary\n  }\n};",
+        "jsCode": "// Parse LLM response\nconst llmText = $json.text?.trim() || '';\nconst ctx = $json.ctx;\nconst llmMetadata = ctx.llm || {};\nconst durationMs = Date.now() - (llmMetadata.inference_start || Date.now());\n\nlet message = '';\nlet nextPulseMinutes = 120;\nlet reasoning = '';\n\ntry {\n  // Extract JSON from response (handling potential markdown blocks)\n  const jsonMatch = llmText.match(/\\{[\\s\\S]*\\}/);\n  const data = JSON.parse(jsonMatch ? jsonMatch[0] : llmText);\n  message = data.message || '';\n  nextPulseMinutes = parseInt(data.next_pulse_minutes) || 120;\n  reasoning = data.reasoning || '';\n} catch (e) {\n  // Fallback for non-JSON or malformed responses\n  message = llmText.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '').trim();\n}\n\n// Check if message is empty or too short\nconst isEmpty = !message || message.length < 10;\n\nreturn {\n  json: {\n    ctx,\n    message: message,\n    next_pulse_minutes: nextPulseMinutes,\n    reasoning: reasoning,\n    is_empty: isEmpty,\n    duration_ms: durationMs,\n    trace_chain_pg: llmMetadata.trace_chain_pg,\n    llm_response: llmText,\n    assembled_prompt: llmMetadata.assembled_prompt,\n    context_description: llmMetadata.context_description,\n    technique_source: llmMetadata.technique_source,\n    input_summary: llmMetadata.input_summary\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2464,
+        3808,
         96
       ],
       "id": "parse-llm-response",
@@ -397,7 +507,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2688,
+        4032,
         96
       ],
       "id": "store-trace",
@@ -417,7 +527,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2912,
+        4256,
         96
       ],
       "id": "merge-trace-result",
@@ -451,7 +561,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        3136,
+        4480,
         96
       ],
       "id": "if-empty",
@@ -460,7 +570,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'nudge',\n  $4::jsonb,\n  'auto_confirmed',\n  $5\n)\nRETURNING id;",
+        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'pulse',\n  $4::jsonb,\n  'auto_confirmed',\n  $5\n)\nRETURNING id;",
         "options": {
           "values": "{{ $json.trace_id }},{{ $json.ctx.event.event_id }},{{ $json.trace_chain_pg }},{{ $json.projection_data_json }},{{ $json.ctx.event.timezone }}"
         }
@@ -468,7 +578,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        3360,
+        4704,
         176
       ],
       "id": "store-projection",
@@ -488,7 +598,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3584,
+        4928,
         176
       ],
       "id": "merge-for-discord",
@@ -513,7 +623,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        3808,
+        5152,
         176
       ],
       "id": "send-message",
@@ -539,7 +649,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        4032,
+        5376,
         176
       ],
       "id": "update-projection-message-id",
@@ -562,7 +672,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        2688,
+        4032,
         288
       ],
       "id": "update-next-pulse",
@@ -595,7 +705,7 @@
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
       "position": [
-        4256,
+        5600,
         176
       ],
       "id": "add-diagnostic-reaction",
@@ -616,7 +726,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        4480,
+        5824,
         176
       ],
       "id": "check-verbose-config",
@@ -655,7 +765,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        4704,
+        6048,
         176
       ],
       "id": "if-verbose",
@@ -688,11 +798,25 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        4928,
+        6272,
         256
       ],
       "id": "trigger-show-details",
       "name": "TriggerShowDetails"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Restore ctx from AssemblePrompt after LLM call\nconst llmOutput = $json;\nconst assembleData = $('AssemblePrompt').first().json;\n\nreturn {\n  json: {\n    ...llmOutput,\n    ctx: assembleData.ctx\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3808,
+        96
+      ],
+      "id": "acebb70878994681",
+      "name": "RestoreCtx"
     }
   ],
   "connections": {
@@ -912,7 +1036,7 @@
       "main": [
         [
           {
-            "node": "ParseLlmResponse",
+            "node": "RestoreCtx",
             "type": "main",
             "index": 0
           }
@@ -1078,6 +1202,73 @@
           }
         ]
       ]
+    },
+    "Every5Minutes": {
+      "main": [
+        [
+          {
+            "node": "CheckNextPulse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CheckNextPulse": {
+      "main": [
+        [
+          {
+            "node": "ShouldRunPulse?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ShouldRunPulse?": {
+      "main": [
+        [
+          {
+            "node": "SetDefaultNextPulse",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "SetDefaultNextPulse": {
+      "main": [
+        [
+          {
+            "node": "PrepareCronData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareCronData": {
+      "main": [
+        [
+          {
+            "node": "PrepareEvent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RestoreCtx": {
+      "main": [
+        [
+          {
+            "node": "ParseLlmResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -1086,12 +1277,16 @@
     "availableInMCP": false,
     "executionOrder": "v1"
   },
-  "staticData": null,
+  "staticData": {
+    "node:Every5Minutes": {
+      "recurrenceRules": []
+    }
+  },
   "meta": null,
   "versionId": "32fe7d6b-15d0-40be-903b-62dd17616204",
   "activeVersionId": null,
   "versionCounter": 166,
-  "triggerCount": 0,
+  "triggerCount": 2,
   "shared": [
     {
       "updatedAt": "2025-12-23T09:30:30.116Z",

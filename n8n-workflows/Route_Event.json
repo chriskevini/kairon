@@ -28,26 +28,6 @@
         "rule": {
           "interval": [
             {
-              "field": "minutes",
-              "minutesInterval": 15
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        -768,
-        -128
-      ],
-      "id": "cron-nudge",
-      "name": "Nudge Cron (Every 15 Min)"
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
               "field": "cronExpression",
               "expression": "*/5 * * * *"
             }
@@ -62,38 +42,6 @@
       ],
       "id": "cron-summary",
       "name": "Summary Cron (Every 5 Min)"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "ujGErhNkQv4hkJxB",
-          "mode": "list",
-          "cachedResultName": "Generate_Nudge",
-          "cachedResultUrl": "/workflow/ujGErhNkQv4hkJxB"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "trigger_reason": "cron"
-          },
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {
-          "waitForSubWorkflow": false
-        }
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -544,
-        -128
-      ],
-      "id": "execute-nudge-cron",
-      "name": "Execute Generate_Nudge"
     },
     {
       "parameters": {
@@ -572,17 +520,6 @@
         ]
       ]
     },
-    "Nudge Cron (Every 15 Min)": {
-      "main": [
-        [
-          {
-            "node": "Execute Generate_Nudge",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Summary Cron (Every 5 Min)": {
       "main": [
         [
@@ -777,13 +714,7 @@
     "errorWorkflow": ""
   },
   "staticData": {
-    "node:NudgeCron(every15Min)": {
-      "recurrenceRules": []
-    },
     "node:SummaryCron(every5Min)": {
-      "recurrenceRules": []
-    },
-    "node:Nudge Cron (Every 15 Min)": {
       "recurrenceRules": []
     },
     "node:Summary Cron (Every 5 Min)": {
@@ -794,7 +725,7 @@
   "versionId": "3c61f01e-9eed-4d91-b028-b0e11ee44e07",
   "activeVersionId": "3c61f01e-9eed-4d91-b028-b0e11ee44e07",
   "versionCounter": 193,
-  "triggerCount": 3,
+  "triggerCount": 2,
   "shared": [
     {
       "updatedAt": "2025-12-23T22:21:12.978Z",
@@ -872,26 +803,6 @@
           "rule": {
             "interval": [
               {
-                "field": "minutes",
-                "minutesInterval": 15
-              }
-            ]
-          }
-        },
-        "type": "n8n-nodes-base.scheduleTrigger",
-        "typeVersion": 1.2,
-        "position": [
-          -768,
-          -128
-        ],
-        "id": "cron-nudge",
-        "name": "Nudge Cron (Every 15 Min)"
-      },
-      {
-        "parameters": {
-          "rule": {
-            "interval": [
-              {
                 "field": "cronExpression",
                 "expression": "*/5 * * * *"
               }
@@ -906,38 +817,6 @@
         ],
         "id": "cron-summary",
         "name": "Summary Cron (Every 5 Min)"
-      },
-      {
-        "parameters": {
-          "workflowId": {
-            "__rl": true,
-            "value": "ujGErhNkQv4hkJxB",
-            "mode": "list",
-            "cachedResultName": "Generate_Nudge",
-            "cachedResultUrl": "/workflow/ujGErhNkQv4hkJxB"
-          },
-          "workflowInputs": {
-            "mappingMode": "defineBelow",
-            "value": {
-              "trigger_reason": "cron"
-            },
-            "matchingColumns": [],
-            "schema": [],
-            "attemptToConvertTypes": false,
-            "convertFieldsToString": true
-          },
-          "options": {
-            "waitForSubWorkflow": false
-          }
-        },
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.3,
-        "position": [
-          -544,
-          -128
-        ],
-        "id": "execute-nudge-cron",
-        "name": "Execute Generate_Nudge"
       },
       {
         "parameters": {
@@ -1410,17 +1289,6 @@
           [
             {
               "node": "Route by Event Type",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Nudge Cron (Every 15 Min)": {
-        "main": [
-          [
-            {
-              "node": "Execute Generate_Nudge",
               "type": "main",
               "index": 0
             }

@@ -498,6 +498,11 @@ def lint_workflow(filepath: str) -> LintResult:
         result.error(f"File not found: {filepath}")
         return result
 
+    # Skip archived workflows
+    if workflow.get("isArchived", False):
+        result.ok("Workflow is archived - skipping linting")
+        return result
+
     # Run all checks
     check_ctx_initialization(workflow, result)
     check_workflow_structure(workflow, result)

@@ -5,7 +5,7 @@
   "name": "Generate_Nudge",
   "description": null,
   "active": false,
-  "isArchived": false,
+  "isArchived": true,
   "nodes": [
     {
       "parameters": {
@@ -172,7 +172,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Parse LLM response and prepare trace write query\nconst prepareData = $('PreparePromptData').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Parse the decision from first line\nconst lines = llmText.split('\\n').filter(l => l.trim());\nconst decision = (lines[0] || '').trim().toUpperCase();\n\n// Extract message (everything after first line)\nconst message = lines.slice(1).join('\\n').trim();\n\n// Determine if we should skip\nconst shouldSkip = decision === 'SKIP' || !['ENCOURAGE', 'REDIRECT'].includes(decision);\n\n// Prepare db_queries for trace INSERT\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES ($1::uuid, 'nudge',\n            jsonb_build_object(\n              'input', $2::jsonb,\n              'prompt', 'nudge-prompt',\n              'completion', $3,\n              'result', jsonb_build_object(\n                'decision', $4,\n                'message', $5,\n                'should_skip', $6::boolean\n              ),\n              'duration_ms', $7::integer\n            ), $8::uuid[])\n          RETURNING id, trace_chain || id AS updated_trace_chain`,\n    params: [\n      ctx.event.event_id,\n      {\n        north_star: prepareData.north_star,\n        recent_activities: prepareData.recent_activities,\n        last_note: prepareData.last_note,\n        timestamp: prepareData.timestamp,\n        activity_count: prepareData.activity_count\n      },\n      llmText,\n      decision,\n      message,\n      shouldSkip,\n      durationMs,\n      ctx.event.trace_chain || []\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries\n    },\n    decision,\n    message,\n    should_skip: shouldSkip\n  }\n};"
+        "jsCode": "// Parse LLM response and prepare trace write query\nconst prepareData = $('PreparePromptData').first().json;\nconst llmText = $json.text?.trim() || '';\nconst durationMs = Date.now() - prepareData.inference_start;\nconst ctx = prepareData.ctx;\n\n// Parse the decision from first line\nconst lines = llmText.split('\\n').filter(l => l.trim());\nconst decision = (lines[0] || '').trim().toUpperCase();\n\n// Extract message (everything after first line)\nconst message = lines.slice(1).join('\\n').trim();\n\n// Determine if we should skip\nconst shouldSkip = decision === 'SKIP' || !['ENCOURAGE', 'REDIRECT'].includes(decision);\n\n// Prepare db_queries for trace INSERT\nconst db_queries = [\n  {\n    key: 'trace',\n    sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n          VALUES ($1::uuid, 'nudge',\n            jsonb_build_object(\n              'input', $2::jsonb,\n              'prompt', 'nudge-prompt',\n              'completion', $3,\n              'result', jsonb_build_object(\n                'decision', $4,\n                'message', $5,\n                'should_skip', $6::boolean\n              ),\n              'duration_ms', $7::integer\n            ), $8::uuid[])\n          RETURNING id, trace_chain || id AS updated_trace_chain`,\n    params: [\n      ctx.event.event_id,\n      {\n        north_star: prepareData.north_star,\n        recent_activities: prepareData.recent_activities,\n        last_note: prepareData.last_note,\n        timestamp: prepareData.timestamp,\n        activity_count: prepareData.activity_count\n      },\n      llmText,\n      decision,\n      message,\n      shouldSkip,\n      durationMs,\n      ctx.event.trace_chain || []\n    ]\n  }\n];\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries,\n      llm: {\n        decision,\n        message,\n        should_skip: shouldSkip\n      }\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -283,7 +283,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Check if should skip and prepare for projection branch\nconst ctx = $json.ctx;\nconst traceRow = ctx.db?.trace?.row;\nconst prepData = $('PrepareTraceQuery').first().json;\n\nreturn {\n  json: {\n    ctx,\n    trace_id: traceRow?.id,\n    updated_trace_chain: traceRow?.updated_trace_chain || [],\n    decision: prepData.decision,\n    message: prepData.message,\n    should_skip: prepData.should_skip\n  }\n};"
+        "jsCode": "// Check if should skip and prepare for projection branch\nconst ctx = $json.ctx;\nconst traceRow = ctx.db?.trace?.row;\nconst llm = ctx.llm || {};\n\nreturn {\n  json: {\n    ctx,\n    trace_id: traceRow?.id,\n    updated_trace_chain: traceRow?.updated_trace_chain || [],\n    decision: llm.decision,\n    message: llm.message,\n    should_skip: llm.should_skip\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

@@ -5,7 +5,7 @@
   "name": "Proactive_Agent_Cron",
   "description": null,
   "active": false,
-  "isArchived": false,
+  "isArchived": true,
   "nodes": [
     {
       "parameters": {
