@@ -196,7 +196,7 @@ setup_local_dev() {
     echo -n "Checking n8n API key... "
     
     # Login to get session cookie
-    local cookie_file="/tmp/n8n-dev-session-$$.txt"
+    local cookie_file="/tmp/n8n-dev-session.txt"
     
     curl -s -c "$cookie_file" -X POST "$N8N_URL/rest/login" \
         -H "Content-Type: application/json" \
@@ -289,9 +289,10 @@ deploy_dev() {
     local API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
     local API_KEY="${N8N_DEV_API_KEY:-}"
     
-    # For localhost, cookie-based auth is set up in setup_local_dev()
+    # For localhost dev, use session cookie authentication (more reliable than API keys in dev)
+    # API keys can expire or be invalid, but cookies are refreshed by setup_local_dev()
     if [[ "$API_URL" == http://localhost* ]]; then
-        API_KEY=""
+        API_KEY=""  # Clear API key, will use cookie file from setup_local_dev()
     fi
 
     # Check if dev stack is running
@@ -932,6 +933,7 @@ case "$TARGET" in
         ;;
     dev)
         run_unit_tests || exit 1
+        setup_local_dev  # Ensure dev environment is ready and authenticated
         deploy_dev false
         run_functional_tests
         ;;

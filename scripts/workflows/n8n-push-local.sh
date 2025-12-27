@@ -19,7 +19,7 @@ N8N_API_KEY="${N8N_API_KEY:-}"
 # Support basic auth for local development
 N8N_BASIC_AUTH_USER="${N8N_BASIC_AUTH_USER:-}"
 N8N_BASIC_AUTH_PASSWORD="${N8N_BASIC_AUTH_PASSWORD:-}"
-N8N_DEV_COOKIE_FILE="${N8N_DEV_COOKIE_FILE:-}"
+N8N_DEV_COOKIE_FILE="${N8N_DEV_COOKIE_FILE:-/tmp/n8n-dev-session.txt}"
 
 # Helper function to make authenticated curl requests
 curl_auth() {
