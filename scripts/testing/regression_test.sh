@@ -84,7 +84,7 @@ fi
 # Testing-specific environment configuration
 TESTING_DB_USER="${DB_USER:-n8n_user}"
 TESTING_DB_NAME="${DB_NAME:-kairon}"
-TESTING_DB_CONTAINER="${CONTAINER_DB:-postgres-dev-local}"
+TESTING_DB_CONTAINER="${TESTING_DB_CONTAINER:-postgres-dev-local}"
 TESTING_WEBHOOK_PATH="${WEBHOOK_PATH:-asoiaf3947}"
 
 # Timing and limit constants
@@ -267,7 +267,12 @@ test_workflow() {
     log_test "Testing workflow: $workflow"
     log_info "Payload file: $payload_file"
 
-    local test_count=$(jq '. | length' "$payload_file")
+    local test_count
+    test_count=$(jq '. | length' "$payload_file") || {
+        log_error "Failed to read test count from $payload_file"
+        return 1
+    }
+    log_info "Found $test_count test cases"
 
     for ((i=0; i<test_count; i++)); do
         ((TOTAL_TESTS++))
@@ -447,9 +452,10 @@ get_execution() {
         return
     fi
 
-    # Find execution matching workflow and timestamp
-    echo "$executions" | jq --arg ts "$since_timestamp" --arg wf "$workflow_name" \
-        '[.[] | select(.startedAt >= $ts and (.workflowData.name // .workflowName // "" | contains($wf)))] | sort_by(.startedAt) | reverse | .[0] // empty'
+    # Find execution after timestamp (first matching execution)
+    # Note: Don't filter by workflow name because sub-workflows execute under parent workflow name
+    echo "$executions" | jq --arg ts "$since_timestamp" \
+        '[.[] | select(.startedAt >= $ts)] | sort_by(.startedAt) | reverse | .[0] // empty'
 }
 
 # ============================================================================
