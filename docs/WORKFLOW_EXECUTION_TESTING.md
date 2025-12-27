@@ -32,8 +32,11 @@ When `--verify-executions` is enabled:
 ### Basic Usage
 
 ```bash
-# Run tests with execution verification (requires API access)
+# Dev environment - Run tests with execution verification
 ./tools/test-all-paths.sh --dev --verify-executions
+
+# Production environment - Run tests with execution verification
+./tools/test-all-paths.sh --prod --verify-executions
 
 # Quick test with execution verification
 ./tools/test-all-paths.sh --dev --quick --verify-executions
@@ -44,9 +47,11 @@ When `--verify-executions` is enabled:
 
 ### Authentication Setup
 
-Execution verification requires n8n API access. Two methods are supported:
+Execution verification requires n8n API access. Setup varies by environment:
 
-#### Method 1: API Key (Recommended)
+#### Dev Environment
+
+**Method 1: API Key (Recommended)**
 
 1. Generate an API key in n8n UI (Settings → API)
 2. Add to `.env`:
@@ -54,7 +59,7 @@ Execution verification requires n8n API access. Two methods are supported:
    N8N_DEV_API_KEY=your-api-key-here
    ```
 
-#### Method 2: Session Cookie (Fallback)
+**Method 2: Session Cookie (Fallback)**
 
 1. Run deployment to generate session cookie:
    ```bash
@@ -62,21 +67,37 @@ Execution verification requires n8n API access. Two methods are supported:
    ```
 2. Cookie is stored at `/tmp/n8n-dev-session.txt`
 
+#### Production Environment
+
+**API Key Required**
+
+1. Generate production API key in n8n UI
+2. Add to `.env`:
+   ```bash
+   N8N_API_URL=https://n8n.yourdomain.com
+   N8N_API_KEY=your-prod-api-key-here
+   ```
+
 **Note:** If authentication fails, the script will show a warning and continue with basic HTTP tests only.
 
-### CI/CD Integration (Future - Part 2)
+### CI/CD Integration
+
+Execution verification is now integrated into the deployment pipeline (`scripts/deploy.sh`):
 
 ```bash
-# In deploy.sh (planned for Part 2)
-run_functional_tests() {
-    ./tools/test-all-paths.sh --dev --verify-executions
-    
-    if [ $? -ne 0 ]; then
-        echo "Functional tests failed - blocking deployment"
-        exit 1
-    fi
-}
+# Automatically enabled in deployment pipeline
+./scripts/deploy.sh dev    # Runs tests with --verify-executions
+./scripts/deploy.sh all    # Full pipeline with execution verification
+
+# Manual testing
+./tools/test-all-paths.sh --dev --verify-executions
 ```
+
+**Deployment Stages:**
+1. **Stage 2a:** Mock tests with execution verification
+2. **Stage 2b:** Real API tests with execution verification
+
+If execution verification fails, deployment is blocked before reaching production.
 
 ## Implementation Details
 
@@ -105,23 +126,21 @@ Executions are matched by:
 - **Configurable:** Can be adjusted in `verify_execution()` function
 - **On timeout:** Test fails and reports last known status
 
-## Limitations (Part 1)
+## Limitations
 
-This is Part 1 of the implementation. Current limitations:
+Current limitations:
 
-1. **Authentication:** Requires manual API key setup (not automated)
-2. **Not in CI/CD:** Not yet integrated into deployment pipeline (Part 2)
-3. **Dev only:** Currently only works with local dev environment
-4. **Route_Event only:** Only verifies main workflow, not downstream workflows
+1. **Authentication:** Requires manual API key setup in `.env`
+2. **Route_Event only:** Only verifies main workflow, not downstream workflows
+3. **No database correlation:** Execution IDs not yet linked to traces table (requires workflow changes)
 
-## What's Next (Part 2)
+## What's Next
 
-The next PR will add:
+Future enhancements planned:
 
-1. **Database verification enhancement** - Check execution status via traces table
-2. **CI/CD integration** - Block deployments on execution failures
-3. **Production support** - Execution verification for production tests
-4. **Better error reporting** - Link to n8n UI for failed executions
+1. **Database correlation** - Link execution IDs to traces table for better tracking (requires workflow modifications)
+2. **Downstream workflow verification** - Verify not just Route_Event but all triggered workflows
+3. **Execution performance metrics** - Track and report workflow execution times
 
 ## Prerequisites
 

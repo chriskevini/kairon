@@ -465,17 +465,17 @@ run_functional_tests() {
     # Note: Auto_Backfill, Generate_Daily_Summary, Generate_Nudge, Proactive_Agent_Cron
     CRON_WORKFLOWS="Auto_Backfill Generate_Daily_Summary Generate_Nudge Proactive_Agent_Cron"
 
-    # Stage 2a: Fast mock tests (current behavior)
+    # Stage 2a: Fast mock tests with execution verification
     echo ""
-    echo "  Stage 2a: Mock tests (fast)..."
-    if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick > "$TEST_OUTPUT_FILE" 2>&1; then
-        echo "❌ FAILED (mocks)"
+    echo "  Stage 2a: Mock tests with execution verification..."
+    if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --verify-executions > "$TEST_OUTPUT_FILE" 2>&1; then
+        echo "❌ FAILED (mocks with execution verification)"
         echo "----------------------------------------"
         cat "$TEST_OUTPUT_FILE"
         echo "----------------------------------------"
         return 1
     fi
-    echo "  ✅ PASSED (mocks)"
+    echo "  ✅ PASSED (mocks with execution verification)"
 
     # Stage 2d: Run Python tag parsing tests
     echo ""
@@ -499,21 +499,21 @@ run_functional_tests() {
     fi
     echo "  ✅ Redeployment PASSED"
     
-    # Stage 2b: Realistic tests with real APIs (NEW)
+    # Stage 2b: Realistic tests with real APIs and execution verification
      echo ""
-     echo "  Stage 2b: Realistic tests (real APIs)..."
+     echo "  Stage 2b: Realistic tests (real APIs with execution verification)..."
      echo "    Note: Cron workflows now testable via webhook (Schedule → Webhook transform)"
      
-     if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --no-mocks > "$TEST_OUTPUT_FILE" 2>&1; then
-        echo "❌ FAILED (real APIs)"
+     if ! "$REPO_ROOT/tools/test-all-paths.sh" --dev --quick --no-mocks --verify-executions > "$TEST_OUTPUT_FILE" 2>&1; then
+        echo "❌ FAILED (real APIs with execution verification)"
         echo "----------------------------------------"
         cat "$TEST_OUTPUT_FILE"
         echo "----------------------------------------"
-        echo "   Workflows failed when calling real APIs"
+        echo "   Workflows failed when calling real APIs or execution verification failed"
         echo "   Deployment halted before production"
         return 1
     fi
-    echo "  ✅ PASSED (real APIs)"
+    echo "  ✅ PASSED (real APIs with execution verification)"
 
     # Stage 2c: Quick prod verification
     # echo ""
