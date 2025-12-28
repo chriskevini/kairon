@@ -121,11 +121,6 @@ class WorkflowIntegrityValidator:
             for name, node in nodes.items()
             if any(kw in node.get("type", "") for kw in trigger_keywords)
         ]
-        triggers = [
-            name
-            for name, node in nodes.items()
-            if any(kw in node.get("type", "") for kw in trigger_keywords)
-        ]
 
         # BFS from all triggers to find reachable nodes
         reachable: Set[str] = set()
