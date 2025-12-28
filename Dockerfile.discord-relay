@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt discord.py aiohttp python-dotenv
+
+# Copy Discord relay script
+COPY scripts/discord_relay.py .
+
+# Run Discord bot
+CMD ["python", "discord_relay.py"]
