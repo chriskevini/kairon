@@ -208,14 +208,12 @@ docker exec -i postgres-local psql -U postgres -d kairon < query.sql
 ### Cleanup
 
 ```bash
-# Stop containers (keeps data)
-docker-compose down
+# Stop containers and clean up temporary files
+./scripts/teardown-local.sh
 
-# Full reset - removes all containers, volumes, and n8n data
+# Remove everything (including database data)
+./scripts/teardown-local.sh
 docker-compose down -v
-
-# Remove just n8n data (keep database)
-docker-compose down -v n8n-data
 ```
 
 ---
