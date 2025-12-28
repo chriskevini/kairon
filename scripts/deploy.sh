@@ -23,6 +23,7 @@ fi
 
 TARGET="${1:-local}"
 WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
+DRY_RUN="${2:-false}"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -275,6 +276,10 @@ main() {
     echo ""
     echo "Target: $TARGET"
     echo "Workflow directory: $WORKFLOW_DIR"
+    
+    if [ "$DRY_RUN" = "true" ]; then
+        echo "Mode: DRY RUN (validation only, no deployment)"
+    fi
     echo ""
     
     # Validate first
@@ -285,6 +290,16 @@ main() {
     validate_workflow_structure || exit 1
     validate_workflow_integrity || exit 1
     run_unit_tests || exit 1
+    
+    if [ "$DRY_RUN" = "true" ]; then
+        echo ""
+        echo "=========================================="
+        echo "VALIDATION COMPLETE (dry run)"
+        echo "=========================================="
+        echo ""
+        exit 0
+    fi
+    
     echo ""
     
     # Deploy
@@ -293,7 +308,19 @@ main() {
             deploy_to_local || exit 1
             ;;
         prod)
-            deploy_to_prod || exit 1
+            ;;
+        *)
+            echo "Usage: $0 [local|prod] [dry-run]"
+            echo ""
+            echo "Commands:"
+            echo "  local   - Deploy to localhost (default)"
+            echo "  prod    - Deploy to production server"
+            echo "  dry-run - Validate without deploying"
+            echo ""
+            echo "Configuration:"
+            echo "  Local:  docker-compose up -d"
+            echo "  Prod:   Set N8N_API_KEY, N8N_DEV_SSH_HOST in .env"
+            exit 1
             ;;
         *)
             echo "Usage: $0 [local|prod]"

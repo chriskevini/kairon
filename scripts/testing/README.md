@@ -122,7 +122,7 @@ grep -A 20 "Cmd: help" tools/test-all-paths.sh
 Run the workflow manually and check what was created:
 ```bash
 # Uses DB_USER and DB_NAME from .env (defaults: n8n_user/kairon)
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c "
+docker exec postgres-local psql -U n8n_user -d kairon -c "
   SELECT projection_type, COUNT(*)
   FROM projections
   WHERE created_at > NOW() - INTERVAL '1 minute'
@@ -198,11 +198,11 @@ Track test coverage per workflow:
 
 ### Check database state
 ```bash
-docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "
+docker exec postgres-local psql -U postgres -d kairon_dev -c "
   SELECT * FROM events ORDER BY received_at DESC LIMIT 5;
 "
 
-docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "
+docker exec postgres-local psql -U postgres -d kairon_dev -c "
   SELECT * FROM projections ORDER BY created_at DESC LIMIT 5;
 "
 ```

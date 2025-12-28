@@ -14,6 +14,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Cleanup function
+cleanup() {
+    if [ -n "${COOKIE_FILE:-}" ] && [ -f "$COOKIE_FILE" ]; then
+        rm -f "$COOKIE_FILE" 2>/dev/null || true
+    fi
+}
+
+trap cleanup EXIT INT TERM
+
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -71,8 +80,8 @@ echo ""
 
 # Wait for postgres
 echo "Waiting for PostgreSQL to be ready..."
-local max_wait=30
-local wait_count=0
+max_wait=30
+wait_count=0
 
 while [ $wait_count -lt $max_wait ]; do
     if docker exec postgres-local pg_isready -U ${DB_USER:-postgres} > /dev/null 2>&1; then
@@ -128,16 +137,17 @@ echo ""
 
 # Set up n8n owner account
 echo "Setting up n8n owner account..."
-local settings=$(curl -s http://localhost:5679/rest/settings)
-local show_setup=$(echo "$settings" | jq -r '.data.userManagement.showSetupOnFirstLoad // "true"')
+COOKIE_FILE="/tmp/n8n-setup-cookie-$$"
+settings=$(curl -s http://localhost:5679/rest/settings)
+show_setup=$(echo "$settings" | jq -r '.data.userManagement.showSetupOnFirstLoad // "true"')
 
 if [ "$show_setup" = "true" ]; then
-    local N8N_USER="${N8N_DEV_USER:-admin}"
-    local N8N_PASSWORD="${N8N_DEV_PASSWORD:-Admin123!}"
-    local N8N_EMAIL="${N8N_USER}@example.com"
+    N8N_USER="${N8N_DEV_USER:-admin}"
+    N8N_PASSWORD="${N8N_DEV_PASSWORD:-Admin123!}"
+    N8N_EMAIL="${N8N_USER}@example.com"
     
     echo "Creating owner account..."
-    local setup_result=$(curl -s -X POST http://localhost:5679/rest/owner/setup \
+    setup_result=$(curl -s -c "$COOKIE_FILE" -X POST http://localhost:5679/rest/owner/setup \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$N8N_EMAIL\",\"firstName\":\"Admin\",\"lastName\":\"User\",\"password\":\"$N8N_PASSWORD\"}")
     
@@ -149,6 +159,13 @@ if [ "$show_setup" = "true" ]; then
     log_info "Owner account created: $N8N_EMAIL"
 else
     log_info "Owner account already exists"
+    # Login to get session cookie
+    N8N_USER="${N8N_DEV_USER:-admin}"
+    N8N_PASSWORD="${N8N_DEV_PASSWORD:-Admin123!}"
+    N8N_EMAIL="${N8N_USER}@example.com"
+    curl -s -c "$COOKIE_FILE" -X POST http://localhost:5679/rest/login \
+        -H "Content-Type: application/json" \
+        -d "{\"emailOrLdapLoginId\":\"$N8N_EMAIL\",\"password\":\"$N8N_PASSWORD\"}" > /dev/null
 fi
 echo ""
 

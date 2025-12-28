@@ -259,7 +259,7 @@ With the simplified setup, all workflows use real APIs by default:
 
 ```bash
 # 1. Check container logs
-docker-compose -f docker-compose.dev.yml logs -f n8n-dev
+docker-compose logs -f n8n-dev
 
 # 2. Test webhook manually
 curl -X POST http://localhost:5679/webhook/kairon-dev-test \
@@ -267,7 +267,7 @@ curl -X POST http://localhost:5679/webhook/kairon-dev-test \
   -d '{"event_type": "message", "content": "!! debug", "guild_id": "test", "channel_id": "test", "message_id": "debug-123", "author": {"login": "test"}, "timestamp": "'$(date -Iseconds)'"}'
 
 # 3. Inspect database state
-docker exec -it postgres-dev-local psql -U postgres -d kairon_dev
+docker exec -it postgres-local psql -U postgres -d kairon
 ```
 
 ### 5. Run Tests Only

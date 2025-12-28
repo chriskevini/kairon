@@ -37,7 +37,7 @@ curl -X POST http://localhost:5679/webhook/kairon-dev-test/Every5Minutes \
   -d '{}'
 
 # 3. Verify database changes
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c \
+docker exec postgres-local psql -U n8n_user -d kairon -c \
   "SELECT * FROM events WHERE event_type = 'system' ORDER BY received_at DESC LIMIT 1"
 ```
 
@@ -126,7 +126,7 @@ If you want to manually test the workflow:
 
 ```bash
 # 1. Ensure dev environment is running
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
 # 2. Invoke the transformed webhook (schedule trigger → webhook)
 curl -X POST http://localhost:5679/webhook/kairon-dev-test/Every5Minutes \
@@ -136,7 +136,7 @@ curl -X POST http://localhost:5679/webhook/kairon-dev-test/Every5Minutes \
 # 3. Check execution in n8n UI: http://localhost:5679/executions
 
 # 4. Verify database changes
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c \
+docker exec postgres-local psql -U n8n_user -d kairon -c \
   "SELECT * FROM events WHERE event_type = 'system' ORDER BY received_at DESC LIMIT 1"
 ```
 
