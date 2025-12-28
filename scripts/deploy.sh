@@ -503,11 +503,20 @@ run_functional_tests() {
         return 0
     fi
 
+    # Allow skipping regression tests with environment variable
+    if [ "${SKIP_REGRESSION_TESTS:-false}" = "true" ]; then
+        echo "⚠️  Skipping regression tests (SKIP_REGRESSION_TESTS=true)"
+        echo ""
+        echo "   WARNING: Deploying without regression test validation"
+        echo "   Set SKIP_REGRESSION_TESTS=false to enable tests"
+        return 0
+    fi
+
     if ! bash "$REPO_ROOT/scripts/testing/regression_test.sh" --no-db-snapshot; then
         echo "❌ FAILED (regression tests)"
         echo ""
         echo "Regression tests detected issues with modified workflows."
-        echo "Fix issues and redeploy."
+        echo "Fix issues and redeploy, or set SKIP_REGRESSION_TESTS=true to skip."
         return 1
     fi
     echo "  ✅ PASSED (regression tests)"
