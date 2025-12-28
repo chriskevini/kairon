@@ -60,13 +60,39 @@ WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
 WORKFLOW_DEV_DIR="$REPO_ROOT/n8n-workflows-dev"
 TRANSFORM_SCRIPT="$SCRIPT_DIR/transform_for_dev.py"
 
+# --- REMOTE HOST CONFIGURATION ---
+# Determine the SSH host for remote operations
+# Priority: N8N_DEV_SSH_HOST (explicit) > REMOTE_HOST (from rdev/project config)
+get_remote_host() {
+    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        echo "$N8N_DEV_SSH_HOST"
+    elif [ -n "${REMOTE_HOST:-}" ]; then
+        echo "$REMOTE_HOST"
+    else
+        echo ""
+    fi
+}
+
+# Remote path where kairon is deployed
+REMOTE_KAIRON_PATH="${REMOTE_KAIRON_PATH:-/root/kairon}"
+
 # --- SSH TUNNEL SETUP ---
 setup_ssh_tunnel() {
-    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+    local remote_host=$(get_remote_host)
+    if [ -n "$remote_host" ]; then
+        # Check if tunnels are already running (check both dev:5679 and prod:5678)
+        local need_tunnel=false
         if ! curl -s --connect-timeout 1 http://localhost:5679/ > /dev/null 2>&1; then
-            echo "Opening SSH tunnel to $N8N_DEV_SSH_HOST..."
-            ssh -f -N -L 5679:localhost:5679 -L 5678:localhost:5678 "$N8N_DEV_SSH_HOST" 2>/dev/null || {
-                echo "Error: Failed to open SSH tunnel to $N8N_DEV_SSH_HOST"
+            need_tunnel=true
+        fi
+        if ! curl -s --connect-timeout 1 http://localhost:5678/ > /dev/null 2>&1; then
+            need_tunnel=true
+        fi
+        
+        if [ "$need_tunnel" = "true" ]; then
+            echo "Opening SSH tunnel to $remote_host..."
+            ssh -f -N -L 5679:localhost:5679 -L 5678:localhost:5678 "$remote_host" 2>/dev/null || {
+                echo "Error: Failed to open SSH tunnel to $remote_host"
                 exit 1
             }
             sleep 1
@@ -492,6 +518,9 @@ verify_prod_webhook_accessible() {
     local PROD_API_URL="${N8N_API_URL:-http://localhost:5678}"
     local SMOKE_TEST_CONTENT="smoke_test_$(date +%s)"
     
+    # Ensure SSH tunnel is active for smoke tests
+    setup_ssh_tunnel
+    
     echo "    1. Sending test webhook to Route_Event..."
     local RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
         -X POST "$PROD_API_URL/webhook/asoiaf92746087" \
@@ -513,16 +542,16 @@ verify_prod_webhook_accessible() {
     echo "    ✅ Webhook accepted"
 
     echo "    2. Verifying execution success in n8n..."
-    local MAX_RETRIES=5
+    local MAX_RETRIES=10
     local RETRY_COUNT=0
     local EXEC_STATUS=""
     
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         sleep 2
         local EXEC_DATA=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$PROD_API_URL/api/v1/executions?limit=5")
+            "$PROD_API_URL/api/v1/executions?limit=10&includeData=true")
         
-        EXEC_STATUS=$(echo "$EXEC_DATA" | jq -r --arg content "$SMOKE_TEST_CONTENT" '
+        EXEC_STATUS=$(echo "$EXEC_DATA" | jq -r '
             .data[] | 
             select(.workflowData.name == "Route_Message") | 
             .status
@@ -542,8 +571,9 @@ verify_prod_webhook_accessible() {
 
     echo "    3. Verifying event created in database..."
     local EVENT_COUNT
-    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
-        EVENT_COUNT=$(ssh "$N8N_DEV_SSH_HOST" "docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -t -c \"SELECT COUNT(*) FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'\"" | tr -d '[:space:]')
+    local remote_host=$(get_remote_host)
+    if [ -n "$remote_host" ]; then
+        EVENT_COUNT=$(ssh "$remote_host" "docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -t -c \"SELECT COUNT(*) FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'\"" | tr -d '[:space:]')
     else
         EVENT_COUNT=$(docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -t -c "SELECT COUNT(*) FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'" | tr -d '[:space:]')
     fi
@@ -555,8 +585,8 @@ verify_prod_webhook_accessible() {
     echo "    ✅ Event found in database"
 
     # Cleanup test event
-    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
-        ssh "$N8N_DEV_SSH_HOST" "docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -c \"DELETE FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'\"" > /dev/null
+    if [ -n "$remote_host" ]; then
+        ssh "$remote_host" "docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -c \"DELETE FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'\"" > /dev/null
     else
         docker exec -i ${CONTAINER_DB:-postgres-db} psql -U ${DB_USER:-n8n_user} -d ${DB_NAME:-kairon} -c "DELETE FROM events WHERE payload->>'content' = '$SMOKE_TEST_CONTENT'" > /dev/null
     fi
@@ -588,9 +618,10 @@ rollback_prod() {
     
     # Check if n8n is responding
     local CHECK_CMD="curl -s -f -H \"X-N8N-API-KEY: $N8N_API_KEY\" \"$PROD_API_URL/api/v1/workflows?limit=1\""
-    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
-        if ! ssh "$N8N_DEV_SSH_HOST" "source /opt/n8n-docker-caddy/.env && $CHECK_CMD" > /dev/null 2>&1; then
-            echo "❌ Rollback failed: n8n API not responding on $N8N_DEV_SSH_HOST at $PROD_API_URL"
+    local remote_host=$(get_remote_host)
+    if [ -n "$remote_host" ]; then
+        if ! ssh "$remote_host" "set -a && source $REMOTE_KAIRON_PATH/.env && set +a && $CHECK_CMD" > /dev/null 2>&1; then
+            echo "❌ Rollback failed: n8n API not responding on $remote_host at $PROD_API_URL"
             return 1
         fi
     else
@@ -608,20 +639,20 @@ rollback_prod() {
     # 1. Restore Database
     if [ -f "$backup_dir/kairon.sql" ]; then
         echo "   Restoring database..."
-        if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        if [ -n "$remote_host" ]; then
             # Remote restore with unique temp file
             local REMOTE_TEMP="/tmp/rollback_$$_$(date +%s).sql"
-            if ! scp -q "$backup_dir/kairon.sql" "$N8N_DEV_SSH_HOST:$REMOTE_TEMP"; then
+            if ! scp -q "$backup_dir/kairon.sql" "$remote_host:$REMOTE_TEMP"; then
                 echo "   ❌ Failed to upload SQL backup"
                 return 1
             fi
             
-            if ! ssh "$N8N_DEV_SSH_HOST" "docker exec -i $CONTAINER psql -U $DB_USER -d $DB_NAME < $REMOTE_TEMP" > /dev/null 2>&1; then
+            if ! ssh "$remote_host" "docker exec -i $CONTAINER psql -U $DB_USER -d $DB_NAME < $REMOTE_TEMP" > /dev/null 2>&1; then
                 echo "   ❌ Database restore failed"
-                ssh "$N8N_DEV_SSH_HOST" "rm -f $REMOTE_TEMP" 2>/dev/null || true
+                ssh "$remote_host" "rm -f $REMOTE_TEMP" 2>/dev/null || true
                 return 1
             fi
-            ssh "$N8N_DEV_SSH_HOST" "rm -f $REMOTE_TEMP" 2>/dev/null || true
+            ssh "$remote_host" "rm -f $REMOTE_TEMP" 2>/dev/null || true
         else
             # Local restore
             if ! docker exec -i "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$backup_dir/kairon.sql" > /dev/null 2>&1; then
@@ -647,18 +678,18 @@ rollback_prod() {
             jq '{name, nodes, connections, settings}' "$json_file" > "$TEMP_WORKFLOW_DIR/$(basename "$json_file")"
         done
         
-        if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        if [ -n "$remote_host" ]; then
             # Remote restore via n8n-push-prod.sh
-            rsync -az --delete "$TEMP_WORKFLOW_DIR/" "$N8N_DEV_SSH_HOST:/tmp/rollback_workflows/"
+            rsync -az --delete "$TEMP_WORKFLOW_DIR/" "$remote_host:/tmp/rollback_workflows/"
             
-            if ! ssh "$N8N_DEV_SSH_HOST" "cd /opt/kairon && \
-                export \$(grep -E '^(N8N_API_KEY|N8N_API_URL)=' /opt/n8n-docker-caddy/.env) && \
+            if ! ssh "$remote_host" "cd $REMOTE_KAIRON_PATH && \
+                set -a && source $REMOTE_KAIRON_PATH/.env && set +a && \
                 WORKFLOW_DIR='/tmp/rollback_workflows' \
-                bash /opt/kairon/scripts/workflows/n8n-push-prod.sh" > /dev/null 2>&1; then
+                bash $REMOTE_KAIRON_PATH/scripts/workflows/n8n-push-prod.sh" > /dev/null 2>&1; then
                 echo "   ❌ Workflow restore failed"
                 return 1
             fi
-            ssh "$N8N_DEV_SSH_HOST" "rm -rf /tmp/rollback_workflows" 2>/dev/null || true
+            ssh "$remote_host" "rm -rf /tmp/rollback_workflows" 2>/dev/null || true
         else
             # Local restore via n8n-push-prod.sh
             if ! N8N_API_URL="${N8N_API_URL:-http://localhost:5678}" \
@@ -731,9 +762,10 @@ deploy_prod() {
 
     # Get workflow IDs before for verification
     local PROD_WORKFLOW_IDS_BEFORE=""
-    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
-        PROD_WORKFLOW_IDS_BEFORE=$(ssh "$N8N_DEV_SSH_HOST" \
-            "source /opt/n8n-docker-caddy/.env && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
+    local remote_host=$(get_remote_host)
+    if [ -n "$remote_host" ]; then
+        PROD_WORKFLOW_IDS_BEFORE=$(ssh "$remote_host" \
+            "set -a && source $REMOTE_KAIRON_PATH/.env && set +a && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
             jq -c '[.data[]? | {(.name): .id}] | add // {}')
     else
         PROD_WORKFLOW_IDS_BEFORE=$(curl -s -H "X-N8N-API-KEY: $PROD_API_KEY" \
@@ -743,21 +775,21 @@ deploy_prod() {
 
     {
         # Determine if we're on the remote server or local machine
-        if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
+        if [ -n "$remote_host" ]; then
             # Sync files quietly
             rsync -az --delete \
                 --exclude '.git' \
                 "$REPO_ROOT/n8n-workflows/" \
-                "$N8N_DEV_SSH_HOST:/opt/kairon/n8n-workflows/"
+                "$remote_host:$REMOTE_KAIRON_PATH/n8n-workflows/"
 
             rsync -az \
                 "$SCRIPT_DIR/workflows/n8n-push-prod.sh" \
-                "$N8N_DEV_SSH_HOST:/opt/kairon/scripts/workflows/"
+                "$remote_host:$REMOTE_KAIRON_PATH/scripts/workflows/"
 
-            ssh "$N8N_DEV_SSH_HOST" "cd /opt/kairon && \
-                export \$(grep -E '^(N8N_API_KEY|N8N_API_URL)=' /opt/n8n-docker-caddy/.env) && \
-                WORKFLOW_DIR='/opt/kairon/n8n-workflows' \
-                bash /opt/kairon/scripts/workflows/n8n-push-prod.sh" > "$DEPLOY_LOG" 2>&1
+            ssh "$remote_host" "cd $REMOTE_KAIRON_PATH && \
+                set -a && source $REMOTE_KAIRON_PATH/.env && set +a && \
+                WORKFLOW_DIR='$REMOTE_KAIRON_PATH/n8n-workflows' \
+                bash $REMOTE_KAIRON_PATH/scripts/workflows/n8n-push-prod.sh" > "$DEPLOY_LOG" 2>&1
         else
             N8N_API_URL="${N8N_API_URL:-http://localhost:5678}" \
             N8N_API_KEY="$N8N_API_KEY" \
@@ -784,9 +816,9 @@ deploy_prod() {
     echo "   Deployment Summary:"
 
     local PROD_WORKFLOW_IDS_AFTER=""
-    if [ -n "${N8N_DEV_SSH_HOST:-}" ]; then
-        PROD_WORKFLOW_IDS_AFTER=$(ssh "$N8N_DEV_SSH_HOST" \
-            "source /opt/n8n-docker-caddy/.env && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
+    if [ -n "$remote_host" ]; then
+        PROD_WORKFLOW_IDS_AFTER=$(ssh "$remote_host" \
+            "set -a && source $REMOTE_KAIRON_PATH/.env && set +a && curl -s -H \"X-N8N-API-KEY: \$N8N_API_KEY\" '$PROD_API_URL/api/v1/workflows?limit=100'" | \
             jq -c '[.data[]? | {(.name): .id}] | add // {}')
     else
         PROD_WORKFLOW_IDS_AFTER=$(curl -s -H "X-N8N-API-KEY: $PROD_API_KEY" \
