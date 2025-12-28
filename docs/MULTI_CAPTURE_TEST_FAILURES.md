@@ -53,15 +53,29 @@ This may be a test expectation issue rather than a bug. The message could reason
 - **Note** (something to remember) ← LLM chose this
 - **Activity** (thinking about/planning a feature)
 
-The LLM interpretation seems valid. The test expectation may need adjustment.
+The LLM interpretation seems valid based on the word "remember". However, the context is thinking about a feature (mental activity).
 
-**Recommendation**: Review test expectation. If "remembering an idea" should be activity, update LLM prompt to clarify.
+**Multi_Capture LLM Prompt Says**:
+- **Activity**: "CURRENT or RECENT action by the user", indicators include "-ing verbs", "just did"
+- **Note**: "observations, insights, or facts worth remembering"
+
+The message doesn't clearly indicate current action, so "note" classification follows the prompt rules.
+
+**Recommendations**:
+1. Check test history: Did this test ever pass?
+   ```bash
+   git log -p -- n8n-workflows/tests/regression/Multi_Capture.json
+   ```
+2. Review if test expectation should be "note" instead of "activity"
+3. If "thinking about ideas" should be activity, update LLM prompt to clarify this edge case
 
 ## Verification Steps
 
 ### Verify Production Has Correct Workflow
 
-Production was successfully deployed today (2025-12-27) with commit 9501546, which includes the fixed Capture_Projection workflow.
+**Status**: UNVERIFIED ⚠️
+
+Based on deployment logs from 2025-12-27, workflows were deployed to production with `SKIP_REGRESSION_TESTS=true`. However, this has not been independently verified.
 
 To verify TodoClassifier in production:
 ```bash
@@ -78,14 +92,24 @@ Expected output:
 }
 ```
 
+**If output shows `"type": "n8n-nodes-base.code"`**, then production also has the outdated workflow and needs redeployment.
+
 ### Fix Dev Environment
 
 Current blocker: Dev n8n authentication fails with all known credentials.
 
-Attempted fixes:
-- User reset: `docker exec n8n-dev-local n8n user-management:reset` (failed)
-- Cookie refresh: Login API returns 401 with correct credentials
-- Multiple credential combinations tried from .env
+**Error**: Login API returns 401 "Wrong username or password"
+
+**Credentials Tried**:
+- From `.env`: `N8N_DEV_USER` / `N8N_DEV_PASSWORD` (test@example.com / TestPassword123!)
+- From `.env`: `N8N_OWNER_EMAIL` / `N8N_OWNER_PASSWORD` (test@example.com / TestPassword123!)
+- After reset: admin@example.com / Admin123!
+
+**Attempted Fixes**:
+- User reset: `docker exec n8n-dev-local n8n user-management:reset --email=admin@example.com --password=Admin123!`
+  - Command succeeded but login still returns 401
+- Cookie refresh: Old session cookies also expired
+- Checked database: Unable to query n8n user table due to postgres role issues
 
 **Next Steps**:
 1. Debug why n8n dev authentication is broken
@@ -122,6 +146,29 @@ Attempted fixes:
 - `n8n-workflows/Route_Event.json` - Tag parsing (working)
 - `n8n-workflows/Capture_Projection.json` - Projection storage (broken in dev)
 - `n8n-workflows/tests/regression/Multi_Capture.json` - Test definitions
+
+## Investigation Methodology
+
+**Date Performed**: 2025-12-27  
+**Time Spent**: ~4 hours  
+**Tools Used**:
+- `git show <commit>:path/to/file` - Compare workflow versions across commits
+- `jq` on workflow JSON files - Extract and compare node configurations
+- `curl` + n8n REST API - Check deployed workflow state
+- PostgreSQL queries - Verify data flow (events, traces, projections)
+- Regression test framework - Reproduce failures with detailed logging
+- Git history analysis (`git log`, `git diff`) - Trace validator bug timeline
+
+**Process**:
+1. Run regression tests to reproduce failures (2/5 fail)
+2. Analyze test expectations vs actual results
+3. Trace message flow: Route_Event → Route_Message → Capture_Projection
+4. Compare source files vs deployed workflows (found mismatch)
+5. Use git history to identify when TodoClassifier broke
+6. Verify production deployment status (partial - needs confirmation)
+7. Identify blockers preventing fix (dev authentication)
+
+This methodology can be reused for future workflow debugging.
 
 ## Key Learnings
 
