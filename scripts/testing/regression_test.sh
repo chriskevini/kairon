@@ -381,7 +381,10 @@ run_test_case() {
         return 1
     fi
 
-    # Wait for DB transactions to commit
+    # Race condition fix: PostgreSQL transaction commits are asynchronous.
+    # n8n completes execution before the DB transaction is fully committed.
+    # Wait 2 seconds to ensure projections are visible in subsequent queries.
+    # See: PR #125
     sleep 2
 
     # Check DB changes

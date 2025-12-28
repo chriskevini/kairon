@@ -1,5 +1,9 @@
 services:
   n8n-dev:
+    # Pinned to 1.123.5 for stability:
+    # - LangChain node compatibility
+    # - Task runner conflicts in later versions
+    # - Update path: Test new versions in isolation before upgrading
     image: n8nio/n8n:1.123.5
     container_name: n8n-dev-local
     restart: unless-stopped
