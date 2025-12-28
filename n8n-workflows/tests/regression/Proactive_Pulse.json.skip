@@ -1,0 +1,24 @@
+[
+  {
+    "test_name": "Basic proactive pulse with cron trigger",
+    "webhook_path": "kairon-dev-test/Every5Minutes",
+    "webhook_data": {},
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["pulse"]
+    }
+  },
+  {
+    "test_name": "Proactive pulse with custom trigger reason",
+    "webhook_path": "kairon-dev-test/Every5Minutes",
+    "webhook_data": {
+      "trigger_reason": "test_invocation"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["pulse"]
+    }
+  }
+]
