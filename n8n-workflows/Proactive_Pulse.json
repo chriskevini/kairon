@@ -310,7 +310,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Assemble prompt from modules and context with semantic selection\nconst allItems = $input.all();\n\n// Find the context summary item from BuildContextSummary\nlet contextData = null;\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.context_summary) {\n    contextData = item.json;\n    break;\n  }\n}\n\nif (!contextData) {\n  throw new Error('Context data not found in merged items');\n}\n\nconst ctx = contextData.ctx;\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Extract semantic selection results from MergeSemanticResults\nlet semanticMatches = [];\nfor (const item of allItems) {\n  if (item.json.results) {\n    semanticMatches = item.json.results;\n    break;\n  }\n}\n\n// Extract RAG results (similar projections) from RagSimilarProjections\nlet ragResults = [];\nfor (const item of allItems) {\n  if (item.json.projection_type !== undefined && item.json.distance !== undefined) {\n    ragResults.push(item.json);\n  }\n}\n\n// Get data from BuildContextSummary\nconst promptModules = contextData.prompt_modules || [];\nconst activities = contextData.activities || [];\nconst notes = contextData.notes || [];\nconst todos = contextData.todos || [];\nconst northStar = contextData.north_star || null;\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\nconst formatDate = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      timeZone: timezone, \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  }\n};\n\n// Get current hour in user's timezone\nconst now = new Date();\nlet currentHour;\ntry {\n  currentHour = parseInt(now.toLocaleTimeString('en-US', { \n    timeZone: timezone, \n    hour: 'numeric', \n    hour12: false \n  }));\n} catch (e) {\n  currentHour = now.getHours();\n}\n\n// Determine time of day for fallback technique selection\nconst isMorning = currentHour >= 6 && currentHour <= 9;\nconst isEvening = currentHour >= 20 && currentHour <= 23;\n\n// Get technique modules for context adaptation\nconst techniqueModules = promptModules.filter(m => m.module_type === 'technique');\n\n// Select technique: semantic match > time-based fallback > first available\nlet selectedTechnique = null;\nlet techniqueSource = 'none';\n\nif (semanticMatches && semanticMatches.length > 0 && semanticMatches[0].content) {\n  selectedTechnique = semanticMatches[0].content;\n  techniqueSource = `semantic_${semanticMatches[0].name || 'unknown'}`;\n} else if (techniqueModules.length > 0) {\n  // Time-based fallback\n  if (isMorning && techniqueModules.find(t => t.tags?.includes('morning'))) {\n    selectedTechnique = techniqueModules.find(t => t.tags?.includes('morning')).content;\n    techniqueSource = 'fallback_morning';\n  } else if (isEvening && techniqueModules.find(t => t.tags?.includes('evening'))) {\n    selectedTechnique = techniqueModules.find(t => t.tags?.includes('evening')).content;\n    techniqueSource = 'fallback_evening';\n  } else {\n    // Use first available technique\n    selectedTechnique = techniqueModules[0].content;\n    techniqueSource = 'fallback_first';\n  }\n}\n\n// Build context description for human-readable trace\nconst contextDescParts = [];\nif (contextData.has_stuck_todos) contextDescParts.push('stuck todos');\nif (contextData.has_activities) contextDescParts.push('recent activities');\nif (contextData.has_notes) contextDescParts.push('recent notes');\nconst contextDescription = contextDescParts.length > 0 \n  ? contextDescParts.join(', ')\n  : 'no recent activity';\n\n// Assemble prompt sections\nconst promptSections = [];\n\n// 1. System instruction\nconst systemModules = promptModules.filter(m => m.module_type === 'system');\nif (systemModules.length > 0) {\n  promptSections.push('# System Instructions\\n\\n' + systemModules.map(m => m.content).join('\\n\\n'));\n}\n\n// 2. North star (if configured)\nif (northStar) {\n  promptSections.push(`# Your North Star\\n\\n${northStar}`);\n}\n\n// 3. Selected technique (if available)\nif (selectedTechnique) {\n  promptSections.push(`# Technique for This Context\\n\\n${selectedTechnique}`);\n}\n\n// 4. RAG context (similar past projections)\nif (ragResults.length > 0) {\n  const ragSection = '# Related Past Activities\\n\\n' + \n    ragResults.map(r => {\n      const timestamp = formatDate(r.timestamp);\n      return `- ${timestamp}: ${r.content} (${r.category || 'uncategorized'})`;\n    }).join('\\n');\n  promptSections.push(ragSection);\n}\n\n// 5. Recent activities\nif (activities.length > 0) {\n  const activitySection = '# Recent Activities (Last 24h)\\n\\n' +\n    activities.map(a => {\n      const time = formatTime(a.timestamp);\n      return `- ${time}: ${a.description} (${a.category || 'uncategorized'})`;\n    }).join('\\n');\n  promptSections.push(activitySection);\n}\n\n// 6. Recent notes\nif (notes.length > 0) {\n  const noteSection = '# Recent Notes (Last 7 days)\\n\\n' +\n    notes.map(n => {\n      const date = formatDate(n.timestamp);\n      return `- ${date}: ${n.text}`;\n    }).join('\\n');\n  promptSections.push(noteSection);\n}\n\n// 7. Pending todos\nif (todos.length > 0) {\n  const todoSection = '# Pending Todos\\n\\n' +\n    todos.map(t => {\n      const daysPending = Math.floor(t.days_pending);\n      const urgency = daysPending > 3 ? ' ⚠️ STUCK' : '';\n      return `- ${t.text} (${daysPending} days pending)${urgency}`;\n    }).join('\\n');\n  promptSections.push(todoSection);\n}\n\n// 8. Current context\nconst currentTime = now.toLocaleString('en-US', { \n  timeZone: timezone,\n  weekday: 'long',\n  month: 'long',\n  day: 'numeric',\n  hour: 'numeric',\n  minute: '2-digit'\n});\npromptSections.push(`# Current Context\\n\\nTime: ${currentTime}\\nTimezone: ${timezone}`);\n\n// Assemble final prompt\nconst assembledPrompt = promptSections.join('\\n\\n---\\n\\n');\n\n// Build input summary for trace storage\nconst inputSummary = {\n  activities_count: activities.length,\n  notes_count: notes.length,\n  todos_count: todos.length,\n  stuck_todos_count: todos.filter(t => t.days_pending > 3).length,\n  has_north_star: !!northStar,\n  technique_source: techniqueSource,\n  rag_matches: ragResults.length\n};\n\nreturn {\n  json: {\n    ctx,\n    assembled_prompt: assembledPrompt,\n    context_description: contextDescription,\n    technique_source: techniqueSource,\n    input_summary: inputSummary\n  }\n};"
+        "jsCode": "// Assemble prompt from modules and context with semantic selection\nconst allItems = $input.all();\n\n// Find the context summary item from BuildContextSummary\nlet contextData = null;\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.context_summary) {\n    contextData = item.json;\n    break;\n  }\n}\n\nif (!contextData) {\n  throw new Error('Context data not found in merged items');\n}\n\nconst ctx = contextData.ctx;\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Extract semantic selection results from MergeSemanticResults\nlet semanticMatches = [];\nfor (const item of allItems) {\n  if (item.json.results) {\n    semanticMatches = item.json.results;\n    break;\n  }\n}\n\n// Extract RAG results (similar projections) from RagSimilarProjections\nlet ragResults = [];\nfor (const item of allItems) {\n  if (item.json.projection_type !== undefined && item.json.distance !== undefined) {\n    ragResults.push(item.json);\n  }\n}\n\n// Get data from BuildContextSummary\nconst promptModules = contextData.prompt_modules || [];\nconst activities = contextData.activities || [];\nconst notes = contextData.notes || [];\nconst todos = contextData.todos || [];\nconst northStar = contextData.north_star || null;\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\nconst formatDate = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      timeZone: timezone, \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  }\n};\n\n// Get current hour in user's timezone\nconst now = new Date();\nlet currentHour;\ntry {\n  currentHour = parseInt(now.toLocaleTimeString('en-US', { \n    timeZone: timezone, \n    hour: 'numeric', \n    hour12: false \n  }));\n} catch (e) {\n  currentHour = now.getHours();\n}\n\n// Determine time of day for fallback technique selection\nconst isMorning = currentHour >= 6 && currentHour <= 9;\nconst isEvening = currentHour >= 20 && currentHour <= 23;\n\n// Get technique modules for context adaptation\nconst techniqueModules = promptModules.filter(m => m.module_type === 'technique');\n\n// Select technique: semantic match > time-based fallback > first available\nlet selectedTechnique = null;\nlet techniqueSource = 'none';\n\nif (semanticMatches && semanticMatches.length > 0 && semanticMatches[0].content) {\n  selectedTechnique = semanticMatches[0].content;\n  techniqueSource = `semantic_${semanticMatches[0].name || 'unknown'}`;\n} else if (techniqueModules.length > 0) {\n  // Time-based fallback\n  if (isMorning && techniqueModules.find(t => t.tags?.includes('morning'))) {\n    selectedTechnique = techniqueModules.find(t => t.tags?.includes('morning')).content;\n    techniqueSource = 'fallback_morning';\n  } else if (isEvening && techniqueModules.find(t => t.tags?.includes('evening'))) {\n    selectedTechnique = techniqueModules.find(t => t.tags?.includes('evening')).content;\n    techniqueSource = 'fallback_evening';\n  } else {\n    // Use first available technique\n    selectedTechnique = techniqueModules[0].content;\n    techniqueSource = 'fallback_first';\n  }\n}\n\n// Build context description for human-readable trace\nconst contextDescParts = [];\nif (contextData.has_stuck_todos) contextDescParts.push('stuck todos');\nif (contextData.has_activities) contextDescParts.push('recent activities');\nif (contextData.has_notes) contextDescParts.push('recent notes');\nconst contextDescription = contextDescParts.length > 0 \n  ? contextDescParts.join(', ')\n  : 'no recent activity';\n\n// Assemble prompt sections\nconst promptSections = [];\n\n// 1. System instruction\nconst systemModules = promptModules.filter(m => m.module_type === 'system');\nif (systemModules.length > 0) {\n  promptSections.push('# System Instructions\\n\\n' + systemModules.map(m => m.content).join('\\n\\n'));\n}\n\n// 2. North star (if configured)\nif (northStar) {\n  promptSections.push(`# Your North Star\\n\\n${northStar}`);\n}\n\n// 3. Selected technique (if available)\nif (selectedTechnique) {\n  promptSections.push(`# Technique for This Context\\n\\n${selectedTechnique}`);\n}\n\n// 4. RAG context (similar past projections)\nif (ragResults.length > 0) {\n  const ragSection = '# Related Past Activities\\n\\n' + \n    ragResults.map(r => {\n      const timestamp = formatDate(r.timestamp);\n      return `- ${timestamp}: ${r.content} (${r.category || 'uncategorized'})`;\n    }).join('\\n');\n  promptSections.push(ragSection);\n}\n\n// 5. Recent activities\nif (activities.length > 0) {\n  const activitySection = '# Recent Activities (Last 24h)\\n\\n' +\n    activities.map(a => {\n      const time = formatTime(a.timestamp);\n      return `- ${time}: ${a.description} (${a.category || 'uncategorized'})`;\n    }).join('\\n');\n  promptSections.push(activitySection);\n}\n\n// 6. Recent notes\nif (notes.length > 0) {\n  const noteSection = '# Recent Notes (Last 7 days)\\n\\n' +\n    notes.map(n => {\n      const date = formatDate(n.timestamp);\n      return `- ${date}: ${n.text}`;\n    }).join('\\n');\n  promptSections.push(noteSection);\n}\n\n// 7. Pending todos\nif (todos.length > 0) {\n  const todoSection = '# Pending Todos\\n\\n' +\n    todos.map(t => {\n      const daysPending = Math.floor(t.days_pending);\n      const urgency = daysPending > 3 ? ' \u26a0\ufe0f STUCK' : '';\n      return `- ${t.text} (${daysPending} days pending)${urgency}`;\n    }).join('\\n');\n  promptSections.push(todoSection);\n}\n\n// 8. Current context\nconst currentTime = now.toLocaleString('en-US', { \n  timeZone: timezone,\n  weekday: 'long',\n  month: 'long',\n  day: 'numeric',\n  hour: 'numeric',\n  minute: '2-digit'\n});\npromptSections.push(`# Current Context\\n\\nTime: ${currentTime}\\nTimezone: ${timezone}`);\n\n// Assemble final prompt\nconst assembledPrompt = promptSections.join('\\n\\n---\\n\\n');\n\n// Build input summary for trace storage\nconst inputSummary = {\n  activities_count: activities.length,\n  notes_count: notes.length,\n  todos_count: todos.length,\n  stuck_todos_count: todos.filter(t => t.days_pending > 3).length,\n  has_north_star: !!northStar,\n  technique_source: techniqueSource,\n  rag_matches: ragResults.length\n};\n\nreturn {\n  json: {\n    ctx,\n    assembled_prompt: assembledPrompt,\n    context_description: contextDescription,\n    technique_source: techniqueSource,\n    input_summary: inputSummary\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -393,30 +393,7 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO traces (event_id, step_name, data, trace_chain)\nVALUES (\n  $1::uuid,\n  'proactive_agent',\n  jsonb_build_object(\n    'prompt', $2,\n    'completion', $3,\n    'context_description', $4,\n    'technique_source', $5,\n    'input_summary', $6::jsonb,\n    'duration_ms', $7::integer\n  ),\n  $8::uuid[]\n)\nRETURNING id, trace_chain || id AS updated_trace_chain;",
-        "options": {
-          "values": "{{ $json.ctx.event.event_id }},{{ $json.assembled_prompt }},{{ $json.llm_response }},{{ $json.context_description }},{{ $json.technique_source }},{{ JSON.stringify($json.input_summary) }},{{ $json.duration_ms }},{{ $json.trace_chain_pg }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        4032,
-        96
-      ],
-      "id": "store-trace",
-      "name": "StoreTrace",
-      "credentials": {
-        "postgres": {
-          "id": "GIpVtzgs3wiCmQBQ",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Merge trace result with parsed LLM data\nconst traceResult = $json;\nconst parseData = $('ParseLlmResponse').first().json;\n\nconst updatedTraceChain = traceResult.updated_trace_chain || [];\nconst updatedTraceChainPg = '{' + updatedTraceChain.join(',') + '}';\n\n// Pre-stringify projection data for Postgres\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  text: parseData.message,\n  context_description: parseData.context_description,\n  technique_source: parseData.technique_source\n};\n\nreturn {\n  json: {\n    ctx: parseData.ctx,\n    trace_id: traceResult.id,\n    trace_chain_pg: updatedTraceChainPg,\n    message: parseData.message,\n    is_empty: parseData.is_empty,\n    projection_data_json: JSON.stringify(projectionData)\n  }\n};",
+        "jsCode": "// Prepare db_queries for Execute_Queries: trace \u2192 projection \u2192 update\nconst ctx = $json.ctx;\nconst eventId = ctx.event.event_id;\nconst traceChainPg = ctx.event.trace_chain_pg;\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Pre-stringify projection data for Postgres\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  text: $json.message,\n  context_description: $json.context_description,\n  technique_source: $json.technique_source\n};\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [\n        {\n          key: 'trace',\n          sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n                VALUES ($1::uuid, 'proactive_agent', $2::jsonb, $3::uuid[])\n                RETURNING id, trace_chain || id AS updated_trace_chain`,\n          params: [\n            eventId,\n            JSON.stringify({\n              prompt: $json.assembled_prompt,\n              completion: $json.llm_response,\n              context_description: $json.context_description,\n              technique_source: $json.technique_source,\n              input_summary: $json.input_summary,\n              duration_ms: $json.duration_ms\n            }),\n            traceChainPg\n          ]\n        },\n        {\n          key: 'projection',\n          sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n                VALUES ($1::uuid, $2::uuid, $3::uuid[], 'pulse', $4::jsonb, 'auto_confirmed', $5)\n                RETURNING id`,\n          params: [\n            '$results.trace.row.id',\n            eventId,\n            '$results.trace.row.updated_trace_chain',\n            JSON.stringify(projectionData),\n            timezone\n          ]\n        }\n      ],\n      // Pass through data needed after Execute_Queries\n      temp: {\n        message: $json.message,\n        is_empty: $json.is_empty\n      }\n    }\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
@@ -425,8 +402,8 @@
         4256,
         96
       ],
-      "id": "merge-trace-result",
-      "name": "MergeTraceResult"
+      "id": "prepare-db-queries",
+      "name": "PrepareDbQueries"
     },
     {
       "parameters": {
@@ -464,43 +441,6 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\nVALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::uuid[],\n  'pulse',\n  $4::jsonb,\n  'auto_confirmed',\n  $5\n)\nRETURNING id;",
-        "options": {
-          "values": "{{ $json.trace_id }},{{ $json.ctx.event.event_id }},{{ $json.trace_chain_pg }},{{ $json.projection_data_json }},{{ $json.ctx.event.timezone }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        4704,
-        176
-      ],
-      "id": "store-projection",
-      "name": "StoreProjection",
-      "credentials": {
-        "postgres": {
-          "id": "GIpVtzgs3wiCmQBQ",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Merge projection result for Discord\nconst projResult = $json;\nconst mergeData = $('MergeTraceResult').first().json;\n\nreturn {\n  json: {\n    ctx: mergeData.ctx,\n    projection_id: projResult.id,\n    message: mergeData.message\n  }\n};",
-        "mode": "runOnceForEachItem"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        4928,
-        176
-      ],
-      "id": "merge-for-discord",
-      "name": "MergeForDiscord"
-    },
-    {
-      "parameters": {
         "resource": "message",
         "guildId": {
           "__rl": true,
@@ -532,29 +472,6 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "-- Update projection with Discord message ID for void support\nUPDATE projections \nSET data = data || jsonb_build_object(\n  'discord_message_id', $1,\n  'discord_channel_id', $2,\n  'discord_guild_id', $3\n)\nWHERE id = $4::uuid\nRETURNING id;",
-        "options": {
-          "values": "{{ $json.id }},{{ $env.DISCORD_CHANNEL_ARCANE_SHELL }},{{ $env.DISCORD_GUILD_ID }},{{ $('Merge for Discord').first().json.projection_id }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        5376,
-        176
-      ],
-      "id": "update-projection-message-id",
-      "name": "UpdateProjectionWithMessageId",
-      "credentials": {
-        "postgres": {
-          "id": "GIpVtzgs3wiCmQBQ",
-          "name": "Postgres account"
-        }
-      }
     },
     {
       "parameters": {
@@ -594,7 +511,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.id }}",
-        "emoji": "❓",
+        "emoji": "\u2753",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -679,7 +596,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "ctx": "={{ $('Merge for Discord').first().json.ctx }}",
-            "emoji": "❓"
+            "emoji": "\u2753"
           },
           "matchingColumns": [],
           "schema": [],
@@ -712,6 +629,104 @@
       ],
       "id": "acebb70878994681",
       "name": "RestoreCtx"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare db_queries for Execute_Queries: trace \u2192 projection\nconst ctx = $json.ctx;\nconst eventId = ctx.event.event_id;\nconst traceChainPg = ctx.event.trace_chain_pg;\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Pre-stringify projection data for Postgres\nconst projectionData = {\n  timestamp: new Date().toISOString(),\n  text: $json.message,\n  context_description: $json.context_description,\n  technique_source: $json.technique_source\n};\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [\n        {\n          key: 'trace',\n          sql: `INSERT INTO traces (event_id, step_name, data, trace_chain)\n                VALUES ($1::uuid, 'proactive_agent', $2::jsonb, $3::uuid[])\n                RETURNING id, trace_chain || id AS updated_trace_chain`,\n          params: [\n            eventId,\n            JSON.stringify({\n              prompt: $json.assembled_prompt,\n              completion: $json.llm_response,\n              context_description: $json.context_description,\n              technique_source: $json.technique_source,\n              input_summary: $json.input_summary,\n              duration_ms: $json.duration_ms\n            }),\n            traceChainPg\n          ]\n        },\n        {\n          key: 'projection',\n          sql: `INSERT INTO projections (trace_id, event_id, trace_chain, projection_type, data, status, timezone)\n                VALUES ($1::uuid, $2::uuid, $3::uuid[], 'pulse', $4::jsonb, 'auto_confirmed', $5)\n                RETURNING id`,\n          params: [\n            '$results.trace.row.id',\n            eventId,\n            '$results.trace.row.updated_trace_chain',\n            JSON.stringify(projectionData),\n            timezone\n          ]\n        }\n      ],\n      // Pass through data needed after Execute_Queries\n      temp: {\n        message: $json.message,\n        is_empty: $json.is_empty\n      }\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4256,
+        96
+      ],
+      "id": "prepare-db-queries",
+      "name": "PrepareDbQueries"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        4480,
+        96
+      ],
+      "id": "store-trace-and-projection",
+      "name": "StoreTraceAndProjection"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for Discord and additional updates\nconst ctx = $json.ctx;\nconst message = ctx.temp?.message || '';\nconst isEmpty = ctx.temp?.is_empty || false;\nconst projectionId = ctx.db?.projection?.row?.id;\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      // Clean up temp namespace\n      temp: undefined\n    },\n    message: message,\n    is_empty: isEmpty,\n    projection_id: projectionId\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4704,
+        96
+      ],
+      "id": "prepare-for-discord",
+      "name": "PrepareForDiscord"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Discord message ID update query\nconst discordResult = $json;\nconst prepData = $('PrepareForDiscord').first().json;\nconst ctx = prepData.ctx;\n\nreturn {\n  json: {\n    ctx: {\n      ...ctx,\n      db_queries: [{\n        key: 'update_projection',\n        sql: `UPDATE projections \n              SET data = data || jsonb_build_object(\n                'discord_message_id', $1,\n                'discord_channel_id', $2,\n                'discord_guild_id', $3\n              )\n              WHERE id = $4::uuid\n              RETURNING id`,\n        params: [\n          discordResult.id,\n          $env.DISCORD_CHANNEL_ARCANE_SHELL,\n          $env.DISCORD_GUILD_ID,\n          prepData.projection_id\n        ]\n      }]\n    }\n  }\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5376,
+        176
+      ],
+      "id": "prepare-discord-update",
+      "name": "PrepareDiscordUpdate"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ctx": "={{ $json.ctx }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        5600,
+        176
+      ],
+      "id": "update-projection-with-message-id",
+      "name": "UpdateProjectionWithMessageId"
     }
   ],
   "connections": {
@@ -867,7 +882,7 @@
       "main": [
         [
           {
-            "node": "StoreTrace",
+            "node": "PrepareDbQueries",
             "type": "main",
             "index": 0
           },
@@ -884,53 +899,9 @@
         []
       ]
     },
-    "StoreTrace": {
-      "main": [
-        [
-          {
-            "node": "MergeTraceResult",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "MergeTraceResult": {
-      "main": [
-        [
-          {
-            "node": "IfEmptyMessage",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "IfEmptyMessage": {
       "main": [
         [],
-        [
-          {
-            "node": "StoreProjection",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "StoreProjection": {
-      "main": [
-        [
-          {
-            "node": "MergeForDiscord",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "MergeForDiscord": {
-      "main": [
         [
           {
             "node": "SendMessage",
@@ -944,18 +915,7 @@
       "main": [
         [
           {
-            "node": "UpdateProjectionWithMessageId",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "UpdateProjectionWithMessageId": {
-      "main": [
-        [
-          {
-            "node": "AddDiagnosticReaction",
+            "node": "PrepareDiscordUpdate",
             "type": "main",
             "index": 0
           }
@@ -1084,6 +1044,50 @@
         [
           {
             "node": "ParseLlmResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareDbQueries": {
+      "main": [
+        [
+          {
+            "node": "StoreTraceAndProjection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "StoreTraceAndProjection": {
+      "main": [
+        [
+          {
+            "node": "PrepareForDiscord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareForDiscord": {
+      "main": [
+        [
+          {
+            "node": "IfEmptyMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareDiscordUpdate": {
+      "main": [
+        [
+          {
+            "node": "UpdateProjectionWithMessageId",
             "type": "main",
             "index": 0
           }
