@@ -9,7 +9,8 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 # Check if any workflow files are staged
-STAGED_WORKFLOWS=$(git diff --cached --name-only --diff-filter=ACM | grep "n8n-workflows/.*\.json$" || true)
+# Exclude regression test directory (those are test payloads, not workflows)
+STAGED_WORKFLOWS=$(git diff --cached --name-only --diff-filter=ACM | grep "n8n-workflows/.*\.json$" | grep -v "n8n-workflows/tests/" || true)
 
 if [ -z "$STAGED_WORKFLOWS" ]; then
     # No workflow files staged, nothing to do
