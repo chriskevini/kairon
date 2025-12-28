@@ -198,11 +198,11 @@ Track test coverage per workflow:
 
 ### Check database state
 ```bash
-docker exec postgres-local psql -U postgres -d kairon_dev -c "
+docker exec postgres-local psql -U postgres -d kairon -c "
   SELECT * FROM events ORDER BY received_at DESC LIMIT 5;
 "
 
-docker exec postgres-local psql -U postgres -d kairon_dev -c "
+docker exec postgres-local psql -U postgres -d kairon -c "
   SELECT * FROM projections ORDER BY created_at DESC LIMIT 5;
 "
 ```

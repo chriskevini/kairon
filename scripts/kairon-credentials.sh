@@ -48,7 +48,7 @@ case "$ENVIRONMENT" in
             --api-url "${N8N_DEV_API_URL:-http://localhost:5679}" \
             --api-key "$N8N_DEV_API_KEY" \
             --db-container "${CONTAINER_DB_DEV:-postgres-dev}" \
-            --db-name "${DB_NAME_DEV:-kairon_dev}" \
+            --db-name "${DB_NAME:-kairon}" \
             --db-user "${DB_USER_DEV:-n8n_user}" \
             "dev"
         ;;

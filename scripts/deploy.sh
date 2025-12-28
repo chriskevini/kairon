@@ -308,26 +308,17 @@ main() {
             deploy_to_local || exit 1
             ;;
         prod)
+            deploy_to_prod || exit 1
             ;;
         *)
-            echo "Usage: $0 [local|prod] [dry-run]"
+            echo "Usage: $0 [local|prod] [--dry-run]"
             echo ""
             echo "Commands:"
             echo "  local   - Deploy to localhost (default)"
             echo "  prod    - Deploy to production server"
-            echo "  dry-run - Validate without deploying"
             echo ""
-            echo "Configuration:"
-            echo "  Local:  docker-compose up -d"
-            echo "  Prod:   Set N8N_API_KEY, N8N_DEV_SSH_HOST in .env"
-            exit 1
-            ;;
-        *)
-            echo "Usage: $0 [local|prod]"
-            echo ""
-            echo "Commands:"
-            echo "  local - Deploy to localhost (default)"
-            echo "  prod  - Deploy to production server"
+            echo "Options:"
+            echo "  --dry-run - Validate without deploying"
             echo ""
             echo "Configuration:"
             echo "  Local:  docker-compose up -d"
