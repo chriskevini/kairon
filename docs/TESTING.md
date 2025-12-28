@@ -8,7 +8,8 @@ Kairon uses a comprehensive testing strategy:
 
 1. **Level 1: Fast Pre-commit Checks** - JSON syntax, basic properties
 2. **Level 2: Structural Validation** - Node properties, ctx patterns, ExecuteWorkflow configuration
-3. **Level 3: Regression Testing** - Real DB validation against modified workflows
+3. **Level 2b: Workflow Integrity** - Dead code detection, misconfigured nodes (NEW!)
+4. **Level 3: Regression Testing** - Real DB validation against modified workflows
 
 ---
 
@@ -21,15 +22,15 @@ Kairon uses a comprehensive testing strategy:
 
 ## Features
 
-### ✅ JSON Syntax Validation
+### JSON Syntax Validation
 - Parse JSON and catch syntax errors
 - Fast feedback during development
 
-### ✅ Property Validation
+### Property Validation
 - Required node properties (name, type, parameters)
 - Basic structural integrity
 
-### ✅ Sensitive Data Detection
+### Sensitive Data Detection
 - Detects `pinData` (test execution data with real IDs)
 - Prevents committing sensitive credentials or test data
 
@@ -44,28 +45,70 @@ Kairon uses a comprehensive testing strategy:
 
 ## Features
 
-### ✅ Property & Structure Validation
+### Property & Structure Validation
 - Required node properties (parameters, type, typeVersion, position)
 - Connection validity and structure
 - Node type format validation
 - Position coordinate validation
 
-### ✅ ctx Pattern Enforcement
+### ctx Pattern Enforcement
 - Proper ctx initialization and usage
 - Namespace consistency across workflows
 - Event field requirements
 - Node reference elimination
 
-### ✅ ExecuteWorkflow Configuration
+### ExecuteWorkflow Configuration
 - Correct mode settings (mode='list' for workflow execution)
 - Required cachedResult fields for Execute_Queries integration
 - Workflow ID validation
 
-### ⚠️ Known Limitations
-- **Does NOT catch n8n UI compatibility issues** that cause "Could not find property option" errors
-- **Does NOT validate against n8n's internal processing engine**
-- **Cannot prevent human implementation errors** in ExecuteWorkflow integration
-- Requires additional testing (regression tests) for full UI compatibility assurance
+---
+
+# Level 2b: Workflow Integrity Validation (NEW!)
+
+- **Location**: `scripts/validation/workflow_integrity.py`
+- **What it checks**: Dead code, misconfigured nodes, broken references
+- **Speed**: < 10 seconds
+- **Blocks**: Dead code, missing workflow references, misconfigured triggers
+
+## Background
+
+This validator was created in response to **Issues #118-122** which identified multiple deployment pipeline issues:
+- Dead code (nodes unreachable from triggers) causing confusion
+- Misconfigured executeWorkflowTrigger nodes showing validation errors in n8n UI
+- Missing workflow references not caught before production
+
+## Features
+
+### Dead Code Detection
+Finds nodes that are unreachable from any trigger node using BFS graph traversal.
+
+**Why this matters:**
+- Dead code confuses developers looking at workflows
+- Dead code wastes n8n UI resources
+- Dead code often indicates broken refactoring or incomplete changes
+
+**Example from Issue #122:**
+```
+Proactive_Pulse had 6 dead nodes:
+- AddDiagnosticReaction
+- CheckVerboseConfig
+- IfVerbose?
+- MimoV2Flash
+- NemotronNano9b
+- TriggerShowDetails
+```
+
+### Misconfigured Node Detection
+- Empty `executeWorkflowTrigger` parameters (causes n8n UI validation errors)
+- Execute Workflow nodes not using `mode='list'` (not portable between environments)
+- Execute Workflow nodes referencing non-existent workflows
+- Switch nodes with invalid `fallbackOutput` values
+- Code nodes with invalid return patterns
+
+### Broken Reference Detection
+- Validates all Execute Workflow nodes reference existing workflows
+- Catches typos and missing workflows before deployment
 
 ## Usage
 
@@ -73,26 +116,57 @@ Kairon uses a comprehensive testing strategy:
 ```bash
 # Happens automatically when committing workflow files
 git add n8n-workflows/*.json
-git commit -m "feat: add new workflow"
-# → Validates automatically
+git commit -m "feat: update workflow"
+# → Runs integrity validation automatically
 ```
 
-### Manual API Testing
+### Manual Validation
 ```bash
-# Test specific workflow
-python3 scripts/validation/n8n_workflow_validator.py n8n-workflows/MyWorkflow.json --verbose
+# Validate all workflows
+python3 scripts/validation/workflow_integrity.py
 
-# Test with custom n8n instance
-python3 scripts/validation/n8n_workflow_validator.py workflow.json --api-url http://localhost:5679 --api-key my-key
+# Validate specific workflow
+python3 scripts/validation/workflow_integrity.py n8n-workflows/Proactive_Pulse.json
+
+# Auto-fix dead code (removes unreachable nodes)
+python3 scripts/validation/workflow_integrity.py --fix
+
+# Strict mode (fail on warnings too)
+python3 scripts/validation/workflow_integrity.py --strict
 ```
 
-### CI/CD Integration
+### In Deployment Pipeline
 ```bash
-# In deployment pipeline
-for workflow in n8n-workflows/*.json; do
-    python3 scripts/validation/n8n_workflow_validator.py "$workflow" || exit 1
-done
+# Automatically runs in Stage 1 validation
+./scripts/deploy.sh
+# → validate_workflow_integrity() runs before deployment
 ```
+
+## Auto-Fix Feature
+
+The `--fix` flag automatically removes dead code:
+
+```bash
+# Before fix: Proactive_Pulse has 6 dead nodes
+python3 scripts/validation/workflow_integrity.py
+# Proactive_Pulse: DEAD CODE: 6 node(s) unreachable from triggers
+
+# Run fix
+python3 scripts/validation/workflow_integrity.py --fix
+# Fixed: Proactive_Pulse.json - Removed 6 dead nodes
+
+# After fix: Proactive_Pulse passes
+python3 scripts/validation/workflow_integrity.py
+# Proactive_Pulse: PASS
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | All checks passed |
+| 1 | Errors found (blocks deployment) |
+| 2 | Warnings only (deployment allowed, review recommended) |
 
 ---
 

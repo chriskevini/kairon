@@ -109,5 +109,35 @@ if [ $has_ctx_errors -eq 1 ]; then
     exit 1
 fi
 
+# Run Workflow Integrity Checks (dead code detection, misconfigured nodes)
+echo ""
+echo "🔍 Checking workflow integrity (dead code, misconfigured nodes)..."
+has_integrity_errors=0
+
+for file in $STAGED_WORKFLOWS; do
+    if ! python3 "$REPO_ROOT/scripts/validation/workflow_integrity.py" "$REPO_ROOT/$file" --quiet 2>&1; then
+        echo "  ❌ integrity issues: $file"
+        # Run it again without quiet to show details
+        python3 "$REPO_ROOT/scripts/validation/workflow_integrity.py" "$REPO_ROOT/$file"
+        has_integrity_errors=1
+    else
+        echo "  ✓ $file"
+    fi
+done
+
+if [ $has_integrity_errors -eq 1 ]; then
+    echo ""
+    echo "❌ Commit aborted: Workflow integrity issues found"
+    echo ""
+    echo "Common issues:"
+    echo "  - Dead code: nodes unreachable from triggers"
+    echo "  - Misconfigured nodes: empty triggers, wrong modes"
+    echo "  - Missing workflow references"
+    echo ""
+    echo "Fix with: python3 scripts/validation/workflow_integrity.py --fix <workflow>"
+    echo "Or bypass with: git commit --no-verify"
+    exit 1
+fi
+
 echo ""
 echo "✅ All workflow checks and tests passed!"
