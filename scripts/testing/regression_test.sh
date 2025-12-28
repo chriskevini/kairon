@@ -122,7 +122,7 @@ FAILED_TESTS=0
 log_test() { echo -e "${BLUE}[TEST]${NC} $1"; }
 log_pass() { echo -e "${GREEN}  ✓${NC} $1"; PASSED_TESTS=$((PASSED_TESTS + 1)); }
 log_fail() { echo -e "${RED}  ✗${NC} $1"; FAILED_TESTS=$((FAILED_TESTS + 1)); }
-log_info() { [ "$VERBOSE" = true ] && echo -e "${YELLOW}[INFO]${NC} $1" || true; }
+log_info() { [ "$VERBOSE" = true ] && echo -e "${YELLOW}[INFO]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 
 # Cleanup trap
@@ -380,9 +380,6 @@ run_test_case() {
 
         return 1
     fi
-
-    # Wait for DB transactions to commit
-    sleep 2
 
     # Check DB changes
     local new_events=$(docker exec "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" -t -c \
