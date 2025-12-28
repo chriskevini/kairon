@@ -136,6 +136,39 @@ class WorkflowIntegrityValidator:
 
         # Dead code = nodes not reachable from any trigger
         dead = set(nodes.keys()) - reachable
+
+        # SPECIAL CASE: AI model subnodes
+        # AI chain nodes (chainLlm, agentExecutor, etc.) require AI model subnodes
+        # (lmChatOpenRouter, lmChatOpenAi, etc.) but these connections aren't in the
+        # connections object. Mark AI model nodes as reachable if ANY AI chain is reachable.
+        ai_chain_types = ["chainLlm", "agentExecutor", "chainRetrievalQa"]
+        ai_model_types = [
+            "lmChatOpenRouter",
+            "lmChatOpenAi",
+            "lmChatAnthropic",
+            "lmChatMistral",
+        ]
+
+        # Check if any reachable node is an AI chain
+        has_reachable_ai_chain = any(
+            any(
+                chain_type in nodes[name].get("type", "")
+                for chain_type in ai_chain_types
+            )
+            for name in reachable
+        )
+
+        if has_reachable_ai_chain:
+            # Mark all AI model nodes as reachable (they're subnodes of chains)
+            ai_models = {
+                name
+                for name, node in nodes.items()
+                if any(
+                    model_type in node.get("type", "") for model_type in ai_model_types
+                )
+            }
+            dead = dead - ai_models
+
         return dead, triggers
 
     def check_empty_trigger(self, node: dict) -> Optional[str]:

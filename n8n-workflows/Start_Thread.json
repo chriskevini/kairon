@@ -52,7 +52,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.db.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $json.ctx.event.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) \u2192 Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) \u2192 Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that's conversational and specific, not generic\n\nRespond to their initial message now.",
+        "text": "=You are an AI life coach helping the user reflect, plan, and think deeply.\n\n## Context Available\n\n**User's Guiding Principle:** {{ $json.ctx.db.north_star }}\n\nKeep this in mind when helping them, but don't mention it unless directly relevant to the conversation.\n\n## Current Situation\n\nThe user just started a conversation thread with: {{ $json.ctx.event.clean_text }}\n\nThey are coming to you for help thinking through something.\n\n## Instructions\n\n**Assess the question type:**\n\n**Simple/direct question** (what's X?, how do I Y?) → Answer directly if you can. Be concise (2-3 sentences).\n\n**Planning/reflection/decision** (what should I focus on?, help me think about X) → Signal that you're gathering context, then ask 1 clarifying question. Total 2-3 sentences.\n\n## Style\n\n- Warm and conversational\n- Natural and specific to their words\n- Not robotic or generic\n- Don't force connections to the guiding principle\n- Focus on what they're asking, not on fitting everything into a grand narrative\n\n## Example Responses (for planning/reflection questions)\n\n**User:** what should I focus on today?\n**Good response:** Let me check what you've been working on lately. Are you thinking about what to prioritize right now, or planning for the whole day?\n\n**User:** help me think through this project decision\n**Good response:** I'll look at your recent activities to give you a grounded perspective. What's the core tradeoff you're trying to navigate?\n\n**User:** feeling scattered, what's going on?\n**Good response:** Let me pull up your week so far. When did you first notice feeling scattered - today or has it been building?\n\n**User:** am I making progress on my goals?\n**Good response:** Looking at your recent work to see the patterns. Which goal are you most curious about?\n\nNotice how each response:\n1. Signals gathering context in a natural, varied way\n2. Asks a clarifying question that's conversational and specific, not generic\n\nRespond to their initial message now.",
         "needsFallback": true,
         "batching": {}
       },
@@ -64,6 +64,50 @@
       ],
       "id": "f6f390a8-c453-4cee-8d6d-2b9a415e3a29",
       "name": "GenerateInitialResponse"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-nano-9b-v2:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        19624,
+        -2096
+      ],
+      "id": "0c6a309d-86ff-4aa3-b02f-33230ae4f092",
+      "name": "NemotronNano9b",
+      "credentials": {
+        "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "xiaomi/mimo-v2-flash:free",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        19752,
+        -2096
+      ],
+      "id": "60963dec-c78a-4918-8b32-12e1a0f25d8b",
+      "name": "MimoV2Flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "nB20cMgvlwePo3oC",
+          "name": "OpenRouter account"
+        }
+      }
     },
     {
       "parameters": {
@@ -129,7 +173,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=\ud83d\udde8\ufe0f"
+        "emoji": "=🗨️"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -138,7 +182,7 @@
         -2560
       ],
       "id": "1e7b0d2a-54ee-4607-bcd9-7872585cb7c1",
-      "name": "ReactWith\ud83d\udde8\ufe0f",
+      "name": "ReactWith🗨️",
       "webhookId": "d9babcdf-8243-4adb-83c8-bbaf038fbfc7",
       "retryOnFail": true,
       "maxTries": 3,
@@ -154,7 +198,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -166,7 +210,7 @@
         -2080
       ],
       "id": "remove-blue-reaction-start-chat",
-      "name": "Remove\ud83d\udd35Reaction",
+      "name": "Remove🔵Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -287,12 +331,12 @@
             "index": 0
           },
           {
-            "node": "ReactWith\ud83d\udde8\ufe0f",
+            "node": "ReactWith🗨️",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove\ud83d\udd35Reaction",
+            "node": "Remove🔵Reaction",
             "type": "main",
             "index": 0
           }
@@ -387,14 +431,36 @@
         ]
       ]
     },
-    "ReactWith\ud83d\udde8\ufe0f": {
+    "ReactWith🗨️": {
       "main": [
         []
       ]
     },
-    "Remove\ud83d\udd35Reaction": {
+    "Remove🔵Reaction": {
       "main": [
         []
+      ]
+    },
+    "NemotronNano9b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "GenerateInitialResponse",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MimoV2Flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "GenerateInitialResponse",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
       ]
     }
   },
