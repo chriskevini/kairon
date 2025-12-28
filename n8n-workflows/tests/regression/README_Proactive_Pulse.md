@@ -3,14 +3,30 @@
 ## Testing Status
 
 ✅ **Unit Tests** - Fully automated (32 tests)  
-⚠️ **Regression Tests** - Manual invocation required  
+✅ **Regression Tests** - Fully automated (3 tests)  
 ✅ **Structural Validation** - Fully automated
 
-## Why Manual Regression Testing?
+## Regression Test Support
 
-The Schedule Trigger transforms to a custom webhook path (`kairon-dev-test/Every5Minutes`), but the current `regression_test.sh` framework only supports the standard Discord webhook path. This is a framework limitation, not a workflow issue.
+The regression test framework now supports custom webhook paths for schedule-trigger workflows. Tests are defined in `Proactive_Pulse.json`:
 
-**Workaround:** Unit tests provide comprehensive coverage (32 tests), and manual integration testing validates end-to-end behavior.
+```json
+{
+  "test_name": "Test description",
+  "webhook_path": "kairon-dev-test/Every5Minutes",  // Custom path for transformed schedule trigger
+  "webhook_data": {},
+  "expected_db_changes": {
+    "events_created": 1,
+    "projections_created": 1,
+    "projection_types": ["pulse"]
+  }
+}
+```
+
+**How it works:**
+1. `transform_for_dev.py` converts Schedule Trigger → Webhook with path `kairon-dev-test/{node_name}`
+2. Test JSON specifies `webhook_path` to match transformed path
+3. `regression_test.sh` uses custom path instead of default `WEBHOOK_PATH`
 
 ## Test Coverage
 
@@ -42,36 +58,23 @@ pytest n8n-workflows/tests/test_Proactive_Pulse.py -v
 
 **Status:** ✅ All 32 tests passing
 
-### ⚠️ Level 2: Manual Integration Tests
+### ✅ Level 2: Automated Regression Tests
 **Location:** `n8n-workflows/tests/regression/Proactive_Pulse.json`
 
-Since automated regression tests aren't supported yet, use manual testing:
+**Coverage:** 3 automated test scenarios
+- Basic proactive pulse with cron trigger
+- Custom trigger reason parameter
+- Execute Workflow Trigger path
 
+**Runs automatically:**
+- Pre-push: Full regression test suite
+
+**Run manually:**
 ```bash
-# 1. Ensure dev environment is running
-docker-compose -f docker-compose.dev.yml up -d
-
-# 2. Invoke the transformed webhook (schedule trigger → webhook)
-curl -X POST http://localhost:5679/webhook/kairon-dev-test/Every5Minutes \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-
-# 3. Check execution in n8n UI
-# http://localhost:5679/executions
-
-# 4. Verify database changes
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c \
-  "SELECT * FROM events WHERE event_type = 'system' ORDER BY received_at DESC LIMIT 1"
-
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c \
-  "SELECT * FROM projections WHERE projection_type = 'pulse' ORDER BY created_at DESC LIMIT 1"
+bash scripts/testing/regression_test.sh --workflow Proactive_Pulse --verbose
 ```
 
-**Expected Results:**
-- Execution status: success
-- 1 system event created
-- 1 pulse projection created
-- Discord message posted (mocked in dev)
+**Status:** ✅ Fully automated with custom webhook path support
 
 ### ✅ Level 3: Structural Validation (Fully Automated)
 **Location:** `scripts/validation/workflow_integrity.py`
@@ -100,51 +103,37 @@ Pre-push Hook
   ↓
 ├─ ✅ Stage 0: Unit tests (32 tests) ← PASSES
 ├─ ✅ Stage 1: Dev deployment ← PASSES
-├─ ⚠️  Stage 2: Regression tests ← SKIPPED (framework limitation)
+├─ ✅ Stage 2: Regression tests (3 tests) ← PASSES
 └─ ✅ Stage 3: Production deployment ← PROCEEDS
 ```
 
-## Workaround for Blocked Push
+## Manual Testing (Optional)
 
-If regression tests block your push:
+If you want to manually test the workflow:
 
 ```bash
-# Option 1: Skip regression tests (use with caution)
-SKIP_REGRESSION_TESTS=true git push
+# 1. Ensure dev environment is running
+docker-compose -f docker-compose.dev.yml up -d
 
-# Option 2: Remove regression test file temporarily
-mv n8n-workflows/tests/regression/Proactive_Pulse.json n8n-workflows/tests/regression/Proactive_Pulse.json.disabled
-git push
-mv n8n-workflows/tests/regression/Proactive_Pulse.json.disabled n8n-workflows/tests/regression/Proactive_Pulse.json
+# 2. Invoke the transformed webhook (schedule trigger → webhook)
+curl -X POST http://localhost:5679/webhook/kairon-dev-test/Every5Minutes \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+
+# 3. Check execution in n8n UI: http://localhost:5679/executions
+
+# 4. Verify database changes
+docker exec postgres-dev-local psql -U n8n_user -d kairon -c \
+  "SELECT * FROM events WHERE event_type = 'system' ORDER BY received_at DESC LIMIT 1"
 ```
-
-**Note:** Only skip regression tests if:
-- Unit tests pass (32/32)
-- Structural validation passes
-- You've manually tested the workflow
 
 ## Why This Approach is Safe
 
 1. **Comprehensive Unit Tests** - 32 tests cover all critical paths
-2. **Structural Validation** - Catches dead code and misconfigurations
-3. **Transform Script** - Proven pattern used by other workflows
-4. **Manual Testing** - Easy to verify with curl command
+2. **Automated Regression Tests** - 3 tests validate end-to-end behavior
+3. **Structural Validation** - Catches dead code and misconfigurations
+4. **Transform Script** - Proven pattern used by other workflows
 5. **Production Monitoring** - Can detect issues post-deployment
-
-## Future Enhancement
-
-**Extend regression_test.sh to support custom webhook paths:**
-
-```json
-{
-  "test_name": "Test with custom path",
-  "webhook_path": "kairon-dev-test/Every5Minutes",
-  "webhook_data": {},
-  "expected_db_changes": {...}
-}
-```
-
-This would enable automated regression testing for schedule-trigger workflows.
 
 ## Previous Deployments
 

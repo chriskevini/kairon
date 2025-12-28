@@ -1,57 +1,24 @@
-{
-  "note": "Proactive_Pulse regression tests require manual invocation",
-  "reason": "Schedule trigger transforms to path 'kairon-dev-test/Every5Minutes', not standard webhook path",
-  "limitation": "Current regression_test.sh framework expects standard webhook path (WEBHOOK_PATH env var)",
-  "testing_approach": "Use unit tests (automated) + manual workflow execution (dev environment)",
-  "unit_tests": {
-    "location": "n8n-workflows/tests/test_Proactive_Pulse.py",
-    "test_count": 32,
-    "status": "✅ All passing - runs automatically in pre-push hook",
-    "coverage": [
-      "Workflow structure, nodes, connections",
-      "Entry points (schedule trigger, execute workflow trigger)",
-      "Cron path logic",
-      "Event and context initialization",
-      "Execute_Queries integration",
-      "Semantic selection and RAG",
-      "LLM integration",
-      "Database operations",
-      "Discord integration"
-    ]
-  },
-  "manual_integration_tests": [
-    {
-      "test_name": "Invoke Proactive_Pulse via transformed webhook",
-      "steps": [
-        "1. Ensure dev environment is running (docker-compose up)",
-        "2. Workflow is deployed to dev (runs automatically in pre-push)",
-        "3. Invoke: curl -X POST http://localhost:5679/webhook/kairon-dev-test/Every5Minutes -H 'Content-Type: application/json' -d '{}'",
-        "4. Check execution in n8n UI: http://localhost:5679/executions",
-        "5. Verify database: docker exec postgres-dev-local psql -U n8n_user -d kairon -c \"SELECT * FROM events WHERE event_type = 'system' ORDER BY received_at DESC LIMIT 1\"",
-        "6. Verify projection: docker exec postgres-dev-local psql -U n8n_user -d kairon -c \"SELECT * FROM projections WHERE projection_type = 'pulse' ORDER BY created_at DESC LIMIT 1\""
-      ],
-      "expected_results": {
-        "execution_status": "success",
-        "events_created": 1,
-        "projections_created": 1,
-        "projection_type": "pulse"
-      }
-    },
-    {
-      "test_name": "Invoke with trigger_reason parameter",
-      "steps": [
-        "1. curl -X POST http://localhost:5679/webhook/kairon-dev-test/Every5Minutes -H 'Content-Type: application/json' -d '{\"trigger_reason\": \"test\"}'",
-        "2. Verify event has trigger_reason='test' in payload"
-      ],
-      "expected_results": {
-        "execution_status": "success",
-        "event_payload_trigger_reason": "test"
-      }
+[
+  {
+    "test_name": "Basic proactive pulse with cron trigger",
+    "webhook_path": "kairon-dev-test/Every5Minutes",
+    "webhook_data": {},
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["pulse"]
     }
-  ],
-  "future_enhancement": {
-    "description": "Extend regression_test.sh to support custom webhook paths",
-    "implementation": "Add webhook_path field to test JSON, allow per-workflow webhook URL override",
-    "benefit": "Would enable automated testing of Proactive_Pulse and other schedule-trigger workflows"
+  },
+  {
+    "test_name": "Proactive pulse with custom trigger reason",
+    "webhook_path": "kairon-dev-test/Every5Minutes",
+    "webhook_data": {
+      "trigger_reason": "test_invocation"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["pulse"]
+    }
   }
-}
+]

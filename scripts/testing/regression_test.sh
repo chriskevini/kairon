@@ -287,10 +287,11 @@ run_test_case() {
 
     local test_name=$(jq -r ".[$test_index].test_name // \"test_$test_index\"" "$payload_file")
     local webhook_data=$(jq -c ".[$test_index].webhook_data" "$payload_file")
-    local expected_db_changes=$(jq -c ".[$test_index].expected_db_changes // {}" "$payload_file")
-    
-    # Make message_id unique by appending timestamp to prevent duplicate event issues
-    local unique_suffix="-$(date +%s%N | cut -b1-13)"
+    local custom_webhook_path=$(jq -r ".[$test_index].webhook_path // \"\"" "$payload_file")
+
+    # Uniquify message IDs to prevent idempotency conflicts between runs
+    # This prevents tests from skipping due to duplicate message_id
+    local unique_suffix="_$(date +%s%N)"
     webhook_data=$(echo "$webhook_data" | jq --arg suffix "$unique_suffix" '.message_id = (.message_id + $suffix)')
 
     log_info "Test case: $test_name"
@@ -305,7 +306,10 @@ run_test_case() {
 
     # Send webhook
     local test_timestamp=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)
-    local webhook_url="${N8N_DEV_API_URL:-http://localhost:5679}/webhook/$TESTING_WEBHOOK_PATH"
+    
+    # Use custom webhook path if specified, otherwise use default from env
+    local webhook_path="${custom_webhook_path:-$TESTING_WEBHOOK_PATH}"
+    local webhook_url="${N8N_DEV_API_URL:-http://localhost:5679}/webhook/$webhook_path"
 
     local response=$(curl -s -X POST "$webhook_url" \
         -H 'Content-Type: application/json' \
@@ -318,9 +322,9 @@ run_test_case() {
     local is_error=$(echo "$response" | jq '(.code // 200) >= 400' 2>/dev/null)
     if [ "$is_error" = "true" ]; then
         log_fail "$test_name: Webhook failed - $response"
-        log_info "Expected webhook path: $TESTING_WEBHOOK_PATH (from WEBHOOK_PATH env var, dev default: asoiaf3947)"
+        log_info "Expected webhook path: $webhook_path"
         log_info "Actual webhook URL: $webhook_url"
-        log_info "Check that Route_Event workflow is active and uses this webhook path"
+        log_info "Check that workflow is active and uses this webhook path"
         return 1
     fi
 

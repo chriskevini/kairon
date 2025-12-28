@@ -147,7 +147,7 @@
         "operation": "executeQuery",
         "query": "-- Insert system event for proactive agent\nINSERT INTO events (idempotency_key, event_type, payload, timezone)\nVALUES (\n  $1,\n  'system',\n  jsonb_build_object(\n    'trigger_type', 'proactive_agent',\n    'trigger_reason', $2,\n    'timestamp', $3\n  ),\n  COALESCE((SELECT value FROM config WHERE key = 'timezone'), 'UTC')\n)\nON CONFLICT (event_type, idempotency_key) DO UPDATE SET id = events.id, timezone = EXCLUDED.timezone\nRETURNING id, timezone, payload->>'trigger_reason' as trigger_reason, payload->>'timestamp' as timestamp;",
         "options": {
-          "values": "{{ $json.idempotency_key }},{{ $json.trigger_reason }},{{ $json.timestamp }}"
+          "queryReplacement": "={{ $json.idempotency_key }},={{ $json.trigger_reason }},={{ $json.timestamp }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
