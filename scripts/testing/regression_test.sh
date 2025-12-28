@@ -120,8 +120,8 @@ FAILED_TESTS=0
 
 # Logging
 log_test() { echo -e "${BLUE}[TEST]${NC} $1"; }
-log_pass() { echo -e "${GREEN}  ✓${NC} $1"; ((PASSED_TESTS++)); }
-log_fail() { echo -e "${RED}  ✗${NC} $1"; ((FAILED_TESTS++)); }
+log_pass() { echo -e "${GREEN}  ✓${NC} $1"; PASSED_TESTS=$((PASSED_TESTS + 1)); }
+log_fail() { echo -e "${RED}  ✗${NC} $1"; FAILED_TESTS=$((FAILED_TESTS + 1)); }
 log_info() { [ "$VERBOSE" = true ] && echo -e "${YELLOW}[INFO]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 
@@ -275,8 +275,8 @@ test_workflow() {
     log_info "Found $test_count test cases"
 
     for ((i=0; i<test_count; i++)); do
-        ((TOTAL_TESTS++))
-        run_test_case "$workflow" "$i" "$payload_file"
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        run_test_case "$workflow" "$i" "$payload_file" || true  # Continue even if test fails
     done
 }
 
@@ -288,6 +288,10 @@ run_test_case() {
     local test_name=$(jq -r ".[$test_index].test_name // \"test_$test_index\"" "$payload_file")
     local webhook_data=$(jq -c ".[$test_index].webhook_data" "$payload_file")
     local expected_db_changes=$(jq -c ".[$test_index].expected_db_changes // {}" "$payload_file")
+    
+    # Make message_id unique by appending timestamp to prevent duplicate event issues
+    local unique_suffix="-$(date +%s%N | cut -b1-13)"
+    webhook_data=$(echo "$webhook_data" | jq --arg suffix "$unique_suffix" '.message_id = (.message_id + $suffix)')
 
     log_info "Test case: $test_name"
 
@@ -310,7 +314,9 @@ run_test_case() {
     log_info "Webhook response: $response"
 
     # Check if webhook returned error (e.g., 404)
-    if echo "$response" | jq -e '(.code // 200) >= 400' 2>/dev/null; then
+    # Note: Using jq without -e to avoid script exit on false condition
+    local is_error=$(echo "$response" | jq '(.code // 200) >= 400' 2>/dev/null)
+    if [ "$is_error" = "true" ]; then
         log_fail "$test_name: Webhook failed - $response"
         log_info "Expected webhook path: $TESTING_WEBHOOK_PATH (from WEBHOOK_PATH env var, dev default: asoiaf3947)"
         log_info "Actual webhook URL: $webhook_url"
@@ -326,12 +332,18 @@ run_test_case() {
     log_info "Waiting for workflow execution..."
     while [ $wait_count -lt $max_wait ]; do
         sleep 1
+        wait_count=$((wait_count + 1))
         exec_data=$(get_execution "$test_timestamp" "$workflow")
         if [ -n "$exec_data" ] && [ "$exec_data" != "null" ]; then
-            log_info "Execution found after ${wait_count}s"
-            break
+            local exec_status=$(echo "$exec_data" | jq -r '.status // "unknown"')
+            # Only break if execution is complete (success, error, or crashed)
+            if [[ "$exec_status" == "success" || "$exec_status" == "error" || "$exec_status" == "crashed" ]]; then
+                log_info "Execution completed after ${wait_count}s (status: $exec_status)"
+                break
+            fi
+            # Execution found but still running, keep waiting
+            log_info "Execution found but still running (${wait_count}s elapsed)..."
         fi
-        ((wait_count++))
     done
 
     if [ $wait_count -ge $max_wait ]; then
@@ -399,10 +411,13 @@ run_test_case() {
     # Check projection types if specified
     local expected_types=$(echo "$expected_db_changes" | jq -r '.projection_types // []')
     if [ "$expected_types" != "[]" ]; then
+        # Get message_id from webhook_data to find the specific event
+        local message_id=$(echo "$webhook_data" | jq -r '.message_id')
+        
         local actual_json=$(docker exec "$TESTING_DB_CONTAINER" psql -U "$TESTING_DB_USER" -d "$TESTING_DB_NAME" -t -A -c \
             "SELECT json_agg(DISTINCT projection_type ORDER BY projection_type)
              FROM projections
-             WHERE created_at > NOW() - INTERVAL '${PROJECTION_LOOKUP_WINDOW_SECONDS} seconds';" 2>/dev/null | jq -c '. // []')
+             WHERE event_id = (SELECT id FROM events WHERE payload->>'discord_message_id' = '$message_id' LIMIT 1);" 2>/dev/null | jq -c '. // []')
 
         log_info "Projection types: $(echo "$actual_json" | jq -r '. | join(", ")')"
 
@@ -463,8 +478,8 @@ get_execution() {
 
     # Check authentication
     if [ -f "$cookie_file" ]; then
-        local test_auth=$(curl -s -b "$cookie_file" "$api_url/rest/workflows?take=1" | jq -e '.data' 2>/dev/null)
-        if [ -n "$test_auth" ]; then
+        local test_auth=$(curl -s -b "$cookie_file" "$api_url/rest/workflows?take=1" | jq '.data' 2>/dev/null)
+        if [ -n "$test_auth" ] && [ "$test_auth" != "null" ]; then
             use_cookie=true
         fi
     fi
