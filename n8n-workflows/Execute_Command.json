@@ -856,7 +856,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate GENERATE command\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst args = $('ParseCommandAndArgs').first()?.json?.ctx?.command?.args || [];\nconst generateType = args[0]?.toLowerCase();\n\n// Valid types: summary, nudge, pulse\nconst validTypes = ['summary', 'nudge', 'pulse'];\n\nif (!generateType) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Missing type. Syntax: \\`::generate <type>\\`\\n\\nValid types:\\n- \\`summary\\` - Generate daily summary now\\n- \\`pulse\\` - Send pulse now`\n      }\n    }\n  };\n}\n\nif (!validTypes.includes(generateType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid type: \\`${generateType}\\`\\n\\nValid types: summary, pulse`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      generate_type: generateType === 'pulse' ? 'nudge' : generateType\n    }\n  }\n};"
+        "jsCode": "// Validate GENERATE command\nconst ctx = $('WhenExecutedByAnotherWorkflow').first().json.ctx;\nconst args = $('ParseCommandAndArgs').first()?.json?.ctx?.command?.args || [];\nconst generateType = args[0]?.toLowerCase();\n\n// Valid types: summary only\nconst validTypes = ['summary'];\n\nif (!generateType) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Missing type. Syntax: \\`::generate <type>\\`\\n\\nValid types:\\n- \\`summary\\` - Generate daily summary now`\n      }\n    }\n  };\n}\n\nif (!validTypes.includes(generateType)) {\n  return {\n    ctx: {\n      ...ctx,\n      validation: {\n        valid: false,\n        error_message: `❌ Invalid type: \\`${generateType}\\`\\n\\nValid types: summary`\n      }\n    }\n  };\n}\n\nreturn {\n  ctx: {\n    ...ctx,\n    validation: {\n      valid: true,\n      generate_type: generateType\n    }\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -915,30 +915,6 @@
                 },
                 "conditions": [
                   {
-                    "id": "check-nudge",
-                    "leftValue": "={{ $json.ctx.validation.generate_type }}",
-                    "rightValue": "nudge",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "nudge"
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
                     "id": "check-summary",
                     "leftValue": "={{ $json.ctx.validation.generate_type }}",
                     "rightValue": "summary",
@@ -967,38 +943,6 @@
       ],
       "id": "switch-generate-type",
       "name": "SwitchGenerateType"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "ujGErhNkQv4hkJxB",
-          "mode": "list",
-          "cachedResultName": "Generate_Nudge",
-          "cachedResultUrl": "/workflow/ujGErhNkQv4hkJxB"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "trigger_reason": "manual"
-          },
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {
-          "waitForSubWorkflow": false
-        }
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -240,
-        9472
-      ],
-      "id": "execute-nudge",
-      "name": "ExecuteGenerateNudge"
     },
     {
       "parameters": {
@@ -1889,25 +1833,7 @@
       "main": [
         [
           {
-            "node": "ExecuteGenerateNudge",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
             "node": "ExecuteGenerateDailySummary",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "ExecuteGenerateNudge": {
-      "main": [
-        [
-          {
-            "node": "FormatGenerateResponse",
             "type": "main",
             "index": 0
           }

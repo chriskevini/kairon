@@ -344,6 +344,7 @@ deploy_dev() {
     validate_workflow_names || exit 1
     validate_mode_list_usage || exit 1
     validate_workflow_structure || exit 1
+    validate_workflow_integrity || exit 1
 
     TEMP_DIR=$(mktemp -d)
     OUTPUT_FILE=$(mktemp)
@@ -755,6 +756,9 @@ deploy_prod() {
     # Validate workflows use mode:list for portability
     validate_mode_list_usage || exit 1
 
+    # Validate workflow integrity (dead code, misconfigured nodes)
+    validate_workflow_integrity || exit 1
+
     # Capture output for diagnostics
     OUTPUT_FILE=$(mktemp)
     DEPLOY_LOG=$(mktemp)
@@ -906,6 +910,36 @@ validate_workflow_structure() {
     fi
     
     echo "✅ PASSED"
+    return 0
+}
+
+# --- WORKFLOW INTEGRITY VALIDATION (dead code, misconfigured nodes) ---
+validate_workflow_integrity() {
+    echo -n "Validating workflow integrity (dead code, misconfigured nodes)... "
+    
+    local validation_output
+    validation_output=$(python3 "$SCRIPT_DIR/validation/workflow_integrity.py" --quiet 2>&1)
+    local exit_code=$?
+    
+    if [ $exit_code -eq 1 ]; then
+        echo "❌ FAILED"
+        echo ""
+        echo "Workflow integrity issues found:"
+        # Run again without quiet to show details
+        python3 "$SCRIPT_DIR/validation/workflow_integrity.py"
+        echo ""
+        echo "To fix dead code automatically:"
+        echo "  python3 $SCRIPT_DIR/validation/workflow_integrity.py --fix"
+        echo ""
+        return 1
+    elif [ $exit_code -eq 2 ]; then
+        # Warnings only - allow but notify
+        echo "⚠️  WARNINGS"
+        echo "   (Deployment allowed, but review warnings)"
+    else
+        echo "✅ PASSED"
+    fi
+    
     return 0
 }
 

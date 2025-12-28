@@ -94,50 +94,6 @@
     },
     {
       "parameters": {
-        "model": "xiaomi/mimo-v2-flash:free",
-        "options": {
-          "temperature": 0.7
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        7560,
-        972
-      ],
-      "id": "120ceee9-00cb-4175-8df8-57f862e218fd",
-      "name": "MimoV2Flash",
-      "credentials": {
-        "openRouterApi": {
-          "id": "nB20cMgvlwePo3oC",
-          "name": "OpenRouter account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "nvidia/nemotron-nano-9b-v2:free",
-        "options": {
-          "temperature": 0.7
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-      "typeVersion": 1,
-      "position": [
-        7688,
-        972
-      ],
-      "id": "9c28edb3-a048-474e-8217-915ddee94e23",
-      "name": "NemotronNano9b",
-      "credentials": {
-        "openRouterApi": {
-          "id": "nB20cMgvlwePo3oC",
-          "name": "OpenRouter account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "resource": "message",
         "guildId": {
           "__rl": true,
@@ -186,7 +142,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.ctx.event.message_id }}",
-        "emoji": "=💭"
+        "emoji": "=\ud83d\udcad"
       },
       "type": "n8n-nodes-base.discord",
       "typeVersion": 2,
@@ -195,7 +151,7 @@
         96
       ],
       "id": "3d6f0aee-f86f-437e-aa57-0683b80c2ced",
-      "name": "ReactWith💭",
+      "name": "ReactWith\ud83d\udcad",
       "webhookId": "3ebf8398-5c0b-41c5-b3e7-3a3fb5cd8e67",
       "retryOnFail": true,
       "maxTries": 3,
@@ -211,7 +167,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/🔵/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.ctx.event.channel_id }}/messages/{{ $json.ctx.event.message_id }}/reactions/\ud83d\udd35/@me",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "discordBotApi",
         "options": {}
@@ -223,7 +179,7 @@
         1152
       ],
       "id": "remove-blue-reaction-continue-chat",
-      "name": "Remove🔵Reaction",
+      "name": "Remove\ud83d\udd35Reaction",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000,
@@ -328,12 +284,12 @@
             "index": 0
           },
           {
-            "node": "ReactWith💭",
+            "node": "ReactWith\ud83d\udcad",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Remove🔵Reaction",
+            "node": "Remove\ud83d\udd35Reaction",
             "type": "main",
             "index": 0
           }
@@ -385,28 +341,6 @@
             "node": "SetLlmCompletion",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "MimoV2Flash": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "GenerateResponse",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "NemotronNano9b": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "GenerateResponse",
-            "type": "ai_languageModel",
-            "index": 1
           }
         ]
       ]
