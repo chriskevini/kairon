@@ -1,0 +1,36 @@
+[
+  {
+    "test_name": "Schedule trigger transformed to webhook (default trigger_reason)",
+    "webhook_data": {},
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["pulse"]
+    },
+    "notes": "Schedule trigger automatically transforms to webhook in dev. Empty body defaults trigger_reason to 'cron' via PrepareCronData."
+  },
+  {
+    "test_name": "Schedule trigger with explicit trigger_reason",
+    "webhook_data": {
+      "trigger_reason": "test"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["pulse"]
+    },
+    "notes": "Tests schedule trigger path (transformed to webhook) with explicit trigger_reason override"
+  },
+  {
+    "test_name": "Verify pulse message generation",
+    "webhook_data": {
+      "trigger_reason": "test"
+    },
+    "expected_db_changes": {
+      "events_created": 1,
+      "projections_created": 1,
+      "projection_types": ["pulse"]
+    },
+    "notes": "Validates LLM message generation, RAG, semantic selection, and Discord posting"
+  }
+]
