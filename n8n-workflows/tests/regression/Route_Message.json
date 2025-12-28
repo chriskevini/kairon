@@ -38,7 +38,7 @@
     "expected_db_changes": {
       "events_created": 1,
       "projections_created": 1,
-      "projection_types": ["activity"]
+      "projection_types": ["note"]
     }
   },
   {
