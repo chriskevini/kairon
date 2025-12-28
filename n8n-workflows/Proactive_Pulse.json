@@ -105,7 +105,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare data from schedule trigger\nreturn [{\n  json: {\n    trigger_reason: 'cron'\n  }\n}];",
+        "jsCode": "// Prepare data from schedule trigger\nreturn {\n  json: {\n    trigger_reason: 'cron'\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
@@ -167,7 +167,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Initialize ctx with event_id\nconst eventResult = $json;\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'proactive_agent',\n        trigger_reason: eventResult.trigger_reason,\n        timestamp: eventResult.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id],\n        trace_chain_pg: `{${eventResult.id}}`\n      },\n      db_queries: [{\n        key: 'history',\n        sql: `\n          (SELECT 'user' as role, payload->>'clean_text' as content, received_at as timestamp\n           FROM events \n           WHERE event_type = 'discord_message'\n           ORDER BY received_at DESC LIMIT 5)\n          UNION ALL\n          (SELECT 'assistant' as role, data->>'message' as content, created_at as timestamp\n           FROM projections\n           WHERE projection_type IN ('pulse')\n           ORDER BY created_at DESC LIMIT 5)\n          ORDER BY timestamp DESC\n          LIMIT 5;\n        `,\n        params: []\n      }]\n    }\n  }\n};",
+        "jsCode": "// Initialize ctx with event_id and prepare all queries for Execute_Queries\nconst eventResult = $json;\n\nreturn {\n  json: {\n    ctx: {\n      event: {\n        event_id: eventResult.id,\n        trigger_type: 'proactive_agent',\n        trigger_reason: eventResult.trigger_reason,\n        timestamp: eventResult.timestamp,\n        timezone: eventResult.timezone || 'UTC',\n        trace_chain: [eventResult.id],\n        trace_chain_pg: `{${eventResult.id}}`\n      },\n      db_queries: [\n        {\n          key: 'prompt_modules',\n          sql: `SELECT id, name, content, module_type, tags, priority\n                FROM prompt_modules\n                WHERE active = true\n                ORDER BY priority ASC;`,\n          params: []\n        },\n        {\n          key: 'north_star',\n          sql: `SELECT value FROM config WHERE key = 'north_star';`,\n          params: []\n        },\n        {\n          key: 'recent_activities',\n          sql: `SELECT \n                  (p.data->>'timestamp')::timestamptz as timestamp,\n                  p.data->>'category' as category,\n                  p.data->>'description' as description\n                FROM projections p\n                WHERE p.projection_type = 'activity'\n                  AND p.status IN ('auto_confirmed', 'confirmed')\n                  AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '24 hours'\n                ORDER BY (p.data->>'timestamp')::timestamptz DESC\n                LIMIT 20;`,\n          params: []\n        },\n        {\n          key: 'recent_notes',\n          sql: `SELECT \n                  (p.data->>'timestamp')::timestamptz as timestamp,\n                  p.data->>'category' as category,\n                  p.data->>'text' as text\n                FROM projections p\n                WHERE p.projection_type = 'note'\n                  AND p.status IN ('auto_confirmed', 'confirmed')\n                  AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '7 days'\n                ORDER BY (p.data->>'timestamp')::timestamptz DESC\n                LIMIT 5;`,\n          params: []\n        },\n        {\n          key: 'pending_todos',\n          sql: `SELECT \n                  p.id,\n                  p.data->>'text' as text,\n                  p.data->>'status' as status,\n                  p.created_at,\n                  EXTRACT(DAY FROM NOW() - p.created_at) as days_pending\n                FROM projections p\n                WHERE p.projection_type = 'todo'\n                  AND p.status IN ('auto_confirmed', 'confirmed')\n                  AND COALESCE(p.data->>'status', 'pending') = 'pending'\n                ORDER BY p.created_at ASC\n                LIMIT 10;`,\n          params: []\n        }\n      ]\n    }\n  }\n};",
         "mode": "runOnceForEachItem"
       },
       "type": "n8n-nodes-base.code",
@@ -181,132 +181,27 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "-- Get active prompt modules, ordered by priority\nSELECT id, name, content, module_type, tags, priority\nFROM prompt_modules\nWHERE active = true\nORDER BY priority ASC;",
-        "options": {}
+        "workflowId": {
+          "__rl": true,
+          "value": "CgUAxK0i4YhrZ2Wp",
+          "mode": "list",
+          "cachedResultName": "Execute_Queries",
+          "cachedResultUrl": "/workflow/CgUAxK0i4YhrZ2Wp"
+        }
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
       "position": [
         2240,
-        -288
-      ],
-      "id": "get-prompt-modules",
-      "name": "FetchHistory",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "GIpVtzgs3wiCmQBQ",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT value FROM config WHERE key = 'north_star';",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        2240,
-        -96
-      ],
-      "id": "get-north-star",
-      "name": "GetNorthStar",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "GIpVtzgs3wiCmQBQ",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'description' as description\nFROM projections p\nWHERE p.projection_type = 'activity'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '24 hours'\nORDER BY (p.data->>'timestamp')::timestamptz DESC\nLIMIT 20;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        2240,
-        96
-      ],
-      "id": "get-recent-activities",
-      "name": "GetRecentActivities(24h)",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "GIpVtzgs3wiCmQBQ",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  (p.data->>'timestamp')::timestamptz as timestamp,\n  p.data->>'category' as category,\n  p.data->>'text' as text\nFROM projections p\nWHERE p.projection_type = 'note'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND (p.data->>'timestamp')::timestamptz >= NOW() - INTERVAL '7 days'\nORDER BY (p.data->>'timestamp')::timestamptz DESC\nLIMIT 5;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        2240,
-        288
-      ],
-      "id": "get-recent-notes",
-      "name": "GetRecentNotes(7d)",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "GIpVtzgs3wiCmQBQ",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  p.id,\n  p.data->>'text' as text,\n  p.data->>'status' as status,\n  p.created_at,\n  EXTRACT(DAY FROM NOW() - p.created_at) as days_pending\nFROM projections p\nWHERE p.projection_type = 'todo'\n  AND p.status IN ('auto_confirmed', 'confirmed')\n  AND COALESCE(p.data->>'status', 'pending') = 'pending'\nORDER BY p.created_at ASC\nLIMIT 10;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        2240,
-        480
-      ],
-      "id": "get-pending-todos",
-      "name": "GetPendingTodos",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "GIpVtzgs3wiCmQBQ",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 6
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        2464,
         0
       ],
-      "id": "merge-query-results",
-      "name": "MergeQueryResults"
+      "id": "execute-queries",
+      "name": "ExecuteQueries"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Build context summary for semantic module selection\nconst allItems = $input.all();\n\n// Extract ctx\nlet ctx = null;\nfor (const item of allItems) {\n  if (item.json.ctx) {\n    ctx = item.json.ctx;\n    break;\n  }\n}\n\nif (!ctx) {\n  throw new Error('ctx not found in merged items');\n}\n\n// Extract activities, notes, todos\nconst activities = allItems.filter(item => \n  item.json.description !== undefined && !item.json.error\n);\nconst notes = allItems.filter(item => \n  item.json.text !== undefined && \n  item.json.description === undefined &&\n  item.json.days_pending === undefined &&\n  !item.json.error\n);\nconst todos = allItems.filter(item => \n  item.json.days_pending !== undefined && !item.json.error\n);\n\n// Extract technique modules for semantic selection\nconst techniques = allItems.filter(item => \n  item.json.module_type === 'technique'\n).map(item => item.json.content);\n\n// Check for stuck todos (pending > 3 days)\nconst stuckTodos = todos.filter(t => t.json.days_pending > 3);\n\n// Build a context summary for semantic search\nconst summaryParts = [];\n\nif (activities.length > 0) {\n  const recentActivities = activities.slice(0, 3).map(a => a.json.description).join(', ');\n  summaryParts.push(`Recent activities: ${recentActivities}`);\n}\n\nif (notes.length > 0) {\n  const recentNotes = notes.slice(0, 2).map(n => n.json.text.substring(0, 100)).join('; ');\n  summaryParts.push(`Notes: ${recentNotes}`);\n}\n\nif (stuckTodos.length > 0) {\n  summaryParts.push(`Stuck todos: ${stuckTodos.map(t => t.json.text).join(', ')}`);\n} else if (todos.length > 0) {\n  summaryParts.push(`Pending todos: ${todos.slice(0, 3).map(t => t.json.text).join(', ')}`);\n}\n\nif (summaryParts.length === 0) {\n  summaryParts.push('No recent activity logged. User may need a gentle check-in.');\n}\n\nconst contextSummary = summaryParts.join('. ');\n\n// Pass through all items plus the context summary\nreturn [{\n  json: {\n    ctx,\n    context_summary: contextSummary,\n    technique_candidates: techniques,\n    has_stuck_todos: stuckTodos.length > 0,\n    has_activities: activities.length > 0,\n    has_notes: notes.length > 0,\n    all_items: allItems.map(i => i.json)\n  }\n}];"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build context summary for semantic module selection from ctx.db results\nconst ctx = $json.ctx;\n\nif (!ctx?.db) {\n  throw new Error('ctx.db not found - Execute_Queries must run first');\n}\n\n// Extract query results from ctx.db\nconst promptModules = ctx.db.prompt_modules?.rows || [];\nconst activities = ctx.db.recent_activities?.rows || [];\nconst notes = ctx.db.recent_notes?.rows || [];\nconst todos = ctx.db.pending_todos?.rows || [];\nconst northStar = ctx.db.north_star?.row?.value || null;\n\n// Extract technique modules for semantic selection\nconst techniques = promptModules\n  .filter(m => m.module_type === 'technique')\n  .map(m => m.content);\n\n// Check for stuck todos (pending > 3 days)\nconst stuckTodos = todos.filter(t => t.days_pending > 3);\n\n// Build a context summary for semantic search\nconst summaryParts = [];\n\nif (activities.length > 0) {\n  const recentActivities = activities.slice(0, 3).map(a => a.description).join(', ');\n  summaryParts.push(`Recent activities: ${recentActivities}`);\n}\n\nif (notes.length > 0) {\n  const recentNotes = notes.slice(0, 2).map(n => n.text.substring(0, 100)).join('; ');\n  summaryParts.push(`Notes: ${recentNotes}`);\n}\n\nif (stuckTodos.length > 0) {\n  summaryParts.push(`Stuck todos: ${stuckTodos.map(t => t.text).join(', ')}`);\n} else if (todos.length > 0) {\n  summaryParts.push(`Pending todos: ${todos.slice(0, 3).map(t => t.text).join(', ')}`);\n}\n\nif (summaryParts.length === 0) {\n  summaryParts.push('No recent activity logged. User may need a gentle check-in.');\n}\n\nconst contextSummary = summaryParts.join('. ');\n\n// Return context summary with all needed data\nreturn {\n  json: {\n    ctx,\n    context_summary: contextSummary,\n    technique_candidates: techniques,\n    has_stuck_todos: stuckTodos.length > 0,\n    has_activities: activities.length > 0,\n    has_notes: notes.length > 0,\n    prompt_modules: promptModules,\n    activities,\n    notes,\n    todos,\n    north_star: northStar\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -415,7 +310,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Assemble prompt from modules and context with semantic selection\nconst allItems = $input.all();\n\n// Find the context summary item (has ctx and all_items)\nlet contextData = null;\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.all_items) {\n    contextData = item.json;\n    break;\n  }\n}\n\nif (!contextData) {\n  throw new Error('Context data not found in merged items');\n}\n\nconst ctx = contextData.ctx;\nconst originalItems = contextData.all_items;\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Extract semantic selection results\nlet semanticMatches = [];\nfor (const item of allItems) {\n  if (item.json.results) {\n    semanticMatches = item.json.results;\n    break;\n  }\n}\n\n// Extract conversational history\nlet history = [];\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.ctx.db && item.json.ctx.db.history) {\n    history = item.json.ctx.db.history.rows || [];\n    break;\n  }\n}\n\n// Extract RAG results (similar projections)\nlet ragResults = [];\nfor (const item of allItems) {\n  if (item.json.projection_type !== undefined && item.json.distance !== undefined) {\n    ragResults.push(item.json);\n  }\n}\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\nconst formatDate = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      timeZone: timezone, \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  }\n};\n\n// Get current hour in user's timezone\nconst now = new Date();\nlet currentHour;\ntry {\n  currentHour = parseInt(now.toLocaleTimeString('en-US', { \n    timeZone: timezone, \n    hour: 'numeric', \n    hour12: false \n  }));\n} catch (e) {\n  currentHour = now.getHours();\n}\n\n// Determine time of day for fallback technique selection\nconst isMorning = currentHour >= 6 && currentHour <= 9;\nconst isEvening = currentHour >= 20 && currentHour <= 23;\n\n// Extract prompt modules from original items\nconst modules = originalItems.filter(item => \n  item.module_type !== undefined\n);\n\n// Extract north star\nlet northStar = 'To determine my north star from deep introspection';\nconst northStarItems = originalItems.filter(item => \n  item.value !== undefined && \n  item.module_type === undefined\n);\nif (northStarItems.length > 0 && northStarItems[0].value) {\n  northStar = northStarItems[0].value;\n}\n\n// Extract activities\nconst activityItems = originalItems.filter(item => \n  item.description !== undefined && \n  !item.error\n);\n\n// Extract notes\nconst noteItems = originalItems.filter(item => \n  item.text !== undefined && \n  item.description === undefined &&\n  item.days_pending === undefined &&\n  !item.error\n);\n\n// Extract todos\nconst todoItems = originalItems.filter(item => \n  item.days_pending !== undefined && \n  !item.error\n);\n\n// Check for stuck todos (pending > 3 days)\nconst stuckTodos = todoItems.filter(t => t.days_pending > 3);\nconst hasStuckTodos = stuckTodos.length > 0;\n\n// Assemble prompt from modules\nconst promptParts = [];\n\n// 1. Always include persona modules (priority 0-10)\nconst personaModules = modules.filter(m => m.module_type === 'persona');\npersonaModules.forEach(m => promptParts.push(m.content));\n\n// 2. Select technique - prefer semantic matches, fall back to time/context based\nlet selectedTechniques = [];\nlet techniqueSource = 'none';\n\nif (semanticMatches.length > 0 && semanticMatches[0].score > 0.3) {\n  // Use semantically selected techniques (top 2 with score > 0.3)\n  selectedTechniques = semanticMatches\n    .filter(m => m.score > 0.3)\n    .slice(0, 2)\n    .map(m => m.text);\n  techniqueSource = 'semantic';\n} else {\n  // Fallback to time-based selection\n  if (isMorning) {\n    const morningTechnique = modules.find(m => m.name === 'technique_morning');\n    if (morningTechnique) selectedTechniques.push(morningTechnique.content);\n    techniqueSource = 'morning';\n  } else if (isEvening) {\n    const eveningTechnique = modules.find(m => m.name === 'technique_evening');\n    if (eveningTechnique) selectedTechniques.push(eveningTechnique.content);\n    techniqueSource = 'evening';\n  } else if (hasStuckTodos) {\n    const stuckTechnique = modules.find(m => m.name === 'technique_stuck_todo');\n    if (stuckTechnique) selectedTechniques.push(stuckTechnique.content);\n    techniqueSource = 'stuck_todo';\n  }\n}\n\nselectedTechniques.forEach(t => promptParts.push(t));\n\n// 3. Build context section\nlet contextSection = '## Current Context\\n\\n';\ncontextSection += `**Time:** ${formatDate(now.toISOString())} ${formatTime(now.toISOString())}\\n`;\ncontextSection += `**North Star:** ${northStar}\\n\\n`;\n\n// Add conversational history\nif (history.length > 0) {\n  contextSection += '### Recent Conversation\\n';\n  history.reverse().forEach(h => {\n    const role = h.role === 'user' ? 'User' : 'Kairon';\n    contextSection += `**${role}:** ${h.content}\\n`;\n  });\n  contextSection += '\\n';\n}\n\n// Format activities\ncontextSection += '### Recent Activities (last 24h)\\n';\nif (activityItems.length === 0) {\n  contextSection += '(No logged activity)\\n';\n} else {\n  activityItems.slice(0, 10).forEach(item => {\n    const time = formatTime(item.timestamp);\n    contextSection += `- ${time}: ${item.description} [${item.category}]\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format notes\ncontextSection += '### Recent Notes\\n';\nif (noteItems.length === 0) {\n  contextSection += '(No recent notes)\\n';\n} else {\n  noteItems.forEach(item => {\n    const date = formatDate(item.timestamp);\n    const preview = item.text.substring(0, 100) + (item.text.length > 100 ? '...' : '');\n    contextSection += `- ${date}: ${preview}\\n`;\n  });\n}\ncontextSection += '\\n';\n\n// Format todos\ncontextSection += '### Pending Todos\\n';\nif (todoItems.length === 0) {\n  contextSection += '(No pending todos)\\n';\n} else {\n  todoItems.forEach(item => {\n    const daysStr = item.days_pending > 0 ? ` (${Math.floor(item.days_pending)} days)` : '';\n    contextSection += `- ${item.text}${daysStr}\\n`;\n  });\n}\n\n// 4. Add RAG context if available (similar past entries)\nif (ragResults.length > 0) {\n  contextSection += '\\n### Related Past Entries (for context)\\n';\n  ragResults.slice(0, 3).forEach(item => {\n    const date = item.timestamp ? formatDate(item.timestamp) : 'Unknown';\n    const content = item.content?.substring(0, 80) || 'No content';\n    contextSection += `- ${date}: ${content}${item.content?.length > 80 ? '...' : ''} [${item.projection_type}]\\n`;\n  });\n}\n\npromptParts.push(contextSection);\n\n// 5. Include format module\nconst formatModule = modules.find(m => m.module_type === 'format');\nif (formatModule) {\n  promptParts.push(formatModule.content);\n}\n\n// 6. Always include guardrail modules (priority 200+)\nconst guardrailModules = modules.filter(m => m.module_type === 'guardrail');\nguardrailModules.forEach(m => promptParts.push(m.content));\n\n// Assemble final prompt\nconst assembledPrompt = promptParts.join('\\n\\n---\\n\\n');\n\n// Determine the context description for the agent\nlet contextDescription = 'general check-in';\nif (isMorning) contextDescription = 'morning check-in';\nelse if (isEvening) contextDescription = 'evening reflection';\nelse if (hasStuckTodos) contextDescription = 'stuck todo nudge';\nelse if (activityItems.length === 0) contextDescription = 'no recent activity';\n\n// Format trace_chain for PostgreSQL\nconst traceChain = ctx.event.trace_chain || [];\nconst traceChainPg = '{' + traceChain.join(',') + '}';\n\n// Store metadata in ctx for ParseLlmResponse to access\nconst updatedCtx = {\n  ...ctx,\n  llm: {\n    assembled_prompt: assembledPrompt,\n    context_description: contextDescription,\n    technique_source: techniqueSource,\n    techniques_used: selectedTechniques.length,\n    semantic_scores: semanticMatches.map(m => m.score),\n    rag_count: ragResults.length,\n    inference_start: Date.now(),\n    trace_chain_pg: traceChainPg,\n    input_summary: {\n      activity_count: activityItems.length,\n      note_count: noteItems.length,\n      todo_count: todoItems.length,\n      stuck_todo_count: stuckTodos.length,\n      current_hour: currentHour,\n      is_morning: isMorning,\n      is_evening: isEvening,\n      technique_source: techniqueSource,\n      semantic_match_count: semanticMatches.length,\n      rag_result_count: ragResults.length\n    }\n  }\n};\n\nreturn [{\n  json: {\n    ctx: updatedCtx,\n    assembled_prompt: assembledPrompt\n  }\n}];"
+        "jsCode": "// Assemble prompt from modules and context with semantic selection\nconst allItems = $input.all();\n\n// Find the context summary item from BuildContextSummary\nlet contextData = null;\nfor (const item of allItems) {\n  if (item.json.ctx && item.json.context_summary) {\n    contextData = item.json;\n    break;\n  }\n}\n\nif (!contextData) {\n  throw new Error('Context data not found in merged items');\n}\n\nconst ctx = contextData.ctx;\nconst timezone = ctx.event.timezone || 'UTC';\n\n// Extract semantic selection results from MergeSemanticResults\nlet semanticMatches = [];\nfor (const item of allItems) {\n  if (item.json.results) {\n    semanticMatches = item.json.results;\n    break;\n  }\n}\n\n// Extract RAG results (similar projections) from RagSimilarProjections\nlet ragResults = [];\nfor (const item of allItems) {\n  if (item.json.projection_type !== undefined && item.json.distance !== undefined) {\n    ragResults.push(item.json);\n  }\n}\n\n// Get data from BuildContextSummary\nconst promptModules = contextData.prompt_modules || [];\nconst activities = contextData.activities || [];\nconst notes = contextData.notes || [];\nconst todos = contextData.todos || [];\nconst northStar = contextData.north_star || null;\n\n// Helper to format time in user's timezone\nconst formatTime = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      timeZone: timezone, \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleTimeString('en-US', { \n      hour: 'numeric', \n      minute: '2-digit' \n    });\n  }\n};\n\nconst formatDate = (isoString) => {\n  try {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      timeZone: timezone, \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  } catch (e) {\n    return new Date(isoString).toLocaleDateString('en-US', { \n      weekday: 'short',\n      month: 'short', \n      day: 'numeric' \n    });\n  }\n};\n\n// Get current hour in user's timezone\nconst now = new Date();\nlet currentHour;\ntry {\n  currentHour = parseInt(now.toLocaleTimeString('en-US', { \n    timeZone: timezone, \n    hour: 'numeric', \n    hour12: false \n  }));\n} catch (e) {\n  currentHour = now.getHours();\n}\n\n// Determine time of day for fallback technique selection\nconst isMorning = currentHour >= 6 && currentHour <= 9;\nconst isEvening = currentHour >= 20 && currentHour <= 23;\n\n// Get technique modules for context adaptation\nconst techniqueModules = promptModules.filter(m => m.module_type === 'technique');\n\n// Select technique: semantic match > time-based fallback > first available\nlet selectedTechnique = null;\nlet techniqueSource = 'none';\n\nif (semanticMatches && semanticMatches.length > 0 && semanticMatches[0].content) {\n  selectedTechnique = semanticMatches[0].content;\n  techniqueSource = `semantic_${semanticMatches[0].name || 'unknown'}`;\n} else if (techniqueModules.length > 0) {\n  // Time-based fallback\n  if (isMorning && techniqueModules.find(t => t.tags?.includes('morning'))) {\n    selectedTechnique = techniqueModules.find(t => t.tags?.includes('morning')).content;\n    techniqueSource = 'fallback_morning';\n  } else if (isEvening && techniqueModules.find(t => t.tags?.includes('evening'))) {\n    selectedTechnique = techniqueModules.find(t => t.tags?.includes('evening')).content;\n    techniqueSource = 'fallback_evening';\n  } else {\n    // Use first available technique\n    selectedTechnique = techniqueModules[0].content;\n    techniqueSource = 'fallback_first';\n  }\n}\n\n// Build context description for human-readable trace\nconst contextDescParts = [];\nif (contextData.has_stuck_todos) contextDescParts.push('stuck todos');\nif (contextData.has_activities) contextDescParts.push('recent activities');\nif (contextData.has_notes) contextDescParts.push('recent notes');\nconst contextDescription = contextDescParts.length > 0 \n  ? contextDescParts.join(', ')\n  : 'no recent activity';\n\n// Assemble prompt sections\nconst promptSections = [];\n\n// 1. System instruction\nconst systemModules = promptModules.filter(m => m.module_type === 'system');\nif (systemModules.length > 0) {\n  promptSections.push('# System Instructions\\n\\n' + systemModules.map(m => m.content).join('\\n\\n'));\n}\n\n// 2. North star (if configured)\nif (northStar) {\n  promptSections.push(`# Your North Star\\n\\n${northStar}`);\n}\n\n// 3. Selected technique (if available)\nif (selectedTechnique) {\n  promptSections.push(`# Technique for This Context\\n\\n${selectedTechnique}`);\n}\n\n// 4. RAG context (similar past projections)\nif (ragResults.length > 0) {\n  const ragSection = '# Related Past Activities\\n\\n' + \n    ragResults.map(r => {\n      const timestamp = formatDate(r.timestamp);\n      return `- ${timestamp}: ${r.content} (${r.category || 'uncategorized'})`;\n    }).join('\\n');\n  promptSections.push(ragSection);\n}\n\n// 5. Recent activities\nif (activities.length > 0) {\n  const activitySection = '# Recent Activities (Last 24h)\\n\\n' +\n    activities.map(a => {\n      const time = formatTime(a.timestamp);\n      return `- ${time}: ${a.description} (${a.category || 'uncategorized'})`;\n    }).join('\\n');\n  promptSections.push(activitySection);\n}\n\n// 6. Recent notes\nif (notes.length > 0) {\n  const noteSection = '# Recent Notes (Last 7 days)\\n\\n' +\n    notes.map(n => {\n      const date = formatDate(n.timestamp);\n      return `- ${date}: ${n.text}`;\n    }).join('\\n');\n  promptSections.push(noteSection);\n}\n\n// 7. Pending todos\nif (todos.length > 0) {\n  const todoSection = '# Pending Todos\\n\\n' +\n    todos.map(t => {\n      const daysPending = Math.floor(t.days_pending);\n      const urgency = daysPending > 3 ? ' ⚠️ STUCK' : '';\n      return `- ${t.text} (${daysPending} days pending)${urgency}`;\n    }).join('\\n');\n  promptSections.push(todoSection);\n}\n\n// 8. Current context\nconst currentTime = now.toLocaleString('en-US', { \n  timeZone: timezone,\n  weekday: 'long',\n  month: 'long',\n  day: 'numeric',\n  hour: 'numeric',\n  minute: '2-digit'\n});\npromptSections.push(`# Current Context\\n\\nTime: ${currentTime}\\nTimezone: ${timezone}`);\n\n// Assemble final prompt\nconst assembledPrompt = promptSections.join('\\n\\n---\\n\\n');\n\n// Build input summary for trace storage\nconst inputSummary = {\n  activities_count: activities.length,\n  notes_count: notes.length,\n  todos_count: todos.length,\n  stuck_todos_count: todos.filter(t => t.days_pending > 3).length,\n  has_north_star: !!northStar,\n  technique_source: techniqueSource,\n  rag_matches: ragResults.length\n};\n\nreturn {\n  json: {\n    ctx,\n    assembled_prompt: assembledPrompt,\n    context_description: contextDescription,\n    technique_source: techniqueSource,\n    input_summary: inputSummary\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -699,7 +594,7 @@
           "mode": "id"
         },
         "messageId": "={{ $json.id }}",
-        "emoji": "\u2753",
+        "emoji": "❓",
         "options": {}
       },
       "type": "n8n-nodes-base.discord",
@@ -784,7 +679,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "ctx": "={{ $('Merge for Discord').first().json.ctx }}",
-            "emoji": "\u2753"
+            "emoji": "❓"
           },
           "matchingColumns": [],
           "schema": [],
@@ -857,89 +752,14 @@
       "main": [
         [
           {
-            "node": "FetchHistory",
+            "node": "ExecuteQueries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "FetchHistory": {
-      "main": [
-        [
-          {
-            "node": "GetNorthStar",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "GetRecentActivities(24h)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "GetRecentNotes(7d)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "GetPendingTodos",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "MergeQueryResults",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GetNorthStar": {
-      "main": [
-        [
-          {
-            "node": "MergeQueryResults",
-            "type": "main",
-            "index": 2
-          }
-        ]
-      ]
-    },
-    "GetRecentActivities(24h)": {
-      "main": [
-        [
-          {
-            "node": "MergeQueryResults",
-            "type": "main",
-            "index": 3
-          }
-        ]
-      ]
-    },
-    "GetRecentNotes(7d)": {
-      "main": [
-        [
-          {
-            "node": "MergeQueryResults",
-            "type": "main",
-            "index": 4
-          }
-        ]
-      ]
-    },
-    "GetPendingTodos": {
-      "main": [
-        [
-          {
-            "node": "MergeQueryResults",
-            "type": "main",
-            "index": 5
-          }
-        ]
-      ]
-    },
-    "MergeQueryResults": {
+    "ExecuteQueries": {
       "main": [
         [
           {
