@@ -1,6 +1,10 @@
 services:
   n8n-dev:
-    image: n8nio/n8n:latest
+    # Pinned to 1.123.5 for stability:
+    # - LangChain node compatibility
+    # - Task runner conflicts in later versions
+    # - Update path: Test new versions in isolation before upgrading
+    image: n8nio/n8n:1.123.5
     container_name: n8n-dev-local
     restart: unless-stopped
     ports:
@@ -15,7 +19,8 @@ services:
       - N8N_ENCRYPTION_KEY=${N8N_DEV_ENCRYPTION_KEY:-dev-local-encryption-key-32chars}
       - N8N_API_ENABLED=true
       - N8N_DIAGNOSTICS_ENABLED=false
-      - EXECUTIONS_MODE=manual
+      - EXECUTIONS_MODE=regular
+      - N8N_RUNNERS_ENABLED=false
       - EXECUTIONS_TIMEOUT=300
       - EXECUTIONS_TIMEOUT_MAX=3600
       - WEBHOOK_TUNNEL_URL=${WEBHOOK_TUNNEL_URL:-}
