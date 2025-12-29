@@ -15,18 +15,23 @@ Complete guide to local development with Docker containers.
 
 ## Quick Start
 
-**One command to set up everything:**
+**Set up local development environment:**
 
 ```bash
-./scripts/deploy.sh local
+# Start containers
+docker-compose -f docker-compose.dev.yml up -d
+
+# Deploy workflows
+bash scripts/simple-deploy.sh dev
+
+# Run tests
+bash scripts/simple-test.sh
 ```
 
 This will:
 1. Start Docker containers (n8n + PostgreSQL)
-2. Initialize database schema
-3. Transform workflows for local testing
-4. Deploy workflows to n8n
-5. Run comprehensive tests (structural + functional + unit tests)
+2. Deploy workflows to n8n via API
+3. Run webhook-based tests with database validation
 
 ## Quick Reference
 
@@ -34,9 +39,10 @@ This will:
 
 | Task | Command |
 |------|---------|
-| **Complete Setup** | `./scripts/deploy.sh local` |
-| **Reset Environment** | `./scripts/reset-local-dev.sh` |
-| **Deploy Only** | `./scripts/deploy.sh dev` |
+| **Start containers** | `docker-compose -f docker-compose.dev.yml up -d` |
+| **Stop containers** | `docker-compose -f docker-compose.dev.yml down` |
+| **Deploy workflows** | `bash scripts/simple-deploy.sh dev` |
+| **Run tests** | `bash scripts/simple-test.sh` |
 | **Manual Steps** |
 | Start containers | `docker-compose -f docker-compose.dev.yml up -d` |
 | Stop containers | `docker-compose -f docker-compose.dev.yml down` |
@@ -49,12 +55,11 @@ This will:
 
 ### Authentication
 
-Local n8n uses automated session-based authentication:
+Local n8n uses API key authentication:
 - **Web UI:** http://localhost:5679 (auto-login on first visit)
-- **REST API:** Session cookie authentication (automatically configured)
-- **Owner Account:** Auto-created on first run (admin@example.com / Admin123!)
-- **Deployment scripts:** Automatically login and use session cookies for API calls
-- **No manual setup required:** Everything is handled by `./scripts/deploy.sh local`
+- **REST API:** Requires `N8N_API_KEY` or `N8N_DEV_API_KEY` from `.env`
+- **Owner Account:** Auto-created on first run (admin@example.com)
+- **Environment:** Set `N8N_DEV_API_KEY` in `.env` for automated deployments
 
 ## Core Tools
 
@@ -83,32 +88,48 @@ docker-compose -f docker-compose.dev.yml logs -f n8n-dev
 open http://localhost:5679
 ```
 
-### 2. transform_for_dev.py - Workflow Transformation
+### 2. simple-deploy.sh - Workflow Deployment
 
-Transforms workflows for local development with mock APIs.
+Deploys workflows directly to n8n via API with validation.
 
-**Location:** `scripts/transform_for_dev.py`
+**Location:** `scripts/simple-deploy.sh`
 
 **Features:**
-- Converts Schedule Triggers to Webhook Triggers
-- Mocks Discord and LLM nodes with Code nodes
-- Preserves webhook paths for testing
+- JSON syntax validation
+- Workflow name uniqueness check
+- Direct API deployment (no transformations needed)
+- Smoke test verification
 
 **Usage:**
 ```bash
-# Transform single workflow
-cat n8n-workflows/Route_Event.json | python scripts/transform_for_dev.py > transformed.json
+# Deploy to dev
+bash scripts/simple-deploy.sh dev
 
-# Transform all workflows
-mkdir -p n8n-workflows-transformed
-for wf in n8n-workflows/*.json; do
-  if ! cat "$wf" | python scripts/transform_for_dev.py > "n8n-workflows-transformed/$(basename "$wf")" 2>/dev/null; then
-    echo "Warning: Failed to transform $(basename "$wf")"
-  fi
-done
+# Deploy to prod
+bash scripts/simple-deploy.sh prod
 
-# Use real APIs instead of mocks
-NO_MOCKS=1 cat workflow.json | python scripts/transform_for_dev.py
+# Validate only (no deployment)
+bash scripts/simple-deploy.sh validate
+```
+
+### 3. simple-test.sh - Webhook Testing
+
+Tests workflows via webhook endpoints with database validation.
+
+**Location:** `scripts/simple-test.sh`
+
+**Features:**
+- Send test payloads to webhook endpoints
+- Validate database changes (events, projections)
+- Test coverage tracking
+
+**Usage:**
+```bash
+# Test all workflows
+bash scripts/simple-test.sh
+
+# Test specific workflow
+bash scripts/simple-test.sh Route_Message
 ```
 
 ### 3. n8n-push-local.sh - Local Workflow Deployment
@@ -129,46 +150,32 @@ N8N_API_URL=http://localhost:5679 N8N_API_KEY="" WORKFLOW_DIR=n8n-workflows-tran
 ### Prerequisites
 
 - Docker and Docker Compose installed
-- Python 3.8+ for transformation scripts
-- pytest for running tests
+- n8n API key in `.env` (`N8N_DEV_API_KEY`)
 
 ### Quick Setup (Recommended)
 
 ```bash
-# One command does everything
-./scripts/deploy.sh local
+# 1. Start containers
+docker-compose -f docker-compose.dev.yml up -d
+
+# 2. Initialize database (if needed)
+docker exec -i postgres-dev-local psql -U n8n_user -d kairon < db/schema.sql
+
+# 3. Deploy workflows
+bash scripts/simple-deploy.sh dev
+
+# 4. Run tests
+bash scripts/simple-test.sh
 ```
-
-### Manual Setup Workflow (Alternative)
-
-If you need more control over the process:
-
-1. **Start containers:**
-   ```bash
-   docker-compose -f docker-compose.dev.yml up -d
-   sleep 10  # Wait for services to start
-   ```
-
-2. **Initialize database:**
-   ```bash
-   # Load schema
-   docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < db/schema.sql
-   ```
-
-3. **Deploy workflows:**
-   ```bash
-   ./scripts/deploy.sh dev
-   ```
 
 ### What Gets Validated
 
 The deployment process runs comprehensive validation:
 
-1. **Structural validation:** JSON format, node connections, no orphans
-2. **Workflow name uniqueness:** Prevents mode:list reference conflicts  
-3. **Portable references:** Ensures Execute Workflow nodes use mode:list
-4. **Unit tests:** Python test suite for workflow logic
-5. **Functional tests:** Mock and real API tests via webhooks
+1. **JSON syntax:** Valid workflow files
+2. **Workflow name uniqueness:** Prevents duplicate names
+3. **Environment variable syntax:** Check for correct `={{ $env.VAR }}` usage
+4. **Database connectivity:** Verify workflow execution creates records
 
 ### Environment Variables
 
@@ -182,19 +189,18 @@ For local development, these variables are optional (docker-compose.dev.yml prov
 
 ### Authentication
 
-Local n8n instance uses automated session-based authentication:
+Local n8n instance uses API key authentication:
 
 - **Web UI:** http://localhost:5679 (auto-created owner account on first run)
-- **REST API:** Session cookie authentication (automatically configured by deploy script)
-- **Owner Account:** `admin@example.com` / `Admin123!` (created automatically)
-- **Deployment scripts:** Automatically login and use session cookies for API calls
-- **No manual setup required:** Everything is handled by `./scripts/deploy.sh local`
+- **REST API:** Requires `N8N_DEV_API_KEY` from `.env` file
+- **Owner Account:** `admin@example.com` (created automatically)
+- **Configuration:** Set API keys in `.env`:
+  ```
+  N8N_DEV_API_KEY=your-dev-api-key-here
+  N8N_API_KEY=your-prod-api-key-here
+  ```
 
-The deploy script automatically:
-1. Detects if n8n needs owner account setup
-2. Creates owner account via `/rest/owner/setup` API
-3. Logs in and saves session cookie to `/tmp/n8n-dev-session-*.txt`
-4. Exports cookie path for deployment scripts to use
+**Note:** The old deployment system used session cookie authentication. The new pipeline uses API keys which are more reliable for automated deployments.
 
 ### Workflow Transformation Details
 
@@ -241,8 +247,17 @@ docker-compose -f docker-compose.dev.yml down -v
 ### 1. Initial Setup
 
 ```bash
-# Complete setup from scratch
-./scripts/deploy.sh local
+# Start containers
+docker-compose -f docker-compose.dev.yml up -d
+
+# Initialize database
+docker exec -i postgres-dev-local psql -U n8n_user -d kairon < db/schema.sql
+
+# Deploy workflows
+bash scripts/simple-deploy.sh dev
+
+# Run tests
+bash scripts/simple-test.sh
 ```
 
 ### 2. Test a New Feature
@@ -250,23 +265,22 @@ docker-compose -f docker-compose.dev.yml down -v
 ```bash
 # 1. Edit your workflow file in n8n-workflows/
 
-# 2. Deploy and test
-./scripts/deploy.sh dev
+# 2. Deploy
+bash scripts/simple-deploy.sh dev
 
-# 3. Check results in database
-docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c \
+# 3. Run tests
+bash scripts/simple-test.sh
+
+# 4. Check results in database
+docker exec -i postgres-dev-local psql -U n8n_user -d kairon -c \
   "SELECT * FROM projections ORDER BY created_at DESC LIMIT 3"
 ```
 
-### 3. Test with Real APIs
+### 3. Test Specific Workflow
 
 ```bash
-# Deploy with real Discord/LLM APIs (requires API keys in environment)
-export NO_MOCKS=1
-export DISCORD_BOT_TOKEN="your-token"
-export OPENROUTER_API_KEY="your-key"
-
-./scripts/deploy.sh dev
+# Test only Route_Message workflow
+bash scripts/simple-test.sh Route_Message
 ```
 
 ### 4. Debug Workflow Issues
@@ -323,21 +337,21 @@ For detailed debugging workflows, see `DEBUG.md`.
 
 ## Advanced Usage
 
-### Using Real APIs (No Mocks)
-
-By default, `deploy.sh local` uses mocked Discord and LLM responses for fast, offline testing. To test with real APIs:
+### Deploy to Production
 
 ```bash
-# Export API credentials
-export DISCORD_BOT_TOKEN="your-token"
-export OPENROUTER_API_KEY="your-key"
-export NO_MOCKS=1
+# Deploy to production (validates, deploys, smokes tests)
+bash scripts/simple-deploy.sh prod
 
-# Deploy with real APIs
-./scripts/deploy.sh dev
+# Deploy to dev environment
+bash scripts/simple-deploy.sh dev
 ```
 
-Note: The deployment script runs tests twice - once with mocks, once with real APIs.
+**Production Deployment includes:**
+1. JSON syntax validation
+2. Workflow deployment to production n8n
+3. Smoke test verification
+4. All workflows accessible via API
 
 ### Custom Database Configuration
 
@@ -374,31 +388,32 @@ docker-compose -f docker-compose.dev.yml down -v
 ```
 docker-compose.dev.yml       # Local environment definition
 n8n-workflows/               # Source workflows
-n8n-workflows-transformed/   # Transformed workflows for testing
 scripts/
-├── transform_for_dev.py     # Workflow transformation
-└── workflows/
-    └── n8n-push-local.sh    # Local deployment script
+├── simple-deploy.sh         # Deployment script
+└── simple-test.sh           # Testing script
+n8n-workflows/tests/
+└── payloads/               # Test payloads for each workflow
 ```
 
 ## Quick Tips
 
 ### Recommended Workflow
-1. **Start:** `./scripts/deploy.sh local` (one command setup)
+1. **Start containers:** `docker-compose -f docker-compose.dev.yml up -d`
 2. **Edit:** Modify workflow files in n8n-workflows/
-3. **Test:** `./scripts/deploy.sh dev` (deploy + test)
-4. **Debug:** Check logs with `docker-compose logs -f n8n-dev`
-5. **Verify:** Query database or check n8n UI at http://localhost:5679
+3. **Deploy:** `bash scripts/simple-deploy.sh dev`
+4. **Test:** `bash scripts/simple-test.sh`
+5. **Debug:** Check logs with `docker logs -f n8n-dev-local`
+6. **Verify:** Query database or check n8n UI at http://localhost:5679
 
 ### Useful Commands
-- **Complete setup:** `./scripts/deploy.sh local`
-- **Deploy only:** `./scripts/deploy.sh dev`
-- **Run tests:** `pytest n8n-workflows/tests/ -v`
-- **Check database:** `docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 10"`
-- **View logs:** `docker-compose -f docker-compose.dev.yml logs -f n8n-dev`
-- **Clean start:** `./scripts/reset-local-dev.sh && ./scripts/deploy.sh local`
+- **Start containers:** `docker-compose -f docker-compose.dev.yml up -d`
+- **Stop containers:** `docker-compose -f docker-compose.dev.yml down`
+- **Deploy:** `bash scripts/simple-deploy.sh dev`
+- **Test:** `bash scripts/simple-test.sh`
+- **Check database:** `docker exec -i postgres-dev-local psql -U n8n_user -d kairon -c "SELECT * FROM events LIMIT 10"`
+- **View logs:** `docker logs -f n8n-dev-local`
 
 ---
 
-**Last Updated:** 2025-12-27
-**Focus:** One-command local development setup with comprehensive testing
+**Last Updated:** 2025-12-29
+**Focus:** Simplified deployment pipeline (simple-deploy.sh + simple-test.sh)
