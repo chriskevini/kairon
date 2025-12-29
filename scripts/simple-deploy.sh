@@ -24,6 +24,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
 
+# Configuration - MUST come before loading environment
+TARGET="${1:-all}"
+
 # Load environment variables
 # Try environment-specific file first, then fall back to default .env
 if [ -f "$REPO_ROOT/.env.$TARGET" ]; then
@@ -42,14 +45,29 @@ else
     echo "  .env            # Default (production)"
     exit 1
 fi
-
-# Configuration
-TARGET="${1:-all}"
 # Variables loaded from .env.$TARGET or .env
-N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
-N8N_API_KEY="${N8N_API_KEY:-}"
+# Support CI/CD override variables
+N8N_API_URL="${N8N_DEV_API_URL:-${N8N_API_URL:-http://localhost:5678}}"
+N8N_API_KEY="${N8N_DEV_API_KEY:-${N8N_API_KEY:-}}"
 DB_NAME="${DB_NAME:-kairon_dev}"
 DB_USER="${DB_USER:-n8n_user}"
+
+# Safety check: Don't allow production mode if overrides are set for dev
+# Skip for validate mode since it doesn't deploy
+if [ "$TARGET" != "validate" ] && [ "$TARGET" = "dev" ] || [ "$TARGET" = "all" ]; then
+    if [ -n "${N8N_DEV_API_KEY:-}" ] && [ -n "${N8N_DEV_API_URL:-}" ]; then
+        # Overrides are set, so we're not using base production file
+        # This is safe - environment file specifies dev credentials
+        :
+    elif [[ "$N8N_API_URL" =~ prod|production|5678 ]]; then
+        log_error "Production URL detected in dev mode!"
+        log_error "Are you using .env instead of .env.dev?"
+        log_error "For dev, create: cp .env.example .env.dev"
+        log_error "Then add: N8N_API_URL=http://localhost:5679"
+        log_error "Then add: N8N_API_KEY=your-dev-key"
+        exit 1
+    fi
+fi
 
 # Colors for output
 RED='\033[0;31m'
