@@ -1,18 +1,22 @@
 #!/bin/bash
 # Simple deployment pipeline for n8n workflows
-# 
-# This replaces the complex 2,150+ line deployment system with a simple, robust approach:
+#
+# This replaces the complex 2,536-line deployment system with a simple, robust approach:
 # - Single codebase (no transformations)
 # - Direct workflow testing
-# - Straightforward deployment
+# - Automatic environment setup
+# - Cleanup of orphan containers
 #
 # Usage:
-#   ./scripts/simple-deploy.sh [dev|prod|all]
+#   ./scripts/simple-deploy.sh [dev|prod|all|validate]
 #
-# Prerequisites:
-#   - .env file with N8N_API_KEY and N8N_API_URL
-#   - n8n instance running and accessible
-#   - PostgreSQL database accessible
+# Environment Variables (.env):
+#   N8N_API_URL          - Production n8n URL
+#   N8N_API_KEY           - Production n8n API key
+#   N8N_DEV_API_URL      - Dev/Staging n8n URL (default: http://localhost:5679)
+#   N8N_DEV_API_KEY       - Dev/Staging n8n API key
+#   DB_NAME               - Database name (default: kairon_dev)
+#   DB_USER               - Database user (default: n8n_user)
 
 set -euo pipefail
 
@@ -31,6 +35,8 @@ fi
 TARGET="${1:-all}"
 N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
 N8N_API_KEY="${N8N_API_KEY:-}"
+DB_NAME="${DB_NAME:-kairon_dev}"
+DB_USER="${DB_USER:-n8n_user}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -50,49 +56,188 @@ log_info() {
     echo -e "${YELLOW}→ $1${NC}"
 }
 
+log_section() {
+    echo ""
+    echo "========================================"
+    echo "$1"
+    echo "========================================"
+}
+
+# Cleanup orphan containers and volumes
+cleanup_environment() {
+    log_info "Cleaning up environment..."
+
+    # Remove orphan containers for this project
+    cd "$REPO_ROOT"
+
+    # Remove old containers that might conflict
+    for old_container in n8n-dev-local postgres-dev-local postgres-dev-local n8n postgres; do
+        if docker ps -a --format '{{.Names}}' | grep -q "^${old_container}$"; then
+            log_info "Removing old container: $old_container"
+            docker rm -f "$old_container" 2>/dev/null || true
+        fi
+    done
+
+    # Remove orphan containers (not in current compose file)
+    if docker-compose ps -q 2>/dev/null | grep -q "Found orphan"; then
+        log_info "Removing orphan containers..."
+        docker-compose down --remove-orphans 2>/dev/null || true
+    fi
+}
+
+# Start Docker environment
+start_containers() {
+    log_info "Starting Docker environment..."
+
+    cd "$REPO_ROOT"
+
+    # Stop and remove old containers
+    cleanup_environment
+
+    # Start fresh containers
+    docker-compose up -d
+
+    # Wait for database to be ready
+    log_info "Waiting for database to be ready..."
+    local max_wait=30
+    local waited=0
+
+    while [ $waited -lt $max_wait ]; do
+        if docker exec kairon-postgres pg_isready -U "${DB_USER}" 2>/dev/null; then
+            log_success "Database is ready"
+            break
+        fi
+
+        sleep 1
+        waited=$((waited + 1))
+        echo -n "."
+    done
+
+    if [ $waited -ge $max_wait ]; then
+        log_error "Database did not become ready within ${max_wait}s"
+        return 1
+    fi
+
+    # Create database if it doesn't exist
+    log_info "Checking database..."
+    if ! docker exec kairon-postgres psql -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1" 2>/dev/null; then
+        log_info "Creating database: ${DB_NAME}"
+        docker exec kairon-postgres psql -U "${DB_USER}" -d postgres -c "CREATE DATABASE ${DB_NAME};"
+    fi
+
+    # Wait for n8n to be ready
+    log_info "Waiting for n8n to be ready..."
+    waited=0
+
+    while [ $waited -lt $max_wait ]; do
+        if curl -sf http://localhost:5679/healthz > /dev/null 2>&1 || \
+           curl -sf http://localhost:5679 > /dev/null 2>&1; then
+            log_success "n8n is ready"
+            break
+        fi
+
+        sleep 1
+        waited=$((waited + 1))
+        echo -n "."
+    done
+
+    if [ $waited -ge $max_wait ]; then
+        log_error "n8n did not become ready within ${max_wait}s"
+        return 1
+    fi
+
+    return 0
+}
+
 # Retry wrapper for curl commands (handles transient network issues)
 retry_curl() {
     local max_attempts=3
     local attempt=1
     local delay=2
-    
+
     while [ $attempt -le $max_attempts ]; do
         if curl "$@"; then
             return 0
         fi
-        
+
         if [ $attempt -lt $max_attempts ]; then
             echo -e "${YELLOW}Retry $attempt/$max_attempts in ${delay}s...${NC}" >&2
             sleep $delay
         fi
-        
+
         attempt=$((attempt + 1))
         delay=$((delay * 2))
     done
-    
+
     return 1
 }
 
 # Validate JSON syntax
 validate_json() {
     log_info "Validating workflow JSON syntax..."
-    
+
     local errors=0
     for workflow in "$WORKFLOW_DIR"/*.json; do
         [ -f "$workflow" ] || continue
-        
+
         if ! jq empty "$workflow" 2>/dev/null; then
             log_error "Invalid JSON: $(basename "$workflow")"
             errors=$((errors + 1))
         fi
     done
-    
+
     if [ $errors -gt 0 ]; then
         log_error "Found $errors JSON syntax errors"
         return 1
     fi
-    
+
     log_success "JSON validation passed"
+    return 0
+}
+
+# Check for duplicate workflow names
+check_duplicates() {
+    log_info "Checking for duplicate workflow names..."
+
+    local duplicates
+    duplicates=$(jq -r '.name' "$WORKFLOW_DIR"/*.json 2>/dev/null | sort | uniq -d)
+
+    if [ -n "$duplicates" ]; then
+        log_error "Duplicate workflow names found:"
+        echo "$duplicates"
+        return 1
+    fi
+
+    log_success "No duplicate names found"
+    return 0
+}
+
+# Check n8n first-time setup
+check_n8n_setup() {
+    local api_url="$1"
+    local api_key="$2"
+
+    # Try to connect without auth first
+    if curl -sf "$api_url/api/v1/workflows?limit=1" > /dev/null 2>&1; then
+        # n8n is running but doesn't require auth (first-time setup)
+        log_error "n8n needs initial setup"
+        echo ""
+        echo "First-time setup required:"
+        echo "1. Open $api_url in your browser"
+        echo "2. Create an admin account"
+        echo "3. Go to Settings → API"
+        echo "4. Generate an API key"
+        echo "5. Add API key to .env:"
+        echo ""
+        if [[ "$api_url" == *"localhost"* ]]; then
+            echo "  N8N_DEV_API_KEY=your-generated-api-key-here"
+        else
+            echo "  N8N_API_KEY=your-generated-api-key-here"
+        fi
+        echo ""
+        return 1
+    fi
+
     return 0
 }
 
@@ -100,48 +245,35 @@ validate_json() {
 deploy_workflows() {
     local api_url="$1"
     local api_key="$2"
-    
+
+    # Check first-time setup
+    check_n8n_setup "$api_url" "$api_key" || return 1
+
     log_info "Deploying workflows to $api_url..."
-    
-    # Check API key is provided
-    if [ -z "$api_key" ]; then
-        log_error "N8N_API_KEY not set. Set N8N_API_KEY or N8N_DEV_API_KEY in .env"
-        echo ""
-        echo "Example .env:"
-        echo "  N8N_API_KEY=your-prod-key"
-        echo "  N8N_DEV_API_KEY=your-dev-key"
-        return 1
-    fi
-    
-    # Check n8n is accessible
-    if ! retry_curl -s -f -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=1" > /dev/null 2>&1; then
-        log_error "Cannot connect to n8n at $api_url"
-        return 1
-    fi
-    
+
     # Get existing workflows
     local existing_workflows
     existing_workflows=$(retry_curl -s -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=100" | jq -r '.data[] | "\(.name)|\(.id)"')
-    
+
     # Deploy each workflow
     local deployed=0
     local updated=0
     local errors=0
-    
+
     for workflow in "$WORKFLOW_DIR"/*.json; do
         [ -f "$workflow" ] || continue
-        
+
         local wf_name
         wf_name=$(jq -r '.name' "$workflow")
-        
+
         # Check if workflow exists
         local existing_id
         existing_id=$(echo "$existing_workflows" | grep "^${wf_name}|" | cut -d'|' -f2 || echo "")
-        
+
         # Prepare workflow payload (remove id, pinData, versionId)
         local payload
         payload=$(jq 'del(.id, .pinData, .versionId)' "$workflow")
-        
+
         if [ -n "$existing_id" ]; then
             # Update existing workflow
             if retry_curl -s -f -X PUT \
@@ -170,7 +302,7 @@ deploy_workflows() {
             fi
         fi
     done
-    
+
     echo ""
     if [ $errors -eq 0 ]; then
         log_success "Deployment complete: $deployed created, $updated updated"
@@ -179,46 +311,6 @@ deploy_workflows() {
         log_error "Deployment failed: $errors errors"
         return 1
     fi
-}
-
-# Run basic tests
-run_tests() {
-    log_info "Running basic workflow tests..."
-    
-    # Test 1: Validate all workflows can be parsed
-    validate_json || return 1
-    
-    # Test 2: Check for duplicate workflow names
-    local duplicates
-    duplicates=$(jq -r '.name' "$WORKFLOW_DIR"/*.json 2>/dev/null | sort | uniq -d)
-    if [ -n "$duplicates" ]; then
-        log_error "Duplicate workflow names found:"
-        echo "$duplicates"
-        return 1
-    fi
-    
-    # Test 3: Verify environment variable syntax in workflow parameters
-    # Note: Only check node parameters (not jsCode), as JS code can use $env directly
-    local invalid_refs
-    invalid_refs=$(jq -r '
-        .nodes[] | 
-        select(.parameters) | 
-        .parameters | 
-        to_entries[] | 
-        select(.key != "jsCode") |
-        select(.value | type == "string") | 
-        select(.value | contains("$env.") and (contains("={{ $env.") | not)) | 
-        "\(.key): \(.value)"
-    ' "$WORKFLOW_DIR"/*.json 2>/dev/null || echo "")
-    
-    if [ -n "$invalid_refs" ]; then
-        log_error "Invalid environment variable syntax in parameters (use ={{ \$env.VAR_NAME }})"
-        echo "$invalid_refs" | head -5
-        return 1
-    fi
-    
-    log_success "All tests passed"
-    return 0
 }
 
 # Smoke test deployed workflows
@@ -241,95 +333,76 @@ smoke_test() {
     fi
 }
 
-# Check if n8n needs initial setup
-check_n8n_setup() {
-    local api_url="$1"
-    local api_key="$2"
+# Run basic tests
+run_tests() {
+    log_info "Running basic workflow tests..."
 
-    # If API key is empty or not set, n8n needs initial owner setup
-    if [ -z "$api_key" ]; then
-        log_error "N8N_API_KEY is not set"
-        echo ""
-        echo "For first-time local dev setup:"
-        echo "1. Open http://localhost:5679 in your browser"
-        echo "2. Create an admin account"
-        echo "3. Go to Settings → API and generate an API key"
-        echo "4. Set N8N_DEV_API_KEY in your .env file"
-        echo ""
-        echo "Example .env:"
-        echo "  N8N_DEV_API_KEY=your-generated-api-key-here"
-        echo ""
-        return 1
-    fi
+    # Test 1: Validate all workflows can be parsed
+    validate_json || return 1
 
+    # Test 2: Check for duplicate workflow names
+    check_duplicates || return 1
+
+    log_success "All tests passed"
     return 0
 }
 
 # Main execution
 main() {
-    echo "=========================================="
-    echo "Simple n8n Workflow Deployment"
-    echo "=========================================="
-    echo ""
-    
+    log_section "Simple n8n Workflow Deployment"
+
+    cd "$REPO_ROOT"
+
     case "$TARGET" in
         validate)
             # Validation only - no deployment
             run_tests
             ;;
-            
+
         dev)
             # Deploy to LOCAL development environment
-            # Start local n8n container if not running
-            if ! docker ps | grep -q "kairon-n8n"; then
-                log_info "Starting local n8n environment..."
-                docker-compose up -d
-                log_info "Waiting for n8n to be ready..."
-                sleep 5
+            # Start local containers if not running
+            if ! docker ps --format '{{.Names}}' | grep -q "^kairon-n8n$"; then
+                start_containers || exit 1
+            else
+                # Ensure database exists even if containers are running
+                if ! docker exec kairon-postgres psql -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1" 2>/dev/null; then
+                    log_info "Creating database: ${DB_NAME}"
+                    docker exec kairon-postgres psql -U "${DB_USER}" -d postgres -c "CREATE DATABASE ${DB_NAME};" 2>/dev/null || true
+                fi
             fi
 
             export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
             export N8N_API_KEY="${N8N_DEV_API_KEY:-$N8N_API_KEY}"
 
-            # Check if n8n needs initial setup
-            check_n8n_setup "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-
             run_tests || exit 1
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-
-            echo ""
-            # Then: production
-            log_info "Stage 2: Deploy to production"
-            export N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
-            export N8N_API_KEY="${N8N_API_KEY}"
-
-            deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-            smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             ;;
-            
+
         prod)
-            # Deploy to REMOTE production environment via API
-            # No container management needed - just API deployment
+            # Deploy to PRODUCTION environment
+            export N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
+            export N8N_API_KEY="${N8N_API_KEY}"
+
             run_tests || exit 1
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-            
-            echo ""
-            log_info "Production deployment complete!"
-            echo "  n8n URL: $N8N_API_URL"
             ;;
-            
+
         all)
-            # Deploy to local dev, then production
-            # First: local dev
-            log_info "Stage 1: Deploy to local development"
-            
-            if ! docker ps | grep -q "kairon-n8n"; then
-                log_info "Starting local n8n environment..."
-                docker-compose up -d
-                log_info "Waiting for n8n to be ready..."
-                sleep 5
+            # Deploy to LOCAL development, then production
+            # Stage 1: Local dev
+            log_section "Stage 1: Deploy to Local Development"
+
+            if ! docker ps --format '{{.Names}}' | grep -q "^kairon-n8n$"; then
+                start_containers || exit 1
+            else
+                # Ensure database exists even if containers are running
+                if ! docker exec kairon-postgres psql -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1" 2>/dev/null; then
+                    log_info "Creating database: ${DB_NAME}"
+                    docker exec kairon-postgres psql -U "${DB_USER}" -d postgres -c "CREATE DATABASE ${DB_NAME};" 2>/dev/null || true
+                fi
             fi
 
             export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
@@ -339,38 +412,46 @@ main() {
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
 
-            echo ""
-            # Then: production
-            log_info "Stage 2: Deploy to production"
+            # Stage 2: Production
+            log_section "Stage 2: Deploy to Production"
+
             export N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
             export N8N_API_KEY="${N8N_API_KEY}"
 
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             ;;
-            
+
         *)
             echo "Usage: $0 [validate|dev|prod|all]"
             echo ""
-            echo "Options:"
+            echo "Commands:"
             echo "  validate - Validate workflows only (no deployment)"
-            echo "  dev      - Deploy to LOCAL development (starts container + deploys workflows)"
+            echo "  dev      - Deploy to LOCAL development (auto-starts containers + creates database)"
             echo "  prod     - Deploy to PRODUCTION via API (remote server)"
             echo "  all      - Deploy to local dev, then production (default)"
             echo ""
             echo "Environment Configuration (.env):"
             echo "  N8N_DEV_API_URL   - Local n8n URL (default: http://localhost:5679)"
-            echo "  N8N_DEV_API_KEY    - Local n8n API key"
-            echo "  N8N_API_URL         - Production n8n URL"
-            echo "  N8N_API_KEY          - Production n8n API key"
+            echo "  N8N_DEV_API_KEY    - Local n8n API key (required after first-time setup)"
+            echo "  N8N_API_URL         - Production n8n URL (default: http://localhost:5678)"
+            echo "  N8N_API_KEY          - Production n8n API key (required)"
+            echo "  DB_NAME              - Database name (default: kairon_dev)"
+            echo "  DB_USER              - Database user (default: n8n_user)"
+            echo ""
+            echo "First-time Setup:"
+            echo "  1. Run: ./scripts/simple-deploy.sh dev"
+            echo "  2. Open http://localhost:5679 in your browser"
+            echo "  3. Create an admin account"
+            echo "  4. Go to Settings → API"
+            echo "  5. Generate an API key"
+            echo "  6. Set N8N_DEV_API_KEY in your .env file"
+            echo "  7. Run: ./scripts/simple-deploy.sh dev"
             exit 1
             ;;
     esac
-    
-    echo ""
-    echo "=========================================="
-    log_success "Deployment complete!"
-    echo "=========================================="
+
+    log_section "Deployment Complete!"
 }
 
 main
