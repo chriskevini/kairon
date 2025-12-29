@@ -1,6 +1,20 @@
 #!/usr/bin/env python3
 """
-Transform workflow JSON for dev environment testing.
+============================================================================
+⚠️  DEPRECATED: This workflow transformation system is no longer needed
+============================================================================
+
+This script is part of the old 2,371-line deployment system and is now
+DEPRECATED. Workflows now use environment variables directly, eliminating
+the need for transformation.
+
+NEW USERS: Use scripts/simple-deploy.sh instead - no transformation needed!
+
+See docs/SIMPLIFIED_PIPELINE.md for migration guide
+
+============================================================================
+
+Transform workflow JSON for dev environment testing (LEGACY).
 
 Replaces external API calls (Discord, LLM) with mock Code nodes,
 converts Webhook triggers to Execute Workflow Triggers, and

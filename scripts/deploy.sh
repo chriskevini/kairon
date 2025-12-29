@@ -1,6 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
+# ============================================================================
+# ⚠️  DEPRECATED: This is the legacy complex deployment system
+# ============================================================================
+#
+# This script is part of the old 2,371-line deployment system and is now
+# DEPRECATED in favor of the simplified pipeline.
+#
+# NEW USERS: Use scripts/simple-deploy.sh instead (83% less code, 90% faster)
+#
+# See docs/SIMPLIFIED_PIPELINE.md for migration guide
+#
+# ============================================================================
+
 # deploy.sh - Deploy workflows to dev and prod with testing
 #
 # This is the MAIN ENTRY POINT for n8n workflow deployment.
