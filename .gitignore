@@ -1,7 +1,8 @@
 
 # Environment variables with sensitive data
 .env
-.env.local
+.env.*
+!.env.example
 
 # n8n workflow backups (created by sanitize script)
 n8n-workflows/*.backup
