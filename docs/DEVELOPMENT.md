@@ -48,8 +48,8 @@ This will:
 | Stop containers | `docker-compose down` |
 | View logs | `docker-compose logs -f n8n` |
 | **Database** |
-| Interactive psql | `docker exec -it postgres-dev-local psql -U postgres -d kairon_dev` |
-| Run SQL query | `docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 5"` |
+| Interactive psql | `docker exec -it kairon-postgres psql -U postgres -d kairon_dev` |
+| Run SQL query | `docker exec -i kairon-postgres psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 5"` |
 | **Testing** |
 | Test webhook | `curl -X POST http://localhost:5679/webhook/$WEBHOOK_PATH -H "Content-Type: application/json" -d '{"event_type": "message", "content": "!! test", "guild_id": "test", "channel_id": "test", "message_id": "test123", "author": {"login": "test"}}'` |
 
@@ -148,7 +148,7 @@ bash scripts/simple-test.sh Route_Message
 docker-compose up -d
 
 # 2. Initialize database (if needed)
-docker exec -i postgres-dev-local psql -U n8n_user -d kairon < db/schema.sql
+docker exec -i kairon-postgres psql -U n8n_user -d kairon < db/schema.sql
 
 # 3. Deploy workflows
 bash scripts/simple-deploy.sh dev
@@ -208,13 +208,13 @@ The same workflow files work in both dev and prod:
 
 ```bash
 # Run SQL query
-docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 5"
+docker exec -i kairon-postgres psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 5"
 
 # Interactive session
-docker exec -it postgres-dev-local psql -U postgres -d kairon_dev
+docker exec -it kairon-postgres psql -U postgres -d kairon_dev
 
 # Run query from file
-docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < query.sql
+docker exec -i kairon-postgres psql -U postgres -d kairon_dev < query.sql
 ```
 
 ### Cleanup
@@ -238,7 +238,7 @@ docker-compose down -v
 docker-compose up -d
 
 # Initialize database
-docker exec -i postgres-dev-local psql -U n8n_user -d kairon < db/schema.sql
+docker exec -i kairon-postgres psql -U n8n_user -d kairon < db/schema.sql
 
 # Deploy workflows
 bash scripts/simple-deploy.sh dev
@@ -259,7 +259,7 @@ bash scripts/simple-deploy.sh dev
 bash scripts/simple-test.sh
 
 # 4. Check results in database
-docker exec -i postgres-dev-local psql -U n8n_user -d kairon -c \
+docker exec -i kairon-postgres psql -U n8n_user -d kairon -c \
   "SELECT * FROM projections ORDER BY created_at DESC LIMIT 3"
 ```
 
@@ -277,7 +277,7 @@ bash scripts/simple-test.sh Route_Message
 docker-compose logs -f n8n
 
 # 2. Test webhook manually
-curl -X POST http://localhost:5679/webhook/kairon-dev-test \
+curl -X POST http://localhost:5679/webhook/kairon-test \
   -H "Content-Type: application/json" \
   -d '{"event_type": "message", "content": "!! debug", "guild_id": "test", "channel_id": "test", "message_id": "debug-123", "author": {"login": "test"}, "timestamp": "'$(date -Iseconds)'"}'
 
@@ -315,7 +315,7 @@ docker exec -i postgres psql -U postgres -d kairon_dev -c "SELECT COUNT(*) FROM 
 curl -s http://localhost:5679/api/v1/workflows | jq '.data[] | select(.active == true) | {name, id}'
 
 # Test webhook manually
-curl -X POST http://localhost:5679/webhook/kairon-dev-test \
+curl -X POST http://localhost:5679/webhook/kairon-test \
   -H "Content-Type: application/json" \
   -d '{"event_type": "message", "content": "!! debug", "guild_id": "test", "channel_id": "test", "message_id": "debug-123", "author": {"login": "test"}, "timestamp": "'$(date -Iseconds)'"}'
 ```
@@ -356,7 +356,7 @@ docker-compose up -d
 
 - **Test incrementally:** Deploy and test single workflows as you develop
 - **Use environment variables:** Configure behavior via `={{ $env.VAR }}` in workflows
-- **Monitor logs:** `docker logs -f n8n-dev-local` shows n8n processing in real-time
+- **Monitor logs:** `docker logs -f kairon-n8n` shows n8n processing in real-time
 - **Database persistence:** Data persists between container restarts (use `down -v` to reset)
 - **Iterative development:** Just run `bash scripts/simple-deploy.sh dev` after editing workflow files
 
@@ -397,8 +397,8 @@ n8n-workflows/tests/
 - **Stop containers:** `docker-compose down`
 - **Deploy:** `bash scripts/simple-deploy.sh dev`
 - **Test:** `bash scripts/simple-test.sh`
-- **Check database:** `docker exec -i postgres-dev-local psql -U n8n_user -d kairon -c "SELECT * FROM events LIMIT 10"`
-- **View logs:** `docker logs -f n8n-dev-local`
+- **Check database:** `docker exec -i kairon-postgres psql -U n8n_user -d kairon -c "SELECT * FROM events LIMIT 10"`
+- **View logs:** `docker logs -f kairon-n8n`
 
 ---
 

@@ -45,7 +45,7 @@ curl -s http://localhost:5679/api/v1/workflows | jq '.data[] | select(.name | co
 curl -s http://localhost:5679/api/v1/executions?status=running | jq '.data | length'
 
 # 3. Test webhook manually
-curl -X POST http://localhost:5679/webhook/kairon-dev-test \
+curl -X POST http://localhost:5679/webhook/kairon-test \
   -H "Content-Type: application/json" \
   -d '{"event_type": "message", "content": "!! debug test", "guild_id": "test", "channel_id": "test", "message_id": "debug-123", "author": {"login": "test"}, "timestamp": "'$(date -Iseconds)'"}'
 ```
@@ -216,7 +216,7 @@ curl -s http://localhost:5679/api/v1/workflows | jq '.data[] | select(.active ==
 curl -s http://localhost:5679/api/v1/workflows/<workflow-id> | jq '.nodes[] | select(.type == "n8n-nodes-base.webhook") | .parameters.path'
 
 # 3. Test webhook directly
-curl -X POST http://localhost:5679/webhook/kairon-dev-test \
+curl -X POST http://localhost:5679/webhook/kairon-test \
   -H "Content-Type: application/json" \
   -d '{"event_type": "message", "content": "!! test", "guild_id": "test", "channel_id": "test", "message_id": "test-123", "author": {"login": "test"}, "timestamp": "'$(date -Iseconds)'"}'
 
@@ -334,7 +334,7 @@ ssh production-server "docker stats"
 
 ### Issue: "Webhook not registered"
 ```
-Error: The requested webhook "POST kairon-dev-test" is not registered
+Error: The requested webhook "POST kairon-test" is not registered
 ```
 
 **Solutions:**
@@ -452,7 +452,7 @@ curl -X POST http://localhost:5679/webhook/test-db \
 
 ```bash
 # Check n8n memory usage
-docker stats n8n-dev-local
+docker stats kairon-n8n
 
 # Monitor database connections
 ./tools/kairon-ops.sh db-query "
@@ -482,13 +482,13 @@ curl -X POST http://localhost:5679/webhook/test \
 
 ```bash
 # Extract error patterns from logs
-docker logs n8n-dev-local 2>&1 | grep -i error | tail -20
+docker logs kairon-n8n 2>&1 | grep -i error | tail -20
 
 # Find timeout issues
-docker logs n8n-dev-local 2>&1 | grep -i timeout
+docker logs kairon-n8n 2>&1 | grep -i timeout
 
 # Analyze execution patterns
-docker logs n8n-dev-local 2>&1 | grep "execution.*completed" | wc -l
+docker logs kairon-n8n 2>&1 | grep "execution.*completed" | wc -l
 ```
 
 ---
@@ -502,7 +502,7 @@ docker logs n8n-dev-local 2>&1 | grep "execution.*completed" | wc -l
 | `inspect_execution.py` | Debug failed executions | `./scripts/workflows/inspect_execution.py <execution-id>` |
 | `check_migration_status.sql` | Database health check | `./tools/kairon-ops.sh db -f scripts/db/check_migration_status.sql` |
 | `kairon-ops.sh status` | System overview | `./tools/kairon-ops.sh status` |
-| `docker logs` | Container logs | `docker logs n8n-dev-local` |
+| `docker logs` | Container logs | `docker logs kairon-n8n` |
 
 **Remember:** Start with the checklists, use the tools systematically, and work from symptoms to root cause!
 

@@ -1,11 +1,11 @@
 services:
-  n8n-dev:
+  n8n:
     # Pinned to 1.123.5 for stability:
     # - LangChain node compatibility
     # - Task runner conflicts in later versions
     # - Update path: Test new versions in isolation before upgrading
     image: n8nio/n8n:1.123.5
-    container_name: n8n-dev-local
+    container_name: kairon-n8n
     restart: unless-stopped
     ports:
       - "5679:5679"
@@ -15,8 +15,8 @@ services:
       - N8N_PROTOCOL=http
       - N8N_PATH=/
       - WEBHOOK_URL=http://localhost:5679/
-      - WEBHOOK_PATH=${WEBHOOK_PATH:-kairon-dev-test}
-      - N8N_ENCRYPTION_KEY=${N8N_DEV_ENCRYPTION_KEY:-dev-local-encryption-key-32chars}
+      - WEBHOOK_PATH=${WEBHOOK_PATH:-kairon-test}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-kairon-dev-encryption-key-32chars}
       - N8N_API_ENABLED=true
       - N8N_DIAGNOSTICS_ENABLED=false
       - EXECUTIONS_MODE=regular
@@ -27,30 +27,30 @@ services:
       - GENERIC_TIMEZONE=${TIMEZONE:-UTC}
       - NODE_ENV=development
       - NODE_OPTIONS=--max-old-space-size=4096
-      - DB_POSTGRESDB_HOST=postgres-dev-local
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=${DB_NAME_DEV:-kairon_dev}
-      - DB_POSTGRESDB_USER=${DB_USER:-n8n_user}
-      - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_POSTGRES_HOST=kairon-postgres
+      - DB_POSTGRES_PORT=5432
+      - DB_POSTGRES_DATABASE=${DB_NAME:-kairon_dev}
+      - DB_POSTGRES_USER=${DB_USER:-n8n_user}
+      - DB_POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
     volumes:
-      - n8n-dev-data:/home/node/.n8n
+      - kairon-n8n-data:/home/node/.n8n
     networks:
-      - kairon-dev
+      - kairon
 
-  postgres-dev:
+  postgres:
     image: pgvector/pgvector:pg15
-    container_name: postgres-dev-local
+    container_name: kairon-postgres
     restart: unless-stopped
     ports:
       - "5433:5432"
     environment:
       - POSTGRES_USER=${DB_USER:-n8n_user}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
-      - POSTGRES_DB=${DB_NAME_DEV:-kairon_dev}
+      - POSTGRES_DB=${DB_NAME:-kairon_dev}
     volumes:
-      - postgres-dev-data:/var/lib/postgresql/data
+      - kairon-postgres-data:/var/lib/postgresql/data
     networks:
-      - kairon-dev
+      - kairon
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
@@ -58,9 +58,10 @@ services:
       retries: 5
 
 networks:
-  kairon-dev:
+  kairon:
     driver: bridge
 
 volumes:
-  n8n-dev-data:
-  postgres-dev-data:
+  kairon-n8n-data:
+  kairon-postgres-data:
+

@@ -74,7 +74,7 @@ curl -X POST http://localhost:5679/webhook/test-path \
   -d @test-payload.json
 
 # Verify database changes
-docker exec postgres-dev-local psql -U postgres -d kairon_dev \
+docker exec kairon-postgres psql -U postgres -d kairon_dev \
   -c "SELECT COUNT(*) FROM projections WHERE created_at > NOW() - INTERVAL '5 seconds';"
 ```
 
@@ -158,7 +158,7 @@ N8N_DEV_API_URL=http://localhost:5679
 N8N_DEV_API_KEY=your-dev-api-key
 
 # Database
-DB_CONTAINER=postgres-dev-local
+DB_CONTAINER=kairon-postgres
 DB_USER=postgres
 DB_NAME=kairon_dev
 
@@ -298,7 +298,7 @@ jq -r '.name' n8n-workflows/*.json | sort | uniq -d
 
 ```bash
 # Check database connectivity
-docker exec postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT 1;"
+docker exec kairon-postgres psql -U postgres -d kairon_dev -c "SELECT 1;"
 
 # Check webhook endpoint
 curl -X POST http://localhost:5679/webhook/test-path

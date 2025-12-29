@@ -225,13 +225,13 @@ run_tests() {
 smoke_test() {
     local api_url="$1"
     local api_key="$2"
-    
+
     log_info "Running smoke test..."
-    
+
     # Verify workflows are accessible
     local count
     count=$(retry_curl -s -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=1" | jq '.data | length')
-    
+
     if [ "$count" -ge 1 ]; then
         log_success "Smoke test passed ($count workflows accessible)"
         return 0
@@ -239,6 +239,30 @@ smoke_test() {
         log_error "Smoke test failed (no workflows accessible)"
         return 1
     fi
+}
+
+# Check if n8n needs initial setup
+check_n8n_setup() {
+    local api_url="$1"
+    local api_key="$2"
+
+    # If API key is empty or not set, n8n needs initial owner setup
+    if [ -z "$api_key" ]; then
+        log_error "N8N_API_KEY is not set"
+        echo ""
+        echo "For first-time local dev setup:"
+        echo "1. Open http://localhost:5679 in your browser"
+        echo "2. Create an admin account"
+        echo "3. Go to Settings → API and generate an API key"
+        echo "4. Set N8N_DEV_API_KEY in your .env file"
+        echo ""
+        echo "Example .env:"
+        echo "  N8N_DEV_API_KEY=your-generated-api-key-here"
+        echo ""
+        return 1
+    fi
+
+    return 0
 }
 
 # Main execution
@@ -257,23 +281,31 @@ main() {
         dev)
             # Deploy to LOCAL development environment
             # Start local n8n container if not running
-            if ! docker ps | grep -q "n8n-dev-local"; then
+            if ! docker ps | grep -q "kairon-n8n"; then
                 log_info "Starting local n8n environment..."
-                docker-compose -f docker-compose.yml up -d
+                docker-compose up -d
                 log_info "Waiting for n8n to be ready..."
                 sleep 5
             fi
-            
+
             export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
             export N8N_API_KEY="${N8N_DEV_API_KEY:-$N8N_API_KEY}"
-            
+
+            # Check if n8n needs initial setup
+            check_n8n_setup "$N8N_API_URL" "$N8N_API_KEY" || exit 1
+
             run_tests || exit 1
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-            
+
             echo ""
-            log_info "Local development environment ready!"
-            echo "  n8n URL: $N8N_API_URL"
+            # Then: production
+            log_info "Stage 2: Deploy to production"
+            export N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
+            export N8N_API_KEY="${N8N_API_KEY}"
+
+            deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
+            smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             ;;
             
         prod)
@@ -293,26 +325,26 @@ main() {
             # First: local dev
             log_info "Stage 1: Deploy to local development"
             
-            if ! docker ps | grep -q "n8n-dev-local"; then
+            if ! docker ps | grep -q "kairon-n8n"; then
                 log_info "Starting local n8n environment..."
-                docker-compose -f docker-compose.yml up -d
+                docker-compose up -d
                 log_info "Waiting for n8n to be ready..."
                 sleep 5
             fi
-            
+
             export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
             export N8N_API_KEY="${N8N_DEV_API_KEY:-$N8N_API_KEY}"
-            
+
             run_tests || exit 1
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-            
+
             echo ""
             # Then: production
             log_info "Stage 2: Deploy to production"
             export N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
             export N8N_API_KEY="${N8N_API_KEY}"
-            
+
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             ;;

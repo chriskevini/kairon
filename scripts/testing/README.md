@@ -24,9 +24,9 @@ bash scripts/simple-test.sh Route_Message
 ### Before testing
 
 Ensure:
-1. n8n dev container is running: `docker ps | grep n8n-dev-local`
+1. n8n dev container is running: `docker ps | grep kairon-n8n`
 2. Workflows are deployed: `bash scripts/simple-deploy.sh dev`
-3. Database is accessible: `docker exec postgres-dev-local psql -U n8n_user -d kairon -c "SELECT COUNT(*) FROM events"`
+3. Database is accessible: `docker exec kairon-postgres psql -U n8n_user -d kairon -c "SELECT COUNT(*) FROM events"`
 
 ## Test Payload Format
 
@@ -95,19 +95,19 @@ Create test payloads in `n8n-workflows/tests/payloads/<WorkflowName>.json`:
 ### Check database state
 ```bash
 # Check recent events
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c "
+docker exec kairon-postgres psql -U n8n_user -d kairon -c "
   SELECT * FROM events ORDER BY received_at DESC LIMIT 5;
 "
 
 # Check recent projections
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c "
+docker exec kairon-postgres psql -U n8n_user -d kairon -c "
   SELECT * FROM projections ORDER BY created_at DESC LIMIT 5;
 "
 ```
 
 ### Check n8n logs
 ```bash
-docker logs -f n8n-dev-local
+docker logs -f kairon-n8n
 ```
 
 ### Test webhook manually
@@ -149,7 +149,7 @@ For each workflow, consider:
 
 Option A: **Copy from actual Discord message**
 ```bash
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c "
+docker exec kairon-postgres psql -U n8n_user -d kairon -c "
   SELECT payload->>'content', payload
   FROM events
   WHERE payload->>'tag' = '!!'
@@ -166,7 +166,7 @@ cat n8n-workflows/tests/payloads/Route_Message.json
 
 Run the workflow manually and check what was created:
 ```bash
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c "
+docker exec kairon-postgres psql -U n8n_user -d kairon -c "
   SELECT projection_type, COUNT(*)
   FROM projections
   WHERE created_at > NOW() - INTERVAL '1 minute'

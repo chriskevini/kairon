@@ -136,7 +136,7 @@ curl -X POST http://localhost:5679/webhook/kairon-dev-test/Every5Minutes \
 # 3. Check execution in n8n UI: http://localhost:5679/executions
 
 # 4. Verify database changes
-docker exec postgres-dev-local psql -U n8n_user -d kairon -c \
+docker exec kairon-postgres psql -U n8n_user -d kairon -c \
   "SELECT * FROM events WHERE event_type = 'system' ORDER BY received_at DESC LIMIT 1"
 ```
 
