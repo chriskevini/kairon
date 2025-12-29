@@ -1,8 +1,14 @@
 # n8n Workflow Deployment Architecture
 
+> ⚠️ **DEPRECATED:** This document describes the complex legacy deployment system (2,371 lines).
+> 
+> **→ See [SIMPLIFIED_PIPELINE.md](SIMPLIFIED_PIPELINE.md) for the new recommended approach (457 lines, 83% reduction).**
+>
+> The legacy system is kept for reference but should not be used for new deployments.
+
 ## Overview
 
-This document explains the deployment tooling for n8n workflows and clarifies the role of each script.
+This document explains the legacy deployment tooling for n8n workflows and clarifies the role of each script.
 
 ## The Problem We Solved
 

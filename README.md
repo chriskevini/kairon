@@ -138,14 +138,33 @@ timezone      Your timezone (e.g., "vancouver", "pacific", "America/Vancouver")
 
 ## Development
 
+### Deployment & Testing
+
+**New Simplified Pipeline (Recommended):**
+```bash
+# Validate workflows
+./scripts/simple-deploy.sh validate
+
+# Deploy to dev
+./scripts/simple-deploy.sh dev
+
+# Run tests
+./scripts/simple-test.sh
+
+# Deploy to production
+./scripts/simple-deploy.sh prod
+```
+
+**See:**
+- [Simplified Pipeline Guide](docs/SIMPLIFIED_PIPELINE.md) - New approach (457 lines, 83% reduction)
+- [Before & After Comparison](docs/BEFORE_AFTER.md) - Detailed comparison
+- [Legacy Deployment](docs/DEPLOYMENT.md) - Old system (deprecated)
+
 ### Workflow Development
 
 ```bash
-# Pull latest from server
+# Pull latest from server (legacy rdev tool)
 ./scripts/workflows/n8n-pull.sh
-
-# Push changes to server
-./scripts/workflows/n8n-push.sh
 
 # Validate JSON syntax
 ./scripts/workflows/validate_workflows.sh

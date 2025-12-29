@@ -1,6 +1,13 @@
 # n8n Workflow Testing Guide
 
-This document describes the multi-layered testing approach for n8n workflows.
+> ⚠️ **DEPRECATED:** This document describes the complex legacy testing system.
+> 
+> **→ See [SIMPLIFIED_PIPELINE.md](SIMPLIFIED_PIPELINE.md) for the new recommended approach.**
+>
+> The legacy testing system added significant complexity without proportional benefit.
+> The new approach uses direct webhook testing with database verification.
+
+This document describes the multi-layered testing approach for n8n workflows (legacy system).
 
 ## Overview
 

@@ -1,5 +1,18 @@
 #!/bin/bash
-# Regression Testing with Prod DB Snapshot
+# ============================================================================
+# ⚠️  DEPRECATED: This is the legacy complex regression testing system
+# ============================================================================
+#
+# This script is part of the old 2,371-line deployment system and is now
+# DEPRECATED in favor of the simplified testing approach.
+#
+# NEW USERS: Use scripts/simple-test.sh instead (83% less code)
+#
+# See docs/SIMPLIFIED_PIPELINE.md for migration guide
+#
+# ============================================================================
+#
+# Regression Testing with Prod DB Snapshot (LEGACY)
 #
 # Tests modified workflows against production-like data to prevent regressions
 #
