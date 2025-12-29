@@ -94,6 +94,28 @@ log_section() {
     echo "========================================"
 }
 
+# Check required dependencies
+check_dependencies() {
+    local missing=()
+
+    for cmd in jq docker docker-compose curl; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        log_error "Missing required dependencies: ${missing[*]}"
+        echo ""
+        echo "Install with:"
+        echo "  - jq: apt-get install jq / brew install jq"
+        echo "  - docker: https://docs.docker.com/get-docker/"
+        echo "  - docker-compose: https://docs.docker.com/compose/install/"
+        echo "  - curl: apt-get install curl / brew install curl"
+        exit 1
+    fi
+}
+
 # Cleanup orphan containers and volumes
 cleanup_environment() {
     log_info "Cleaning up environment..."
@@ -389,6 +411,9 @@ main() {
     log_section "Simple n8n Workflow Deployment"
 
     cd "$REPO_ROOT"
+
+    # Check dependencies
+    check_dependencies
 
     case "$TARGET" in
         validate)
