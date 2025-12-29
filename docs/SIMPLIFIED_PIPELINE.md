@@ -2,11 +2,11 @@
 
 ## Overview
 
-This is a **radical simplification** of the previous 2,150+ line deployment system. The new approach focuses on:
+This is a **radical simplification** of the previous 2,371-line deployment system. The new approach focuses on:
 
 1. **Single codebase** - No workflow transformations
 2. **Direct testing** - Test actual workflows via webhooks
-3. **Minimal complexity** - < 300 total lines of deployment code
+3. **Minimal complexity** - 587 total lines of deployment code (75.2% reduction)
 
 ## Architecture
 
@@ -33,16 +33,16 @@ regression_test.sh (340 lines)
 ```
 n8n-workflows/ (single codebase)
     ↓
-simple-test.sh (160 lines)
+simple-test.sh (243 lines)
     ↓
-simple-deploy.sh (240 lines)
+simple-deploy.sh (344 lines)
     ↓
 production
 ```
 
-**Total: 400 lines of deployment code**
+**Total: 587 lines of deployment code**
 
-**Reduction: 83% less code**
+**Reduction: 75.2% less code**
 
 ## Key Principles
 
@@ -253,7 +253,7 @@ python scripts/transform_for_dev.py < workflow.json > workflow-dev.json
 
 | Aspect | Old System | New System | Improvement |
 |--------|-----------|------------|-------------|
-| **Lines of code** | 2,371 | 400 | 83% reduction |
+| **Lines of code** | 2,371 | 587 | 75.2% reduction |
 | **Deployment time** | 5-10 min | 30-60 sec | 90% faster |
 | **Maintenance burden** | High | Low | Dramatically reduced |
 | **Failure modes** | Many | Few | More reliable |
@@ -317,7 +317,7 @@ If needed, these can be added incrementally:
 
 The simplified pipeline is:
 
-- **83% less code** - From 2,371 to 400 lines
+- **75.2% less code** - From 2,371 to 587 lines
 - **90% faster** - From 5-10 min to 30-60 sec
 - **Much simpler** - Single codebase, direct deployment
 - **More reliable** - Fewer failure modes, easier to debug

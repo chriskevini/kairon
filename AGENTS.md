@@ -62,10 +62,13 @@ Discord → Route_Event → Route_Message → Multi_Capture/Execute_Command/etc.
 ### Local Development
 ```bash
 # Start containers
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
-# Transform and deploy workflows
-# ... see docs for complete setup
+# Deploy workflows
+./scripts/simple-deploy.sh dev
+
+# Run tests
+./scripts/simple-test.sh
 ```
 
 **📖 Complete Guide:** `docs/DEVELOPMENT.md`
@@ -73,7 +76,7 @@ docker-compose -f docker-compose.dev.yml up -d
 ### Production Operations
 ```bash
 # Deploy changes
-./scripts/deploy.sh
+./scripts/simple-deploy.sh prod
 
 # Monitor system
 ./tools/kairon-ops.sh status

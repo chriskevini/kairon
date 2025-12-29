@@ -19,7 +19,7 @@ Complete guide to local development with Docker containers.
 
 ```bash
 # Start containers
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
 # Deploy workflows
 bash scripts/simple-deploy.sh dev
@@ -39,14 +39,14 @@ This will:
 
 | Task | Command |
 |------|---------|
-| **Start containers** | `docker-compose -f docker-compose.dev.yml up -d` |
-| **Stop containers** | `docker-compose -f docker-compose.dev.yml down` |
+| **Start containers** | `docker-compose up -d` |
+| **Stop containers** | `docker-compose down` |
 | **Deploy workflows** | `bash scripts/simple-deploy.sh dev` |
 | **Run tests** | `bash scripts/simple-test.sh` |
 | **Manual Steps** |
-| Start containers | `docker-compose -f docker-compose.dev.yml up -d` |
-| Stop containers | `docker-compose -f docker-compose.dev.yml down` |
-| View logs | `docker-compose -f docker-compose.dev.yml logs -f n8n-dev` |
+| Start containers | `docker-compose up -d` |
+| Stop containers | `docker-compose down` |
+| View logs | `docker-compose logs -f n8n` |
 | **Database** |
 | Interactive psql | `docker exec -it postgres-dev-local psql -U postgres -d kairon_dev` |
 | Run SQL query | `docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT * FROM events LIMIT 5"` |
@@ -57,32 +57,32 @@ This will:
 
 Local n8n uses API key authentication:
 - **Web UI:** http://localhost:5679 (auto-login on first visit)
-- **REST API:** Requires `N8N_API_KEY` or `N8N_DEV_API_KEY` from `.env`
+- **REST API:** Requires `N8N_DEV_API_KEY` from `.env`
 - **Owner Account:** Auto-created on first run (admin@example.com)
 - **Environment:** Set `N8N_DEV_API_KEY` in `.env` for automated deployments
 
 ## Core Tools
 
-### 1. docker-compose.dev.yml - Local Environment
+### 1. docker-compose.yml - Local Environment
 
 Docker Compose configuration for local n8n and PostgreSQL development.
 
-**Location:** `docker-compose.dev.yml`
+**Location:** `docker-compose.yml`
 
 **Services:**
-- **n8n-dev-local:** n8n instance on port 5679 (authentication disabled)
-- **postgres-dev-local:** PostgreSQL on port 5433
+- **n8n:** n8n instance on port 5679
+- **postgres:** PostgreSQL on port 5433
 
 **Usage:**
 ```bash
 # Start containers
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
 # Stop containers
-docker-compose -f docker-compose.dev.yml down
+docker-compose down
 
 # View logs
-docker-compose -f docker-compose.dev.yml logs -f n8n-dev
+docker-compose logs -f n8n
 
 # Access n8n UI
 open http://localhost:5679
@@ -132,17 +132,6 @@ bash scripts/simple-test.sh
 bash scripts/simple-test.sh Route_Message
 ```
 
-### 3. n8n-push-local.sh - Local Workflow Deployment
-
-Pushes transformed workflows to local n8n instance.
-
-**Location:** `scripts/workflows/n8n-push-local.sh`
-
-**Usage:**
-```bash
-N8N_API_URL=http://localhost:5679 N8N_API_KEY="" WORKFLOW_DIR=n8n-workflows-transformed ./scripts/workflows/n8n-push-local.sh
-```
-
 ---
 
 ## Environment Setup
@@ -156,7 +145,7 @@ N8N_API_URL=http://localhost:5679 N8N_API_KEY="" WORKFLOW_DIR=n8n-workflows-tran
 
 ```bash
 # 1. Start containers
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
 # 2. Initialize database (if needed)
 docker exec -i postgres-dev-local psql -U n8n_user -d kairon < db/schema.sql
@@ -179,7 +168,7 @@ The deployment process runs comprehensive validation:
 
 ### Environment Variables
 
-For local development, these variables are optional (docker-compose.dev.yml provides defaults):
+For local development, these variables are optional (docker-compose.yml provides defaults):
 
 - `DB_USER` - Database user (default: postgres)
 - `DB_NAME` - Database name (default: kairon_dev)
@@ -202,20 +191,18 @@ Local n8n instance uses API key authentication:
 
 **Note:** The old deployment system used session cookie authentication. The new pipeline uses API keys which are more reliable for automated deployments.
 
-### Workflow Transformation Details
+### Single Codebase Approach
 
-> ⚠️ **DEPRECATED:** The `transform_for_dev.py` script is archived in `archive/old-framework/` and is no longer needed.
+> ✅ **NEW:** Workflows use environment variables (`={{ $env.VAR }}`) for environment-specific configuration.
 >
-> The new simplified deployment pipeline (`simple-deploy.sh`) uses a single codebase approach without transformations. Workflows use environment variables (`={{ $env.VAR }}`) for environment-specific configuration.
+> The simplified deployment pipeline (`simple-deploy.sh`) uses a single codebase approach - no transformations needed.
 >
-> **→ See [SIMPLIFIED_PIPELINE.md](SIMPLIFIED_PIPELINE.md) for the new approach.
+> **→ See [SIMPLIFIED_PIPELINE.md](SIMPLIFIED_PIPELINE.md) for details.
 
-The old `transform_for_dev.py` script modified workflows for local testing:
-
-- **Schedule → Webhook:** Converts Schedule Triggers to Webhook Triggers for manual testing
-- **Discord Mocking:** Replaces Discord nodes with Code nodes that return fake API responses
-- **LLM Mocking:** Replaces LLM nodes with Code nodes that return predictable responses
-- **Webhook Paths:** Uses `WEBHOOK_PATH` from `.env` file (same as production)
+The same workflow files work in both dev and prod:
+- **Webhook Paths:** Uses `WEBHOOK_PATH` from `.env` file
+- **Discord Channels:** Uses `DISCORD_CHANNEL_*` environment variables
+- **Database Connection:** Handled by n8n credentials (same credential name across environments)
 
 ### Database Operations
 
@@ -234,16 +221,10 @@ docker exec -i postgres-dev-local psql -U postgres -d kairon_dev < query.sql
 
 ```bash
 # Stop containers (keeps data)
-docker-compose -f docker-compose.dev.yml down
-
-# Full reset - removes all containers, volumes, and n8n data
-./scripts/reset-local-dev.sh
-
-# Reset but keep database data
-./scripts/reset-local-dev.sh --keep-db
+docker-compose down
 
 # Remove containers and volumes manually (WARNING: deletes all data)
-docker-compose -f docker-compose.dev.yml down -v
+docker-compose down -v
 ```
 
 ---
@@ -254,7 +235,7 @@ docker-compose -f docker-compose.dev.yml down -v
 
 ```bash
 # Start containers
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
 # Initialize database
 docker exec -i postgres-dev-local psql -U n8n_user -d kairon < db/schema.sql
@@ -293,7 +274,7 @@ bash scripts/simple-test.sh Route_Message
 
 ```bash
 # 1. Check container logs
-docker-compose -f docker-compose.dev.yml logs -f n8n-dev
+docker-compose logs -f n8n
 
 # 2. Test webhook manually
 curl -X POST http://localhost:5679/webhook/kairon-dev-test \
@@ -301,7 +282,7 @@ curl -X POST http://localhost:5679/webhook/kairon-dev-test \
   -d '{"event_type": "message", "content": "!! debug", "guild_id": "test", "channel_id": "test", "message_id": "debug-123", "author": {"login": "test"}, "timestamp": "'$(date -Iseconds)'"}'
 
 # 3. Inspect database state
-docker exec -it postgres-dev-local psql -U postgres -d kairon_dev
+docker exec -it postgres psql -U postgres -d kairon_dev
 ```
 
 ### 5. Run Tests Only
@@ -322,13 +303,13 @@ For comprehensive debugging tools and techniques, see `DEBUG.md`. Here are quick
 
 ```bash
 # Check container status
-docker-compose -f docker-compose.dev.yml ps
+docker-compose ps
 
 # View n8n logs
-docker-compose -f docker-compose.dev.yml logs -f n8n-dev
+docker-compose logs -f n8n
 
 # Check database connectivity
-docker exec -i postgres-dev-local psql -U postgres -d kairon_dev -c "SELECT COUNT(*) FROM events"
+docker exec -i postgres psql -U postgres -d kairon_dev -c "SELECT COUNT(*) FROM events"
 
 # List active workflows
 curl -s http://localhost:5679/api/v1/workflows | jq '.data[] | select(.active == true) | {name, id}'
@@ -367,8 +348,8 @@ export DB_USER=myuser
 export DB_NAME=mykairon
 
 # Restart containers with new config
-docker-compose -f docker-compose.dev.yml down
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose down
+docker-compose up -d
 ```
 
 ### Workflow Development Tips
@@ -383,16 +364,16 @@ docker-compose -f docker-compose.dev.yml up -d
 
 ```bash
 # Stop containers (keeps data)
-docker-compose -f docker-compose.dev.yml down
+docker-compose down
 
 # Remove containers and volumes (deletes all data)
-docker-compose -f docker-compose.dev.yml down -v
+docker-compose down -v
 ```
 
 ## File Structure
 
 ```
-docker-compose.dev.yml       # Local environment definition
+docker-compose.yml            # Local environment definition
 n8n-workflows/               # Source workflows
 scripts/
 ├── simple-deploy.sh         # Deployment script
@@ -404,16 +385,16 @@ n8n-workflows/tests/
 ## Quick Tips
 
 ### Recommended Workflow
-1. **Start containers:** `docker-compose -f docker-compose.dev.yml up -d`
+1. **Start containers:** `docker-compose up -d`
 2. **Edit:** Modify workflow files in n8n-workflows/
 3. **Deploy:** `bash scripts/simple-deploy.sh dev`
 4. **Test:** `bash scripts/simple-test.sh`
-5. **Debug:** Check logs with `docker logs -f n8n-dev-local`
+5. **Debug:** Check logs with `docker logs -f n8n`
 6. **Verify:** Query database or check n8n UI at http://localhost:5679
 
 ### Useful Commands
-- **Start containers:** `docker-compose -f docker-compose.dev.yml up -d`
-- **Stop containers:** `docker-compose -f docker-compose.dev.yml down`
+- **Start containers:** `docker-compose up -d`
+- **Stop containers:** `docker-compose down`
 - **Deploy:** `bash scripts/simple-deploy.sh dev`
 - **Test:** `bash scripts/simple-test.sh`
 - **Check database:** `docker exec -i postgres-dev-local psql -U n8n_user -d kairon -c "SELECT * FROM events LIMIT 10"`

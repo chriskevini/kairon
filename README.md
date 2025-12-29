@@ -72,10 +72,17 @@ python discord_relay.py
 
 ### 3. n8n Workflows
 
-Push workflows to your n8n instance:
+Deploy workflows to n8n:
 
 ```bash
-./scripts/workflows/n8n-push.sh
+# Deploy to local dev
+./scripts/simple-deploy.sh dev
+
+# Deploy to production
+./scripts/simple-deploy.sh prod
+
+# Run all tests
+./scripts/simple-test.sh
 ```
 
 Activate `Route_Event` workflow (the main entry point with webhook + crons).
@@ -156,8 +163,9 @@ timezone      Your timezone (e.g., "vancouver", "pacific", "America/Vancouver")
 ```
 
 **See:**
-- [Simplified Pipeline Guide](docs/SIMPLIFIED_PIPELINE.md) - New approach (457 lines, 83% reduction)
+- [Simplified Pipeline Guide](docs/SIMPLIFIED_PIPELINE.md) - New approach (587 lines, 75.2% reduction)
 - [Before & After Comparison](docs/BEFORE_AFTER.md) - Detailed comparison
+- [Migration Guide](docs/MIGRATION_GUIDE.md) - Migrate from old to new system
 - [Legacy Deployment](docs/DEPLOYMENT.md) - Old system (deprecated)
 
 ### Workflow Development
@@ -284,5 +292,5 @@ Historical documentation is stored in `docs/archive/` for reference:
 
 - **ctx Pattern**: Standardized data flow between n8n workflow nodes
 - **Local Development**: Docker-based isolated testing environment
-- **Deployment Pipeline**: Automated testing and rollback for production
-- **Workflow Transformation**: Converting workflows for different environments
+- **Simplified Deployment**: Direct API deployment with minimal code (555 lines vs 2,371)
+- **Single Codebase**: Same workflows work in both dev and prod

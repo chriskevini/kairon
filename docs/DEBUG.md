@@ -18,7 +18,7 @@ Comprehensive guide to debugging Kairon workflows, database issues, and system p
 # 1. Check system status
 ./tools/kairon-ops.sh status  # Production
 # OR for local dev:
-docker-compose -f docker-compose.dev.yml ps
+docker-compose ps
 
 # 2. Check recent activity
 ./tools/kairon-ops.sh db-query "
@@ -30,7 +30,7 @@ docker-compose -f docker-compose.dev.yml ps
 "
 
 # 3. Check for errors in logs
-docker-compose -f docker-compose.dev.yml logs -f n8n-dev  # Local dev
+docker-compose logs -f n8n  # Local dev
 # OR for production:
 ssh production-server "docker logs n8n --tail 50"
 ```

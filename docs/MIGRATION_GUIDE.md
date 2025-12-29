@@ -1,6 +1,6 @@
 # Migration Guide: Legacy → Simplified Pipeline
 
-This guide helps teams migrate from the legacy 2,371-line deployment system to the new 555-line simplified pipeline (76.6% code reduction).
+This guide helps teams migrate from the legacy 2,371-line deployment system to the new 587-line simplified pipeline (75.2% code reduction).
 
 ## Quick Start: 3-Step Migration
 

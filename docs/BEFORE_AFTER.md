@@ -6,7 +6,7 @@ This document compares the old complex deployment system with the new simplified
 
 | Metric | Old System | New System | Improvement |
 |--------|-----------|------------|-------------|
-| **Total Lines of Code** | 2,371 | 555 | **76.6% reduction** |
+| **Total Lines of Code** | 2,371 | 587 | **75.2% reduction** |
 | **Deployment Scripts** | 4 | 1 | **75% fewer files** |
 | **Testing Scripts** | 3 | 1 | **67% fewer files** |
 | **Deployment Time** | 5-10 minutes | 30-60 seconds | **90% faster** |
@@ -25,22 +25,22 @@ scripts/workflows/n8n-push-local.sh      300 lines
 scripts/testing/regression_test.sh       340 lines
 ```
 
-### New System (555 lines)
+### New System (587 lines)
 
 ## Summary Comparison
 
 | Metric | Old System | New System | Improvement |
 |---------|-------------|-------------|--------------|
-| **Files** | 8+ | 2 | **75% fewer** |
-| **Total Lines** | 2,371 | 555 | **76.6% reduction** |
-| **Avg Lines/File** | 296 | 278 | 6% more concise |
+| **Files** | 2 | 8+ | **75% fewer** |
+| **Total Lines** | 2,371 | 587 | **75.2% reduction** |
+| **Avg Lines/File** | 294 | 294 | No change |
 
 ```
-scripts/simple-deploy.sh                 312 lines
+scripts/simple-deploy.sh                 344 lines
 scripts/simple-test.sh                   243 lines
 ```
 
-**Code Reduction:** 2,371 → 555 lines **(76.6% reduction)**
+**Code Reduction:** 2,371 → 587 lines **(75.2% reduction)**
 
 ## Architecture Comparison
 
