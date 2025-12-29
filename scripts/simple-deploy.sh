@@ -25,14 +25,27 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 WORKFLOW_DIR="$REPO_ROOT/n8n-workflows"
 
 # Load environment variables
-if [ -f "$REPO_ROOT/.env" ]; then
+# Try environment-specific file first, then fall back to default .env
+if [ -f "$REPO_ROOT/.env.$TARGET" ]; then
+    set -a
+    source "$REPO_ROOT/.env.$TARGET"
+    set +a
+elif [ -f "$REPO_ROOT/.env" ]; then
     set -a
     source "$REPO_ROOT/.env"
     set +a
+else
+    log_error "No environment file found"
+    echo "Create one of:"
+    echo "  .env.dev        # For local development"
+    echo "  .env.prod       # For production deployment"
+    echo "  .env            # Default (production)"
+    exit 1
 fi
 
 # Configuration
 TARGET="${1:-all}"
+# Variables loaded from .env.$TARGET or .env
 N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
 N8N_API_KEY="${N8N_API_KEY:-}"
 DB_NAME="${DB_NAME:-kairon_dev}"
@@ -227,12 +240,18 @@ check_n8n_setup() {
         echo "2. Create an admin account"
         echo "3. Go to Settings → API"
         echo "4. Generate an API key"
-        echo "5. Add API key to .env:"
+        echo "5. Add API key to environment file:"
         echo ""
         if [[ "$api_url" == *"localhost"* ]]; then
-            echo "  N8N_DEV_API_KEY=your-generated-api-key-here"
+            echo "   Create .env.dev:"
+            echo "     N8N_API_KEY=your-generated-api-key-here"
+            echo ""
+            echo "   Then run: ./scripts/simple-deploy.sh dev"
         else
-            echo "  N8N_API_KEY=your-generated-api-key-here"
+            echo "   Create .env.prod:"
+            echo "     N8N_API_KEY=your-generated-api-key-here"
+            echo ""
+            echo "   Then run: ./scripts/simple-deploy.sh prod"
         fi
         echo ""
         return 1
@@ -372,9 +391,7 @@ main() {
                 fi
             fi
 
-            export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
-            export N8N_API_KEY="${N8N_DEV_API_KEY:-$N8N_API_KEY}"
-
+            # Variables already loaded from .env.$TARGET or .env
             run_tests || exit 1
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
@@ -405,9 +422,7 @@ main() {
                 fi
             fi
 
-            export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
-            export N8N_API_KEY="${N8N_DEV_API_KEY:-$N8N_API_KEY}"
-
+            # Variables already loaded from .env.$TARGET or .env
             run_tests || exit 1
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
@@ -415,9 +430,7 @@ main() {
             # Stage 2: Production
             log_section "Stage 2: Deploy to Production"
 
-            export N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
-            export N8N_API_KEY="${N8N_API_KEY}"
-
+            run_tests || exit 1
             deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             ;;
@@ -431,22 +444,20 @@ main() {
             echo "  prod     - Deploy to PRODUCTION via API (remote server)"
             echo "  all      - Deploy to local dev, then production (default)"
             echo ""
-            echo "Environment Configuration (.env):"
-            echo "  N8N_DEV_API_URL   - Local n8n URL (default: http://localhost:5679)"
-            echo "  N8N_DEV_API_KEY    - Local n8n API key (required after first-time setup)"
-            echo "  N8N_API_URL         - Production n8n URL (default: http://localhost:5678)"
-            echo "  N8N_API_KEY          - Production n8n API key (required)"
-            echo "  DB_NAME              - Database name (default: kairon_dev)"
-            echo "  DB_USER              - Database user (default: n8n_user)"
+            echo "Environment Configuration:"
+            echo "  Copy .env.example to environment file:"
+            echo "    cp .env.example .env.dev        # For local development"
+            echo "    cp .env.example .env.prod       # For production deployment"
             echo ""
-            echo "First-time Setup:"
-            echo "  1. Run: ./scripts/simple-deploy.sh dev"
-            echo "  2. Open http://localhost:5679 in your browser"
-            echo "  3. Create an admin account"
-            echo "  4. Go to Settings → API"
-            echo "  5. Generate an API key"
-            echo "  6. Set N8N_DEV_API_KEY in your .env file"
-            echo "  7. Run: ./scripts/simple-deploy.sh dev"
+            echo "  Then run: ./scripts/simple-deploy.sh <target>"
+            echo ""
+            echo "Targets:"
+            echo "  dev  - Load .env.dev (or .env if .env.dev doesn't exist)"
+            echo "  prod - Load .env.prod (or .env if .env.prod doesn't exist)"
+            echo "  all  - Use .env.dev for Stage 1, .env.prod for Stage 2"
+            echo ""
+            echo "For CI/CD: Set N8N_DEV_API_URL and N8N_DEV_API_KEY in secrets"
+            echo "  Then: ./scripts/simple-deploy.sh dev"
             exit 1
             ;;
     esac
