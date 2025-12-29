@@ -130,8 +130,6 @@ run_test() {
     # Wait for workflow execution
     sleep 3
     
-    local db_name="${DB_NAME_DEV:-$DB_NAME}"
-    
     # Check event count after test
     local events_after
     events_after=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$db_name" -t -c "SELECT COUNT(*) FROM events;" 2>/dev/null | tr -d '[:space:]' || echo "0")

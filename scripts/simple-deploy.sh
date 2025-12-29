@@ -123,10 +123,6 @@ deploy_workflows() {
     local existing_workflows
     existing_workflows=$(retry_curl -s -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=100" | jq -r '.data[] | "\(.name)|\(.id)"')
     
-    # Get existing workflows
-    local existing_workflows
-    existing_workflows=$(curl -s -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=100" | jq -r '.data[] | "\(.name)|\(.id)"')
-    
     # Deploy each workflow
     local deployed=0
     local updated=0
