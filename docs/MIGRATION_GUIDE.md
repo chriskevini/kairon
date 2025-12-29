@@ -1,6 +1,6 @@
 # Migration Guide: Legacy → Simplified Pipeline
 
-This guide helps teams migrate from the legacy 2,371-line deployment system to the new 587-line simplified pipeline (75.2% code reduction).
+This guide helps teams migrate from the legacy 2,536-line deployment system to the new 587-line simplified pipeline (76.9% code reduction).
 
 ## Quick Start: 3-Step Migration
 
@@ -343,7 +343,7 @@ If you encounter issues during migration:
 
 Once migrated, you'll experience:
 
-- ✅ **83% less code** to maintain
+- ✅ **76.9% less code** to maintain
 - ✅ **90% faster** deployments (5-10 min → 30-60 sec)
 - ✅ **70% fewer** failure modes
 - ✅ **Simpler debugging** (single execution path)
@@ -372,7 +372,7 @@ After successful migration:
 2. **Train new team members on simplified pipeline**
 3. **Archive or delete legacy scripts**
 4. **Monitor deployments for any issues**
-5. **Celebrate!** 🎉 You've eliminated 83% of deployment code!
+5. **Celebrate!** 🎉 You've eliminated 76.9% of deployment code!
 
 ## Conclusion
 

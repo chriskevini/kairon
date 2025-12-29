@@ -37,8 +37,8 @@ Complete guide to production operations and remote server management.
 | Full test suite | `./tools/test-all-paths.sh` |
 | With DB verification | `./tools/test-all-paths.sh --verify-db` |
 | **Deployment** |
-| Deploy to production | `./scripts/deploy.sh` |
-| Deploy with all tests | `./scripts/deploy.sh` (includes dev deployment + testing) |
+| Deploy to production | `./scripts/simple-deploy.sh prod` |
+| Deploy with tests | `./scripts/simple-deploy.sh prod` (includes validation and smoke tests) |
 
 ## Core Tools
 
@@ -133,11 +133,11 @@ Purpose-built tool for viewing n8n workflow execution status and details.
 - Detailed error messages with stack traces
 - Node-level error identification
 
-### 3. deploy.sh - Deployment Pipeline
+### 3. simple-deploy.sh - Deployment Pipeline
 
-Comprehensive deployment with validation, transformation, and verification.
+Simplified deployment with validation and direct n8n API deployment.
 
-**See:** `docs/DEPLOYMENT.md` for complete deployment documentation.
+**See:** `docs/SIMPLIFIED_PIPELINE.md` for complete deployment documentation.
 
 ## Environment Setup
 
@@ -157,7 +157,7 @@ source ./scripts/kairon-credentials.sh prod
 
 ```bash
 # Full deployment with all tests
-./scripts/deploy.sh
+./scripts/simple-deploy.sh prod
 
 # Check deployment status
 ./tools/kairon-ops.sh status
@@ -296,8 +296,9 @@ tools/
 └── verify-system.sh        # System verification
 
 scripts/
-├── deploy.sh              # Deployment pipeline
-├── kairon-credentials.sh  # Credential management
+├── simple-deploy.sh       # Deployment pipeline (587 lines)
+├── simple-test.sh         # Regression testing
+├── kairon-credentials.sh # Credential management
 └── workflows/             # Production deployment scripts
 
 docs/
@@ -307,7 +308,7 @@ docs/
 
 ## Quick Tips
 
-- **Always deploy via pipeline:** `./scripts/deploy.sh` (never manual)
+- **Always deploy via pipeline:** `./scripts/simple-deploy.sh prod` (never manual)
 - **Monitor after deployment:** `./tools/kairon-ops.sh status`
 - **Backup before major changes:** `./tools/kairon-ops.sh backup`
 - **Check system health before debugging:** `./tools/kairon-ops.sh status`

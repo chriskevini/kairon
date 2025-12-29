@@ -163,7 +163,7 @@ timezone      Your timezone (e.g., "vancouver", "pacific", "America/Vancouver")
 ```
 
 **See:**
-- [Simplified Pipeline Guide](docs/SIMPLIFIED_PIPELINE.md) - New approach (587 lines, 75.2% reduction)
+- [Simplified Pipeline Guide](docs/SIMPLIFIED_PIPELINE.md) - New approach (587 lines, 76.9% reduction)
 - [Before & After Comparison](docs/BEFORE_AFTER.md) - Detailed comparison
 - [Migration Guide](docs/MIGRATION_GUIDE.md) - Migrate from old to new system
 - [Legacy Deployment](docs/DEPLOYMENT.md) - Old system (deprecated)
@@ -292,5 +292,5 @@ Historical documentation is stored in `docs/archive/` for reference:
 
 - **ctx Pattern**: Standardized data flow between n8n workflow nodes
 - **Local Development**: Docker-based isolated testing environment
-- **Simplified Deployment**: Direct API deployment with minimal code (555 lines vs 2,371)
+- **Simplified Deployment**: Direct API deployment with minimal code (587 lines vs 2,536)
 - **Single Codebase**: Same workflows work in both dev and prod

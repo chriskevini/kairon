@@ -2,11 +2,11 @@
 
 ## Overview
 
-This is a **radical simplification** of the previous 2,371-line deployment system. The new approach focuses on:
+This is a **radical simplification** of the previous 2,536-line deployment system. The new approach focuses on:
 
 1. **Single codebase** - No workflow transformations
 2. **Direct testing** - Test actual workflows via webhooks
-3. **Minimal complexity** - 587 total lines of deployment code (75.2% reduction)
+3. **Minimal complexity** - 587 total lines of deployment code (76.9% reduction)
 
 ## Architecture
 
@@ -42,7 +42,7 @@ production
 
 **Total: 587 lines of deployment code**
 
-**Reduction: 75.2% less code**
+**Reduction: 76.9% less code**
 
 ## Key Principles
 
@@ -93,6 +93,11 @@ Only essential checks:
 
 ### Deploy to Dev
 ```bash
+# Local development (starts containers + deploys to localhost:5679)
+./scripts/simple-deploy.sh dev
+
+# CI/CD (deploys to N8N_DEV_API_URL staging server)
+export N8N_DEV_API_URL=https://staging.example.com
 ./scripts/simple-deploy.sh dev
 ```
 
@@ -253,7 +258,7 @@ python scripts/transform_for_dev.py < workflow.json > workflow-dev.json
 
 | Aspect | Old System | New System | Improvement |
 |--------|-----------|------------|-------------|
-| **Lines of code** | 2,371 | 587 | 75.2% reduction |
+| **Lines of code** | 2,536 | 587 | 76.9% reduction |
 | **Deployment time** | 5-10 min | 30-60 sec | 90% faster |
 | **Maintenance burden** | High | Low | Dramatically reduced |
 | **Failure modes** | Many | Few | More reliable |
@@ -313,11 +318,55 @@ If needed, these can be added incrementally:
 
 **Principle:** Add complexity only when proven necessary.
 
+## Test Coverage Notes
+
+### Current Coverage
+- **1 test payload exists:** `n8n-workflows/tests/payloads/Route_Message.json`
+- **8 Python test files exist** in `n8n-workflows/tests/` from the legacy system
+- These Python tests may be incompatible with the new webhook-based testing approach
+
+### Adding New Test Payloads
+Create test payloads in `n8n-workflows/tests/payloads/` following the example format:
+
+```json
+{
+  "description": "Test Route_Message with activity tag",
+  "webhook_data": {
+    "event_type": "message",
+    "content": "!! testing deployment",
+    "guild_id": "754207117157859388",
+    "channel_id": "1453335033665556654",
+    "message_id": "test-001",
+    "author": {
+      "login": "test-user",
+      "id": "123456789",
+      "display_name": "Test User"
+    },
+    "timestamp": "2025-12-29T00:00:00Z"
+  },
+  "expected_db_changes": {
+    "events_created": 1,
+    "projections_created": 1
+  }
+}
+```
+
+### Migration from Legacy Python Tests
+The existing Python tests in `n8n-workflows/tests/` (test_Route_Message.py, test_Multi_Capture.py, etc.) were designed for the old mock-based testing system. These may need to be:
+- **Updated** to work with webhook-based testing
+- **Replaced** with webhook-based test payloads
+- **Archived** if no longer relevant
+
+Priority workflows for test payload creation:
+1. Multi_Capture - Core AI extraction logic
+2. Execute_Command - System commands
+3. Start_Thread - Thread initialization
+
 ## Summary
 
 The simplified pipeline is:
 
-- **75.2% less code** - From 2,371 to 587 lines
+- **76.9% less code** - From 2,536 to 587 lines
 - **90% faster** - From 5-10 min to 30-60 sec
 - **Much simpler** - Single codebase, direct deployment
 - **More reliable** - Fewer failure modes, easier to debug

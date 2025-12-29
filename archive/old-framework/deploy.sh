@@ -5,10 +5,10 @@ set -euo pipefail
 # ⚠️  DEPRECATED: This is the legacy complex deployment system
 # ============================================================================
 #
-# This script is part of the old 2,371-line deployment system and is now
+# This script is part of the old 2,536-line deployment system and is now
 # DEPRECATED in favor of the simplified pipeline.
 #
-# NEW USERS: Use scripts/simple-deploy.sh instead (83% less code, 90% faster)
+# NEW USERS: Use scripts/simple-deploy.sh instead (76.9% less code, 90% faster)
 #
 # See docs/SIMPLIFIED_PIPELINE.md for migration guide
 #

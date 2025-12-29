@@ -4,11 +4,12 @@
 ⚠️  DEPRECATED: This workflow transformation system is no longer needed
 ============================================================================
 
-This script is part of the old 2,371-line deployment system and is now
+This script is part of the old 2,536-line deployment system and is now
 DEPRECATED. Workflows now use environment variables directly, eliminating
 the need for transformation.
 
 NEW USERS: Use scripts/simple-deploy.sh instead - no transformation needed!
+(76.9% less code, 90% faster)
 
 See docs/SIMPLIFIED_PIPELINE.md for migration guide
 

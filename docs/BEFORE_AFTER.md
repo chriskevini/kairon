@@ -6,7 +6,7 @@ This document compares the old complex deployment system with the new simplified
 
 | Metric | Old System | New System | Improvement |
 |--------|-----------|------------|-------------|
-| **Total Lines of Code** | 2,371 | 587 | **75.2% reduction** |
+| **Total Lines of Code** | 2,536 | 587 | **76.9% reduction** |
 | **Deployment Scripts** | 4 | 1 | **75% fewer files** |
 | **Testing Scripts** | 3 | 1 | **67% fewer files** |
 | **Deployment Time** | 5-10 minutes | 30-60 seconds | **90% faster** |
@@ -31,16 +31,16 @@ scripts/testing/regression_test.sh       340 lines
 
 | Metric | Old System | New System | Improvement |
 |---------|-------------|-------------|--------------|
-| **Files** | 2 | 8+ | **75% fewer** |
-| **Total Lines** | 2,371 | 587 | **75.2% reduction** |
-| **Avg Lines/File** | 294 | 294 | No change |
+| **Files** | 2 | 7 | **71% fewer** |
+| **Total Lines** | 2,536 | 587 | **76.9% reduction** |
+| **Avg Lines/File** | 362 | 294 | 19% more concise |
 
 ```
 scripts/simple-deploy.sh                 344 lines
 scripts/simple-test.sh                   243 lines
 ```
 
-**Code Reduction:** 2,371 → 587 lines **(75.2% reduction)**
+**Code Reduction:** 2,536 → 587 lines **(76.9% reduction)**
 
 ## Architecture Comparison
 
@@ -259,11 +259,11 @@ Total:                           35 seconds
 ### New System
 
 **Files to maintain:**
-- `simple-deploy.sh` (264 lines)
-- `simple-test.sh` (193 lines)
+- `simple-deploy.sh` (344 lines)
+- `simple-test.sh` (243 lines)
 - Optional test payloads
 
-**Total:** 2 files, 457 lines
+**Total:** 2 files, 587 lines
 
 **Debugging difficulty:** Low
 - Single execution path
@@ -320,7 +320,7 @@ Total:                           35 seconds
 
 The simplified pipeline achieves:
 
-- **83% less code** (2,371 → 457 lines)
+- **76.9% less code** (2,536 → 587 lines)
 - **90% faster** (5-10 min → 30-60 sec)
 - **70% fewer failure modes** (15+ → 3-4)
 - **Single codebase** (no transformations)
