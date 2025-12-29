@@ -255,26 +255,15 @@ main() {
             ;;
             
         dev)
-            # Deploy to dev environment
-            export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
-            export N8N_API_KEY="${N8N_DEV_API_KEY:-$N8N_API_KEY}"
+            # Deploy to LOCAL development environment
+            # Start local n8n container if not running
+            if ! docker ps | grep -q "n8n-dev-local"; then
+                log_info "Starting local n8n environment..."
+                docker-compose -f docker-compose.yml up -d
+                log_info "Waiting for n8n to be ready..."
+                sleep 5
+            fi
             
-            run_tests || exit 1
-            deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-            smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-            ;;
-            
-        prod)
-            # Deploy to production
-            run_tests || exit 1
-            deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-            smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
-            ;;
-            
-        all)
-            # Deploy to both dev and prod
-            # First dev
-            log_info "Stage 1: Deploy to dev"
             export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
             export N8N_API_KEY="${N8N_DEV_API_KEY:-$N8N_API_KEY}"
             
@@ -283,6 +272,43 @@ main() {
             smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
             
             echo ""
+            log_info "Local development environment ready!"
+            echo "  n8n URL: $N8N_API_URL"
+            ;;
+            
+        prod)
+            # Deploy to REMOTE production environment via API
+            # No container management needed - just API deployment
+            run_tests || exit 1
+            deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
+            smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
+            
+            echo ""
+            log_info "Production deployment complete!"
+            echo "  n8n URL: $N8N_API_URL"
+            ;;
+            
+        all)
+            # Deploy to local dev, then production
+            # First: local dev
+            log_info "Stage 1: Deploy to local development"
+            
+            if ! docker ps | grep -q "n8n-dev-local"; then
+                log_info "Starting local n8n environment..."
+                docker-compose -f docker-compose.yml up -d
+                log_info "Waiting for n8n to be ready..."
+                sleep 5
+            fi
+            
+            export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
+            export N8N_API_KEY="${N8N_DEV_API_KEY:-$N8N_API_KEY}"
+            
+            run_tests || exit 1
+            deploy_workflows "$N8N_API_URL" "$N8N_API_KEY" || exit 1
+            smoke_test "$N8N_API_URL" "$N8N_API_KEY" || exit 1
+            
+            echo ""
+            # Then: production
             log_info "Stage 2: Deploy to production"
             export N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
             export N8N_API_KEY="${N8N_API_KEY}"
@@ -296,9 +322,15 @@ main() {
             echo ""
             echo "Options:"
             echo "  validate - Validate workflows only (no deployment)"
-            echo "  dev      - Deploy to dev environment only"
-            echo "  prod     - Deploy to production only"
-            echo "  all      - Deploy to dev, then production (default)"
+            echo "  dev      - Deploy to LOCAL development (starts container + deploys workflows)"
+            echo "  prod     - Deploy to PRODUCTION via API (remote server)"
+            echo "  all      - Deploy to local dev, then production (default)"
+            echo ""
+            echo "Environment Configuration (.env):"
+            echo "  N8N_DEV_API_URL   - Local n8n URL (default: http://localhost:5679)"
+            echo "  N8N_DEV_API_KEY    - Local n8n API key"
+            echo "  N8N_API_URL         - Production n8n URL"
+            echo "  N8N_API_KEY          - Production n8n API key"
             exit 1
             ;;
     esac

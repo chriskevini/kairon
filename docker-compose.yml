@@ -27,6 +27,11 @@ services:
       - GENERIC_TIMEZONE=${TIMEZONE:-UTC}
       - NODE_ENV=development
       - NODE_OPTIONS=--max-old-space-size=4096
+      - DB_POSTGRESDB_HOST=postgres-dev-local
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${DB_NAME_DEV:-kairon_dev}
+      - DB_POSTGRESDB_USER=${DB_USER:-n8n_user}
+      - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD:-postgres}
     volumes:
       - n8n-dev-data:/home/node/.n8n
     networks:
@@ -39,9 +44,9 @@ services:
     ports:
       - "5433:5432"
     environment:
-      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_USER=${DB_USER:-n8n_user}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
-      - POSTGRES_DB=${DB_NAME:-kairon_dev}
+      - POSTGRES_DB=${DB_NAME_DEV:-kairon_dev}
     volumes:
       - postgres-dev-data:/var/lib/postgresql/data
     networks:
