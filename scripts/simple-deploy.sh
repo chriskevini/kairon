@@ -80,8 +80,13 @@ deploy_workflows() {
     
     log_info "Deploying workflows to $api_url..."
     
+    # Check API key is provided
     if [ -z "$api_key" ]; then
-        log_error "N8N_API_KEY not set"
+        log_error "N8N_API_KEY not set. Set N8N_API_KEY or N8N_DEV_API_KEY in .env"
+        echo ""
+        echo "Example .env:"
+        echo "  N8N_API_KEY=your-prod-key"
+        echo "  N8N_DEV_API_KEY=your-dev-key"
         return 1
     fi
     
@@ -169,9 +174,23 @@ run_tests() {
         return 1
     fi
     
-    # Test 3: Verify required environment variables are referenced correctly
-    if grep -r '\$env\.' "$WORKFLOW_DIR"/*.json | grep -v '={{ \$env\.' > /dev/null; then
-        log_error "Invalid environment variable syntax found (use ={{ \$env.VAR_NAME }})"
+    # Test 3: Verify environment variable syntax in workflow parameters
+    # Note: Only check node parameters (not jsCode), as JS code can use $env directly
+    local invalid_refs
+    invalid_refs=$(jq -r '
+        .nodes[] | 
+        select(.parameters) | 
+        .parameters | 
+        to_entries[] | 
+        select(.key != "jsCode") |
+        select(.value | type == "string") | 
+        select(.value | contains("$env.") and (contains("={{ $env.") | not)) | 
+        "\(.key): \(.value)"
+    ' "$WORKFLOW_DIR"/*.json 2>/dev/null || echo "")
+    
+    if [ -n "$invalid_refs" ]; then
+        log_error "Invalid environment variable syntax in parameters (use ={{ \$env.VAR_NAME }})"
+        echo "$invalid_refs" | head -5
         return 1
     fi
     
@@ -207,6 +226,11 @@ main() {
     echo ""
     
     case "$TARGET" in
+        validate)
+            # Validation only - no deployment
+            run_tests
+            ;;
+            
         dev)
             # Deploy to dev environment
             export N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
@@ -245,12 +269,13 @@ main() {
             ;;
             
         *)
-            echo "Usage: $0 [dev|prod|all]"
+            echo "Usage: $0 [validate|dev|prod|all]"
             echo ""
             echo "Options:"
-            echo "  dev   - Deploy to dev environment only"
-            echo "  prod  - Deploy to production only"
-            echo "  all   - Deploy to dev, then production (default)"
+            echo "  validate - Validate workflows only (no deployment)"
+            echo "  dev      - Deploy to dev environment only"
+            echo "  prod     - Deploy to production only"
+            echo "  all      - Deploy to dev, then production (default)"
             exit 1
             ;;
     esac

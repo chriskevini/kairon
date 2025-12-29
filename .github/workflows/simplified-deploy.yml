@@ -1,0 +1,61 @@
+name: Simplified Deployment Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate Workflows
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      
+      - name: Validate workflows
+        run: ./scripts/simple-deploy.sh validate
+  
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      
+      - name: Deploy to dev
+        env:
+          N8N_DEV_API_URL: ${{ secrets.N8N_DEV_API_URL }}
+          N8N_DEV_API_KEY: ${{ secrets.N8N_DEV_API_KEY }}
+        run: ./scripts/simple-deploy.sh dev
+  
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      
+      - name: Deploy to production
+        env:
+          N8N_API_URL: ${{ secrets.N8N_API_URL }}
+          N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+        run: ./scripts/simple-deploy.sh prod
