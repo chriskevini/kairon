@@ -7,11 +7,12 @@
 # - No complex mocking or transformation
 #
 # Usage:
-#   ./scripts/simple-test.sh [workflow_name]
+#   ./scripts/simple-test.sh [workflow_name] [--cleanup]
 #
 # Examples:
 #   ./scripts/simple-test.sh                    # Test all workflows with test payloads
 #   ./scripts/simple-test.sh Route_Message      # Test specific workflow
+#   ./scripts/simple-test.sh --cleanup            # Clean up test data only
 
 set -euo pipefail
 
@@ -28,6 +29,7 @@ fi
 
 # Configuration
 SPECIFIC_WORKFLOW="${1:-}"
+CLEANUP="${2:-false}"
 N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
 N8N_API_KEY="${N8N_DEV_API_KEY:-}"
 DB_CONTAINER="${DB_CONTAINER:-postgres-dev-local}"
@@ -50,6 +52,31 @@ log_success() {
 
 log_info() {
     echo -e "${YELLOW}→ $1${NC}"
+}
+
+# Clean up test data
+cleanup_test_data() {
+    log_info "Cleaning up test data..."
+    
+    # Delete test events (those with test message IDs)
+    local deleted_events
+    deleted_events=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "
+        DELETE FROM events 
+        WHERE payload->>'message_id' LIKE 'test-%' 
+        OR payload->>'message_id' LIKE 'dev-%';
+        RETURNING COUNT(*);
+    " 2>/dev/null | tr -d '[:space:]' || echo "0")
+    
+    # Delete orphaned projections
+    local deleted_projections
+    deleted_projections=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "
+        DELETE FROM projections 
+        WHERE event_id NOT IN (SELECT id FROM events)
+        RETURNING COUNT(*);
+    " 2>/dev/null | tr -d '[:space:]' || echo "0")
+    
+    log_success "Deleted $deleted_events test events"
+    log_success "Deleted $deleted_projections orphaned projections"
 }
 
 # Execute a test payload
@@ -132,6 +159,12 @@ run_test() {
 
 # Main execution
 main() {
+    # Handle cleanup-only mode
+    if [ "$1" = "--cleanup" ]; then
+        cleanup_test_data
+        exit 0
+    fi
+    
     echo "=========================================="
     echo "Simple n8n Workflow Testing"
     echo "=========================================="
@@ -141,6 +174,7 @@ main() {
     if [ ! -d "$TEST_DIR" ]; then
         log_info "No test payloads found at $TEST_DIR"
         log_info "Create test payloads to enable regression testing"
+        log_info "Use --cleanup flag to remove existing test data"
         exit 0
     fi
     
@@ -183,9 +217,20 @@ main() {
     echo "=========================================="
     if [ $failed -eq 0 ]; then
         log_success "All tests passed ($passed/$((passed + failed)))"
-        exit 0
     else
         log_error "Some tests failed ($failed/$((passed + failed)))"
+    fi
+    
+    # Clean up test data if enabled
+    if [ "$CLEANUP" = "true" ]; then
+        echo ""
+        cleanup_test_data
+    fi
+    
+    # Exit with proper code
+    if [ $failed -eq 0 ]; then
+        exit 0
+    else
         exit 1
     fi
 }
