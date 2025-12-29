@@ -33,8 +33,9 @@ CLEANUP="${2:-false}"
 N8N_API_URL="${N8N_DEV_API_URL:-http://localhost:5679}"
 N8N_API_KEY="${N8N_DEV_API_KEY:-}"
 DB_CONTAINER="${DB_CONTAINER:-postgres-dev-local}"
-DB_USER="${DB_USER:-postgres}"
-DB_NAME="${DB_NAME:-kairon_dev}"
+DB_USER="${DB_USER:-n8n_user}"
+DB_NAME="${DB_NAME:-kairon}"
+DB_NAME_DEV="${DB_NAME_DEV:-kairon_dev}"
 
 # Colors
 RED='\033[0;31m'
@@ -58,9 +59,11 @@ log_info() {
 cleanup_test_data() {
     log_info "Cleaning up test data..."
     
+    local db_name="${DB_NAME_DEV:-$DB_NAME}"
+    
     # Delete test events (those with test message IDs)
     local deleted_events
-    deleted_events=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "
+    deleted_events=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$db_name" -t -c "
         DELETE FROM events 
         WHERE payload->>'message_id' LIKE 'test-%' 
         OR payload->>'message_id' LIKE 'dev-%';
@@ -69,7 +72,7 @@ cleanup_test_data() {
     
     # Delete orphaned projections
     local deleted_projections
-    deleted_projections=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "
+    deleted_projections=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$db_name" -t -c "
         DELETE FROM projections 
         WHERE event_id NOT IN (SELECT id FROM events)
         RETURNING COUNT(*);
@@ -97,17 +100,19 @@ run_test() {
     local expected_events
     local expected_projections
     
+    local db_name="${DB_NAME_DEV:-$DB_NAME}"
+    
     webhook_data=$(jq -c '.webhook_data' "$test_file")
     expected_events=$(jq -r '.expected_db_changes.events_created // 0' "$test_file")
     expected_projections=$(jq -r '.expected_db_changes.projections_created // 0' "$test_file")
     
     # Get event count before test
     local events_before
-    events_before=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM events;" 2>/dev/null | tr -d '[:space:]' || echo "0")
+    events_before=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$db_name" -t -c "SELECT COUNT(*) FROM events;" 2>/dev/null | tr -d '[:space:]' || echo "0")
     
     # Get projection count before test
     local projections_before
-    projections_before=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM projections;" 2>/dev/null | tr -d '[:space:]' || echo "0")
+    projections_before=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$db_name" -t -c "SELECT COUNT(*) FROM projections;" 2>/dev/null | tr -d '[:space:]' || echo "0")
     
     # Send webhook
     local webhook_path="${WEBHOOK_PATH:-kairon-dev-test}"
@@ -125,13 +130,15 @@ run_test() {
     # Wait for workflow execution
     sleep 3
     
+    local db_name="${DB_NAME_DEV:-$DB_NAME}"
+    
     # Check event count after test
     local events_after
-    events_after=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM events;" 2>/dev/null | tr -d '[:space:]' || echo "0")
+    events_after=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$db_name" -t -c "SELECT COUNT(*) FROM events;" 2>/dev/null | tr -d '[:space:]' || echo "0")
     
     # Check projection count after test
     local projections_after
-    projections_after=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM projections;" 2>/dev/null | tr -d '[:space:]' || echo "0")
+    projections_after=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$db_name" -t -c "SELECT COUNT(*) FROM projections;" 2>/dev/null | tr -d '[:space:]' || echo "0")
     
     # Verify results
     local events_created=$((events_after - events_before))
