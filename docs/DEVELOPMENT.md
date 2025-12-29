@@ -204,7 +204,13 @@ Local n8n instance uses API key authentication:
 
 ### Workflow Transformation Details
 
-The `transform_for_dev.py` script modifies workflows for local testing:
+> ⚠️ **DEPRECATED:** The `transform_for_dev.py` script is archived in `archive/old-framework/` and is no longer needed.
+>
+> The new simplified deployment pipeline (`simple-deploy.sh`) uses a single codebase approach without transformations. Workflows use environment variables (`={{ $env.VAR }}`) for environment-specific configuration.
+>
+> **→ See [SIMPLIFIED_PIPELINE.md](SIMPLIFIED_PIPELINE.md) for the new approach.
+
+The old `transform_for_dev.py` script modified workflows for local testing:
 
 - **Schedule → Webhook:** Converts Schedule Triggers to Webhook Triggers for manual testing
 - **Discord Mocking:** Replaces Discord nodes with Code nodes that return fake API responses
@@ -368,10 +374,10 @@ docker-compose -f docker-compose.dev.yml up -d
 ### Workflow Development Tips
 
 - **Test incrementally:** Deploy and test single workflows as you develop
-- **Use descriptive webhook paths:** Edit `transform_for_dev.py` to change webhook paths for clarity
-- **Monitor logs:** `docker-compose logs -f` shows n8n processing in real-time
+- **Use environment variables:** Configure behavior via `={{ $env.VAR }}` in workflows
+- **Monitor logs:** `docker logs -f n8n-dev-local` shows n8n processing in real-time
 - **Database persistence:** Data persists between container restarts (use `down -v` to reset)
-- **Iterative development:** Just run `./scripts/deploy.sh dev` after editing workflow files
+- **Iterative development:** Just run `bash scripts/simple-deploy.sh dev` after editing workflow files
 
 ### Cleanup
 
