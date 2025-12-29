@@ -50,6 +50,29 @@ log_info() {
     echo -e "${YELLOW}→ $1${NC}"
 }
 
+# Retry wrapper for curl commands (handles transient network issues)
+retry_curl() {
+    local max_attempts=3
+    local attempt=1
+    local delay=2
+    
+    while [ $attempt -le $max_attempts ]; do
+        if curl "$@"; then
+            return 0
+        fi
+        
+        if [ $attempt -lt $max_attempts ]; then
+            echo -e "${YELLOW}Retry $attempt/$max_attempts in ${delay}s...${NC}" >&2
+            sleep $delay
+        fi
+        
+        attempt=$((attempt + 1))
+        delay=$((delay * 2))
+    done
+    
+    return 1
+}
+
 # Validate JSON syntax
 validate_json() {
     log_info "Validating workflow JSON syntax..."
@@ -91,10 +114,14 @@ deploy_workflows() {
     fi
     
     # Check n8n is accessible
-    if ! curl -s -f -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=1" > /dev/null 2>&1; then
+    if ! retry_curl -s -f -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=1" > /dev/null 2>&1; then
         log_error "Cannot connect to n8n at $api_url"
         return 1
     fi
+    
+    # Get existing workflows
+    local existing_workflows
+    existing_workflows=$(retry_curl -s -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=100" | jq -r '.data[] | "\(.name)|\(.id)"')
     
     # Get existing workflows
     local existing_workflows
@@ -121,7 +148,7 @@ deploy_workflows() {
         
         if [ -n "$existing_id" ]; then
             # Update existing workflow
-            if curl -s -f -X PUT \
+            if retry_curl -s -f -X PUT \
                 -H "X-N8N-API-KEY: $api_key" \
                 -H "Content-Type: application/json" \
                 -d "$payload" \
@@ -134,7 +161,7 @@ deploy_workflows() {
             fi
         else
             # Create new workflow
-            if curl -s -f -X POST \
+            if retry_curl -s -f -X POST \
                 -H "X-N8N-API-KEY: $api_key" \
                 -H "Content-Type: application/json" \
                 -d "$payload" \
@@ -207,7 +234,7 @@ smoke_test() {
     
     # Verify workflows are accessible
     local count
-    count=$(curl -s -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=1" | jq '.data | length')
+    count=$(retry_curl -s -H "X-N8N-API-KEY: $api_key" "$api_url/api/v1/workflows?limit=1" | jq '.data | length')
     
     if [ "$count" -ge 1 ]; then
         log_success "Smoke test passed ($count workflows accessible)"
