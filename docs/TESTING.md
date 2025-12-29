@@ -222,23 +222,15 @@ The regression testing framework provides:
 
 ```bash
 # Test all workflows with test payloads
-bash scripts/testing/regression_test.sh --all
+bash scripts/simple-test.sh
 
 # Test specific workflow
-bash scripts/testing/regression_test.sh --workflow Multi_Capture
-
-# Test modified workflows (default)
-bash scripts/testing/regression_test.sh
-
-# Skip prod DB snapshot (use existing dev data)
-bash scripts/testing/regression_test.sh --no-db-snapshot
-
-# Keep DB after tests (for debugging)
-bash scripts/testing/regression_test.sh --keep-db
-
-# Verbose output
-bash scripts/testing/regression_test.sh --verbose
+bash scripts/simple-test.sh Route_Message
 ```
+
+> **Note:** The old `scripts/testing/regression_test.sh` has been archived. Use `scripts/simple-test.sh` for all testing.
+>
+> **→ See [scripts/testing/README.md](scripts/testing/README.md) for complete testing guide.
 
 ## Test Payload Format
 
@@ -481,12 +473,14 @@ Regression testing replaces it with a maintainable, working approach.
 
 ## Detailed Documentation
 
-For comprehensive documentation on regression testing:
+For comprehensive documentation on testing:
 - **Main Guide:** `scripts/testing/README.md`
   - Complete test payload creation guide
   - Coverage strategy checklist
   - Troubleshooting guide
   - FAQ
+
+> **Note:** The old `scripts/testing/regression_test.sh` has been archived. Use `scripts/simple-test.sh` for all testing.
 
 ---
 
@@ -533,11 +527,12 @@ Workflow Development → Pre-commit Checks → Structural Validation
 
 # Future Enhancements
 
-## Regression Testing
+## Simplified Testing Framework
 1. **Cross-workflow tests** - Test workflow chains, not just individual workflows
 2. **Performance benchmarks** - Track workflow execution times
 3. **Automated payload generation** - Suggest test cases based on workflow structure
 4. **Visual test reports** - HTML reports with execution details
+5. **Test data cleanup** - Add automatic cleanup of test data after execution
 
 ## Structural Validation
 1. **n8n UI Compatibility Testing** - Browser automation to test workflow editor loading
