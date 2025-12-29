@@ -18,12 +18,12 @@ n8n workflows can reference other workflows by ID, but these IDs differ between 
 ```bash
 ./scripts/deploy.sh           # Full pipeline: unit tests → dev → functional tests → prod
 ./scripts/deploy.sh dev       # Deploy to dev only + run functional tests
-./scripts/deploy.sh prod      # Deploy to prod only (not recommended - skip tests)
+./scripts/deploy.sh prod (recommended)      # Deploy to prod only (not recommended - skip tests)
 ```
 
 **What it does:**
 - **Stage 0: Unit Tests** - Structural validation and Python unit tests
-- **Stage 1: Dev deployment** - Transform workflows with `transform_for_dev.py` and push to dev n8n
+- **Stage 1: Local deployment** - Transform workflows with `no transformations` and push to dev n8n
 - **Stage 2: Regression Tests** - Test modified workflows with prod DB snapshot
   - Identifies modified workflows (git diff)
   - Optionally snapshots prod DB to dev
@@ -122,7 +122,7 @@ rdev n8n exec 12345        # Inspect execution by ID
                │    - Python unit tests                        │
                │                                              │
                ├─── STAGE 1: DEV DEPLOY ──────────────────────┐
-               │    1. Transform workflows (transform_for_dev.py)
+               │    1. Transform workflows (no transformations)
                │    2. Push to dev n8n                         │
                │    3. Fix workflow ID refs                    │
                │                                              │

@@ -18,7 +18,7 @@ Comprehensive guide to debugging Kairon workflows, database issues, and system p
 # 1. Check system status
 ./tools/kairon-ops.sh status  # Production
 # OR for local dev:
-docker-compose -f docker-compose.dev.yml ps
+docker-compose ps
 
 # 2. Check recent activity
 ./tools/kairon-ops.sh db-query "
@@ -30,7 +30,7 @@ docker-compose -f docker-compose.dev.yml ps
 "
 
 # 3. Check for errors in logs
-docker-compose -f docker-compose.dev.yml logs -f n8n-dev  # Local dev
+docker-compose logs -f n8n-dev  # Local dev
 # OR for production:
 ssh production-server "docker logs n8n --tail 50"
 ```
@@ -452,7 +452,7 @@ curl -X POST http://localhost:5679/webhook/test-db \
 
 ```bash
 # Check n8n memory usage
-docker stats n8n-dev-local
+docker stats n8n-local
 
 # Monitor database connections
 ./tools/kairon-ops.sh db-query "
@@ -482,13 +482,13 @@ curl -X POST http://localhost:5679/webhook/test \
 
 ```bash
 # Extract error patterns from logs
-docker logs n8n-dev-local 2>&1 | grep -i error | tail -20
+docker logs n8n-local 2>&1 | grep -i error | tail -20
 
 # Find timeout issues
-docker logs n8n-dev-local 2>&1 | grep -i timeout
+docker logs n8n-local 2>&1 | grep -i timeout
 
 # Analyze execution patterns
-docker logs n8n-dev-local 2>&1 | grep "execution.*completed" | wc -l
+docker logs n8n-local 2>&1 | grep "execution.*completed" | wc -l
 ```
 
 ---
@@ -502,7 +502,7 @@ docker logs n8n-dev-local 2>&1 | grep "execution.*completed" | wc -l
 | `inspect_execution.py` | Debug failed executions | `./scripts/workflows/inspect_execution.py <execution-id>` |
 | `check_migration_status.sql` | Database health check | `./tools/kairon-ops.sh db -f scripts/db/check_migration_status.sql` |
 | `kairon-ops.sh status` | System overview | `./tools/kairon-ops.sh status` |
-| `docker logs` | Container logs | `docker logs n8n-dev-local` |
+| `docker logs` | Container logs | `docker logs n8n-local` |
 
 **Remember:** Start with the checklists, use the tools systematically, and work from symptoms to root cause!
 

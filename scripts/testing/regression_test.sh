@@ -84,7 +84,7 @@ fi
 # Testing-specific environment configuration
 TESTING_DB_USER="${DB_USER:-n8n_user}"
 TESTING_DB_NAME="${DB_NAME:-kairon}"
-TESTING_DB_CONTAINER="${TESTING_DB_CONTAINER:-postgres-dev-local}"
+TESTING_DB_CONTAINER="${TESTING_DB_CONTAINER:-postgres-local}"
 TESTING_WEBHOOK_PATH="${WEBHOOK_PATH:-asoiaf3947}"
 
 # Timing and limit constants

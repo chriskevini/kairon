@@ -61,11 +61,14 @@ Discord → Route_Event → Route_Message → Multi_Capture/Execute_Command/etc.
 
 ### Local Development
 ```bash
-# Start containers
-docker-compose -f docker-compose.dev.yml up -d
+# One-command setup
+./scripts/setup-local.sh
 
-# Transform and deploy workflows
-# ... see docs for complete setup
+# Deploy after changes
+./scripts/deploy.sh local
+
+# Deploy to production
+./scripts/deploy.sh prod
 ```
 
 **📖 Complete Guide:** `docs/DEVELOPMENT.md`
